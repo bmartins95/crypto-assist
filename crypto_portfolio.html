@@ -755,6 +755,20 @@
     const fmtQtd = v => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
     const fmtDate = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
 
+    function applyAvatar(coinId, symbol, url) {
+      ['avcard-', 'av-'].forEach(prefix => {
+        const el = document.getElementById(prefix + coinId);
+        if (el) el.innerHTML = `<img src="${url}" alt="${symbol}">`;
+      });
+    }
+
+    function loadAvatar(coinId, symbol) {
+      if (!coinId) return;
+      const cache = JSON.parse(localStorage.getItem('cp_avatars') || '{}');
+      const hit = cache[coinId];
+      if (hit?.url) applyAvatar(coinId, symbol, hit.url);
+    }
+
     function addAssetRow(a = {}) {
       const id = 'a' + Date.now() + Math.random().toString(36).slice(2);
       const div = document.createElement('div');
@@ -774,13 +788,7 @@
           <div class="field"><label>Preço de saída / meta (R$) — opcional</label><input type="number" placeholder="—" step="any" value="${a.exitPrice || ''}" id="exit-${id}" onchange="saveExitPrice('${id}')"></div>
         </div>`;
       document.getElementById('assets-wrap').appendChild(div);
-      if (a.coinId) {
-        fetch(`https://api.coingecko.com/api/v3/coins/${a.coinId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`)
-          .then(r => r.json()).then(d => {
-            const el = document.getElementById('avcard-' + a.coinId);
-            if (el && d.image?.thumb) el.innerHTML = `<img src="${d.image.thumb}" alt="${a.symbol}">`;
-          }).catch(() => { });
-      }
+      loadAvatar(a.coinId, a.symbol);
     }
 
     function saveExitPrice(id) {
@@ -879,16 +887,27 @@
       collectAssets();
       if (!assets.length) { setStatus('Registre operações no Histórico primeiro.'); return; }
       setStatus('Buscando cotações...');
-      const ids = assets.map(a => a.coinId).join(',');
+      const ids = [...new Set(assets.map(a => a.coinId))].join(',');
       try {
-        const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=brl`);
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}`);
+        if (!r.ok) {
+          setStatus(r.status === 429 ? 'Limite de requisições atingido. Aguarde alguns minutos.' : 'Erro ao buscar preços (HTTP ' + r.status + ').');
+          return;
+        }
         const d = await r.json();
-        prices = {};
-        assets.forEach(a => { prices[a.coinId] = d[a.coinId]?.brl || 0; });
+        if (!Array.isArray(d)) { setStatus('Resposta inesperada da API. Tente novamente.'); return; }
+        const avatarCache = JSON.parse(localStorage.getItem('cp_avatars') || '{}');
+        let updated = 0;
+        d.forEach(coin => {
+          if (coin.current_price != null) { prices[coin.id] = coin.current_price; updated++; }
+          if (coin.image) { avatarCache[coin.id] = { url: coin.image }; applyAvatar(coin.id, coin.symbol?.toUpperCase(), coin.image); }
+        });
+        localStorage.setItem('cp_avatars', JSON.stringify(avatarCache));
         localStorage.setItem('cp_prices', JSON.stringify(prices));
         const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         localStorage.setItem('cp_prices_time', now);
-        setStatus('Atualizado às ' + now);
+        const missing = assets.length - updated;
+        setStatus(missing > 0 ? `Atualizado às ${now} (${missing} ativo(s) sem cotação)` : 'Atualizado às ' + now);
         renderTable(); renderLucro();
       } catch (e) { setStatus('Erro ao buscar preços. Verifique sua conexão.'); }
     }
@@ -941,13 +960,7 @@
     }
 
     function loadAvatars(list) {
-      list.forEach(a => {
-        fetch(`https://api.coingecko.com/api/v3/coins/${a.coinId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`)
-          .then(r => r.json()).then(d => {
-            const el = document.getElementById('av-' + a.coinId);
-            if (el && d.image?.thumb) el.innerHTML = `<img src="${d.image.thumb}" alt="${a.symbol}">`;
-          }).catch(() => { });
-      });
+      list.forEach(a => loadAvatar(a.coinId, a.symbol));
     }
 
     function updateMetrics(inv, atual) {
