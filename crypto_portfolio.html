@@ -382,7 +382,11 @@
         </div>
       </div>
       <div class="topbar">
-        <span class="topbar-title">Posições abertas</span>
+        <div class="chart-switcher" style="margin-bottom:0">
+          <button class="chart-btn active" data-group="ativo" onclick="switchGroup('ativo')"><i class="ti ti-coins"></i> Por ativo</button>
+          <button class="chart-btn" data-group="plataforma" onclick="switchGroup('plataforma')"><i class="ti ti-building-bank"></i> Por plataforma</button>
+          <button class="chart-btn" data-group="ambos" onclick="switchGroup('ambos')"><i class="ti ti-layout-grid"></i> Ativo + plataforma</button>
+        </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="status" id="status-msg"></span>
           <button class="btn-sm" onclick="fetchPrices()"><i class="ti ti-refresh"></i> Atualizar preços</button>
@@ -527,7 +531,7 @@
 
   <script>
     let assets = [], prices = {}, ops = [], lucroChart = null, opSearchTimer = null;
-    let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit';
+    let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit', groupMode = 'ativo';
 
     function exportData() {
       const backup = {
@@ -920,6 +924,29 @@
 
     function setStatus(msg) { document.getElementById('status-msg').textContent = msg; }
 
+    function switchGroup(mode) {
+      groupMode = mode;
+      document.querySelectorAll('[data-group]').forEach(b => b.classList.toggle('active', b.dataset.group === mode));
+      renderTable();
+    }
+
+    function computePositionsByAssetAndPlatform() {
+      const map = {};
+      ops.forEach(o => {
+        if (!o.coinId) return;
+        const plat = o.plataforma || 'Sem plataforma';
+        const key = o.coinId + '||' + plat;
+        if (!map[key]) map[key] = { coinId: o.coinId, symbol: o.symbol, name: o.name, plataforma: plat, buyQty: 0, buyTotal: 0, sellQty: 0 };
+        if (o.tipo === 'Compra') { map[key].buyQty += o.qtd; map[key].buyTotal += o.qtd * o.preco; }
+        else { map[key].sellQty += o.qtd; }
+      });
+      return Object.values(map).map(m => ({
+        coinId: m.coinId, symbol: m.symbol, name: m.name, plataforma: m.plataforma,
+        qty: +(m.buyQty - m.sellQty).toFixed(10),
+        avgPrice: m.buyQty > 0 ? m.buyTotal / m.buyQty : 0
+      })).filter(a => a.qty > 1e-9);
+    }
+
     // --- Carteira table ---
     function renderTable() {
       collectAssets();
@@ -928,49 +955,135 @@
         wrap.innerHTML = '<div class="empty-state"><i class="ti ti-chart-candle"></i><span>Registre operações no <strong>Histórico</strong> para ver sua carteira</span></div>';
         updateMetrics(0, 0); return;
       }
-      let tInv = 0, tAtual = 0;
-      const rows = assets.map(a => {
-        const p = prices[a.coinId] || 0;
-        const inv = a.qty * a.avgPrice, atual = a.qty * p, lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
-        tInv += inv; tAtual += atual;
-        const hasMeta = a.exitPrice > 0;
-        const lMeta = hasMeta ? a.qty * a.exitPrice - inv : null;
-        const pMeta = hasMeta && inv > 0 ? (lMeta / inv) * 100 : null;
-        return { a, p, inv, atual, lucro, pct, lMeta, pMeta };
-      });
-      updateMetrics(tInv, tAtual);
-      wrap.innerHTML = `<div class="table-wrap"><table>
-        <thead><tr>
-          <th style="width:170px">Ativo</th>
-          <th style="width:120px">Preço atual</th>
-          <th style="width:110px">Investido</th>
-          <th style="width:110px">Valor atual</th>
-          <th style="width:120px">Lucro / Prej.</th>
-          <th style="width:90px">Retorno</th>
-          <th>Meta de saída</th>
-        </tr></thead>
-        <tbody>${rows.map(({ a, p, inv, atual, lucro, pct, lMeta, pMeta }) => `
-        <tr>
-          <td><div class="coin-cell">
-            <div class="avatar" id="av-${a.coinId}">${(a.symbol || '?').slice(0, 3)}</div>
-            <div><div class="coin-name">${a.name}</div><div class="coin-sym">${a.symbol} · ${fmtQtd(a.qty)}</div></div>
-          </div></td>
-          <td style="font-weight:500">${p ? fmt(p) : '<span style="color:var(--text3)">—</span>'}</td>
-          <td>${fmt(inv)}</td>
-          <td>${p ? fmt(atual) : '<span style="color:var(--text3)">—</span>'}</td>
-          <td class="${lucro >= 0 ? 'pos' : 'neg'}" style="font-weight:500">${p ? fmt(lucro) : '—'}</td>
-          <td>${p ? `<span class="pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="number" class="exit-input" placeholder="—" step="any" value="${a.exitPrice || ''}"
-                onchange="saveExitPrice('${a.coinId}', this.value); renderTable();"
-                style="width:90px">
-              ${lMeta !== null ? `<span class="pill pill-neu" style="font-size:11px">${fmtPct(pMeta)}</span>` : ''}
-            </div>
-          </td>
-        </tr>`).join('')}</tbody>
-      </table></div>`;
-      assets.forEach(a => loadAvatar(a.coinId, a.symbol));
+
+      if (groupMode === 'plataforma') {
+        const byAssetPlat = computePositionsByAssetAndPlatform();
+        const platMap = {};
+        byAssetPlat.forEach(p => {
+          if (!platMap[p.plataforma]) platMap[p.plataforma] = { plataforma: p.plataforma, positions: [] };
+          platMap[p.plataforma].positions.push(p);
+        });
+        const groups = Object.values(platMap);
+        let tInv = 0, tAtual = 0;
+        const rows = groups.map(g => {
+          const inv = g.positions.reduce((s, p) => s + p.qty * p.avgPrice, 0);
+          const atual = g.positions.reduce((s, p) => s + p.qty * (prices[p.coinId] || 0), 0);
+          const lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
+          const hasPrice = g.positions.some(p => prices[p.coinId] > 0);
+          const symbols = [...new Set(g.positions.map(p => p.symbol))].join(', ');
+          tInv += inv; if (hasPrice) tAtual += atual;
+          return { g, inv, atual, lucro, pct, hasPrice, symbols };
+        });
+        updateMetrics(tInv, tAtual);
+        wrap.innerHTML = `<div class="table-wrap"><table>
+          <thead><tr>
+            <th>Plataforma</th>
+            <th>Ativos</th>
+            <th style="width:110px">Investido</th>
+            <th style="width:110px">Valor atual</th>
+            <th style="width:120px">Lucro / Prej.</th>
+            <th style="width:90px">Retorno</th>
+          </tr></thead>
+          <tbody>${rows.map(({ g, inv, atual, lucro, pct, hasPrice, symbols }) => `
+          <tr>
+            <td style="font-weight:500">${g.plataforma}</td>
+            <td style="color:var(--text2);font-size:12px">${symbols}</td>
+            <td>${fmt(inv)}</td>
+            <td>${hasPrice ? fmt(atual) : '<span style="color:var(--text3)">—</span>'}</td>
+            <td class="${lucro >= 0 ? 'pos' : 'neg'}" style="font-weight:500">${hasPrice ? fmt(lucro) : '—'}</td>
+            <td>${hasPrice ? `<span class="pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+
+      } else if (groupMode === 'ambos') {
+        const positions = computePositionsByAssetAndPlatform();
+        const avatarCache = JSON.parse(localStorage.getItem('cp_avatars') || '{}');
+        // Group by platform
+        const platMap = {};
+        positions.forEach(p => {
+          if (!platMap[p.plataforma]) platMap[p.plataforma] = [];
+          platMap[p.plataforma].push(p);
+        });
+        let tInv = 0, tAtual = 0;
+        const tableHeader = `<thead><tr>
+            <th style="width:170px">Ativo</th>
+            <th style="width:120px">Preço atual</th>
+            <th style="width:110px">Investido</th>
+            <th style="width:110px">Valor atual</th>
+            <th style="width:120px">Lucro / Prej.</th>
+            <th style="width:90px">Retorno</th>
+          </tr></thead>`;
+        const tables = Object.entries(platMap).map(([plat, rows]) => {
+          const rowsHtml = rows.map(p => {
+            const price = prices[p.coinId] || 0;
+            const inv = p.qty * p.avgPrice, atual = p.qty * price, lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
+            tInv += inv; if (price) tAtual += atual;
+            const avatarHtml = avatarCache[p.coinId]?.url ? `<img src="${avatarCache[p.coinId].url}" alt="${p.symbol}">` : (p.symbol || '?').slice(0, 3);
+            return `<tr>
+              <td><div class="coin-cell">
+                <div class="avatar">${avatarHtml}</div>
+                <div><div class="coin-name">${p.name}</div><div class="coin-sym">${p.symbol} · ${fmtQtd(p.qty)}</div></div>
+              </div></td>
+              <td style="font-weight:500">${price ? fmt(price) : '<span style="color:var(--text3)">—</span>'}</td>
+              <td>${fmt(inv)}</td>
+              <td>${price ? fmt(atual) : '<span style="color:var(--text3)">—</span>'}</td>
+              <td class="${lucro >= 0 ? 'pos' : 'neg'}" style="font-weight:500">${price ? fmt(lucro) : '—'}</td>
+              <td>${price ? `<span class="pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
+            </tr>`;
+          }).join('');
+          return `<div style="margin-bottom:1rem">
+            <div class="topbar-title" style="margin-bottom:6px;padding:0 2px"><i class="ti ti-building-bank" style="font-size:12px;vertical-align:middle;margin-right:4px"></i>${plat}</div>
+            <div class="table-wrap"><table>${tableHeader}<tbody>${rowsHtml}</tbody></table></div>
+          </div>`;
+        }).join('');
+        updateMetrics(tInv, tAtual);
+        wrap.innerHTML = tables;
+
+      } else {
+        let tInv = 0, tAtual = 0;
+        const rows = assets.map(a => {
+          const p = prices[a.coinId] || 0;
+          const inv = a.qty * a.avgPrice, atual = a.qty * p, lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
+          tInv += inv; tAtual += atual;
+          const hasMeta = a.exitPrice > 0;
+          const lMeta = hasMeta ? a.qty * a.exitPrice - inv : null;
+          const pMeta = hasMeta && inv > 0 ? (lMeta / inv) * 100 : null;
+          return { a, p, inv, atual, lucro, pct, lMeta, pMeta };
+        });
+        updateMetrics(tInv, tAtual);
+        wrap.innerHTML = `<div class="table-wrap"><table>
+          <thead><tr>
+            <th style="width:170px">Ativo</th>
+            <th style="width:120px">Preço atual</th>
+            <th style="width:110px">Investido</th>
+            <th style="width:110px">Valor atual</th>
+            <th style="width:120px">Lucro / Prej.</th>
+            <th style="width:90px">Retorno</th>
+            <th>Meta de saída</th>
+          </tr></thead>
+          <tbody>${rows.map(({ a, p, inv, atual, lucro, pct, lMeta, pMeta }) => `
+          <tr>
+            <td><div class="coin-cell">
+              <div class="avatar" id="av-${a.coinId}">${(a.symbol || '?').slice(0, 3)}</div>
+              <div><div class="coin-name">${a.name}</div><div class="coin-sym">${a.symbol} · ${fmtQtd(a.qty)}</div></div>
+            </div></td>
+            <td style="font-weight:500">${p ? fmt(p) : '<span style="color:var(--text3)">—</span>'}</td>
+            <td>${fmt(inv)}</td>
+            <td>${p ? fmt(atual) : '<span style="color:var(--text3)">—</span>'}</td>
+            <td class="${lucro >= 0 ? 'pos' : 'neg'}" style="font-weight:500">${p ? fmt(lucro) : '—'}</td>
+            <td>${p ? `<span class="pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="number" class="exit-input" placeholder="—" step="any" value="${a.exitPrice || ''}"
+                  onchange="saveExitPrice('${a.coinId}', this.value); renderTable();"
+                  style="width:90px">
+                ${lMeta !== null ? `<span class="pill pill-neu" style="font-size:11px">${fmtPct(pMeta)}</span>` : ''}
+              </div>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+        assets.forEach(a => loadAvatar(a.coinId, a.symbol));
+      }
     }
 
     function updateMetrics(inv, atual) {
