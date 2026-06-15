@@ -42,11 +42,7 @@
       }
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -55,500 +51,268 @@
       min-height: 100vh;
     }
 
-    .app {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-    }
-
-    .header {
-      margin-bottom: 1.5rem;
-    }
-
-    .header h1 {
-      font-size: 20px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .header p {
-      font-size: 13px;
-      color: var(--text2);
-      margin-top: 4px;
-    }
+    .app { max-width: 1152px; margin: 0 auto; padding: 2rem 1rem; }
+    .header { margin-bottom: 1.5rem; }
+    .header h1 { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
 
     .nav {
-      display: flex;
-      gap: 2px;
-      background: var(--bg2);
-      border-radius: var(--radius-lg);
-      padding: 4px;
-      margin-bottom: 1.5rem;
-      border: 0.5px solid var(--border);
+      display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius-lg);
+      padding: 4px; margin-bottom: 1.5rem; border: 0.5px solid var(--border);
     }
 
     .nav-btn {
-      flex: 1;
-      padding: 9px 12px;
-      font-size: 13px;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      color: var(--text2);
-      border-radius: var(--radius);
-      transition: background .15s, color .15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      font-family: inherit;
+      flex: 1; padding: 9px 12px; font-size: 13px; cursor: pointer; border: none;
+      background: transparent; color: var(--text2); border-radius: var(--radius);
+      transition: background .15s, color .15s; display: flex; align-items: center;
+      justify-content: center; gap: 6px; font-family: inherit;
     }
 
     .nav-btn.active {
-      background: var(--bg);
-      color: var(--text);
-      font-weight: 500;
+      background: var(--bg); color: var(--text); font-weight: 500;
       border: 0.5px solid var(--border);
     }
 
-    .section {
-      display: none;
-    }
-
-    .section.active {
-      display: block;
-    }
+    .section { display: none; }
+    .section.active { display: block; }
 
     .metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px;
-      margin-bottom: 1.25rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px; margin-bottom: 1.25rem;
     }
 
     .metric {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1rem 1.25rem;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1rem 1.25rem;
     }
 
     .metric-label {
-      font-size: 12px;
-      color: var(--text2);
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
+      font-size: 12px; color: var(--text2); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 5px;
     }
 
-    .metric-value {
-      font-size: 22px;
-      font-weight: 500;
-      line-height: 1;
-    }
-
-    .pos {
-      color: var(--success);
-    }
-
-    .neg {
-      color: var(--danger);
-    }
+    .metric-value { font-size: 22px; font-weight: 500; line-height: 1; }
+    .pos { color: var(--success); }
+    .neg { color: var(--danger); }
 
     .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
     }
 
-    .topbar-title {
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text2);
-    }
-
-    .status {
-      font-size: 11px;
-      color: var(--text3);
-    }
+    .topbar-title { font-size: 13px; font-weight: 500; color: var(--text2); }
+    .status { font-size: 11px; color: var(--text3); }
 
     button {
-      font-family: inherit;
-      cursor: pointer;
-      border: 0.5px solid var(--border2);
-      background: transparent;
-      color: var(--text);
-      border-radius: var(--radius);
-      padding: 8px 14px;
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: background .15s;
+      font-family: inherit; cursor: pointer; border: 0.5px solid var(--border2);
+      background: transparent; color: var(--text); border-radius: var(--radius);
+      padding: 8px 14px; font-size: 13px; display: inline-flex; align-items: center;
+      gap: 6px; transition: background .15s;
     }
 
-    button:hover {
-      background: var(--bg2);
+    button:hover { background: var(--bg2); }
+    button:active { transform: scale(0.98); }
+    .btn-sm { font-size: 12px; padding: 6px 12px; }
+
+    input, select {
+      font-family: inherit; font-size: 13px; background: var(--bg); color: var(--text);
+      border: 0.5px solid var(--border2); border-radius: var(--radius);
+      padding: 8px 10px; outline: none; transition: border-color .15s;
     }
 
-    button:active {
-      transform: scale(0.98);
-    }
-
-    .btn-sm {
-      font-size: 12px;
-      padding: 6px 12px;
-    }
-
-    input,
-    select {
-      font-family: inherit;
-      font-size: 13px;
-      background: var(--bg);
-      color: var(--text);
-      border: 0.5px solid var(--border2);
-      border-radius: var(--radius);
-      padding: 8px 10px;
-      outline: none;
-      transition: border-color .15s;
-    }
-
-    input:focus,
-    select:focus {
+    input:focus, select:focus {
       border-color: #534AB7;
       box-shadow: 0 0 0 2px rgba(83, 74, 183, 0.15);
     }
 
     .table-wrap {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      table-layout: fixed;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 
     th {
-      text-align: left;
-      padding: 10px 14px;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text2);
-      border-bottom: 0.5px solid var(--border);
-      background: var(--bg2);
-      letter-spacing: .02em;
+      text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 500;
+      color: var(--text2); border-bottom: 0.5px solid var(--border);
+      background: var(--bg2); letter-spacing: .02em;
     }
 
     td {
-      padding: 11px 14px;
-      border-bottom: 0.5px solid var(--border);
-      vertical-align: middle;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      padding: 11px 14px; border-bottom: 0.5px solid var(--border);
+      vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background: var(--bg2);
-    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg2); }
 
     .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 500;
+      display: inline-flex; align-items: center; padding: 3px 8px;
+      border-radius: 20px; font-size: 11px; font-weight: 500;
     }
 
-    .pill-pos {
-      background: var(--success-bg);
-      color: var(--success);
-    }
+    .pill-pos { background: var(--success-bg); color: var(--success); }
+    .pill-neg { background: var(--danger-bg); color: var(--danger); }
+    .pill-neu { background: var(--bg2); color: var(--text2); }
 
-    .pill-neg {
-      background: var(--danger-bg);
-      color: var(--danger);
-    }
-
-    .pill-neu {
-      background: var(--bg2);
-      color: var(--text2);
-    }
-
-    .coin-cell {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .coin-cell { display: flex; align-items: center; gap: 10px; }
 
     .avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      background: var(--bg2);
-      border: 0.5px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 500;
-      flex-shrink: 0;
-      overflow: hidden;
-      color: var(--text2);
+      width: 30px; height: 30px; border-radius: 50%; background: var(--bg2);
+      border: 0.5px solid var(--border); display: flex; align-items: center;
+      justify-content: center; font-size: 10px; font-weight: 500;
+      flex-shrink: 0; overflow: hidden; color: var(--text2);
     }
 
-    .avatar img {
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-    }
+    .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .coin-name { font-weight: 500; font-size: 13px; }
+    .coin-sym { font-size: 11px; color: var(--text2); }
 
-    .coin-name {
-      font-weight: 500;
-      font-size: 13px;
-    }
-
-    .coin-sym {
-      font-size: 11px;
-      color: var(--text2);
-    }
-
-    .asset-card {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1rem 1.25rem;
-      margin-bottom: 8px;
-    }
-
-    .asset-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      gap: 8px;
-    }
-
-    .asset-fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-    }
-
-    .field label {
-      font-size: 11px;
-      color: var(--text2);
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .field input,
-    .field select {
-      width: 100%;
-    }
-
-    .search-wrap {
-      position: relative;
-      flex: 1;
-    }
+    .search-wrap { position: relative; flex: 1; }
 
     .search-dropdown {
-      position: absolute;
-      z-index: 99;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: var(--bg);
-      border: 0.5px solid var(--border2);
-      border-radius: var(--radius-lg);
-      max-height: 200px;
-      overflow-y: auto;
+      position: absolute; z-index: 99; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--bg); border: 0.5px solid var(--border2);
+      border-radius: var(--radius-lg); max-height: 200px; overflow-y: auto;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     }
 
     .search-item {
-      padding: 9px 12px;
-      cursor: pointer;
-      font-size: 13px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 9px 12px; cursor: pointer; font-size: 13px;
+      display: flex; justify-content: space-between; align-items: center;
     }
 
-    .search-item:hover {
-      background: var(--bg2);
-    }
-
-    .search-item-rank {
-      font-size: 11px;
-      color: var(--text3);
-    }
+    .search-item:hover { background: var(--bg2); }
+    .search-item-rank { font-size: 11px; color: var(--text3); }
 
     .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem 1rem;
-      color: var(--text2);
-      gap: 10px;
-      font-size: 13px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 3rem 1rem; color: var(--text2); gap: 10px; font-size: 13px;
     }
 
-    .empty-state i {
-      font-size: 36px;
-      color: var(--text3);
-    }
+    .empty-state i { font-size: 36px; color: var(--text3); }
 
     .chart-area {
-      background: var(--bg);
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+      position: relative; height: 260px;
+    }
+
+    .chart-switcher {
+      display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius);
+      padding: 3px; margin-bottom: 10px; border: 0.5px solid var(--border);
+      width: fit-content;
+    }
+
+    .chart-btn {
+      padding: 5px 12px; font-size: 12px; cursor: pointer; border: none;
+      background: transparent; color: var(--text2); border-radius: 6px;
+      transition: background .15s, color .15s; font-family: inherit; display: flex;
+      align-items: center; gap: 5px;
+    }
+
+    .chart-btn.active {
+      background: var(--bg); color: var(--text); font-weight: 500;
       border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-      position: relative;
-      height: 240px;
     }
 
     .dist-section {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.25rem;
     }
 
     .sec-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text2);
-      margin-bottom: 1rem;
-      letter-spacing: .02em;
-      text-transform: uppercase;
+      font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 1rem;
+      letter-spacing: .02em; text-transform: uppercase;
     }
 
-    .bar-row {
-      margin-bottom: 12px;
-    }
+    .bar-row { margin-bottom: 12px; }
 
     .bar-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      margin-bottom: 5px;
+      display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;
     }
 
-    .bar-name {
-      color: var(--text);
-      font-weight: 500;
-    }
-
-    .bar-pct {
-      color: var(--text2);
-    }
-
-    .bar-track {
-      height: 6px;
-      background: var(--bg3);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: 3px;
-    }
+    .bar-name { color: var(--text); font-weight: 500; }
+    .bar-pct { color: var(--text2); }
+    .bar-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; }
 
     .op-card {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
-      margin-bottom: 1rem;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
     }
 
     .op-fields {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr auto;
-      gap: 8px;
+      grid-template-columns: 120px 1fr 90px 1fr 1fr 1fr auto;
+      gap: 10px;
       align-items: end;
     }
 
+    .op-fields .field { display: flex; flex-direction: column; gap: 5px; }
+    .op-fields .field label {
+      font-size: 11px; color: var(--text2); font-weight: 500;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .op-fields .field input, .op-fields .field select { width: 100%; }
+    .op-fields .field-hint {
+      position: absolute; top: 100%; left: 0;
+      font-size: 10px; color: var(--text3); margin-top: 3px; white-space: nowrap;
+    }
+
+    .op-price-toggle {
+      font-size: 10px; padding: 1px 6px; border-radius: 4px; line-height: 1.4;
+      color: var(--text3); border-color: var(--border); cursor: pointer;
+      background: transparent; font-family: inherit;
+    }
+
+    .op-fields .field-btn { display: flex; align-items: center; gap: 6px; }
+
     .op-list-wrap {
-      background: var(--bg);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); overflow: hidden;
     }
 
     .op-list-row {
       display: grid;
-      grid-template-columns: 90px 80px 80px 1fr 1fr 1fr 80px 32px;
-      gap: 8px;
-      padding: 10px 14px;
-      border-bottom: 0.5px solid var(--border);
-      font-size: 12px;
-      align-items: center;
+      grid-template-columns: 90px 80px 80px 1fr 1fr 1fr 80px 60px;
+      gap: 8px; padding: 10px 14px; border-bottom: 0.5px solid var(--border);
+      font-size: 12px; align-items: center;
     }
 
     .op-list-head {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text2);
-      background: var(--bg2);
-      letter-spacing: .02em;
+      font-size: 11px; font-weight: 500; color: var(--text2);
+      background: var(--bg2); letter-spacing: .02em;
     }
 
-    .op-list-row:last-child {
-      border-bottom: none;
+    .op-list-row:last-child { border-bottom: none; }
+
+    .op-actions { display: flex; gap: 4px; justify-content: flex-end; }
+
+    .icon-btn {
+      padding: 2px 6px; font-size: 13px; line-height: 1; border-color: transparent;
+      color: var(--text3);
     }
 
-    .actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-      flex-wrap: wrap;
+    .icon-btn:hover { color: var(--text); background: var(--bg3); }
+
+    .exit-input {
+      width: 100%; font-size: 12px; padding: 4px 8px;
+      background: transparent; border-color: transparent;
     }
 
-    @media (max-width: 600px) {
-      .metrics {
-        grid-template-columns: 1fr 1fr;
-      }
+    .exit-input:hover { border-color: var(--border2); background: var(--bg); }
+    .exit-input:focus { border-color: #534AB7; background: var(--bg); }
 
-      .asset-fields {
-        grid-template-columns: 1fr;
-      }
+    .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 
-      .op-fields {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      table {
-        font-size: 12px;
-      }
-
-      th,
-      td {
-        padding: 8px 10px;
-      }
-
-      .nav-btn span {
-        display: none;
-      }
+    @media (max-width: 700px) {
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .op-fields { grid-template-columns: 1fr 1fr; }
+      table { font-size: 12px; }
+      th, td { padding: 8px 10px; }
+      .nav-btn span { display: none; }
+      .chart-switcher { width: 100%; }
+      .chart-btn { flex: 1; justify-content: center; }
     }
   </style>
 </head>
@@ -570,13 +334,9 @@
     </div>
 
     <div class="nav">
-      <button class="nav-btn active" onclick="switchTab('carteira')"><i class="ti ti-wallet"></i>
-        <span>Carteira</span></button>
+      <button class="nav-btn active" onclick="switchTab('carteira')"><i class="ti ti-wallet"></i> <span>Carteira</span></button>
       <button class="nav-btn" onclick="switchTab('lucro')"><i class="ti ti-trending-up"></i> <span>Lucro</span></button>
-      <button class="nav-btn" onclick="switchTab('historico')"><i class="ti ti-receipt"></i>
-        <span>Histórico</span></button>
-      <button class="nav-btn" onclick="switchTab('ativos')"><i class="ti ti-adjustments-horizontal"></i>
-        <span>Ativos</span></button>
+      <button class="nav-btn" onclick="switchTab('historico')"><i class="ti ti-receipt"></i> <span>Histórico</span></button>
     </div>
 
     <!-- CARTEIRA -->
@@ -607,8 +367,7 @@
         </div>
       </div>
       <div id="table-wrap">
-        <div class="empty-state"><i class="ti ti-chart-candle"></i><span>Adicione ativos na aba
-            <strong>Ativos</strong></span></div>
+        <div class="empty-state"><i class="ti ti-chart-candle"></i><span>Registre operações no <strong>Histórico</strong> para ver sua carteira</span></div>
       </div>
     </div>
 
@@ -632,12 +391,16 @@
           <div class="metric-value" id="l-worst" style="font-size:15px">—</div>
         </div>
       </div>
+      <div class="chart-switcher">
+        <button class="chart-btn active" data-chart="por-ativo" onclick="switchChart('por-ativo')"><i class="ti ti-chart-bar"></i> Por ativo</button>
+        <button class="chart-btn" data-chart="no-tempo" onclick="switchChart('no-tempo')"><i class="ti ti-chart-line"></i> Lucro no tempo</button>
+        <button class="chart-btn" data-chart="valor" onclick="switchChart('valor')"><i class="ti ti-chart-area"></i> Valor da carteira</button>
+      </div>
       <div class="chart-area"><canvas id="lucro-chart"></canvas></div>
       <div class="dist-section">
         <div class="sec-title">Distribuição por aporte</div>
         <div id="dist-wrap">
-          <div class="empty-state" style="padding:1rem"><span style="font-size:12px">Adicione ativos e atualize os
-              preços</span></div>
+          <div class="empty-state" style="padding:1rem"><span style="font-size:12px">Adicione ativos e atualize os preços</span></div>
         </div>
       </div>
     </div>
@@ -645,53 +408,59 @@
     <!-- HISTÓRICO -->
     <div id="tab-historico" class="section">
       <div class="op-card">
-        <div class="sec-title" style="margin-bottom:.75rem">Registrar operação</div>
+        <div class="sec-title" style="margin-bottom:.75rem" id="form-title">Registrar operação</div>
         <div class="op-fields">
-          <div class="field"><label>Data</label><input type="date" id="op-data"></div>
+          <div class="field">
+            <label>Data</label>
+            <input type="date" id="op-data">
+          </div>
           <div class="field" style="position:relative">
             <label>Moeda</label>
-            <input type="text" id="op-moeda-search" placeholder="Bitcoin, BTC..." autocomplete="off" oninput="searchOpCoin(this)" style="width:100%">
+            <input type="text" id="op-moeda-search" placeholder="Bitcoin, BTC..." autocomplete="off" oninput="searchOpCoin(this)">
             <div class="search-dropdown" id="sr-op" style="display:none"></div>
             <input type="hidden" id="op-coinid">
             <input type="hidden" id="op-symbol">
             <input type="hidden" id="op-name">
           </div>
-          <div class="field"><label>Tipo</label><select id="op-tipo">
-              <option>Compra</option>
-              <option>Venda</option>
-            </select></div>
-          <div class="field"><label>Quantidade</label><input type="number" id="op-qtd" placeholder="0.5" step="any">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="op-tipo"><option>Compra</option><option>Venda</option></select>
           </div>
-          <div class="field"><label>Preço (R$)</label><input type="number" id="op-preco" placeholder="0.00" step="any">
+          <div class="field">
+            <label>Quantidade</label>
+            <input type="number" id="op-qtd" placeholder="0" step="any" oninput="syncPriceFields()">
           </div>
-          <div class="field"><label>Taxa (R$)</label><input type="number" id="op-taxa" placeholder="0.00" step="any">
+          <div class="field" style="position:relative">
+            <label>
+              <span id="op-preco-label">Preço unit. (R$)</span>
+              <button type="button" class="op-price-toggle" id="btn-price-mode" onclick="togglePriceMode()">⇄ total</button>
+            </label>
+            <input type="number" id="op-preco" placeholder="0.00" step="any" oninput="syncPriceFields()">
+            <div class="field-hint" id="op-preco-hint"></div>
           </div>
-          <div class="field"><label>&nbsp;</label><button class="btn-sm" onclick="addOp()"><i class="ti ti-plus"></i>
-              Registrar</button></div>
+          <div class="field">
+            <label>Taxa (R$)</label>
+            <input type="number" id="op-taxa" placeholder="0.00" step="any">
+          </div>
+          <div class="field-btn">
+            <button class="btn-sm" id="btn-register" onclick="addOp()"><i class="ti ti-plus"></i> Registrar</button>
+            <button class="btn-sm" id="btn-cancel-edit" onclick="cancelEdit()" style="display:none;color:var(--danger);border-color:var(--danger)"><i class="ti ti-x"></i> Cancelar</button>
+          </div>
         </div>
       </div>
       <div id="op-list-wrap">
         <div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>
       </div>
     </div>
-
-    <!-- ATIVOS -->
-    <div id="tab-ativos" class="section">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Posições calculadas automaticamente a partir do Histórico. Defina um preço de saída (meta de take profit) para cada ativo.</p>
-      <div id="assets-wrap"></div>
-      <div class="actions">
-        <button class="btn-sm" onclick="fetchPrices();switchTab('carteira')"><i class="ti ti-refresh"></i> Buscar cotações e ver carteira</button>
-      </div>
-    </div>
   </div>
 
   <script>
-    let assets = [], prices = {}, ops = [], lucroChart = null, searchTimer = null, opSearchTimer = null;
+    let assets = [], prices = {}, ops = [], lucroChart = null, opSearchTimer = null;
+    let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit';
 
     function exportData() {
       const backup = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
+        version: 1, exportedAt: new Date().toISOString(),
         ops: JSON.parse(localStorage.getItem('cp_ops') || '[]'),
         prices: JSON.parse(localStorage.getItem('cp_prices') || '{}'),
         pricesTime: localStorage.getItem('cp_prices_time') || null,
@@ -699,15 +468,12 @@
       };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-      a.click();
-      URL.revokeObjectURL(a.href);
+      a.href = URL.createObjectURL(blob); a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click(); URL.revokeObjectURL(a.href);
     }
 
     function importData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+      const file = event.target.files[0]; if (!file) return;
       const reader = new FileReader();
       reader.onload = e => {
         try {
@@ -717,15 +483,11 @@
           if (backup.prices) localStorage.setItem('cp_prices', JSON.stringify(backup.prices));
           if (backup.pricesTime) localStorage.setItem('cp_prices_time', backup.pricesTime);
           if (backup.exitPrices) localStorage.setItem('cp_exit_prices', JSON.stringify(backup.exitPrices));
-          ops = backup.ops;
-          prices = backup.prices || {};
+          ops = backup.ops; prices = backup.prices || {};
           if (backup.pricesTime) setStatus('Última atualização às ' + backup.pricesTime);
-          rebuildAssetsFromOps();
-          renderOps();
+          collectAssets(); renderTable(); renderOps();
           event.target.value = '';
-        } catch {
-          alert('Arquivo inválido. Use um backup exportado por esta aplicação.');
-        }
+        } catch { alert('Arquivo inválido. Use um backup exportado por esta aplicação.'); }
       };
       reader.readAsText(file);
     }
@@ -735,14 +497,13 @@
       prices = JSON.parse(localStorage.getItem('cp_prices') || '{}');
       const lastTime = localStorage.getItem('cp_prices_time');
       if (lastTime) setStatus('Última atualização às ' + lastTime);
-      rebuildAssetsFromOps();
-      renderOps();
+      collectAssets(); renderTable(); renderOps();
     }
 
     const PALETTE = ['#534AB7', '#1D9E75', '#D85A30', '#D4537E', '#378ADD', '#639922', '#BA7517', '#E24B4A', '#888780', '#0F6E56'];
 
     function switchTab(t) {
-      const tabs = ['carteira', 'lucro', 'historico', 'ativos'];
+      const tabs = ['carteira', 'lucro', 'historico'];
       document.querySelectorAll('.nav-btn').forEach((b, i) => b.classList.toggle('active', tabs[i] === t));
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById('tab-' + t).classList.add('active');
@@ -756,7 +517,7 @@
     const fmtDate = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
 
     function applyAvatar(coinId, symbol, url) {
-      ['avcard-', 'av-'].forEach(prefix => {
+      ['av-'].forEach(prefix => {
         const el = document.getElementById(prefix + coinId);
         if (el) el.innerHTML = `<img src="${url}" alt="${symbol}">`;
       });
@@ -769,50 +530,13 @@
       if (hit?.url) applyAvatar(coinId, symbol, hit.url);
     }
 
-    function addAssetRow(a = {}) {
-      const id = 'a' + Date.now() + Math.random().toString(36).slice(2);
-      const div = document.createElement('div');
-      div.className = 'asset-card'; div.id = id;
-      div.innerHTML = `
-        <div class="asset-card-header">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="avatar" id="avcard-${a.coinId || id}">${(a.symbol || '?').slice(0, 3)}</div>
-            <div><div class="coin-name">${a.name || '—'}</div><div class="coin-sym">${a.symbol || ''}</div></div>
-          </div>
-          <input type="hidden" id="cid-${id}" value="${a.coinId || ''}">
-          <input type="hidden" id="sym-${id}" value="${a.symbol || ''}">
-        </div>
-        <div class="asset-fields">
-          <div class="field"><label>Quantidade</label><input type="number" value="${a.qty || ''}" id="qty-${id}" readonly style="opacity:0.55;cursor:default" tabindex="-1"></div>
-          <div class="field"><label>Preço médio de compra (R$)</label><input type="number" value="${a.avgPrice ? a.avgPrice.toFixed(2) : ''}" id="avg-${id}" readonly style="opacity:0.55;cursor:default" tabindex="-1"></div>
-          <div class="field"><label>Preço de saída / meta (R$) — opcional</label><input type="number" placeholder="—" step="any" value="${a.exitPrice || ''}" id="exit-${id}" onchange="saveExitPrice('${id}')"></div>
-        </div>`;
-      document.getElementById('assets-wrap').appendChild(div);
-      loadAvatar(a.coinId, a.symbol);
-    }
-
-    function saveExitPrice(id) {
-      const coinId = document.getElementById('cid-' + id)?.value;
-      const exitPrice = parseFloat(document.getElementById('exit-' + id)?.value) || 0;
-      if (!coinId) return;
-      const stored = JSON.parse(localStorage.getItem('cp_exit_prices') || '{}');
-      stored[coinId] = exitPrice;
-      localStorage.setItem('cp_exit_prices', JSON.stringify(stored));
-      collectAssets();
-      renderTable();
-    }
-
     function computePositions() {
       const map = {};
       ops.forEach(o => {
         if (!o.coinId) return;
         if (!map[o.coinId]) map[o.coinId] = { coinId: o.coinId, symbol: o.symbol, name: o.name, buyQty: 0, buyTotal: 0, sellQty: 0 };
-        if (o.tipo === 'Compra') {
-          map[o.coinId].buyQty += o.qtd;
-          map[o.coinId].buyTotal += o.qtd * o.preco;
-        } else {
-          map[o.coinId].sellQty += o.qtd;
-        }
+        if (o.tipo === 'Compra') { map[o.coinId].buyQty += o.qtd; map[o.coinId].buyTotal += o.qtd * o.preco; }
+        else { map[o.coinId].sellQty += o.qtd; }
       });
       return Object.values(map).map(m => ({
         coinId: m.coinId, symbol: m.symbol, name: m.name,
@@ -821,19 +545,16 @@
       })).filter(a => a.qty > 1e-9);
     }
 
-    function rebuildAssetsFromOps() {
+    function collectAssets() {
       const exitPrices = JSON.parse(localStorage.getItem('cp_exit_prices') || '{}');
-      document.querySelectorAll('#assets-wrap .asset-card').forEach(div => {
-        const id = div.id;
-        const coinId = document.getElementById('cid-' + id)?.value;
-        const ep = parseFloat(document.getElementById('exit-' + id)?.value) || 0;
-        if (coinId && ep > 0) exitPrices[coinId] = ep;
-      });
-      localStorage.setItem('cp_exit_prices', JSON.stringify(exitPrices));
-      document.getElementById('assets-wrap').innerHTML = '';
-      computePositions().forEach(p => addAssetRow({ ...p, exitPrice: exitPrices[p.coinId] || 0 }));
-      collectAssets();
-      renderTable();
+      assets = computePositions().map(p => ({ ...p, exitPrice: exitPrices[p.coinId] || 0 }));
+    }
+
+    function saveExitPrice(coinId, value) {
+      const exitPrice = parseFloat(value) || 0;
+      const stored = JSON.parse(localStorage.getItem('cp_exit_prices') || '{}');
+      if (exitPrice > 0) stored[coinId] = exitPrice; else delete stored[coinId];
+      localStorage.setItem('cp_exit_prices', JSON.stringify(stored));
     }
 
     function searchOpCoin(inp) {
@@ -869,20 +590,117 @@
         document.querySelectorAll('.search-dropdown').forEach(el => el.style.display = 'none');
     });
 
-    function collectAssets() {
-      assets = [];
-      document.querySelectorAll('#assets-wrap .asset-card').forEach(div => {
-        const id = div.id;
-        const coinId = document.getElementById('cid-' + id)?.value;
-        const symbol = document.getElementById('sym-' + id)?.value;
-        const name = div.querySelector('.coin-name')?.textContent;
-        const qty = parseFloat(document.getElementById('qty-' + id)?.value) || 0;
-        const avgPrice = parseFloat(document.getElementById('avg-' + id)?.value) || 0;
-        const exitPrice = parseFloat(document.getElementById('exit-' + id)?.value) || 0;
-        if (coinId && qty > 0 && avgPrice > 0) assets.push({ id, coinId, symbol, name, qty, avgPrice, exitPrice });
-      });
+    // --- Price mode toggle ---
+    function togglePriceMode() {
+      priceMode = priceMode === 'unit' ? 'total' : 'unit';
+      document.getElementById('op-preco-label').textContent = priceMode === 'total' ? 'Total (R$)' : 'Preço unit. (R$)';
+      document.getElementById('btn-price-mode').textContent = priceMode === 'total' ? '⇄ unit.' : '⇄ total';
+      document.getElementById('op-preco').value = '';
+      syncPriceFields();
     }
 
+    function syncPriceFields() {
+      const qtd = parseFloat(document.getElementById('op-qtd').value) || 0;
+      const val = parseFloat(document.getElementById('op-preco').value) || 0;
+      const hint = document.getElementById('op-preco-hint');
+      if (!qtd || !val) { hint.textContent = ''; return; }
+      if (priceMode === 'unit') {
+        hint.textContent = 'Total: ' + fmt(qtd * val);
+      } else {
+        hint.textContent = 'Unit.: ' + fmt(val / qtd);
+      }
+    }
+
+    // --- Operations ---
+    function addOp() {
+      const coinId = document.getElementById('op-coinid').value;
+      const symbol = document.getElementById('op-symbol').value;
+      const name = document.getElementById('op-name').value;
+      const data = document.getElementById('op-data').value;
+      const tipo = document.getElementById('op-tipo').value;
+      const qtd = parseFloat(document.getElementById('op-qtd').value) || 0;
+      const taxa = parseFloat(document.getElementById('op-taxa').value) || 0;
+      const rawVal = parseFloat(document.getElementById('op-preco').value) || 0;
+      if (!coinId || !qtd || !rawVal) return;
+
+      let preco, total;
+      if (priceMode === 'total') {
+        total = rawVal; preco = qtd > 0 ? rawVal / qtd : 0;
+      } else {
+        preco = rawVal; total = tipo === 'Venda' ? qtd * preco - taxa : qtd * preco + taxa;
+      }
+
+      const op = { data, coinId, symbol, name, tipo, qtd, preco, taxa, total };
+      if (editingOpIdx !== null) {
+        ops[editingOpIdx] = op; cancelEdit();
+      } else {
+        ops.push(op);
+      }
+      localStorage.setItem('cp_ops', JSON.stringify(ops));
+      collectAssets(); renderOps(); renderTable();
+      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('op-preco-hint').textContent = '';
+    }
+
+    function editOp(i) {
+      const o = ops[i]; editingOpIdx = i;
+      document.getElementById('op-data').value = o.data || '';
+      document.getElementById('op-moeda-search').value = (o.name || '') + ' (' + (o.symbol || '') + ')';
+      document.getElementById('op-coinid').value = o.coinId || '';
+      document.getElementById('op-symbol').value = o.symbol || '';
+      document.getElementById('op-name').value = o.name || '';
+      document.getElementById('op-tipo').value = o.tipo || 'Compra';
+      document.getElementById('op-qtd').value = o.qtd || '';
+      document.getElementById('op-preco').value = o.preco || '';
+      document.getElementById('op-taxa').value = o.taxa || '';
+      if (priceMode === 'total') togglePriceMode();
+      syncPriceFields();
+      document.getElementById('form-title').textContent = 'Editar operação';
+      document.getElementById('btn-register').innerHTML = '<i class="ti ti-check"></i> Salvar';
+      document.getElementById('btn-cancel-edit').style.display = '';
+      document.getElementById('tab-historico').querySelector('.op-card').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+      editingOpIdx = null;
+      document.getElementById('form-title').textContent = 'Registrar operação';
+      document.getElementById('btn-register').innerHTML = '<i class="ti ti-plus"></i> Registrar';
+      document.getElementById('btn-cancel-edit').style.display = 'none';
+      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('op-preco-hint').textContent = '';
+    }
+
+    function removeOp(i) {
+      if (editingOpIdx === i) cancelEdit();
+      ops.splice(i, 1);
+      localStorage.setItem('cp_ops', JSON.stringify(ops));
+      collectAssets(); renderOps(); renderTable();
+    }
+
+    function renderOps() {
+      const wrap = document.getElementById('op-list-wrap');
+      if (!ops.length) { wrap.innerHTML = '<div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>'; return; }
+      wrap.innerHTML = `<div class="op-list-wrap">
+        <div class="op-list-row op-list-head"><span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span><span>Preço unit.</span><span>Total</span><span>Taxa</span><span></span></div>
+        ${ops.map((o, i) => `<div class="op-list-row" id="op-row-${i}">
+          <span style="color:var(--text2)">${fmtDate(o.data)}</span>
+          <span style="font-weight:500">${o.symbol || '—'}</span>
+          <span><span class="pill ${o.tipo === 'Compra' ? 'pill-pos' : 'pill-neg'}">${o.tipo}</span></span>
+          <span>${fmtQtd(o.qtd)}</span>
+          <span>${fmt(o.preco)}</span>
+          <span style="font-weight:500">${fmt(o.total)}</span>
+          <span style="color:var(--text2)">${o.taxa > 0 ? fmt(o.taxa) : '—'}</span>
+          <span class="op-actions">
+            <button class="icon-btn" onclick="editOp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
+            <button class="icon-btn" onclick="removeOp(${i})" title="Excluir" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
+          </span>
+        </div>`).join('')}
+      </div>`;
+    }
+
+    // --- Price fetching ---
     async function fetchPrices() {
       collectAssets();
       if (!assets.length) { setStatus('Registre operações no Histórico primeiro.'); return; }
@@ -914,6 +732,7 @@
 
     function setStatus(msg) { document.getElementById('status-msg').textContent = msg; }
 
+    // --- Carteira table ---
     function renderTable() {
       collectAssets();
       const wrap = document.getElementById('table-wrap');
@@ -936,9 +755,9 @@
         <thead><tr>
           <th style="width:170px">Ativo</th>
           <th style="width:120px">Preço atual</th>
-          <th style="width:120px">Investido</th>
-          <th style="width:120px">Valor atual</th>
-          <th style="width:130px">Lucro / Prej.</th>
+          <th style="width:110px">Investido</th>
+          <th style="width:110px">Valor atual</th>
+          <th style="width:120px">Lucro / Prej.</th>
           <th style="width:90px">Retorno</th>
           <th>Meta de saída</th>
         </tr></thead>
@@ -953,14 +772,17 @@
           <td>${p ? fmt(atual) : '<span style="color:var(--text3)">—</span>'}</td>
           <td class="${lucro >= 0 ? 'pos' : 'neg'}" style="font-weight:500">${p ? fmt(lucro) : '—'}</td>
           <td>${p ? `<span class="pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}">${fmtPct(pct)}</span>` : '—'}</td>
-          <td>${lMeta !== null ? `<span style="font-size:12px;color:var(--text2)">${fmt(lMeta)}</span> <span class="pill pill-neu">${fmtPct(pMeta)}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="exit-input" placeholder="—" step="any" value="${a.exitPrice || ''}"
+                onchange="saveExitPrice('${a.coinId}', this.value); renderTable();"
+                style="width:90px">
+              ${lMeta !== null ? `<span class="pill pill-neu" style="font-size:11px">${fmtPct(pMeta)}</span>` : ''}
+            </div>
+          </td>
         </tr>`).join('')}</tbody>
       </table></div>`;
-      loadAvatars(assets);
-    }
-
-    function loadAvatars(list) {
-      list.forEach(a => loadAvatar(a.coinId, a.symbol));
+      assets.forEach(a => loadAvatar(a.coinId, a.symbol));
     }
 
     function updateMetrics(inv, atual) {
@@ -971,6 +793,38 @@
       ml.textContent = inv && atual ? fmt(l) : '—'; ml.className = 'metric-value ' + (l >= 0 ? 'pos' : 'neg');
       const mr = document.getElementById('m-ret');
       mr.textContent = inv && atual ? fmtPct(p) : '—'; mr.className = 'metric-value ' + (p >= 0 ? 'pos' : 'neg');
+    }
+
+    // --- Lucro charts ---
+    function switchChart(type) {
+      activeChart = type;
+      document.querySelectorAll('.chart-btn').forEach(b => b.classList.toggle('active', b.dataset.chart === type));
+      renderLucro();
+    }
+
+    function computeTimeline() {
+      const sorted = [...ops].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+      const result = [];
+      const holdings = {};
+      sorted.forEach(op => {
+        if (!op.coinId) return;
+        if (!holdings[op.coinId]) holdings[op.coinId] = { qty: 0, avgCost: 0 };
+        const h = holdings[op.coinId];
+        if (op.tipo === 'Compra') {
+          const newQty = h.qty + op.qtd;
+          h.avgCost = newQty > 0 ? (h.qty * h.avgCost + op.qtd * op.preco) / newQty : 0;
+          h.qty = newQty;
+        } else {
+          h.qty = Math.max(0, h.qty - op.qtd);
+        }
+        const invested = Object.values(holdings).reduce((s, x) => s + x.qty * x.avgCost, 0);
+        const currentValue = Object.entries(holdings).reduce((s, [id, x]) => s + x.qty * (prices[id] || 0), 0);
+        result.push({ date: op.data, invested, currentValue, pnl: currentValue - invested });
+      });
+      // Deduplicate dates: keep last entry per date
+      const byDate = {};
+      result.forEach(r => { byDate[r.date] = r; });
+      return Object.values(byDate).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     }
 
     function renderLucro() {
@@ -995,28 +849,89 @@
         const worst = withPrice.reduce((a, b) => b.pct < a.pct ? b : a);
         document.getElementById('l-best').innerHTML = `${best.symbol}<br><span class="pos" style="font-size:13px">${fmtPct(best.pct)}</span>`;
         document.getElementById('l-worst').innerHTML = `${worst.symbol}<br><span class="${worst.pct >= 0 ? 'pos' : 'neg'}" style="font-size:13px">${fmtPct(worst.pct)}</span>`;
+      } else {
+        document.getElementById('l-best').textContent = '—';
+        document.getElementById('l-worst').textContent = '—';
+      }
 
-        const ctx = document.getElementById('lucro-chart').getContext('2d');
-        if (lucroChart) lucroChart.destroy();
-        lucroChart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: withPrice.map(d => d.symbol), datasets: [{
-              label: 'Lucro/Prejuízo (R$)',
-              data: withPrice.map(d => parseFloat(d.l.toFixed(2))),
-              backgroundColor: withPrice.map(d => d.l >= 0 ? '#1D9E75' : '#E24B4A'),
-              borderRadius: 6, borderSkipped: false
-            }]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) }, padding: 10 } },
-            scales: {
-              y: { ticks: { callback: v => fmt(v), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
-              x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12 } } }
+      if (lucroChart) { lucroChart.destroy(); lucroChart = null; }
+      const chartArea = document.querySelector('.chart-area');
+      chartArea.innerHTML = '<canvas id="lucro-chart"></canvas>';
+      const ctx = document.getElementById('lucro-chart').getContext('2d');
+
+      const noDataOverlay = '<div class="empty-state" style="position:absolute;inset:0"><span style="font-size:13px">Atualize os preços para ver o gráfico</span></div>';
+
+      if (activeChart === 'por-ativo') {
+        if (!withPrice.length) { chartArea.insertAdjacentHTML('beforeend', noDataOverlay); }
+        else {
+          lucroChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: withPrice.map(d => d.symbol),
+              datasets: [{ label: 'Lucro/Prejuízo (R$)', data: withPrice.map(d => parseFloat(d.l.toFixed(2))), backgroundColor: withPrice.map(d => d.l >= 0 ? '#1D9E75' : '#E24B4A'), borderRadius: 6, borderSkipped: false }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) }, padding: 10 } },
+              scales: {
+                y: { ticks: { callback: v => fmt(v), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+                x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12 } } }
+              }
             }
-          }
-        });
+          });
+        }
+      } else if (activeChart === 'no-tempo') {
+        const timeline = computeTimeline();
+        if (!timeline.length || !withPrice.length) {
+          chartArea.insertAdjacentHTML('beforeend', noDataOverlay);
+        } else {
+          lucroChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: timeline.map(t => fmtDate(t.date)),
+              datasets: [{
+                label: 'Lucro/Prejuízo (R$)', data: timeline.map(t => parseFloat(t.pnl.toFixed(2))),
+                borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.1)', fill: true,
+                tension: 0.3, pointRadius: 4, pointHoverRadius: 6
+              }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw) }, padding: 10 } },
+              scales: {
+                y: { ticks: { callback: v => fmt(v), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+                x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } }
+              }
+            }
+          });
+        }
+      } else if (activeChart === 'valor') {
+        const timeline = computeTimeline();
+        if (!timeline.length || !withPrice.length) {
+          chartArea.insertAdjacentHTML('beforeend', noDataOverlay);
+        } else {
+          lucroChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: timeline.map(t => fmtDate(t.date)),
+              datasets: [
+                { label: 'Valor atual', data: timeline.map(t => parseFloat(t.currentValue.toFixed(2))), borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
+                { label: 'Investido', data: timeline.map(t => parseFloat(t.invested.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.05)', fill: true, tension: 0.3, pointRadius: 4, borderDash: [5, 3] }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
+                tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmt(c.raw) }, padding: 10 }
+              },
+              scales: {
+                y: { ticks: { callback: v => fmt(v), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+                x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } }
+              }
+            }
+          });
+        }
       }
 
       const totalInv = data.reduce((s, d) => s + d.inv, 0);
@@ -1029,50 +944,6 @@
           <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${PALETTE[i % PALETTE.length]}"></div></div>
         </div>`;
       }).join('');
-    }
-
-    function addOp() {
-      const coinId = document.getElementById('op-coinid').value;
-      const symbol = document.getElementById('op-symbol').value;
-      const name = document.getElementById('op-name').value;
-      const data = document.getElementById('op-data').value;
-      const tipo = document.getElementById('op-tipo').value;
-      const qtd = parseFloat(document.getElementById('op-qtd').value) || 0;
-      const preco = parseFloat(document.getElementById('op-preco').value) || 0;
-      const taxa = parseFloat(document.getElementById('op-taxa').value) || 0;
-      if (!coinId || !qtd || !preco) return;
-      const total = tipo === 'Venda' ? qtd * preco - taxa : qtd * preco + taxa;
-      ops.push({ data, coinId, symbol, name, tipo, qtd, preco, taxa, total });
-      localStorage.setItem('cp_ops', JSON.stringify(ops));
-      renderOps();
-      rebuildAssetsFromOps();
-      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
-      ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
-    }
-
-    function removeOp(i) {
-      ops.splice(i, 1);
-      localStorage.setItem('cp_ops', JSON.stringify(ops));
-      renderOps();
-      rebuildAssetsFromOps();
-    }
-
-    function renderOps() {
-      const wrap = document.getElementById('op-list-wrap');
-      if (!ops.length) { wrap.innerHTML = '<div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>'; return; }
-      wrap.innerHTML = `<div class="op-list-wrap">
-        <div class="op-list-row op-list-head"><span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span><span>Preço unit.</span><span>Total</span><span>Taxa</span><span></span></div>
-        ${ops.map((o, i) => `<div class="op-list-row">
-          <span style="color:var(--text2)">${fmtDate(o.data)}</span>
-          <span style="font-weight:500">${o.symbol || o.moeda || '—'}</span>
-          <span><span class="pill ${o.tipo === 'Compra' ? 'pill-pos' : 'pill-neg'}">${o.tipo}</span></span>
-          <span>${fmtQtd(o.qtd)}</span>
-          <span>${fmt(o.preco)}</span>
-          <span style="font-weight:500">${fmt(o.total)}</span>
-          <span style="color:var(--text2)">${o.taxa > 0 ? fmt(o.taxa) : '—'}</span>
-          <button onclick="removeOp(${i})" style="padding:2px 6px;font-size:14px;line-height:1;border-color:transparent;color:var(--text3)" title="Excluir">&times;</button>
-        </div>`).join('')}
-      </div>`;
     }
 
     loadData();
