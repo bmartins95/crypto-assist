@@ -244,7 +244,7 @@
 
     .op-fields {
       display: grid;
-      grid-template-columns: 120px 1fr 90px 1fr 1fr 1fr auto;
+      grid-template-columns: 120px 1fr 90px 1fr 1fr 1fr 1fr auto;
       gap: 10px;
       align-items: end;
     }
@@ -295,7 +295,7 @@
 
     .op-list-row {
       display: grid;
-      grid-template-columns: 90px 80px 80px 1fr 1fr 1fr 80px 60px;
+      grid-template-columns: 90px 80px 80px 1fr 1fr 1fr 1fr 80px 60px;
       gap: 8px; padding: 10px 14px; border-bottom: 0.5px solid var(--border);
       font-size: 12px; align-items: center;
     }
@@ -463,6 +463,10 @@
           <div class="field">
             <label>Taxa (R$)</label>
             <input type="number" id="op-taxa" placeholder="0.00" step="any">
+          </div>
+          <div class="field">
+            <label>Plataforma</label>
+            <input type="text" id="op-plataforma" placeholder="Binance, MetaMask...">
           </div>
           <div class="field-btn">
             <button class="btn-sm" id="btn-register" onclick="addOp()"><i class="ti ti-plus"></i> Registrar</button>
@@ -701,7 +705,8 @@
         preco = rawVal; total = tipo === 'Venda' ? qtd * preco - taxa : qtd * preco + taxa;
       }
 
-      const op = { data, coinId, symbol, name, tipo, qtd, preco, taxa, total };
+      const plataforma = document.getElementById('op-plataforma').value.trim();
+      const op = { data, coinId, symbol, name, tipo, qtd, preco, taxa, total, plataforma };
       if (editingOpIdx !== null) {
         ops[editingOpIdx] = op; cancelEdit();
       } else {
@@ -709,7 +714,7 @@
       }
       localStorage.setItem('cp_ops', JSON.stringify(ops));
       collectAssets(); renderOps(); renderTable();
-      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa', 'op-plataforma'].forEach(id => document.getElementById(id).value = '');
       ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('op-preco-hint').textContent = '';
     }
@@ -725,6 +730,7 @@
       document.getElementById('op-qtd').value = o.qtd || '';
       document.getElementById('op-preco').value = o.preco || '';
       document.getElementById('op-taxa').value = o.taxa || '';
+      document.getElementById('op-plataforma').value = o.plataforma || '';
       if (priceMode === 'total') togglePriceMode();
       syncPriceFields();
       document.getElementById('form-title').innerHTML = '<i class="ti ti-pencil" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Editar operação';
@@ -738,7 +744,7 @@
       document.getElementById('form-title').innerHTML = '<i class="ti ti-plus" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Registrar operação';
       document.getElementById('btn-register').innerHTML = '<i class="ti ti-plus"></i> Registrar';
       document.getElementById('btn-cancel-edit').style.display = 'none';
-      ['op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa', 'op-plataforma'].forEach(id => document.getElementById(id).value = '');
       ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('op-data').value = new Date().toISOString().slice(0, 10);
       document.getElementById('op-preco-hint').textContent = '';
@@ -864,7 +870,7 @@
       const wrap = document.getElementById('op-list-wrap');
       if (!ops.length) { wrap.innerHTML = '<div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>'; return; }
       wrap.innerHTML = `<div class="op-list-wrap">
-        <div class="op-list-row op-list-head"><span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span><span>Preço unit.</span><span>Total</span><span>Taxa</span><span></span></div>
+        <div class="op-list-row op-list-head"><span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span><span>Preço unit.</span><span>Total</span><span>Taxa</span><span>Plataforma</span><span></span></div>
         ${ops.map((o, i) => `<div class="op-list-row" id="op-row-${i}">
           <span style="color:var(--text2)">${fmtDate(o.data)}</span>
           <span style="font-weight:500">${o.symbol || '—'}</span>
@@ -873,6 +879,7 @@
           <span>${fmt(o.preco)}</span>
           <span style="font-weight:500">${fmt(o.total)}</span>
           <span style="color:var(--text2)">${o.taxa > 0 ? fmt(o.taxa) : '—'}</span>
+          <span style="color:var(--text2)">${o.plataforma || '—'}</span>
           <span class="op-actions">
             <button class="icon-btn" onclick="editOp(${i})" title="Editar"><i class="ti ti-pencil"></i></button>
             <button class="icon-btn" onclick="removeOp(${i})" title="Excluir" style="color:var(--danger)"><i class="ti ti-trash"></i></button>
