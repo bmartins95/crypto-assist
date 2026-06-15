@@ -268,6 +268,26 @@
 
     .op-fields .field-btn { display: flex; align-items: center; gap: 6px; }
 
+    .trade-card {
+      background: var(--bg); border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+    }
+
+    .trade-fields {
+      display: grid;
+      grid-template-columns: 110px 1fr 100px 1fr 100px 110px 80px auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .trade-fields .field { display: flex; flex-direction: column; gap: 5px; }
+    .trade-fields .field label { font-size: 11px; color: var(--text2); font-weight: 500; }
+    .trade-fields .field input, .trade-fields .field select { width: 100%; }
+    .trade-fields .field-btn { display: flex; align-items: center; gap: 6px; }
+    .trade-arrow { display: flex; align-items: center; justify-content: center; padding-bottom: 6px; color: var(--text3); font-size: 16px; }
+    .trade-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+    .pill-trade { background: rgba(83,74,183,.15); color: #7B74D4; }
+
     .op-list-wrap {
       background: var(--bg); border: 0.5px solid var(--border);
       border-radius: var(--radius-lg); overflow: hidden;
@@ -309,6 +329,7 @@
     @media (max-width: 700px) {
       .metrics { grid-template-columns: 1fr 1fr; }
       .op-fields { grid-template-columns: 1fr 1fr; }
+      .trade-fields { grid-template-columns: 1fr 1fr; }
       table { font-size: 12px; }
       th, td { padding: 8px 10px; }
       .nav-btn span { display: none; }
@@ -409,7 +430,7 @@
     <!-- HISTÓRICO -->
     <div id="tab-historico" class="section">
       <div class="op-card">
-        <div class="sec-title" style="margin-bottom:.75rem" id="form-title">Registrar operação</div>
+        <div class="sec-title" style="margin-bottom:.75rem" id="form-title"><i class="ti ti-plus" style="font-size:13px;vertical-align:middle;margin-right:4px" id="form-title-icon"></i>Registrar operação</div>
         <div class="op-fields">
           <div class="field">
             <label>Data</label>
@@ -449,6 +470,51 @@
           </div>
         </div>
       </div>
+
+      <!-- TRADE ENTRE ATIVOS -->
+      <div class="trade-card">
+        <div class="sec-title" style="margin-bottom:.75rem"><i class="ti ti-arrows-exchange" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Trade entre ativos</div>
+        <div class="trade-fields">
+          <div class="field">
+            <label>Data</label>
+            <input type="date" id="tr-data">
+          </div>
+          <div class="field">
+            <label>De (vender)</label>
+            <select id="tr-from" onchange="syncTradeTotal()">
+              <option value="">Sem ativos</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Qtd. vendida</label>
+            <input type="number" id="tr-from-qty" placeholder="0" step="any" oninput="syncTradeTotal()">
+          </div>
+          <div class="field" style="position:relative">
+            <label>Para (comprar)</label>
+            <input type="text" id="tr-to-search" placeholder="Bitcoin, BTC..." autocomplete="off" oninput="searchTradeCoin(this)">
+            <div class="search-dropdown" id="sr-tr" style="display:none"></div>
+            <input type="hidden" id="tr-coinid">
+            <input type="hidden" id="tr-symbol">
+            <input type="hidden" id="tr-name">
+          </div>
+          <div class="field">
+            <label>Qtd. comprada</label>
+            <input type="number" id="tr-to-qty" placeholder="0" step="any">
+          </div>
+          <div class="field">
+            <label>Total (R$) <span id="tr-total-hint" class="trade-hint"></span></label>
+            <input type="number" id="tr-total" placeholder="0.00" step="any">
+          </div>
+          <div class="field">
+            <label>Taxa (R$)</label>
+            <input type="number" id="tr-taxa" placeholder="0.00" step="any">
+          </div>
+          <div class="field-btn">
+            <button class="btn-sm" onclick="addTrade()"><i class="ti ti-arrows-exchange"></i> Registrar</button>
+          </div>
+        </div>
+      </div>
+
       <div id="op-list-wrap">
         <div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>
       </div>
@@ -496,6 +562,9 @@
     function loadData() {
       ops = JSON.parse(localStorage.getItem('cp_ops') || '[]');
       prices = JSON.parse(localStorage.getItem('cp_prices') || '{}');
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('op-data').value = today;
+      document.getElementById('tr-data').value = today;
       const lastTime = localStorage.getItem('cp_prices_time');
       if (lastTime) setStatus('Última atualização às ' + lastTime);
       collectAssets(); renderTable(); renderOps();
@@ -510,6 +579,7 @@
       document.getElementById('tab-' + t).classList.add('active');
       if (t === 'lucro') renderLucro();
       if (t === 'carteira') renderTable();
+      if (t === 'historico') populateTradeFrom();
     }
 
     const fmt = v => 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -587,7 +657,7 @@
     }
 
     document.addEventListener('click', e => {
-      if (!e.target.closest('.search-wrap') && !e.target.closest('#sr-op') && !e.target.closest('#op-moeda-search'))
+      if (!e.target.closest('.search-wrap') && !e.target.closest('#sr-op') && !e.target.closest('#op-moeda-search') && !e.target.closest('#sr-tr') && !e.target.closest('#tr-to-search'))
         document.querySelectorAll('.search-dropdown').forEach(el => el.style.display = 'none');
     });
 
@@ -657,7 +727,7 @@
       document.getElementById('op-taxa').value = o.taxa || '';
       if (priceMode === 'total') togglePriceMode();
       syncPriceFields();
-      document.getElementById('form-title').textContent = 'Editar operação';
+      document.getElementById('form-title').innerHTML = '<i class="ti ti-pencil" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Editar operação';
       document.getElementById('btn-register').innerHTML = '<i class="ti ti-check"></i> Salvar';
       document.getElementById('btn-cancel-edit').style.display = '';
       document.getElementById('tab-historico').querySelector('.op-card').scrollIntoView({ behavior: 'smooth' });
@@ -665,11 +735,12 @@
 
     function cancelEdit() {
       editingOpIdx = null;
-      document.getElementById('form-title').textContent = 'Registrar operação';
+      document.getElementById('form-title').innerHTML = '<i class="ti ti-plus" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Registrar operação';
       document.getElementById('btn-register').innerHTML = '<i class="ti ti-plus"></i> Registrar';
       document.getElementById('btn-cancel-edit').style.display = 'none';
-      ['op-data', 'op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['op-moeda-search', 'op-qtd', 'op-preco', 'op-taxa'].forEach(id => document.getElementById(id).value = '');
       ['op-coinid', 'op-symbol', 'op-name'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('op-data').value = new Date().toISOString().slice(0, 10);
       document.getElementById('op-preco-hint').textContent = '';
     }
 
@@ -680,7 +751,116 @@
       collectAssets(); renderOps(); renderTable();
     }
 
+    // --- Trade ---
+    let tradeSearchTimer = null;
+
+    function populateTradeFrom() {
+      const sel = document.getElementById('tr-from');
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = assets.length
+        ? assets.map(a => `<option value="${a.coinId}" data-symbol="${a.symbol}" data-name="${encodeURIComponent(a.name)}" data-qty="${a.qty}">${a.symbol} · ${fmtQtd(a.qty)}</option>`).join('')
+        : '<option value="">Sem ativos na carteira</option>';
+      if (current && assets.some(a => a.coinId === current)) sel.value = current;
+    }
+
+    function syncTradeTotal() {
+      const fromSel = document.getElementById('tr-from');
+      const fromCoinId = fromSel?.value;
+      const fromQty = parseFloat(document.getElementById('tr-from-qty').value) || 0;
+      const toCoinId = document.getElementById('tr-coinid').value;
+      const hint = document.getElementById('tr-total-hint');
+
+      let total = 0;
+      if (fromCoinId && fromQty && prices[fromCoinId]) {
+        total = fromQty * prices[fromCoinId];
+        document.getElementById('tr-total').value = total.toFixed(2);
+        hint.textContent = '≈ atual';
+      } else {
+        total = parseFloat(document.getElementById('tr-total').value) || 0;
+        hint.textContent = '';
+      }
+
+      // Auto-fill buy quantity from destination asset price
+      if (total > 0 && toCoinId && prices[toCoinId]) {
+        document.getElementById('tr-to-qty').value = (total / prices[toCoinId]).toFixed(8).replace(/\.?0+$/, '');
+      }
+    }
+
+    function searchTradeCoin(inp) {
+      clearTimeout(tradeSearchTimer);
+      const q = inp.value.trim();
+      const sr = document.getElementById('sr-tr');
+      if (q.length < 2) { sr.style.display = 'none'; return; }
+      tradeSearchTimer = setTimeout(async () => {
+        try {
+          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}`);
+          const d = await r.json();
+          const coins = (d.coins || []).slice(0, 7);
+          if (!coins.length) { sr.style.display = 'none'; return; }
+          sr.innerHTML = coins.map(c => `<div class="search-item" onclick="selectTradeCoin('${c.id}','${c.symbol.toUpperCase()}','${c.name.replace(/'/g, "\\'")}')">
+            <span>${c.name} <span style="color:var(--text2);font-size:12px">${c.symbol.toUpperCase()}</span></span>
+            <span class="search-item-rank">${c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
+          </div>`).join('');
+          sr.style.display = 'block';
+        } catch {}
+      }, 350);
+    }
+
+    function selectTradeCoin(coinId, symbol, name) {
+      document.getElementById('tr-to-search').value = name + ' (' + symbol + ')';
+      document.getElementById('tr-coinid').value = coinId;
+      document.getElementById('tr-symbol').value = symbol;
+      document.getElementById('tr-name').value = name;
+      document.getElementById('sr-tr').style.display = 'none';
+      if (prices[coinId]) {
+        syncTradeTotal();
+      } else {
+        fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}`)
+          .then(r => r.json())
+          .then(d => { if (d[0]?.current_price) prices[coinId] = d[0].current_price; syncTradeTotal(); })
+          .catch(() => syncTradeTotal());
+      }
+    }
+
+    function addTrade() {
+      const data = document.getElementById('tr-data').value;
+      const fromSel = document.getElementById('tr-from');
+      const fromCoinId = fromSel.value;
+      const fromOpt = fromSel.options[fromSel.selectedIndex];
+      const fromSymbol = fromOpt?.dataset.symbol || '';
+      const fromName = fromOpt ? decodeURIComponent(fromOpt.dataset.name) : '';
+      const fromQty = parseFloat(document.getElementById('tr-from-qty').value) || 0;
+      const toCoinId = document.getElementById('tr-coinid').value;
+      const toSymbol = document.getElementById('tr-symbol').value;
+      const toName = document.getElementById('tr-name').value;
+      const toQty = parseFloat(document.getElementById('tr-to-qty').value) || 0;
+      const total = parseFloat(document.getElementById('tr-total').value) || 0;
+      const taxa = parseFloat(document.getElementById('tr-taxa').value) || 0;
+
+      if (!fromCoinId || !toCoinId || !fromQty || !toQty || !total) {
+        alert('Preencha: moeda de origem, qtd. vendida, moeda de destino, qtd. comprada e total em R$.');
+        return;
+      }
+      if (fromCoinId === toCoinId) {
+        alert('A moeda de origem e de destino não podem ser a mesma.');
+        return;
+      }
+
+      const sellOp = { data, coinId: fromCoinId, symbol: fromSymbol, name: fromName, tipo: 'Venda', qtd: fromQty, preco: total / fromQty, taxa: 0, total };
+      const buyOp  = { data, coinId: toCoinId,  symbol: toSymbol,  name: toName,  tipo: 'Compra', qtd: toQty, preco: (total + taxa) / toQty, taxa, total: total + taxa };
+
+      ops.push(sellOp, buyOp);
+      localStorage.setItem('cp_ops', JSON.stringify(ops));
+      collectAssets(); renderOps(); renderTable();
+
+      ['tr-data', 'tr-from-qty', 'tr-to-search', 'tr-to-qty', 'tr-total', 'tr-taxa'].forEach(id => document.getElementById(id).value = '');
+      ['tr-coinid', 'tr-symbol', 'tr-name'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('tr-total-hint').textContent = '';
+    }
+
     function renderOps() {
+      populateTradeFrom();
       const wrap = document.getElementById('op-list-wrap');
       if (!ops.length) { wrap.innerHTML = '<div class="empty-state"><i class="ti ti-receipt"></i><span>Nenhuma operação registrada</span></div>'; return; }
       wrap.innerHTML = `<div class="op-list-wrap">
