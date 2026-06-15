@@ -762,6 +762,10 @@
           title="Carregar dados do Google Drive">
           <i class="ti ti-cloud-download"></i>
         </button>
+        <button class="btn-sm" id="gdrive-key-btn" onclick="gdriveConfigKey()" style="display:none"
+          title="Configurar chave da API CoinGecko">
+          <i class="ti ti-key-off"></i>
+        </button>
         <span id="gdrive-status"
           style="font-size:11px;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
@@ -967,14 +971,16 @@
     let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit', groupMode = 'ativo';
 
     // ─── Google Drive Sync ──────────────────────────────────────────────────────
-    // Preencha com seu Client ID do Google Cloud Console
-    // Veja as instruções no comentário HTML acima do <head>
-    const GOOGLE_CLIENT_ID = '723448657163-k8sclpsm06b995f4pjj8i5d24pg10fe1.apps.googleusercontent.com';
-    const GDRIVE_FILE_NAME = 'carteira-crypto-backup.json';
-    let tokenClient = null, driveToken = null, driveFileId = null;
+    const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+    const GDRIVE_FILE_NAME  = 'carteira-crypto-backup.json';
+    const GDRIVE_CONFIG_NAME = 'carteira-crypto-config.json';
+    let tokenClient = null, driveToken = null, driveFileId = null, configFileId = null;
+    let coingeckoApiKey = '';
+
+    function cgKey() { return coingeckoApiKey ? '&x_cg_demo_api_key=' + coingeckoApiKey : ''; }
 
     function gdriveConnect() {
-      if (GOOGLE_CLIENT_ID === '723448657163-k8sclpsm06b995f4pjj8i5d24pg10fe1.apps.googleusercontent.com') {
+      if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
         alert('Configure o GOOGLE_CLIENT_ID no HTML antes de usar o Drive.\n\nSiga as instruções no comentário no início do arquivo.');
         return;
       }
@@ -1000,7 +1006,9 @@
       btn.title = 'Reconectar ao Google Drive';
       document.getElementById('gdrive-save-btn').style.display = '';
       document.getElementById('gdrive-load-btn').style.display = '';
+      document.getElementById('gdrive-key-btn').style.display = '';
       setDriveStatus('Conectado');
+      driveLoadConfig();
     }
 
     async function driveReq(url, opts = {}) {
@@ -1013,47 +1021,84 @@
         document.getElementById('gdrive-connect-btn').innerHTML = '<i class="ti ti-cloud"></i> Drive';
         document.getElementById('gdrive-save-btn').style.display = 'none';
         document.getElementById('gdrive-load-btn').style.display = 'none';
+        document.getElementById('gdrive-key-btn').style.display = 'none';
+        document.getElementById('gdrive-key-btn').style.display = 'none';
         setDriveStatus('Sessão expirada — reconecte');
         throw new Error('token_expired');
       }
       return r;
     }
 
-    async function driveFindFile() {
-      const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+    async function driveFindFile(name) {
+      const q = encodeURIComponent(`name='${name}' and trashed=false`);
       const r = await driveReq(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
       const d = await r.json();
       return d.files?.[0]?.id || null;
     }
 
+    async function driveUpload(name, payload, existingId) {
+      const meta = JSON.stringify({ name, mimeType: 'application/json' });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type: 'application/json' }));
+      form.append('file', new Blob([payload], { type: 'application/json' }));
+      const url = existingId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      const r = await driveReq(url, { method: existingId ? 'PATCH' : 'POST', body: form });
+      const d = await r.json();
+      return d.id || existingId;
+    }
+
+    async function driveLoadConfig() {
+      try {
+        let fileId = configFileId || await driveFindFile(GDRIVE_CONFIG_NAME);
+        if (!fileId) return;
+        configFileId = fileId;
+        const r = await driveReq(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+        const cfg = await r.json();
+        if (cfg.coingecko_api_key) {
+          coingeckoApiKey = cfg.coingecko_api_key;
+          document.getElementById('gdrive-key-btn').innerHTML = '<i class="ti ti-key"></i>';
+          document.getElementById('gdrive-key-btn').title = 'Chave CoinGecko carregada — clique para atualizar';
+        }
+      } catch (e) { /* sem config é ok */ }
+    }
+
+    async function driveSaveConfig(key) {
+      const payload = JSON.stringify({ coingecko_api_key: key });
+      configFileId = await driveUpload(GDRIVE_CONFIG_NAME, payload, configFileId || await driveFindFile(GDRIVE_CONFIG_NAME));
+      coingeckoApiKey = key;
+    }
+
+    function gdriveConfigKey() {
+      const current = coingeckoApiKey;
+      const key = prompt('Cole sua chave da API CoinGecko Demo:\n(deixe em branco para remover)', current);
+      if (key === null) return;
+      if (!driveToken) { gdriveConnect(); return; }
+      setDriveStatus('Salvando chave...');
+      driveSaveConfig(key.trim()).then(() => {
+        const btn = document.getElementById('gdrive-key-btn');
+        btn.innerHTML = key.trim() ? '<i class="ti ti-key"></i>' : '<i class="ti ti-key-off"></i>';
+        setDriveStatus(key.trim() ? 'Chave salva no Drive' : 'Chave removida');
+      }).catch(() => setDriveStatus('Erro ao salvar chave'));
+    }
+
+    function setDriveStatus(msg) { document.getElementById('gdrive-status').textContent = msg; }
+
     async function gdriveSave() {
       if (!driveToken) { gdriveConnect(); return; }
       setDriveStatus('Salvando...');
       try {
-        const payload = buildBackupPayload();
-        const meta = JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' });
-        const form = new FormData();
-        form.append('metadata', new Blob([meta], { type: 'application/json' }));
-        form.append('file', new Blob([payload], { type: 'application/json' }));
-        let fileId = driveFileId || await driveFindFile();
-        const url = fileId
-          ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-          : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-        const r = await driveReq(url, { method: fileId ? 'PATCH' : 'POST', body: form });
-        const d = await r.json();
-        if (d.id) driveFileId = d.id;
-        const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        setDriveStatus('Salvo às ' + now);
-      } catch (e) {
-        if (e.message !== 'token_expired') setDriveStatus('Erro ao salvar');
-      }
+        driveFileId = await driveUpload(GDRIVE_FILE_NAME, buildBackupPayload(), driveFileId || await driveFindFile(GDRIVE_FILE_NAME));
+        setDriveStatus('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      } catch (e) { if (e.message !== 'token_expired') setDriveStatus('Erro ao salvar'); }
     }
 
     async function gdriveLoad() {
       if (!driveToken) { gdriveConnect(); return; }
       setDriveStatus('Carregando...');
       try {
-        let fileId = driveFileId || await driveFindFile();
+        let fileId = driveFileId || await driveFindFile(GDRIVE_FILE_NAME);
         if (!fileId) { setDriveStatus('Nenhum backup no Drive'); return; }
         driveFileId = fileId;
         const r = await driveReq(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
@@ -1066,14 +1111,9 @@
         ops = backup.ops; prices = backup.prices || {};
         if (backup.pricesTime) setStatus('Última atualização às ' + backup.pricesTime);
         collectAssets(); renderTable(); renderOps();
-        const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        setDriveStatus('Carregado às ' + now);
-      } catch (e) {
-        if (e.message !== 'token_expired') setDriveStatus('Erro ao carregar');
-      }
+        setDriveStatus('Carregado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      } catch (e) { if (e.message !== 'token_expired') setDriveStatus('Erro ao carregar'); }
     }
-
-    function setDriveStatus(msg) { document.getElementById('gdrive-status').textContent = msg; }
     // ───────────────────────────────────────────────────────────────────────────
 
     function exportData() {
@@ -1265,7 +1305,7 @@
       if (q.length < 2) { sr.style.display = 'none'; return; }
       opSearchTimer = setTimeout(async () => {
         try {
-          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}&x_cg_demo_api_key=REMOVED`);
+          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}${cgKey()}`);
           const d = await r.json();
           const coins = (d.coins || []).slice(0, 7);
           if (!coins.length) { sr.style.display = 'none'; return; }
@@ -1426,7 +1466,7 @@
       if (q.length < 2) { sr.style.display = 'none'; return; }
       tradeSearchTimer = setTimeout(async () => {
         try {
-          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}&x_cg_demo_api_key=REMOVED`);
+          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}${cgKey()}`);
           const d = await r.json();
           const coins = (d.coins || []).slice(0, 7);
           if (!coins.length) { sr.style.display = 'none'; return; }
@@ -1448,7 +1488,7 @@
       if (prices[coinId]) {
         syncTradeTotal();
       } else {
-        fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}&x_cg_demo_api_key=REMOVED`)
+        fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}${cgKey()}`)
           .then(r => r.json())
           .then(d => { if (d[0]?.current_price) prices[coinId] = d[0].current_price; syncTradeTotal(); })
           .catch(() => syncTradeTotal());
@@ -1521,7 +1561,7 @@
       setStatus('Buscando cotações...');
       const ids = [...new Set(assets.map(a => a.coinId))].join(',');
       try {
-        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}&x_cg_demo_api_key=REMOVED`);
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}${cgKey()}`);
         if (!r.ok) {
           setStatus(r.status === 429 ? 'Limite de requisições atingido. Aguarde alguns minutos.' : 'Erro ao buscar preços (HTTP ' + r.status + ').');
           return;
