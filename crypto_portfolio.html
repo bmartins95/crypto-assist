@@ -635,7 +635,7 @@
       if (q.length < 2) { sr.style.display = 'none'; return; }
       opSearchTimer = setTimeout(async () => {
         try {
-          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}`);
+          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}&x_cg_demo_api_key=REMOVED`);
           const d = await r.json();
           const coins = (d.coins || []).slice(0, 7);
           if (!coins.length) { sr.style.display = 'none'; return; }
@@ -794,7 +794,7 @@
       if (q.length < 2) { sr.style.display = 'none'; return; }
       tradeSearchTimer = setTimeout(async () => {
         try {
-          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}`);
+          const r = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(q)}&x_cg_demo_api_key=REMOVED`);
           const d = await r.json();
           const coins = (d.coins || []).slice(0, 7);
           if (!coins.length) { sr.style.display = 'none'; return; }
@@ -816,7 +816,7 @@
       if (prices[coinId]) {
         syncTradeTotal();
       } else {
-        fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}`)
+        fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}&x_cg_demo_api_key=REMOVED`)
           .then(r => r.json())
           .then(d => { if (d[0]?.current_price) prices[coinId] = d[0].current_price; syncTradeTotal(); })
           .catch(() => syncTradeTotal());
@@ -888,7 +888,7 @@
       setStatus('Buscando cotações...');
       const ids = [...new Set(assets.map(a => a.coinId))].join(',');
       try {
-        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}`);
+        const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}&x_cg_demo_api_key=REMOVED`);
         if (!r.ok) {
           setStatus(r.status === 429 ? 'Limite de requisições atingido. Aguarde alguns minutos.' : 'Erro ao buscar preços (HTTP ' + r.status + ').');
           return;
