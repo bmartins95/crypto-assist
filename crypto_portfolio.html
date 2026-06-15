@@ -347,6 +347,7 @@
         <p>Cotações em tempo real via CoinGecko · Valores em reais (BRL)</p>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0;margin-top:2px">
+        <button class="btn-sm" onclick="backupToFolder()" title="Salvar backup na pasta do projeto"><i class="ti ti-folder"></i> Backup</button>
         <button class="btn-sm" onclick="exportData()" title="Exportar backup em JSON"><i class="ti ti-download"></i> Exportar</button>
         <label class="btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Importar backup JSON">
           <i class="ti ti-upload"></i> Importar
@@ -545,6 +546,84 @@
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
       a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    function buildBackupPayload() {
+      return JSON.stringify({
+        version: 1, exportedAt: new Date().toISOString(),
+        ops: JSON.parse(localStorage.getItem('cp_ops') || '[]'),
+        prices: JSON.parse(localStorage.getItem('cp_prices') || '{}'),
+        pricesTime: localStorage.getItem('cp_prices_time') || null,
+        exitPrices: JSON.parse(localStorage.getItem('cp_exit_prices') || '{}'),
+      }, null, 2);
+    }
+
+    function openFsDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('cp_fs', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function getFsHandle(db, key) {
+      return new Promise(resolve => {
+        const tx = db.transaction('handles', 'readonly');
+        const req = tx.objectStore('handles').get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    function putFsHandle(db, key, handle) {
+      return new Promise(resolve => {
+        const tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, key);
+        tx.oncomplete = resolve;
+        tx.onerror = resolve;
+      });
+    }
+
+    async function backupToFolder() {
+      if (!window.showDirectoryPicker) {
+        exportData();
+        setStatus('API de pasta não suportada — usando download.');
+        return;
+      }
+      try {
+        const db = await openFsDb();
+        let dirHandle = await getFsHandle(db, 'backupDir');
+
+        if (dirHandle) {
+          const perm = await dirHandle.queryPermission({ mode: 'readwrite' });
+          if (perm !== 'granted') {
+            const req = await dirHandle.requestPermission({ mode: 'readwrite' });
+            if (req !== 'granted') dirHandle = null;
+          }
+        }
+
+        if (!dirHandle) {
+          dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+          await putFsHandle(db, 'backupDir', dirHandle);
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        let filename = `carteira-backup-${today}.json`;
+        let idx = 2;
+        while (true) {
+          try { await dirHandle.getFileHandle(filename); filename = `carteira-backup-${today}-${idx++}.json`; }
+          catch { break; }
+        }
+
+        const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(buildBackupPayload());
+        await writable.close();
+        setStatus(`Backup salvo: ${filename}`);
+      } catch (e) {
+        if (e.name !== 'AbortError') { setStatus('Erro ao salvar — usando download.'); exportData(); }
+      }
     }
 
     function importData(event) {
