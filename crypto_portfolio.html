@@ -555,9 +555,18 @@
 
 <body>
   <div class="app">
-    <div class="header">
-      <h1><i class="ti ti-currency-bitcoin"></i> Carteira de Criptoativos</h1>
-      <p>Cotações em tempo real via CoinGecko · Valores em reais (BRL)</p>
+    <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div>
+        <h1><i class="ti ti-currency-bitcoin"></i> Carteira de Criptoativos</h1>
+        <p>Cotações em tempo real via CoinGecko · Valores em reais (BRL)</p>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;margin-top:2px">
+        <button class="btn-sm" onclick="exportData()" title="Exportar backup em JSON"><i class="ti ti-download"></i> Exportar</button>
+        <label class="btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Importar backup JSON">
+          <i class="ti ti-upload"></i> Importar
+          <input type="file" accept=".json" onchange="importData(event)" style="display:none">
+        </label>
+      </div>
     </div>
 
     <div class="nav">
@@ -678,6 +687,48 @@
 
   <script>
     let assets = [], prices = {}, ops = [], lucroChart = null, searchTimer = null, opSearchTimer = null;
+
+    function exportData() {
+      const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        ops: JSON.parse(localStorage.getItem('cp_ops') || '[]'),
+        prices: JSON.parse(localStorage.getItem('cp_prices') || '{}'),
+        pricesTime: localStorage.getItem('cp_prices_time') || null,
+        exitPrices: JSON.parse(localStorage.getItem('cp_exit_prices') || '{}'),
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const backup = JSON.parse(e.target.result);
+          if (!Array.isArray(backup.ops)) throw new Error('Formato inválido');
+          localStorage.setItem('cp_ops', JSON.stringify(backup.ops));
+          if (backup.prices) localStorage.setItem('cp_prices', JSON.stringify(backup.prices));
+          if (backup.pricesTime) localStorage.setItem('cp_prices_time', backup.pricesTime);
+          if (backup.exitPrices) localStorage.setItem('cp_exit_prices', JSON.stringify(backup.exitPrices));
+          ops = backup.ops;
+          prices = backup.prices || {};
+          if (backup.pricesTime) setStatus('Última atualização às ' + backup.pricesTime);
+          rebuildAssetsFromOps();
+          renderOps();
+          event.target.value = '';
+        } catch {
+          alert('Arquivo inválido. Use um backup exportado por esta aplicação.');
+        }
+      };
+      reader.readAsText(file);
+    }
 
     function loadData() {
       ops = JSON.parse(localStorage.getItem('cp_ops') || '[]');
