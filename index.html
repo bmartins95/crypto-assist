@@ -1,13 +1,40 @@
 <!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  CONFIGURAÇÃO DO GOOGLE DRIVE — siga os passos abaixo       ║
+  ╠══════════════════════════════════════════════════════════════╣
+  ║                                                              ║
+  ║  1. Acesse https://console.cloud.google.com/                 ║
+  ║  2. Crie um projeto (ou use um existente)                    ║
+  ║  3. Ative "Google Drive API" em: APIs & Services > Library   ║
+  ║  4. Vá em: APIs & Services > Credentials > Create Credential ║
+  ║     → OAuth 2.0 Client ID → Web Application                  ║
+  ║  5. Em "Authorized JavaScript origins" adicione:             ║
+  ║       • http://localhost (para testar localmente)             ║
+  ║       • https://SEU_USUARIO.github.io (para produção)        ║
+  ║  6. Copie o Client ID gerado                                 ║
+  ║  7. Cole no lugar de YOUR_CLIENT_ID_HERE abaixo no script    ║
+  ║                                                              ║
+  ║  GITHUB PAGES — como publicar:                               ║
+  ║  1. Crie um repo no GitHub (ex: crypto-assist)               ║
+  ║  2. Renomeie este arquivo para index.html                     ║
+  ║  3. Faça push para o repo                                     ║
+  ║  4. Vá em Settings > Pages > Source: Deploy from branch main ║
+  ║  5. Acesse: https://SEU_USUARIO.github.io/crypto-assist      ║
+  ║                                                              ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
 <html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Carteira de Criptoativos</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='54' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='%23F7B731'>₿</text></svg>">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text x='50' y='54' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='%23F7B731'>₿</text></svg>">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" defer></script>
   <style>
     :root {
       --bg: #ffffff;
@@ -43,7 +70,11 @@
       }
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -52,194 +83,429 @@
       min-height: 100vh;
     }
 
-    .app { max-width: 1152px; margin: 0 auto; padding: 2rem 1rem; }
-    .header { margin-bottom: 1.5rem; }
-    .header h1 { font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-    .header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    .app {
+      max-width: 1152px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .header {
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 4px;
+    }
 
     .nav {
-      display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius-lg);
-      padding: 4px; margin-bottom: 1.5rem; border: 0.5px solid var(--border);
-    }
-
-    .nav-btn {
-      flex: 1; padding: 9px 12px; font-size: 13px; cursor: pointer; border: none;
-      background: transparent; color: var(--text2); border-radius: var(--radius);
-      transition: background .15s, color .15s; display: flex; align-items: center;
-      justify-content: center; gap: 6px; font-family: inherit;
-    }
-
-    .nav-btn.active {
-      background: var(--bg); color: var(--text); font-weight: 500;
+      display: flex;
+      gap: 2px;
+      background: var(--bg2);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+      margin-bottom: 1.5rem;
       border: 0.5px solid var(--border);
     }
 
-    .section { display: none; }
-    .section.active { display: block; }
+    .nav-btn {
+      flex: 1;
+      padding: 9px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      border-radius: var(--radius);
+      transition: background .15s, color .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: inherit;
+    }
+
+    .nav-btn.active {
+      background: var(--bg);
+      color: var(--text);
+      font-weight: 500;
+      border: 0.5px solid var(--border);
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
 
     .metrics {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px; margin-bottom: 1.25rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 1.25rem;
     }
 
     .metric {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1rem 1.25rem;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
     }
 
     .metric-label {
-      font-size: 12px; color: var(--text2); margin-bottom: 8px;
-      display: flex; align-items: center; gap: 5px;
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
-    .metric-value { font-size: 22px; font-weight: 500; line-height: 1; }
-    .pos { color: var(--success); }
-    .neg { color: var(--danger); }
+    .metric-value {
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .pos {
+      color: var(--success);
+    }
+
+    .neg {
+      color: var(--danger);
+    }
 
     .topbar {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
     }
 
-    .topbar-title { font-size: 13px; font-weight: 500; color: var(--text2); }
-    .status { font-size: 11px; color: var(--text3); }
+    .topbar-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text2);
+    }
+
+    .status {
+      font-size: 11px;
+      color: var(--text3);
+    }
 
     button {
-      font-family: inherit; cursor: pointer; border: 0.5px solid var(--border2);
-      background: transparent; color: var(--text); border-radius: var(--radius);
-      padding: 8px 14px; font-size: 13px; display: inline-flex; align-items: center;
-      gap: 6px; transition: background .15s;
+      font-family: inherit;
+      cursor: pointer;
+      border: 0.5px solid var(--border2);
+      background: transparent;
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background .15s;
     }
 
-    button:hover { background: var(--bg2); }
-    button:active { transform: scale(0.98); }
-    .btn-sm { font-size: 12px; padding: 6px 12px; }
-
-    input, select {
-      font-family: inherit; font-size: 13px; background: var(--bg); color: var(--text);
-      border: 0.5px solid var(--border2); border-radius: var(--radius);
-      padding: 8px 10px; outline: none; transition: border-color .15s;
+    button:hover {
+      background: var(--bg2);
     }
 
-    input:focus, select:focus {
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .btn-sm {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+
+    input,
+    select {
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input:focus,
+    select:focus {
       border-color: #534AB7;
       box-shadow: 0 0 0 2px rgba(83, 74, 183, 0.15);
     }
 
     .table-wrap {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); overflow: hidden;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
     }
 
-    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
 
     th {
-      text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 500;
-      color: var(--text2); border-bottom: 0.5px solid var(--border);
-      background: var(--bg2); letter-spacing: .02em;
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      border-bottom: 0.5px solid var(--border);
+      background: var(--bg2);
+      letter-spacing: .02em;
     }
 
     td {
-      padding: 11px 14px; border-bottom: 0.5px solid var(--border);
-      vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      padding: 11px 14px;
+      border-bottom: 0.5px solid var(--border);
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--bg2); }
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg2);
+    }
 
     .pill {
-      display: inline-flex; align-items: center; padding: 3px 8px;
-      border-radius: 20px; font-size: 11px; font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
     }
 
-    .pill-pos { background: var(--success-bg); color: var(--success); }
-    .pill-neg { background: var(--danger-bg); color: var(--danger); }
-    .pill-neu { background: var(--bg2); color: var(--text2); }
+    .pill-pos {
+      background: var(--success-bg);
+      color: var(--success);
+    }
 
-    .coin-cell { display: flex; align-items: center; gap: 10px; }
+    .pill-neg {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .pill-neu {
+      background: var(--bg2);
+      color: var(--text2);
+    }
+
+    .coin-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
     .avatar {
-      width: 30px; height: 30px; border-radius: 50%; background: var(--bg2);
-      border: 0.5px solid var(--border); display: flex; align-items: center;
-      justify-content: center; font-size: 10px; font-weight: 500;
-      flex-shrink: 0; overflow: hidden; color: var(--text2);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 500;
+      flex-shrink: 0;
+      overflow: hidden;
+      color: var(--text2);
     }
 
-    .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-    .coin-name { font-weight: 500; font-size: 13px; }
-    .coin-sym { font-size: 11px; color: var(--text2); }
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
 
-    .search-wrap { position: relative; flex: 1; }
+    .coin-name {
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .coin-sym {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 1;
+    }
 
     .search-dropdown {
-      position: absolute; z-index: 99; top: calc(100% + 4px); left: 0; right: 0;
-      background: var(--bg); border: 0.5px solid var(--border2);
-      border-radius: var(--radius-lg); max-height: 200px; overflow-y: auto;
+      position: absolute;
+      z-index: 99;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-lg);
+      max-height: 200px;
+      overflow-y: auto;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     }
 
     .search-item {
-      padding: 9px 12px; cursor: pointer; font-size: 13px;
-      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    .search-item:hover { background: var(--bg2); }
-    .search-item-rank { font-size: 11px; color: var(--text3); }
+    .search-item:hover {
+      background: var(--bg2);
+    }
+
+    .search-item-rank {
+      font-size: 11px;
+      color: var(--text3);
+    }
 
     .empty-state {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 3rem 1rem; color: var(--text2); gap: 10px; font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      color: var(--text2);
+      gap: 10px;
+      font-size: 13px;
     }
 
-    .empty-state i { font-size: 36px; color: var(--text3); }
+    .empty-state i {
+      font-size: 36px;
+      color: var(--text3);
+    }
 
     .chart-area {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
-      position: relative; height: 260px;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      position: relative;
+      height: 260px;
     }
 
     .chart-switcher {
-      display: flex; gap: 2px; background: var(--bg2); border-radius: var(--radius);
-      padding: 3px; margin-bottom: 10px; border: 0.5px solid var(--border);
+      display: flex;
+      gap: 2px;
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 3px;
+      margin-bottom: 10px;
+      border: 0.5px solid var(--border);
       width: fit-content;
     }
 
     .chart-btn {
-      padding: 5px 12px; font-size: 12px; cursor: pointer; border: none;
-      background: transparent; color: var(--text2); border-radius: 6px;
-      transition: background .15s, color .15s; font-family: inherit; display: flex;
-      align-items: center; gap: 5px;
+      padding: 5px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      border-radius: 6px;
+      transition: background .15s, color .15s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
 
     .chart-btn.active {
-      background: var(--bg); color: var(--text); font-weight: 500;
+      background: var(--bg);
+      color: var(--text);
+      font-weight: 500;
       border: 0.5px solid var(--border);
     }
 
     .dist-section {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1.25rem;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
     }
 
     .sec-title {
-      font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 1rem;
-      letter-spacing: .02em; text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 1rem;
+      letter-spacing: .02em;
+      text-transform: uppercase;
     }
 
-    .bar-row { margin-bottom: 12px; }
+    .bar-row {
+      margin-bottom: 12px;
+    }
 
     .bar-header {
-      display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 5px;
     }
 
-    .bar-name { color: var(--text); font-weight: 500; }
-    .bar-pct { color: var(--text2); }
-    .bar-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 3px; }
+    .bar-name {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .bar-pct {
+      color: var(--text2);
+    }
+
+    .bar-track {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
 
     .op-card {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
     }
 
     .op-fields {
@@ -249,28 +515,60 @@
       align-items: end;
     }
 
-    .op-fields .field { display: flex; flex-direction: column; gap: 5px; }
-    .op-fields .field label {
-      font-size: 11px; color: var(--text2); font-weight: 500;
-      display: flex; align-items: center; justify-content: space-between;
+    .op-fields .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
-    .op-fields .field input, .op-fields .field select { width: 100%; }
+
+    .op-fields .field label {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .op-fields .field input,
+    .op-fields .field select {
+      width: 100%;
+    }
+
     .op-fields .field-hint {
-      position: absolute; top: 100%; left: 0;
-      font-size: 10px; color: var(--text3); margin-top: 3px; white-space: nowrap;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 3px;
+      white-space: nowrap;
     }
 
     .op-price-toggle {
-      font-size: 10px; padding: 1px 6px; border-radius: 4px; line-height: 1.4;
-      color: var(--text3); border-color: var(--border); cursor: pointer;
-      background: transparent; font-family: inherit;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      line-height: 1.4;
+      color: var(--text3);
+      border-color: var(--border);
+      cursor: pointer;
+      background: transparent;
+      font-family: inherit;
     }
 
-    .op-fields .field-btn { display: flex; align-items: center; gap: 6px; }
+    .op-fields .field-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
     .trade-card {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
     }
 
     .trade-fields {
@@ -280,61 +578,156 @@
       align-items: end;
     }
 
-    .trade-fields .field { display: flex; flex-direction: column; gap: 5px; }
-    .trade-fields .field label { font-size: 11px; color: var(--text2); font-weight: 500; }
-    .trade-fields .field input, .trade-fields .field select { width: 100%; }
-    .trade-fields .field-btn { display: flex; align-items: center; gap: 6px; }
-    .trade-arrow { display: flex; align-items: center; justify-content: center; padding-bottom: 6px; color: var(--text3); font-size: 16px; }
-    .trade-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
-    .pill-trade { background: rgba(83,74,183,.15); color: #7B74D4; }
+    .trade-fields .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .trade-fields .field label {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 500;
+    }
+
+    .trade-fields .field input,
+    .trade-fields .field select {
+      width: 100%;
+    }
+
+    .trade-fields .field-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .trade-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-bottom: 6px;
+      color: var(--text3);
+      font-size: 16px;
+    }
+
+    .trade-hint {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    .pill-trade {
+      background: rgba(83, 74, 183, .15);
+      color: #7B74D4;
+    }
 
     .op-list-wrap {
-      background: var(--bg); border: 0.5px solid var(--border);
-      border-radius: var(--radius-lg); overflow: hidden;
+      background: var(--bg);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
     }
 
     .op-list-row {
       display: grid;
       grid-template-columns: 90px 80px 80px 1fr 1fr 1fr 1fr 80px 60px;
-      gap: 8px; padding: 10px 14px; border-bottom: 0.5px solid var(--border);
-      font-size: 12px; align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 12px;
+      align-items: center;
     }
 
     .op-list-head {
-      font-size: 11px; font-weight: 500; color: var(--text2);
-      background: var(--bg2); letter-spacing: .02em;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text2);
+      background: var(--bg2);
+      letter-spacing: .02em;
     }
 
-    .op-list-row:last-child { border-bottom: none; }
+    .op-list-row:last-child {
+      border-bottom: none;
+    }
 
-    .op-actions { display: flex; gap: 4px; justify-content: flex-end; }
+    .op-actions {
+      display: flex;
+      gap: 4px;
+      justify-content: flex-end;
+    }
 
     .icon-btn {
-      padding: 2px 6px; font-size: 13px; line-height: 1; border-color: transparent;
+      padding: 2px 6px;
+      font-size: 13px;
+      line-height: 1;
+      border-color: transparent;
       color: var(--text3);
     }
 
-    .icon-btn:hover { color: var(--text); background: var(--bg3); }
-
-    .exit-input {
-      width: 100%; font-size: 12px; padding: 4px 8px;
-      background: transparent; border-color: transparent;
+    .icon-btn:hover {
+      color: var(--text);
+      background: var(--bg3);
     }
 
-    .exit-input:hover { border-color: var(--border2); background: var(--bg); }
-    .exit-input:focus { border-color: #534AB7; background: var(--bg); }
+    .exit-input {
+      width: 100%;
+      font-size: 12px;
+      padding: 4px 8px;
+      background: transparent;
+      border-color: transparent;
+    }
 
-    .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .exit-input:hover {
+      border-color: var(--border2);
+      background: var(--bg);
+    }
+
+    .exit-input:focus {
+      border-color: #534AB7;
+      background: var(--bg);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
 
     @media (max-width: 700px) {
-      .metrics { grid-template-columns: 1fr 1fr; }
-      .op-fields { grid-template-columns: 1fr 1fr; }
-      .trade-fields { grid-template-columns: 1fr 1fr; }
-      table { font-size: 12px; }
-      th, td { padding: 8px 10px; }
-      .nav-btn span { display: none; }
-      .chart-switcher { width: 100%; }
-      .chart-btn { flex: 1; justify-content: center; }
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .op-fields {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .trade-fields {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 8px 10px;
+      }
+
+      .nav-btn span {
+        display: none;
+      }
+
+      .chart-switcher {
+        width: 100%;
+      }
+
+      .chart-btn {
+        flex: 1;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -346,20 +739,40 @@
         <h1><i class="ti ti-currency-bitcoin"></i> Carteira de Criptoativos</h1>
         <p>Cotações em tempo real via CoinGecko · Valores em reais (BRL)</p>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;margin-top:2px">
-        <button class="btn-sm" onclick="backupToFolder()" title="Salvar backup na pasta do projeto"><i class="ti ti-folder"></i> Backup</button>
-        <button class="btn-sm" onclick="exportData()" title="Exportar backup em JSON"><i class="ti ti-download"></i> Exportar</button>
-        <label class="btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px" title="Importar backup JSON">
+      <div style="display:flex;gap:6px;flex-shrink:0;margin-top:2px;align-items:center">
+        <button class="btn-sm" onclick="backupToFolder()" title="Salvar backup na pasta do projeto"><i
+            class="ti ti-folder"></i> Backup</button>
+        <button class="btn-sm" onclick="exportData()" title="Exportar backup em JSON"><i class="ti ti-download"></i>
+          Exportar</button>
+        <label class="btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px"
+          title="Importar backup JSON">
           <i class="ti ti-upload"></i> Importar
           <input type="file" accept=".json" onchange="importData(event)" style="display:none">
         </label>
+        <div style="width:1px;height:20px;background:var(--border2);flex-shrink:0"></div>
+        <button class="btn-sm" id="gdrive-connect-btn" onclick="gdriveConnect()"
+          title="Conectar ao Google Drive para sincronizar dados">
+          <i class="ti ti-cloud"></i> Drive
+        </button>
+        <button class="btn-sm" id="gdrive-save-btn" onclick="gdriveSave()" style="display:none"
+          title="Salvar dados no Google Drive">
+          <i class="ti ti-cloud-upload"></i>
+        </button>
+        <button class="btn-sm" id="gdrive-load-btn" onclick="gdriveLoad()" style="display:none"
+          title="Carregar dados do Google Drive">
+          <i class="ti ti-cloud-download"></i>
+        </button>
+        <span id="gdrive-status"
+          style="font-size:11px;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
     </div>
 
     <div class="nav">
-      <button class="nav-btn active" onclick="switchTab('carteira')"><i class="ti ti-wallet"></i> <span>Carteira</span></button>
+      <button class="nav-btn active" onclick="switchTab('carteira')"><i class="ti ti-wallet"></i>
+        <span>Carteira</span></button>
       <button class="nav-btn" onclick="switchTab('lucro')"><i class="ti ti-trending-up"></i> <span>Lucro</span></button>
-      <button class="nav-btn" onclick="switchTab('historico')"><i class="ti ti-receipt"></i> <span>Histórico</span></button>
+      <button class="nav-btn" onclick="switchTab('historico')"><i class="ti ti-receipt"></i>
+        <span>Histórico</span></button>
     </div>
 
     <!-- CARTEIRA -->
@@ -384,9 +797,12 @@
       </div>
       <div class="topbar">
         <div class="chart-switcher" style="margin-bottom:0">
-          <button class="chart-btn active" data-group="ativo" onclick="switchGroup('ativo')"><i class="ti ti-coins"></i> Por ativo</button>
-          <button class="chart-btn" data-group="plataforma" onclick="switchGroup('plataforma')"><i class="ti ti-building-bank"></i> Por plataforma</button>
-          <button class="chart-btn" data-group="ambos" onclick="switchGroup('ambos')"><i class="ti ti-layout-grid"></i> Ativo + plataforma</button>
+          <button class="chart-btn active" data-group="ativo" onclick="switchGroup('ativo')"><i class="ti ti-coins"></i>
+            Por ativo</button>
+          <button class="chart-btn" data-group="plataforma" onclick="switchGroup('plataforma')"><i
+              class="ti ti-building-bank"></i> Por plataforma</button>
+          <button class="chart-btn" data-group="ambos" onclick="switchGroup('ambos')"><i class="ti ti-layout-grid"></i>
+            Ativo + plataforma</button>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span class="status" id="status-msg"></span>
@@ -394,7 +810,8 @@
         </div>
       </div>
       <div id="table-wrap">
-        <div class="empty-state"><i class="ti ti-chart-candle"></i><span>Registre operações no <strong>Histórico</strong> para ver sua carteira</span></div>
+        <div class="empty-state"><i class="ti ti-chart-candle"></i><span>Registre operações no
+            <strong>Histórico</strong> para ver sua carteira</span></div>
       </div>
     </div>
 
@@ -419,15 +836,19 @@
         </div>
       </div>
       <div class="chart-switcher">
-        <button class="chart-btn active" data-chart="por-ativo" onclick="switchChart('por-ativo')"><i class="ti ti-chart-bar"></i> Por ativo</button>
-        <button class="chart-btn" data-chart="no-tempo" onclick="switchChart('no-tempo')"><i class="ti ti-chart-line"></i> Lucro no tempo</button>
-        <button class="chart-btn" data-chart="valor" onclick="switchChart('valor')"><i class="ti ti-chart-area"></i> Valor da carteira</button>
+        <button class="chart-btn active" data-chart="por-ativo" onclick="switchChart('por-ativo')"><i
+            class="ti ti-chart-bar"></i> Por ativo</button>
+        <button class="chart-btn" data-chart="no-tempo" onclick="switchChart('no-tempo')"><i
+            class="ti ti-chart-line"></i> Lucro no tempo</button>
+        <button class="chart-btn" data-chart="valor" onclick="switchChart('valor')"><i class="ti ti-chart-area"></i>
+          Valor da carteira</button>
       </div>
       <div class="chart-area"><canvas id="lucro-chart"></canvas></div>
       <div class="dist-section">
         <div class="sec-title">Distribuição por aporte</div>
         <div id="dist-wrap">
-          <div class="empty-state" style="padding:1rem"><span style="font-size:12px">Adicione ativos e atualize os preços</span></div>
+          <div class="empty-state" style="padding:1rem"><span style="font-size:12px">Adicione ativos e atualize os
+              preços</span></div>
         </div>
       </div>
     </div>
@@ -435,7 +856,9 @@
     <!-- HISTÓRICO -->
     <div id="tab-historico" class="section">
       <div class="op-card">
-        <div class="sec-title" style="margin-bottom:.75rem" id="form-title"><i class="ti ti-plus" style="font-size:13px;vertical-align:middle;margin-right:4px" id="form-title-icon"></i>Registrar operação</div>
+        <div class="sec-title" style="margin-bottom:.75rem" id="form-title"><i class="ti ti-plus"
+            style="font-size:13px;vertical-align:middle;margin-right:4px" id="form-title-icon"></i>Registrar operação
+        </div>
         <div class="op-fields">
           <div class="field">
             <label>Data</label>
@@ -443,7 +866,8 @@
           </div>
           <div class="field" style="position:relative">
             <label>Moeda</label>
-            <input type="text" id="op-moeda-search" placeholder="Bitcoin, BTC..." autocomplete="off" oninput="searchOpCoin(this)">
+            <input type="text" id="op-moeda-search" placeholder="Bitcoin, BTC..." autocomplete="off"
+              oninput="searchOpCoin(this)">
             <div class="search-dropdown" id="sr-op" style="display:none"></div>
             <input type="hidden" id="op-coinid">
             <input type="hidden" id="op-symbol">
@@ -451,7 +875,10 @@
           </div>
           <div class="field">
             <label>Tipo</label>
-            <select id="op-tipo"><option>Compra</option><option>Venda</option></select>
+            <select id="op-tipo">
+              <option>Compra</option>
+              <option>Venda</option>
+            </select>
           </div>
           <div class="field">
             <label>Quantidade</label>
@@ -460,7 +887,8 @@
           <div class="field" style="position:relative">
             <label>
               <span id="op-preco-label">Preço unit. (R$)</span>
-              <button type="button" class="op-price-toggle" id="btn-price-mode" onclick="togglePriceMode()">⇄ total</button>
+              <button type="button" class="op-price-toggle" id="btn-price-mode" onclick="togglePriceMode()">⇄
+                total</button>
             </label>
             <input type="number" id="op-preco" placeholder="0.00" step="any" oninput="syncPriceFields()">
             <div class="field-hint" id="op-preco-hint"></div>
@@ -475,14 +903,17 @@
           </div>
           <div class="field-btn">
             <button class="btn-sm" id="btn-register" onclick="addOp()"><i class="ti ti-plus"></i> Registrar</button>
-            <button class="btn-sm" id="btn-cancel-edit" onclick="cancelEdit()" style="display:none;color:var(--danger);border-color:var(--danger)"><i class="ti ti-x"></i> Cancelar</button>
+            <button class="btn-sm" id="btn-cancel-edit" onclick="cancelEdit()"
+              style="display:none;color:var(--danger);border-color:var(--danger)"><i class="ti ti-x"></i>
+              Cancelar</button>
           </div>
         </div>
       </div>
 
       <!-- TRADE ENTRE ATIVOS -->
       <div class="trade-card">
-        <div class="sec-title" style="margin-bottom:.75rem"><i class="ti ti-arrows-exchange" style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Trade entre ativos</div>
+        <div class="sec-title" style="margin-bottom:.75rem"><i class="ti ti-arrows-exchange"
+            style="font-size:13px;vertical-align:middle;margin-right:4px"></i>Trade entre ativos</div>
         <div class="trade-fields">
           <div class="field">
             <label>Data</label>
@@ -500,7 +931,8 @@
           </div>
           <div class="field" style="position:relative">
             <label>Para (comprar)</label>
-            <input type="text" id="tr-to-search" placeholder="Bitcoin, BTC..." autocomplete="off" oninput="searchTradeCoin(this)">
+            <input type="text" id="tr-to-search" placeholder="Bitcoin, BTC..." autocomplete="off"
+              oninput="searchTradeCoin(this)">
             <div class="search-dropdown" id="sr-tr" style="display:none"></div>
             <input type="hidden" id="tr-coinid">
             <input type="hidden" id="tr-symbol">
@@ -533,6 +965,116 @@
   <script>
     let assets = [], prices = {}, ops = [], lucroChart = null, opSearchTimer = null;
     let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit', groupMode = 'ativo';
+
+    // ─── Google Drive Sync ──────────────────────────────────────────────────────
+    // Preencha com seu Client ID do Google Cloud Console
+    // Veja as instruções no comentário HTML acima do <head>
+    const GOOGLE_CLIENT_ID = '723448657163-k8sclpsm06b995f4pjj8i5d24pg10fe1.apps.googleusercontent.com';
+    const GDRIVE_FILE_NAME = 'carteira-crypto-backup.json';
+    let tokenClient = null, driveToken = null, driveFileId = null;
+
+    function gdriveConnect() {
+      if (GOOGLE_CLIENT_ID === '723448657163-k8sclpsm06b995f4pjj8i5d24pg10fe1.apps.googleusercontent.com') {
+        alert('Configure o GOOGLE_CLIENT_ID no HTML antes de usar o Drive.\n\nSiga as instruções no comentário no início do arquivo.');
+        return;
+      }
+      if (typeof google === 'undefined' || !google.accounts) {
+        alert('Google Identity Services ainda não carregou. Aguarde e tente novamente.'); return;
+      }
+      if (!tokenClient) {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          callback: gdriveOnToken,
+        });
+      }
+      tokenClient.requestAccessToken({ prompt: driveToken ? '' : 'consent' });
+    }
+
+    function gdriveOnToken(resp) {
+      if (resp.error) { setDriveStatus('Erro: ' + resp.error); return; }
+      driveToken = resp.access_token;
+      localStorage.setItem('cp_gdrive_used', '1');
+      const btn = document.getElementById('gdrive-connect-btn');
+      btn.innerHTML = '<i class="ti ti-check"></i> Drive';
+      btn.title = 'Reconectar ao Google Drive';
+      document.getElementById('gdrive-save-btn').style.display = '';
+      document.getElementById('gdrive-load-btn').style.display = '';
+      setDriveStatus('Conectado');
+    }
+
+    async function driveReq(url, opts = {}) {
+      const r = await fetch(url, {
+        ...opts,
+        headers: { Authorization: 'Bearer ' + driveToken, ...(opts.headers || {}) }
+      });
+      if (r.status === 401) {
+        driveToken = null;
+        document.getElementById('gdrive-connect-btn').innerHTML = '<i class="ti ti-cloud"></i> Drive';
+        document.getElementById('gdrive-save-btn').style.display = 'none';
+        document.getElementById('gdrive-load-btn').style.display = 'none';
+        setDriveStatus('Sessão expirada — reconecte');
+        throw new Error('token_expired');
+      }
+      return r;
+    }
+
+    async function driveFindFile() {
+      const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+      const r = await driveReq(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+      const d = await r.json();
+      return d.files?.[0]?.id || null;
+    }
+
+    async function gdriveSave() {
+      if (!driveToken) { gdriveConnect(); return; }
+      setDriveStatus('Salvando...');
+      try {
+        const payload = buildBackupPayload();
+        const meta = JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' });
+        const form = new FormData();
+        form.append('metadata', new Blob([meta], { type: 'application/json' }));
+        form.append('file', new Blob([payload], { type: 'application/json' }));
+        let fileId = driveFileId || await driveFindFile();
+        const url = fileId
+          ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+          : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+        const r = await driveReq(url, { method: fileId ? 'PATCH' : 'POST', body: form });
+        const d = await r.json();
+        if (d.id) driveFileId = d.id;
+        const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setDriveStatus('Salvo às ' + now);
+      } catch (e) {
+        if (e.message !== 'token_expired') setDriveStatus('Erro ao salvar');
+      }
+    }
+
+    async function gdriveLoad() {
+      if (!driveToken) { gdriveConnect(); return; }
+      setDriveStatus('Carregando...');
+      try {
+        let fileId = driveFileId || await driveFindFile();
+        if (!fileId) { setDriveStatus('Nenhum backup no Drive'); return; }
+        driveFileId = fileId;
+        const r = await driveReq(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+        const backup = await r.json();
+        if (!Array.isArray(backup.ops)) throw new Error('invalid');
+        localStorage.setItem('cp_ops', JSON.stringify(backup.ops));
+        if (backup.prices) localStorage.setItem('cp_prices', JSON.stringify(backup.prices));
+        if (backup.pricesTime) localStorage.setItem('cp_prices_time', backup.pricesTime);
+        if (backup.exitPrices) localStorage.setItem('cp_exit_prices', JSON.stringify(backup.exitPrices));
+        ops = backup.ops; prices = backup.prices || {};
+        if (backup.pricesTime) setStatus('Última atualização às ' + backup.pricesTime);
+        collectAssets(); renderTable(); renderOps();
+        const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setDriveStatus('Carregado às ' + now);
+      } catch (e) {
+        if (e.message !== 'token_expired') setDriveStatus('Erro ao carregar');
+      }
+    }
+
+    function setDriveStatus(msg) { document.getElementById('gdrive-status').textContent = msg; }
+    // ───────────────────────────────────────────────────────────────────────────
 
     function exportData() {
       const backup = {
@@ -654,6 +1196,7 @@
       document.getElementById('tr-data').value = today;
       const lastTime = localStorage.getItem('cp_prices_time');
       if (lastTime) setStatus('Última atualização às ' + lastTime);
+      if (localStorage.getItem('cp_gdrive_used')) setDriveStatus('Clique em Drive para sincronizar');
       collectAssets(); renderTable(); renderOps();
     }
 
@@ -892,7 +1435,7 @@
             <span class="search-item-rank">${c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
           </div>`).join('');
           sr.style.display = 'block';
-        } catch {}
+        } catch { }
       }, 350);
     }
 
@@ -937,7 +1480,7 @@
       }
 
       const sellOp = { data, coinId: fromCoinId, symbol: fromSymbol, name: fromName, tipo: 'Venda', qtd: fromQty, preco: total / fromQty, taxa: 0, total };
-      const buyOp  = { data, coinId: toCoinId,  symbol: toSymbol,  name: toName,  tipo: 'Compra', qtd: toQty, preco: (total + taxa) / toQty, taxa, total: total + taxa };
+      const buyOp = { data, coinId: toCoinId, symbol: toSymbol, name: toName, tipo: 'Compra', qtd: toQty, preco: (total + taxa) / toQty, taxa, total: total + taxa };
 
       ops.push(sellOp, buyOp);
       localStorage.setItem('cp_ops', JSON.stringify(ops));
