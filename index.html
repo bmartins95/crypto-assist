@@ -766,6 +766,10 @@
           title="Configurar chave da API CoinGecko">
           <i class="ti ti-key-off"></i>
         </button>
+        <button class="btn-sm" id="gdrive-disconnect-btn" onclick="gdriveDisconnect()" style="display:none"
+          title="Desconectar e esquecer Client ID">
+          <i class="ti ti-logout"></i>
+        </button>
         <span id="gdrive-status"
           style="font-size:11px;color:var(--text3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
@@ -971,7 +975,6 @@
     let activeChart = 'por-ativo', editingOpIdx = null, priceMode = 'unit', groupMode = 'ativo';
 
     // ─── Google Drive Sync ──────────────────────────────────────────────────────
-    const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
     const GDRIVE_FILE_NAME  = 'carteira-crypto-backup.json';
     const GDRIVE_CONFIG_NAME = 'carteira-crypto-config.json';
     let tokenClient = null, driveToken = null, driveFileId = null, configFileId = null;
@@ -979,17 +982,25 @@
 
     function cgKey() { return coingeckoApiKey ? '&x_cg_demo_api_key=' + coingeckoApiKey : ''; }
 
+    function getClientId() {
+      return localStorage.getItem('cp_gdrive_client_id') || '';
+    }
+
     function gdriveConnect() {
-      if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
-        alert('Configure o GOOGLE_CLIENT_ID no HTML antes de usar o Drive.\n\nSiga as instruções no comentário no início do arquivo.');
-        return;
+      let clientId = getClientId();
+      if (!clientId) {
+        clientId = prompt('Cole aqui o seu Google OAuth Client ID:\n\n(Acesse console.cloud.google.com → APIs & Services → Credentials)');
+        if (!clientId || !clientId.trim()) return;
+        clientId = clientId.trim();
+        localStorage.setItem('cp_gdrive_client_id', clientId);
+        tokenClient = null; // força reinicialização com novo ID
       }
       if (typeof google === 'undefined' || !google.accounts) {
         alert('Google Identity Services ainda não carregou. Aguarde e tente novamente.'); return;
       }
       if (!tokenClient) {
         tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
+          client_id: clientId,
           scope: 'https://www.googleapis.com/auth/drive.file',
           callback: gdriveOnToken,
         });
@@ -1007,8 +1018,22 @@
       document.getElementById('gdrive-save-btn').style.display = '';
       document.getElementById('gdrive-load-btn').style.display = '';
       document.getElementById('gdrive-key-btn').style.display = '';
+      document.getElementById('gdrive-disconnect-btn').style.display = '';
       setDriveStatus('Conectado');
       driveLoadConfig();
+    }
+
+    function gdriveDisconnect() {
+      if (!confirm('Desconectar do Google Drive?\n\nSeus dados locais não serão apagados.')) return;
+      localStorage.removeItem('cp_gdrive_client_id');
+      localStorage.removeItem('cp_gdrive_used');
+      driveToken = null; tokenClient = null; driveFileId = null; configFileId = null; coingeckoApiKey = '';
+      document.getElementById('gdrive-connect-btn').innerHTML = '<i class="ti ti-cloud"></i> Drive';
+      document.getElementById('gdrive-connect-btn').title = 'Conectar ao Google Drive';
+      ['gdrive-save-btn','gdrive-load-btn','gdrive-key-btn','gdrive-disconnect-btn'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+      setDriveStatus('');
     }
 
     async function driveReq(url, opts = {}) {
@@ -1019,10 +1044,9 @@
       if (r.status === 401) {
         driveToken = null;
         document.getElementById('gdrive-connect-btn').innerHTML = '<i class="ti ti-cloud"></i> Drive';
-        document.getElementById('gdrive-save-btn').style.display = 'none';
-        document.getElementById('gdrive-load-btn').style.display = 'none';
-        document.getElementById('gdrive-key-btn').style.display = 'none';
-        document.getElementById('gdrive-key-btn').style.display = 'none';
+        ['gdrive-save-btn','gdrive-load-btn','gdrive-key-btn','gdrive-disconnect-btn'].forEach(id => {
+          document.getElementById(id).style.display = 'none';
+        });
         setDriveStatus('Sessão expirada — reconecte');
         throw new Error('token_expired');
       }
