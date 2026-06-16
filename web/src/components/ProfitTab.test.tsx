@@ -16,8 +16,8 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({})) as unknown as typeof 
 const asset: Asset = { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', qty: 1, avgPrice: 100, exitPrice: 0 };
 
 const ops: Op[] = [
-  { date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Compra', qty: 1, price: 100, fee: 0, total: 100, platform: '' },
-  { date: '2024-01-02', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Venda', qty: 0.5, price: 150, fee: 0, total: 75, platform: '' },
+  { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Compra', qty: 1, price: 100, fee: 0, total: 100, platform: '' },
+  { id: 'op-2', date: '2024-01-02', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Venda', qty: 0.5, price: 150, fee: 0, total: 75, platform: '' },
 ];
 
 describe('ProfitTab', () => {

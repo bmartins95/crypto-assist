@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computePositions, computePositionsByAssetAndPlatform, computeTimeline } from './portfolio';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets } from './portfolio';
 import type { Op } from './types';
 
 function op(overrides: Partial<Op>): Op {
   return {
+    id: 'op-1',
     date: '2024-01-01',
     coinId: 'bitcoin',
     symbol: 'BTC',
@@ -95,5 +96,14 @@ describe('computeTimeline', () => {
     expect(point.invested).toBe(200);
     expect(point.currentValue).toBe(240);
     expect(point.pnl).toBe(40);
+  });
+});
+
+describe('collectAssets', () => {
+  it('attaches the exit price passed in, defaulting to 0 when absent', () => {
+    const ops = [op({ coinId: 'bitcoin', qty: 1, price: 100 }), op({ coinId: 'ethereum', qty: 1, price: 10 })];
+    const assets = collectAssets(ops, { bitcoin: 500000 });
+    expect(assets.find((a) => a.coinId === 'bitcoin')?.exitPrice).toBe(500000);
+    expect(assets.find((a) => a.coinId === 'ethereum')?.exitPrice).toBe(0);
   });
 });

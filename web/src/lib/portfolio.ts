@@ -1,5 +1,4 @@
-import type { Op, Asset, AssetWithPlatform, Prices } from './types';
-import { storage } from './storage';
+import type { Op, Asset, AssetWithPlatform, Prices, ExitPrices } from './types';
 
 export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
@@ -16,8 +15,7 @@ export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
   })).filter(a => a.qty > 1e-9);
 }
 
-export function collectAssets(ops: Op[]): Asset[] {
-  const exitPrices = storage.getExitPrices();
+export function collectAssets(ops: Op[], exitPrices: ExitPrices): Asset[] {
   return computePositions(ops).map(p => ({ ...p, exitPrice: exitPrices[p.coinId] || 0 }));
 }
 

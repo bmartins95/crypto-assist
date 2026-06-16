@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Op, Asset, Prices } from '@/lib/types';
+import { Op, NewOp, Asset, Prices } from '@/lib/types';
 import { fmt, fmtQty, fmtDate } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
 
@@ -10,9 +10,9 @@ interface Props {
   assets: Asset[];
   prices: Prices;
   apiKey: string;
-  onAddOp: (op: Op) => void;
-  onEditOp: (index: number, op: Op) => void;
-  onRemoveOp: (index: number) => void;
+  onAddOp: (op: NewOp) => void;
+  onEditOp: (id: string, op: NewOp) => void;
+  onRemoveOp: (id: string) => void;
 }
 
 interface CoinSelection { coinId: string; symbol: string; name: string }
@@ -70,7 +70,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
   const [opFee, setOpFee] = useState('');
   const [opPlatform, setOpPlatform] = useState('');
   const [priceMode, setPriceMode] = useState<'unit' | 'total'>('unit');
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Trade form
   const [trDate, setTrDate] = useState(today());
@@ -90,7 +90,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
   const resetOpForm = () => {
     setOpDate(today()); setOpCoin(null); setOpCoinText(''); setOpType('Compra');
     setOpQty(''); setOpPrice(''); setOpFee(''); setOpPlatform('');
-    setPriceMode('unit'); setEditingIdx(null);
+    setPriceMode('unit'); setEditingId(null);
   };
 
   const handleAddOp = () => {
@@ -101,14 +101,13 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
     } else {
       price = val; total = opType === 'Venda' ? qty * price - (parseFloat(opFee) || 0) : qty * price + (parseFloat(opFee) || 0);
     }
-    const op: Op = { date: opDate, coinId: opCoin.coinId, symbol: opCoin.symbol, name: opCoin.name, type: opType, qty, price, fee: parseFloat(opFee) || 0, total, platform: opPlatform.trim() };
-    if (editingIdx !== null) onEditOp(editingIdx, op); else onAddOp(op);
+    const op: NewOp = { date: opDate, coinId: opCoin.coinId, symbol: opCoin.symbol, name: opCoin.name, type: opType, qty, price, fee: parseFloat(opFee) || 0, total, platform: opPlatform.trim() };
+    if (editingId !== null) onEditOp(editingId, op); else onAddOp(op);
     resetOpForm();
   };
 
-  const handleEditOp = (i: number) => {
-    const o = ops[i];
-    setEditingIdx(i); setOpDate(o.date || '');
+  const handleEditOp = (o: Op) => {
+    setEditingId(o.id); setOpDate(o.date || '');
     setOpCoin({ coinId: o.coinId, symbol: o.symbol, name: o.name });
     setOpCoinText((o.name || '') + ' (' + (o.symbol || '') + ')');
     setOpType(o.type); setOpQty(String(o.qty)); setOpPrice(String(o.price));
@@ -116,9 +115,9 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
     setPriceMode('unit');
   };
 
-  const handleRemoveOp = (i: number) => {
-    if (editingIdx === i) resetOpForm();
-    onRemoveOp(i);
+  const handleRemoveOp = (id: string) => {
+    if (editingId === id) resetOpForm();
+    onRemoveOp(id);
   };
 
   const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toCoin: CoinSelection | null, totalStr: string) => {
@@ -155,13 +154,13 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
     }
     if (trFromCoinId === trToCoin.coinId) { alert('A moeda de origem e de destino não podem ser a mesma.'); return; }
     const fromQty = parseFloat(trFromQty), toQty = parseFloat(trToQty), total = parseFloat(trTotal), fee = parseFloat(trFee) || 0;
-    const sellOp: Op = { date: trDate, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', type: 'Venda', qty: fromQty, price: total / fromQty, fee: 0, total, platform: '' };
-    const buyOp: Op = { date: trDate, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, type: 'Compra', qty: toQty, price: (total + fee) / toQty, fee, total: total + fee, platform: '' };
+    const sellOp: NewOp = { date: trDate, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', type: 'Venda', qty: fromQty, price: total / fromQty, fee: 0, total, platform: '' };
+    const buyOp: NewOp = { date: trDate, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, type: 'Compra', qty: toQty, price: (total + fee) / toQty, fee, total: total + fee, platform: '' };
     onAddOp(sellOp); onAddOp(buyOp);
     setTrFromQty(''); setTrToCoin(null); setTrToCoinText(''); setTrToQty(''); setTrTotal(''); setTrFee(''); setTrTotalHint('');
   };
 
-  const isEditing = editingIdx !== null;
+  const isEditing = editingId !== null;
 
   return (
     <div id="tab-historico" className="section active">
@@ -279,8 +278,8 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
             <span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span>
             <span>Preço unit.</span><span>Total</span><span>Taxa</span><span>Plataforma</span><span />
           </div>
-          {ops.map((o, i) => (
-            <div className="op-list-row" key={i}>
+          {ops.map(o => (
+            <div className="op-list-row" key={o.id}>
               <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date)}</span>
               <span style={{ fontWeight: 500 }}>{o.symbol || '—'}</span>
               <span><span className={`pill ${o.type === 'Compra' ? 'pill-pos' : 'pill-neg'}`}>{o.type}</span></span>
@@ -290,8 +289,8 @@ export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEdi
               <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? fmt(o.fee) : '—'}</span>
               <span style={{ color: 'var(--text2)' }}>{o.platform || '—'}</span>
               <span className="op-actions">
-                <button className="icon-btn" onClick={() => handleEditOp(i)} title="Editar"><i className="ti ti-pencil" /></button>
-                <button className="icon-btn" onClick={() => handleRemoveOp(i)} title="Excluir" style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
+                <button className="icon-btn" onClick={() => handleEditOp(o)} title="Editar"><i className="ti ti-pencil" /></button>
+                <button className="icon-btn" onClick={() => handleRemoveOp(o.id)} title="Excluir" style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
               </span>
             </div>
           ))}

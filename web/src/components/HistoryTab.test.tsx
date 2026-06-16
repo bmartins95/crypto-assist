@@ -19,6 +19,7 @@ const baseProps = {
 };
 
 const existingOp: Op = {
+  id: 'op-1',
   date: '2024-01-15',
   coinId: 'bitcoin',
   symbol: 'BTC',
@@ -59,7 +60,7 @@ describe('HistoryTab', () => {
     const onRemoveOp = vi.fn();
     render(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
-    expect(onRemoveOp).toHaveBeenCalledWith(0);
+    expect(onRemoveOp).toHaveBeenCalledWith('op-1');
   });
 
   it('loads an operation into the form for editing', () => {

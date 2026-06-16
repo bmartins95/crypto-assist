@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Op, Asset, Prices, AvatarCache, TabType, GroupMode, ChartType } from '@/lib/types';
-import { storage, buildBackupPayload, applyBackup } from '@/lib/storage';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Op, NewOp, Prices, AvatarCache, TabType, GroupMode, ChartType, BackupPayload } from '@/lib/types';
+import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
+import { api } from '@/lib/api/client';
 import { collectAssets } from '@/lib/portfolio';
-import { fetchMarketPrices } from '@/lib/coingecko';
 import { driveFindFile, driveUpload, driveDownload, GDRIVE_FILE_NAME, GDRIVE_CONFIG_NAME } from '@/lib/gdrive';
 import WalletTab from '@/components/WalletTab';
 import ProfitTab from '@/components/ProfitTab';
@@ -28,9 +28,10 @@ declare global {
 
 export default function DashboardPage() {
   const [ops, setOps] = useState<Op[]>([]);
+  const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Prices>({});
-  const [assets, setAssets] = useState<Asset[]>([]);
   const [avatarCache, setAvatarCache] = useState<AvatarCache>({});
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
@@ -45,104 +46,153 @@ export default function DashboardPage() {
   const [tokenClient, setTokenClient] = useState<{ requestAccessToken: (o: { prompt: string }) => void } | null>(null);
   const [driveConnected, setDriveConnected] = useState(false);
 
-  const refreshAssets = useCallback((opList: Op[]) => {
-    setAssets(collectAssets(opList));
+  const assets = useMemo(() => collectAssets(ops, exitPrices), [ops, exitPrices]);
+
+  const reloadFromBackend = useCallback(async () => {
+    const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+    setOps(remoteOps);
+    setExitPrices(remoteExitPrices);
   }, []);
 
+  // ─── Initial load: fetch from the backend, offer to import legacy localStorage data ──
   useEffect(() => {
-    const savedOps = storage.getOps();
-    const savedPrices = storage.getPrices();
-    const savedAvatars = storage.getAvatars();
-    setOps(savedOps);
-    setPrices(savedPrices);
-    setAvatarCache(savedAvatars);
-    setAssets(collectAssets(savedOps));
-    const lastTime = storage.getPricesTime();
-    if (lastTime) setStatusMsg('Última atualização às ' + lastTime);
-    if (storage.getGdriveUsed()) setDriveStatus('Clique em Drive para sincronizar');
+    let cancelled = false;
+    (async () => {
+      setAvatarCache(storage.getAvatars());
+      if (storage.getGdriveUsed()) setDriveStatus('Clique em Drive para sincronizar');
+      try {
+        const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+        if (cancelled) return;
+
+        if (remoteOps.length === 0) {
+          const legacyOps = getLegacyOps();
+          if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
+            const wantsImport = confirm('Detectamos dados salvos neste navegador. Deseja importar para sua conta?');
+            if (wantsImport) {
+              const legacyExitPrices = getLegacyExitPrices();
+              const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
+              await api.importBackup(legacyBackup);
+              clearLegacyData();
+              await reloadFromBackend();
+              if (!cancelled) setLoading(false);
+              return;
+            }
+            declineMigration();
+          }
+        }
+
+        setOps(remoteOps);
+        setExitPrices(remoteExitPrices);
+      } catch {
+        setStatusMsg('Erro ao carregar seus dados. Recarregue a página.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [reloadFromBackend]);
+
+  const handleAddOp = useCallback(async (op: NewOp) => {
+    try {
+      const created = await api.createOp(op);
+      setOps(prev => [...prev, created]);
+    } catch {
+      alert('Erro ao registrar a operação. Tente novamente.');
+    }
   }, []);
 
-  const updateOps = useCallback((newOps: Op[]) => {
-    setOps(newOps);
-    storage.setOps(newOps);
-    refreshAssets(newOps);
-  }, [refreshAssets]);
-
-  const handleAddOp = useCallback((op: Op) => {
-    setOps(prev => { const next = [...prev, op]; storage.setOps(next); refreshAssets(next); return next; });
-  }, [refreshAssets]);
-
-  const handleEditOp = useCallback((index: number, op: Op) => {
-    setOps(prev => { const next = [...prev]; next[index] = op; storage.setOps(next); refreshAssets(next); return next; });
-  }, [refreshAssets]);
-
-  const handleRemoveOp = useCallback((index: number) => {
-    setOps(prev => { const next = prev.filter((_, i) => i !== index); storage.setOps(next); refreshAssets(next); return next; });
-  }, [refreshAssets]);
-
-  const handleExitPriceChange = useCallback((coinId: string, value: string) => {
-    const exitPrice = parseFloat(value) || 0;
-    const stored = storage.getExitPrices();
-    if (exitPrice > 0) stored[coinId] = exitPrice; else delete stored[coinId];
-    storage.setExitPrices(stored);
-    setOps(prev => { refreshAssets(prev); return prev; });
-  }, [refreshAssets]);
-
-  // ─── CoinGecko prices ────────────────────────────────────────────────────────
-  const fetchPrices = useCallback(async () => {
-    const currentAssets = collectAssets(storage.getOps());
-    if (!currentAssets.length) { setStatusMsg('Registre operações no Histórico primeiro.'); return; }
-    setStatusMsg('Buscando cotações...');
-    const ids = [...new Set(currentAssets.map(a => a.coinId))].join(',');
+  const handleEditOp = useCallback(async (id: string, op: NewOp) => {
     try {
-      const data = await fetchMarketPrices(ids, coingeckoApiKey);
-      const newPrices: Prices = { ...storage.getPrices() };
-      const newAvatars: AvatarCache = { ...storage.getAvatars() };
-      let updated = 0;
-      data.forEach(coin => {
-        if (coin.current_price != null) { newPrices[coin.id] = coin.current_price; updated++; }
-        if (coin.image) { newAvatars[coin.id] = { url: coin.image }; }
+      const updated = await api.updateOp(id, op);
+      setOps(prev => prev.map(o => (o.id === id ? updated : o)));
+    } catch {
+      alert('Erro ao salvar a operação. Tente novamente.');
+    }
+  }, []);
+
+  const handleRemoveOp = useCallback(async (id: string) => {
+    try {
+      await api.deleteOp(id);
+      setOps(prev => prev.filter(o => o.id !== id));
+    } catch {
+      alert('Erro ao excluir a operação. Tente novamente.');
+    }
+  }, []);
+
+  const handleExitPriceChange = useCallback(async (coinId: string, value: string) => {
+    const exitPrice = parseFloat(value) || 0;
+    try {
+      await api.setExitPrice(coinId, exitPrice);
+      setExitPrices(prev => {
+        const next = { ...prev };
+        if (exitPrice > 0) next[coinId] = exitPrice; else delete next[coinId];
+        return next;
       });
-      storage.setPrices(newPrices);
-      storage.setAvatars(newAvatars);
-      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      storage.setPricesTime(now);
+    } catch {
+      setStatusMsg('Erro ao salvar meta de saída.');
+    }
+  }, []);
+
+  // ─── Prices (backend-cached CoinGecko) ────────────────────────────────────
+  const fetchPrices = useCallback(async () => {
+    if (!assets.length) { setStatusMsg('Registre operações no Histórico primeiro.'); return; }
+    setStatusMsg('Buscando cotações...');
+    const ids = [...new Set(assets.map(a => a.coinId))];
+    try {
+      const market = await api.getPrices(ids);
+      const newPrices: Prices = { ...prices };
+      const newAvatars: AvatarCache = { ...avatarCache };
+      let updated = 0;
+      for (const [coinId, info] of Object.entries(market)) {
+        newPrices[coinId] = info.price;
+        updated++;
+        if (info.image) newAvatars[coinId] = { url: info.image };
+      }
       setPrices(newPrices);
       setAvatarCache(newAvatars);
-      const missing = currentAssets.length - updated;
+      storage.setAvatars(newAvatars);
+      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const missing = ids.length - updated;
       setStatusMsg(missing > 0 ? `Atualizado às ${now} (${missing} ativo(s) sem cotação)` : 'Atualizado às ' + now);
-      refreshAssets(storage.getOps());
     } catch (e: unknown) {
       const status = (e as { status?: number }).status;
       if (status === 429) setStatusMsg('Limite de requisições atingido. Aguarde alguns minutos.');
       else setStatusMsg('Erro ao buscar preços. Verifique sua conexão.');
     }
-  }, [coingeckoApiKey, refreshAssets]);
+  }, [assets, prices, avatarCache]);
 
-  // ─── Export / Import ─────────────────────────────────────────────────────────
-  const exportData = () => {
-    const backup = buildBackupPayload();
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-    a.click(); URL.revokeObjectURL(a.href);
+  // Fetch prices once automatically after the wallet first has assets to price.
+  const didAutoFetchPrices = useRef(false);
+  useEffect(() => {
+    if (!loading && assets.length > 0 && !didAutoFetchPrices.current) {
+      didAutoFetchPrices.current = true;
+      fetchPrices();
+    }
+  }, [loading, assets, fetchPrices]);
+
+  // ─── Export / Import (full account backup via the backend) ────────────────
+  const exportData = async () => {
+    try {
+      const backup = await api.exportBackup();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click(); URL.revokeObjectURL(a.href);
+    } catch {
+      alert('Erro ao exportar backup.');
+    }
   };
 
   const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const backup = JSON.parse(ev.target?.result as string);
         if (!Array.isArray(backup.ops)) throw new Error('Formato inválido');
-        applyBackup(backup);
-        const newOps = backup.ops as Op[];
-        const newPrices = (backup.prices || {}) as Prices;
-        setOps(newOps); setPrices(newPrices);
-        storage.setOps(newOps); storage.setPrices(newPrices);
-        if (backup.pricesTime) { storage.setPricesTime(backup.pricesTime); setStatusMsg('Última atualização às ' + backup.pricesTime); }
-        refreshAssets(newOps);
+        await api.importBackup(backup);
+        await reloadFromBackend();
         e.target.value = '';
       } catch { alert('Arquivo inválido. Use um backup exportado por esta aplicação.'); }
     };
@@ -186,7 +236,7 @@ export default function DashboardPage() {
   }, [tokenClient, driveToken, gdriveOnToken]);
 
   const gdriveDisconnect = useCallback(() => {
-    if (!confirm('Desconectar do Google Drive?\n\nSeus dados locais não serão apagados.')) return;
+    if (!confirm('Desconectar do Google Drive?\n\nSeus dados na conta não serão apagados.')) return;
     storage.removeClientId(); storage.removeGdriveUsed();
     setDriveToken(null); setTokenClient(null); setDriveFileId(null); setConfigFileId(null);
     setCoingeckoApiKey(''); setDriveConnected(false); setDriveStatus('');
@@ -196,7 +246,8 @@ export default function DashboardPage() {
     if (!driveToken) { gdriveConnect(); return; }
     setDriveStatus('Salvando...');
     try {
-      const payload = JSON.stringify(buildBackupPayload(), null, 2);
+      const backup = await api.exportBackup();
+      const payload = JSON.stringify(backup, null, 2);
       const existingId = driveFileId || await driveFindFile(GDRIVE_FILE_NAME, driveToken);
       const newId = await driveUpload(GDRIVE_FILE_NAME, payload, driveToken, existingId);
       setDriveFileId(newId);
@@ -214,20 +265,16 @@ export default function DashboardPage() {
       const fid = driveFileId || await driveFindFile(GDRIVE_FILE_NAME, driveToken);
       if (!fid) { setDriveStatus('Nenhum backup no Drive'); return; }
       setDriveFileId(fid);
-      const backup = await driveDownload<{ ops: Op[]; prices?: Prices; pricesTime?: string; exitPrices?: Record<string, number> }>(fid, driveToken);
+      const backup = await driveDownload<BackupPayload>(fid, driveToken);
       if (!Array.isArray(backup.ops)) throw new Error('invalid');
-      applyBackup({ version: 1, exportedAt: '', ...backup, ops: backup.ops, prices: backup.prices || {}, pricesTime: backup.pricesTime || null, exitPrices: backup.exitPrices || {} });
-      const newOps = backup.ops;
-      const newPrices = backup.prices || {};
-      setOps(newOps); setPrices(newPrices);
-      if (backup.pricesTime) setStatusMsg('Última atualização às ' + backup.pricesTime);
-      refreshAssets(newOps);
+      await api.importBackup(backup);
+      await reloadFromBackend();
       setDriveStatus('Carregado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     } catch (e: unknown) {
       if ((e as Error).message !== 'token_expired') setDriveStatus('Erro ao carregar');
       else { setDriveToken(null); setDriveConnected(false); setDriveStatus('Sessão expirada — reconecte'); }
     }
-  }, [driveToken, driveFileId, gdriveConnect, refreshAssets]);
+  }, [driveToken, driveFileId, gdriveConnect, reloadFromBackend]);
 
   const gdriveConfigKey = useCallback(() => {
     const key = prompt('Cole sua chave da API CoinGecko Demo:\n(deixe em branco para remover)', coingeckoApiKey);
@@ -296,25 +343,34 @@ export default function DashboardPage() {
       </div>
 
       {/* Tabs */}
-      {activeTab === 'wallet' && (
-        <WalletTab
-          ops={ops} assets={assets} prices={prices} avatarCache={avatarCache}
-          groupMode={groupMode} onGroupMode={setGroupMode}
-          statusMsg={statusMsg} onFetchPrices={fetchPrices}
-          onExitPriceChange={handleExitPriceChange}
-        />
-      )}
-      {activeTab === 'profit' && (
-        <ProfitTab
-          assets={assets} ops={ops} prices={prices}
-          activeChart={activeChart} onChartSwitch={setActiveChart}
-        />
-      )}
-      {activeTab === 'history' && (
-        <HistoryTab
-          ops={ops} assets={assets} prices={prices} apiKey={coingeckoApiKey}
-          onAddOp={handleAddOp} onEditOp={handleEditOp} onRemoveOp={handleRemoveOp}
-        />
+      {loading ? (
+        <div className="empty-state" style={{ marginTop: 40 }}>
+          <i className="ti ti-loader-2" />
+          <span>Carregando sua carteira...</span>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'wallet' && (
+            <WalletTab
+              ops={ops} assets={assets} prices={prices} avatarCache={avatarCache}
+              groupMode={groupMode} onGroupMode={setGroupMode}
+              statusMsg={statusMsg} onFetchPrices={fetchPrices}
+              onExitPriceChange={handleExitPriceChange}
+            />
+          )}
+          {activeTab === 'profit' && (
+            <ProfitTab
+              assets={assets} ops={ops} prices={prices}
+              activeChart={activeChart} onChartSwitch={setActiveChart}
+            />
+          )}
+          {activeTab === 'history' && (
+            <HistoryTab
+              ops={ops} assets={assets} prices={prices} apiKey={coingeckoApiKey}
+              onAddOp={handleAddOp} onEditOp={handleEditOp} onRemoveOp={handleRemoveOp}
+            />
+          )}
+        </>
       )}
     </div>
   );
