@@ -25,7 +25,7 @@ describe('GET /api/prices', () => {
   });
 
   it('serves fresh prices straight from the cache, without calling CoinGecko', async () => {
-    const freshRow = { coin_id: 'bitcoin', price_brl: '500000', image_url: null, updated_at: new Date().toISOString() };
+    const freshRow = { coin_id: 'bitcoin', price_brl: '500000', image_url: 'https://example.com/btc.png', updated_at: new Date().toISOString() };
     fromMock.mockReturnValue(makeQueryStub({ data: [freshRow], error: null }));
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -34,7 +34,7 @@ describe('GET /api/prices', () => {
     const res = await request(app).get('/api/prices?ids=bitcoin');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ bitcoin: 500000 });
+    expect(res.body).toEqual({ bitcoin: { price: 500000, image: 'https://example.com/btc.png' } });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -54,7 +54,10 @@ describe('GET /api/prices', () => {
     const res = await request(app).get('/api/prices?ids=bitcoin,ethereum');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ bitcoin: 500000, ethereum: 30000 });
+    expect(res.body).toEqual({
+      bitcoin: { price: 500000 },
+      ethereum: { price: 30000, image: 'https://example.com/eth.png' },
+    });
   });
 
   it('falls back to stale cache data when CoinGecko fails', async () => {
@@ -66,7 +69,7 @@ describe('GET /api/prices', () => {
     const res = await request(app).get('/api/prices?ids=ethereum');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ethereum: 29000 });
+    expect(res.body).toEqual({ ethereum: { price: 29000 } });
   });
 
   it('returns 502 when CoinGecko fails and there is no cache at all', async () => {

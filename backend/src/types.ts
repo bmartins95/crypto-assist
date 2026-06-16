@@ -21,6 +21,13 @@ export type ExitPrices = Record<string, number>;
 
 export type Prices = Record<string, number>;
 
+export interface PriceInfo {
+  price: number;
+  image?: string;
+}
+
+export type MarketPrices = Record<string, PriceInfo>;
+
 export interface BackupPayload {
   version: number;
   exportedAt: string;

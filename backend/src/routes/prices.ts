@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
-import type { Prices } from '../types';
+import type { MarketPrices } from '../types';
 
 export const pricesRouter = Router();
 
@@ -56,8 +56,8 @@ pricesRouter.get('/', async (req, res) => {
   }
 
   const staleIds = ids.filter((id) => !fresh.has(id));
-  const result: Prices = {};
-  for (const [id, row] of fresh) result[id] = Number(row.price_brl);
+  const result: MarketPrices = {};
+  for (const [id, row] of fresh) result[id] = { price: Number(row.price_brl), image: row.image_url ?? undefined };
 
   if (staleIds.length > 0) {
     try {
@@ -67,13 +67,13 @@ pricesRouter.get('/', async (req, res) => {
           fetched.map((c) => ({ coin_id: c.id, price_brl: c.price, image_url: c.image ?? null, updated_at: new Date().toISOString() }))
         );
       }
-      for (const c of fetched) result[c.id] = c.price;
+      for (const c of fetched) result[c.id] = { price: c.price, image: c.image };
     } catch (e) {
       // If CoinGecko fails, still return whatever we had cached (even if
       // stale) instead of failing the whole response.
       for (const id of staleIds) {
         const stale = (cachedRows as PriceCacheRow[] | null)?.find((r) => r.coin_id === id);
-        if (stale) result[id] = Number(stale.price_brl);
+        if (stale) result[id] = { price: Number(stale.price_brl), image: stale.image_url ?? undefined };
       }
       const status = (e as { status?: number }).status === 429 ? 429 : undefined;
       if (Object.keys(result).length === 0) {

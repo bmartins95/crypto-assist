@@ -170,8 +170,8 @@ Returns `{ coinId: exitPrice }` for the user.
 Body: `{ coinId: string, exitPrice: number }`
 
 ### `GET /api/prices?ids=bitcoin,ethereum`
-Fetches CoinGecko prices with a 5-minute cache in the `price_cache` table (written with the secret key).
-Returns: `{ bitcoin: 350000, ethereum: 18000 }`
+Fetches CoinGecko prices (and coin images) with a 5-minute cache in the `price_cache` table (written with the secret key).
+Returns: `{ bitcoin: { price: 350000, image: "https://..." }, ethereum: { price: 18000 } }` — `image` is omitted when unknown.
 
 ### `GET /api/export`
 Generates and returns the user's full backup as JSON.
