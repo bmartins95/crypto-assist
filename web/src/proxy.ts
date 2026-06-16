@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/proxy';
 
-// Next.js 16 renomeou "middleware" para "proxy" (mesmo arquivo, mesmo lugar,
-// mesmo comportamento — só a convenção de nome mudou).
+// Next.js 16 renamed "middleware" to "proxy" (same file, same place, same
+// behavior — only the naming convention changed).
 export function proxy(request: NextRequest) {
   return updateSession(request);
 }
@@ -10,7 +10,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Roda em todas as rotas exceto assets estáticos, imagens e o favicon.
+     * Runs on every route except static assets, images and the favicon.
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],

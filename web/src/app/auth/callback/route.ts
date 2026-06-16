@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
-// Recebe o redirect do OAuth (Google) ou do link de confirmação de e-mail,
-// troca o "code" pela sessão e redireciona para o dashboard.
+// Receives the redirect from OAuth (Google) or the email confirmation link,
+// exchanges the "code" for a session and redirects to the dashboard.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get('code');

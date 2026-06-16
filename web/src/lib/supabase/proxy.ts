@@ -4,9 +4,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 const PUBLIC_PATHS = ['/auth', '/auth/callback'];
 
 /**
- * Atualiza a sessão Supabase a cada navegação e redireciona com base no
- * estado de autenticação. Chamada pelo proxy.ts (ver docs do Next.js 16 —
- * o antigo "middleware" foi renomeado para "proxy").
+ * Refreshes the Supabase session on every navigation and redirects based on
+ * auth state. Called from proxy.ts (see the Next.js 16 docs — the old
+ * "middleware" convention was renamed to "proxy").
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -30,8 +30,8 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: getUser() valida o token com o servidor de Auth — não trocar
-  // por getSession() aqui, que apenas lê o cookie sem verificar.
+  // IMPORTANT: getUser() validates the token with the Auth server — don't
+  // swap this for getSession(), which only reads the cookie without verifying.
   const { data: { user } } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;

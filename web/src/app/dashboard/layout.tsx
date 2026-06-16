@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 
-// Server Component: verifica a sessão no servidor (defesa em profundidade —
-// o proxy.ts já faz isso de forma otimista, ver docs do Next.js sobre DAL).
+// Server Component: verifies the session on the server (defense in depth —
+// proxy.ts already does this optimistically, see the Next.js docs on the DAL).
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

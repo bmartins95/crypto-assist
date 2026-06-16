@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
-// O proxy.ts já garante que usuários não autenticados sejam enviados a /auth;
-// aqui só decidimos para onde mandar usuários autenticados.
+// proxy.ts already guarantees unauthenticated users are sent to /auth;
+// here we just decide where to send authenticated users.
 export default function Home() {
   redirect('/dashboard');
 }

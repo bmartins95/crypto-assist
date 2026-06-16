@@ -30,7 +30,7 @@ export default function AuthPage() {
 
     if (mode === 'login') {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage(traduzErro(error.message));
+      if (error) setMessage(translateAuthError(error.message));
       else window.location.href = '/dashboard';
     } else {
       const { error } = await supabase.auth.signUp({
@@ -38,7 +38,7 @@ export default function AuthPage() {
         password,
         options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-      if (error) setMessage(traduzErro(error.message));
+      if (error) setMessage(translateAuthError(error.message));
       else setMessage('Verifique seu e-mail para confirmar o cadastro.');
     }
     setLoading(false);
@@ -105,7 +105,7 @@ export default function AuthPage() {
   );
 }
 
-function traduzErro(msg: string): string {
+function translateAuthError(msg: string): string {
   if (msg.includes('Invalid login credentials')) return 'E-mail ou senha inválidos.';
   if (msg.includes('User already registered')) return 'Este e-mail já está cadastrado.';
   if (msg.includes('Password should be')) return 'A senha deve ter pelo menos 6 caracteres.';

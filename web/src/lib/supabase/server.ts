@@ -1,8 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// Client para uso em Server Components, Server Actions e Route Handlers.
-// Sempre crie um novo client por requisição — nunca compartilhe entre requests.
+// Client for use in Server Components, Server Actions and Route Handlers.
+// Always create a new client per request — never share one across requests.
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -18,8 +18,8 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
           } catch {
-            // Chamado de um Server Component (sem acesso de escrita a cookies).
-            // Pode ser ignorado se houver um proxy.ts atualizando a sessão.
+            // Called from a Server Component (no write access to cookies).
+            // Safe to ignore if a proxy.ts is refreshing the session.
           }
         },
       },
