@@ -11,8 +11,8 @@ See [`../PLANO_BACKEND.md`](../PLANO_BACKEND.md) for the full architecture.
 
 ```bash
 cp .env.example .env
-# fill in SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY
-# (Supabase Dashboard -> Project Settings -> API)
+# fill in SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY
+# (Supabase Dashboard -> Project Settings -> API Keys)
 
 npm install
 npm run dev      # http://localhost:3001, with auto reload

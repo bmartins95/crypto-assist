@@ -44,7 +44,7 @@ Future mobile: **Expo + React Native**, consuming the same `backend/`
 1. The frontend (web or mobile) talks **directly to Supabase Auth** via `@supabase/supabase-js` for login, signup, Google OAuth and session refresh. Reimplementing this flow in the backend wouldn't add value — the Supabase SDK already handles PKCE, refresh tokens, etc., and this is naturally shared between web and mobile as-is.
 2. To call the backend, the frontend sends the Supabase session's **JWT access token** in the `Authorization: Bearer <token>` header.
 3. The backend validates that token (via `supabase.auth.getUser(token)`) in a middleware, and uses a Supabase client **authenticated with the user's token** so Postgres RLS automatically enforces `user_id` isolation.
-4. For operations that require server privileges (e.g. writing to the shared price cache), the backend uses a separate client with the `service_role key`.
+4. For operations that require server privileges (e.g. writing to the shared price cache), the backend uses a separate client with the `secret key`.
 
 ---
 
@@ -74,12 +74,12 @@ crypto-assist/
 │   │   │   ├── format.ts            ← already exists
 │   │   │   ├── portfolio.ts         ← already exists
 │   │   │   ├── supabase/
-│   │   │   │   ├── client.ts        ← browser client (anon key)
+│   │   │   │   ├── client.ts        ← browser client (publishable key)
 │   │   │   │   └── server.ts        ← server client (Server Components/Route Handlers)
 │   │   │   └── api/
 │   │   │       └── client.ts        ← fetch() functions to call the backend/
 │   │   └── proxy.ts                 ← Next 16: protects /dashboard (renamed from middleware)
-│   └── .env.local                   ← NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+│   └── .env.local                   ← NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 │                                       NEXT_PUBLIC_BACKEND_URL
 │
 ├── backend/                         ← Express + TypeScript (HTTP API, independent project)
@@ -88,14 +88,14 @@ crypto-assist/
 │   │   ├── middleware/
 │   │   │   └── auth.ts              ← validates Bearer token, populates req.user
 │   │   ├── lib/
-│   │   │   └── supabase.ts          ← supabaseAdmin (service_role) + supabaseForUser(token)
+│   │   │   └── supabase.ts          ← supabaseAdmin (secret key) + supabaseForUser(token)
 │   │   └── routes/
 │   │       ├── ops.ts               ← GET/POST /api/ops, PUT/DELETE /api/ops/:id
 │   │       ├── exitPrices.ts        ← GET/PUT /api/exit-prices
 │   │       ├── prices.ts            ← GET /api/prices (CoinGecko cache)
 │   │       ├── exportData.ts        ← GET /api/export
 │   │       └── importData.ts        ← POST /api/import
-│   ├── .env                         ← SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
+│   ├── .env                         ← SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY,
 │   │                                   COINGECKO_API_KEY, FRONTEND_ORIGIN (for CORS)
 │   ├── package.json
 │   └── tsconfig.json
@@ -114,15 +114,15 @@ crypto-assist/
 ### `web/.env.local`
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_BACKEND_URL=http://localhost:3001        # production: the backend's Vercel URL
 ```
 
 ### `backend/.env`
 ```env
 SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...                              # same value as the frontend's anon key
-SUPABASE_SERVICE_ROLE_KEY=eyJ...                      # never exposed to the client
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...                  # same value as the frontend's publishable key
+SUPABASE_SECRET_KEY=sb_secret_...                            # never exposed to the client
 COINGECKO_API_KEY=                                    # optional, CoinGecko Demo key
 FRONTEND_ORIGIN=http://localhost:3000                 # for CORS configuration
 PORT=3001
@@ -170,7 +170,7 @@ Returns `{ coinId: exitPrice }` for the user.
 Body: `{ coinId: string, exitPrice: number }`
 
 ### `GET /api/prices?ids=bitcoin,ethereum`
-Fetches CoinGecko prices with a 5-minute cache in the `price_cache` table (written with the service_role key).
+Fetches CoinGecko prices with a 5-minute cache in the `price_cache` table (written with the secret key).
 Returns: `{ bitcoin: 350000, ethereum: 18000 }`
 
 ### `GET /api/export`
