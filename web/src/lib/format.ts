@@ -4,7 +4,7 @@ export const fmt = (v: number) =>
 export const fmtPct = (v: number) =>
   (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%';
 
-export const fmtQtd = (v: number) =>
+export const fmtQty = (v: number) =>
   Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
 
 export const fmtDate = (s: string) =>

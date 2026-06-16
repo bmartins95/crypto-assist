@@ -1,14 +1,14 @@
 export interface Op {
-  data: string;
+  date: string;
   coinId: string;
   symbol: string;
   name: string;
-  tipo: 'Compra' | 'Venda';
-  qtd: number;
-  preco: number;
-  taxa: number;
+  type: 'Compra' | 'Venda';
+  qty: number;
+  price: number;
+  fee: number;
   total: number;
-  plataforma: string;
+  platform: string;
 }
 
 export interface Asset {
@@ -21,15 +21,15 @@ export interface Asset {
 }
 
 export interface AssetWithPlatform extends Omit<Asset, 'exitPrice'> {
-  plataforma: string;
+  platform: string;
 }
 
 export type Prices = Record<string, number>;
 export type AvatarCache = Record<string, { url: string }>;
 export type ExitPrices = Record<string, number>;
-export type GroupMode = 'ativo' | 'plataforma' | 'ambos';
-export type ChartType = 'por-ativo' | 'no-tempo' | 'valor';
-export type TabType = 'carteira' | 'lucro' | 'historico';
+export type GroupMode = 'asset' | 'platform' | 'both';
+export type ChartType = 'by-asset' | 'over-time' | 'value';
+export type TabType = 'wallet' | 'profit' | 'history';
 
 export interface BackupPayload {
   version: number;

@@ -6,9 +6,9 @@ import { storage, buildBackupPayload, applyBackup } from '@/lib/storage';
 import { collectAssets } from '@/lib/portfolio';
 import { fetchMarketPrices } from '@/lib/coingecko';
 import { driveFindFile, driveUpload, driveDownload, GDRIVE_FILE_NAME, GDRIVE_CONFIG_NAME } from '@/lib/gdrive';
-import CarteiraTab from '@/components/CarteiraTab';
-import LucroTab from '@/components/LucroTab';
-import HistoricoTab from '@/components/HistoricoTab';
+import WalletTab from '@/components/WalletTab';
+import ProfitTab from '@/components/ProfitTab';
+import HistoryTab from '@/components/HistoryTab';
 
 declare global {
   interface Window {
@@ -31,9 +31,9 @@ export default function DashboardPage() {
   const [prices, setPrices] = useState<Prices>({});
   const [assets, setAssets] = useState<Asset[]>([]);
   const [avatarCache, setAvatarCache] = useState<AvatarCache>({});
-  const [activeTab, setActiveTab] = useState<TabType>('carteira');
-  const [groupMode, setGroupMode] = useState<GroupMode>('ativo');
-  const [activeChart, setActiveChart] = useState<ChartType>('por-ativo');
+  const [activeTab, setActiveTab] = useState<TabType>('wallet');
+  const [groupMode, setGroupMode] = useState<GroupMode>('asset');
+  const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
   const [driveStatus, setDriveStatus] = useState('');
 
@@ -246,7 +246,7 @@ export default function DashboardPage() {
     })();
   }, [driveToken, configFileId, coingeckoApiKey, gdriveConnect]);
 
-  const tabs: TabType[] = ['carteira', 'lucro', 'historico'];
+  const tabs: TabType[] = ['wallet', 'profit', 'history'];
 
   return (
     <div className="app">
@@ -288,30 +288,30 @@ export default function DashboardPage() {
       <div className="nav">
         {tabs.map(t => (
           <button key={t} className={`nav-btn${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
-            {t === 'carteira' && <><i className="ti ti-wallet" /> <span>Carteira</span></>}
-            {t === 'lucro' && <><i className="ti ti-trending-up" /> <span>Lucro</span></>}
-            {t === 'historico' && <><i className="ti ti-receipt" /> <span>Histórico</span></>}
+            {t === 'wallet' && <><i className="ti ti-wallet" /> <span>Carteira</span></>}
+            {t === 'profit' && <><i className="ti ti-trending-up" /> <span>Lucro</span></>}
+            {t === 'history' && <><i className="ti ti-receipt" /> <span>Histórico</span></>}
           </button>
         ))}
       </div>
 
       {/* Tabs */}
-      {activeTab === 'carteira' && (
-        <CarteiraTab
+      {activeTab === 'wallet' && (
+        <WalletTab
           ops={ops} assets={assets} prices={prices} avatarCache={avatarCache}
           groupMode={groupMode} onGroupMode={setGroupMode}
           statusMsg={statusMsg} onFetchPrices={fetchPrices}
           onExitPriceChange={handleExitPriceChange}
         />
       )}
-      {activeTab === 'lucro' && (
-        <LucroTab
+      {activeTab === 'profit' && (
+        <ProfitTab
           assets={assets} ops={ops} prices={prices}
           activeChart={activeChart} onChartSwitch={setActiveChart}
         />
       )}
-      {activeTab === 'historico' && (
-        <HistoricoTab
+      {activeTab === 'history' && (
+        <HistoryTab
           ops={ops} assets={assets} prices={prices} apiKey={coingeckoApiKey}
           onAddOp={handleAddOp} onEditOp={handleEditOp} onRemoveOp={handleRemoveOp}
         />

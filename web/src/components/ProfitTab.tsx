@@ -16,7 +16,7 @@ interface Props {
   onChartSwitch: (t: ChartType) => void;
 }
 
-export default function LucroTab({ assets, ops, prices, activeChart, onChartSwitch }: Props) {
+export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwitch }: Props) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
@@ -27,8 +27,8 @@ export default function LucroTab({ assets, ops, prices, activeChart, onChartSwit
 
   const withPrice = data.filter(d => d.hasPrice);
   const totalNR = withPrice.reduce((s, d) => s + d.l, 0);
-  const realizado = ops.filter(o => o.tipo === 'Venda').reduce((s, o) => s + o.total, 0)
-    - ops.filter(o => o.tipo === 'Compra').reduce((s, o) => s + o.total, 0);
+  const realizado = ops.filter(o => o.type === 'Venda').reduce((s, o) => s + o.total, 0)
+    - ops.filter(o => o.type === 'Compra').reduce((s, o) => s + o.total, 0);
   const best = withPrice.length ? withPrice.reduce((a, b) => b.pct > a.pct ? b : a) : null;
   const worst = withPrice.length ? withPrice.reduce((a, b) => b.pct < a.pct ? b : a) : null;
   const totalInv = data.reduce((s, d) => s + d.inv, 0);
@@ -41,9 +41,9 @@ export default function LucroTab({ assets, ops, prices, activeChart, onChartSwit
     if (!ctx) return;
 
     const noPrice = !withPrice.length;
-    const timeline = (activeChart === 'no-tempo' || activeChart === 'valor') ? computeTimeline(ops, prices) : [];
+    const timeline = (activeChart === 'over-time' || activeChart === 'value') ? computeTimeline(ops, prices) : [];
 
-    if (activeChart === 'por-ativo' && !noPrice) {
+    if (activeChart === 'by-asset' && !noPrice) {
       chartInstance.current = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -59,7 +59,7 @@ export default function LucroTab({ assets, ops, prices, activeChart, onChartSwit
           },
         },
       });
-    } else if (activeChart === 'no-tempo' && timeline.length && !noPrice) {
+    } else if (activeChart === 'over-time' && timeline.length && !noPrice) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -75,7 +75,7 @@ export default function LucroTab({ assets, ops, prices, activeChart, onChartSwit
           },
         },
       });
-    } else if (activeChart === 'valor' && timeline.length && !noPrice) {
+    } else if (activeChart === 'value' && timeline.length && !noPrice) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -131,7 +131,7 @@ export default function LucroTab({ assets, ops, prices, activeChart, onChartSwit
       </div>
 
       <div className="chart-switcher">
-        {([['por-ativo', 'ti-chart-bar', 'Por ativo'], ['no-tempo', 'ti-chart-line', 'Lucro no tempo'], ['valor', 'ti-chart-area', 'Valor da carteira']] as [ChartType, string, string][]).map(([t, icon, label]) => (
+        {([['by-asset', 'ti-chart-bar', 'Por ativo'], ['over-time', 'ti-chart-line', 'Lucro no tempo'], ['value', 'ti-chart-area', 'Valor da carteira']] as [ChartType, string, string][]).map(([t, icon, label]) => (
           <button key={t} className={`chart-btn${activeChart === t ? ' active' : ''}`} onClick={() => onChartSwitch(t)}>
             <i className={`ti ${icon}`} /> {label}
           </button>

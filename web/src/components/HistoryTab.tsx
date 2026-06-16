@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Op, Asset, Prices } from '@/lib/types';
-import { fmt, fmtQtd, fmtDate } from '@/lib/format';
+import { fmt, fmtQty, fmtDate } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
 
 interface Props {
@@ -60,59 +60,59 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange }: {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onEditOp, onRemoveOp }: Props) {
-  const [opData, setOpData] = useState(today());
+export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEditOp, onRemoveOp }: Props) {
+  const [opDate, setOpDate] = useState(today());
   const [opCoin, setOpCoin] = useState<CoinSelection | null>(null);
   const [opCoinText, setOpCoinText] = useState('');
-  const [opTipo, setOpTipo] = useState<'Compra' | 'Venda'>('Compra');
-  const [opQtd, setOpQtd] = useState('');
-  const [opPreco, setOpPreco] = useState('');
-  const [opTaxa, setOpTaxa] = useState('');
-  const [opPlataforma, setOpPlataforma] = useState('');
+  const [opType, setOpType] = useState<'Compra' | 'Venda'>('Compra');
+  const [opQty, setOpQty] = useState('');
+  const [opPrice, setOpPrice] = useState('');
+  const [opFee, setOpFee] = useState('');
+  const [opPlatform, setOpPlatform] = useState('');
   const [priceMode, setPriceMode] = useState<'unit' | 'total'>('unit');
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
   // Trade form
-  const [trData, setTrData] = useState(today());
+  const [trDate, setTrDate] = useState(today());
   const [trFromCoinId, setTrFromCoinId] = useState('');
   const [trFromQty, setTrFromQty] = useState('');
   const [trToCoin, setTrToCoin] = useState<CoinSelection | null>(null);
   const [trToCoinText, setTrToCoinText] = useState('');
   const [trToQty, setTrToQty] = useState('');
   const [trTotal, setTrTotal] = useState('');
-  const [trTaxa, setTrTaxa] = useState('');
+  const [trFee, setTrFee] = useState('');
   const [trTotalHint, setTrTotalHint] = useState('');
 
-  const qtd = parseFloat(opQtd) || 0;
-  const val = parseFloat(opPreco) || 0;
-  const hint = qtd && val ? (priceMode === 'unit' ? 'Total: ' + fmt(qtd * val) : 'Unit.: ' + fmt(val / qtd)) : '';
+  const qty = parseFloat(opQty) || 0;
+  const val = parseFloat(opPrice) || 0;
+  const hint = qty && val ? (priceMode === 'unit' ? 'Total: ' + fmt(qty * val) : 'Unit.: ' + fmt(val / qty)) : '';
 
   const resetOpForm = () => {
-    setOpData(today()); setOpCoin(null); setOpCoinText(''); setOpTipo('Compra');
-    setOpQtd(''); setOpPreco(''); setOpTaxa(''); setOpPlataforma('');
+    setOpDate(today()); setOpCoin(null); setOpCoinText(''); setOpType('Compra');
+    setOpQty(''); setOpPrice(''); setOpFee(''); setOpPlatform('');
     setPriceMode('unit'); setEditingIdx(null);
   };
 
   const handleAddOp = () => {
-    if (!opCoin || !qtd || !val) return;
-    let preco: number, total: number;
+    if (!opCoin || !qty || !val) return;
+    let price: number, total: number;
     if (priceMode === 'total') {
-      total = val; preco = qtd > 0 ? val / qtd : 0;
+      total = val; price = qty > 0 ? val / qty : 0;
     } else {
-      preco = val; total = opTipo === 'Venda' ? qtd * preco - (parseFloat(opTaxa) || 0) : qtd * preco + (parseFloat(opTaxa) || 0);
+      price = val; total = opType === 'Venda' ? qty * price - (parseFloat(opFee) || 0) : qty * price + (parseFloat(opFee) || 0);
     }
-    const op: Op = { data: opData, coinId: opCoin.coinId, symbol: opCoin.symbol, name: opCoin.name, tipo: opTipo, qtd, preco, taxa: parseFloat(opTaxa) || 0, total, plataforma: opPlataforma.trim() };
+    const op: Op = { date: opDate, coinId: opCoin.coinId, symbol: opCoin.symbol, name: opCoin.name, type: opType, qty, price, fee: parseFloat(opFee) || 0, total, platform: opPlatform.trim() };
     if (editingIdx !== null) onEditOp(editingIdx, op); else onAddOp(op);
     resetOpForm();
   };
 
   const handleEditOp = (i: number) => {
     const o = ops[i];
-    setEditingIdx(i); setOpData(o.data || '');
+    setEditingIdx(i); setOpDate(o.date || '');
     setOpCoin({ coinId: o.coinId, symbol: o.symbol, name: o.name });
     setOpCoinText((o.name || '') + ' (' + (o.symbol || '') + ')');
-    setOpTipo(o.tipo); setOpQtd(String(o.qtd)); setOpPreco(String(o.preco));
-    setOpTaxa(String(o.taxa)); setOpPlataforma(o.plataforma || '');
+    setOpType(o.type); setOpQty(String(o.qty)); setOpPrice(String(o.price));
+    setOpFee(String(o.fee)); setOpPlatform(o.platform || '');
     setPriceMode('unit');
   };
 
@@ -154,18 +154,18 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
       alert('Preencha: moeda de origem, qtd. vendida, moeda de destino, qtd. comprada e total em R$.'); return;
     }
     if (trFromCoinId === trToCoin.coinId) { alert('A moeda de origem e de destino não podem ser a mesma.'); return; }
-    const fromQty = parseFloat(trFromQty), toQty = parseFloat(trToQty), total = parseFloat(trTotal), taxa = parseFloat(trTaxa) || 0;
-    const sellOp: Op = { data: trData, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', tipo: 'Venda', qtd: fromQty, preco: total / fromQty, taxa: 0, total, plataforma: '' };
-    const buyOp: Op = { data: trData, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, tipo: 'Compra', qtd: toQty, preco: (total + taxa) / toQty, taxa, total: total + taxa, plataforma: '' };
+    const fromQty = parseFloat(trFromQty), toQty = parseFloat(trToQty), total = parseFloat(trTotal), fee = parseFloat(trFee) || 0;
+    const sellOp: Op = { date: trDate, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', type: 'Venda', qty: fromQty, price: total / fromQty, fee: 0, total, platform: '' };
+    const buyOp: Op = { date: trDate, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, type: 'Compra', qty: toQty, price: (total + fee) / toQty, fee, total: total + fee, platform: '' };
     onAddOp(sellOp); onAddOp(buyOp);
-    setTrFromQty(''); setTrToCoin(null); setTrToCoinText(''); setTrToQty(''); setTrTotal(''); setTrTaxa(''); setTrTotalHint('');
+    setTrFromQty(''); setTrToCoin(null); setTrToCoinText(''); setTrToQty(''); setTrTotal(''); setTrFee(''); setTrTotalHint('');
   };
 
   const isEditing = editingIdx !== null;
 
   return (
     <div id="tab-historico" className="section active">
-      {/* Registrar operação */}
+      {/* Register operation */}
       <div className="op-card">
         <div className="sec-title" style={{ marginBottom: '.75rem' }}>
           <i className={`ti ${isEditing ? 'ti-pencil' : 'ti-plus'}`} style={{ fontSize: 13, verticalAlign: 'middle', marginRight: 4 }} />
@@ -174,7 +174,7 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
         <div className="op-fields">
           <div className="field">
             <label>Data</label>
-            <input type="date" value={opData} onChange={e => setOpData(e.target.value)} />
+            <input type="date" value={opDate} onChange={e => setOpDate(e.target.value)} />
           </div>
           <div className="field" style={{ position: 'relative' }}>
             <label>Moeda</label>
@@ -184,31 +184,31 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
           </div>
           <div className="field">
             <label>Tipo</label>
-            <select value={opTipo} onChange={e => setOpTipo(e.target.value as 'Compra' | 'Venda')}>
+            <select value={opType} onChange={e => setOpType(e.target.value as 'Compra' | 'Venda')}>
               <option>Compra</option><option>Venda</option>
             </select>
           </div>
           <div className="field">
             <label>Quantidade</label>
-            <input type="number" placeholder="0" step="any" value={opQtd} onChange={e => setOpQtd(e.target.value)} />
+            <input type="number" placeholder="0" step="any" value={opQty} onChange={e => setOpQty(e.target.value)} />
           </div>
           <div className="field" style={{ position: 'relative' }}>
             <label>
               <span>{priceMode === 'total' ? 'Total (R$)' : 'Preço unit. (R$)'}</span>
-              <button type="button" className="op-price-toggle" onClick={() => { setPriceMode(m => m === 'unit' ? 'total' : 'unit'); setOpPreco(''); }}>
+              <button type="button" className="op-price-toggle" onClick={() => { setPriceMode(m => m === 'unit' ? 'total' : 'unit'); setOpPrice(''); }}>
                 ⇄ {priceMode === 'total' ? 'unit.' : 'total'}
               </button>
             </label>
-            <input type="number" placeholder="0.00" step="any" value={opPreco} onChange={e => setOpPreco(e.target.value)} />
+            <input type="number" placeholder="0.00" step="any" value={opPrice} onChange={e => setOpPrice(e.target.value)} />
             {hint && <div className="field-hint">{hint}</div>}
           </div>
           <div className="field">
             <label>Taxa (R$)</label>
-            <input type="number" placeholder="0.00" step="any" value={opTaxa} onChange={e => setOpTaxa(e.target.value)} />
+            <input type="number" placeholder="0.00" step="any" value={opFee} onChange={e => setOpFee(e.target.value)} />
           </div>
           <div className="field">
             <label>Plataforma</label>
-            <input type="text" placeholder="Binance, MetaMask..." value={opPlataforma} onChange={e => setOpPlataforma(e.target.value)} />
+            <input type="text" placeholder="Binance, MetaMask..." value={opPlatform} onChange={e => setOpPlatform(e.target.value)} />
           </div>
           <div className="field-btn">
             <button className="btn-sm" onClick={handleAddOp}>
@@ -223,7 +223,7 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
         </div>
       </div>
 
-      {/* Trade entre ativos */}
+      {/* Trade between assets */}
       <div className="trade-card">
         <div className="sec-title" style={{ marginBottom: '.75rem' }}>
           <i className="ti ti-arrows-exchange" style={{ fontSize: 13, verticalAlign: 'middle', marginRight: 4 }} />
@@ -232,12 +232,12 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
         <div className="trade-fields">
           <div className="field">
             <label>Data</label>
-            <input type="date" value={trData} onChange={e => setTrData(e.target.value)} />
+            <input type="date" value={trDate} onChange={e => setTrDate(e.target.value)} />
           </div>
           <div className="field">
             <label>De (vender)</label>
             <select value={trFromCoinId} onChange={e => { setTrFromCoinId(e.target.value); syncTradeTotal(e.target.value, trFromQty, trToCoin, trTotal); }}>
-              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {fmtQtd(a.qty)}</option>) : <option value="">Sem ativos na carteira</option>}
+              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {fmtQty(a.qty)}</option>) : <option value="">Sem ativos na carteira</option>}
             </select>
           </div>
           <div className="field">
@@ -260,7 +260,7 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
           </div>
           <div className="field">
             <label>Taxa (R$)</label>
-            <input type="number" placeholder="0.00" step="any" value={trTaxa} onChange={e => setTrTaxa(e.target.value)} />
+            <input type="number" placeholder="0.00" step="any" value={trFee} onChange={e => setTrFee(e.target.value)} />
           </div>
           <div className="field-btn">
             <button className="btn-sm" onClick={handleAddTrade}>
@@ -270,7 +270,7 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
         </div>
       </div>
 
-      {/* Lista de operações */}
+      {/* Operations list */}
       {!ops.length ? (
         <div className="empty-state"><i className="ti ti-receipt" /><span>Nenhuma operação registrada</span></div>
       ) : (
@@ -281,14 +281,14 @@ export default function HistoricoTab({ ops, assets, prices, apiKey, onAddOp, onE
           </div>
           {ops.map((o, i) => (
             <div className="op-list-row" key={i}>
-              <span style={{ color: 'var(--text2)' }}>{fmtDate(o.data)}</span>
+              <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date)}</span>
               <span style={{ fontWeight: 500 }}>{o.symbol || '—'}</span>
-              <span><span className={`pill ${o.tipo === 'Compra' ? 'pill-pos' : 'pill-neg'}`}>{o.tipo}</span></span>
-              <span>{fmtQtd(o.qtd)}</span>
-              <span>{fmt(o.preco)}</span>
+              <span><span className={`pill ${o.type === 'Compra' ? 'pill-pos' : 'pill-neg'}`}>{o.type}</span></span>
+              <span>{fmtQty(o.qty)}</span>
+              <span>{fmt(o.price)}</span>
               <span style={{ fontWeight: 500 }}>{fmt(o.total)}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.taxa > 0 ? fmt(o.taxa) : '—'}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.plataforma || '—'}</span>
+              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? fmt(o.fee) : '—'}</span>
+              <span style={{ color: 'var(--text2)' }}>{o.platform || '—'}</span>
               <span className="op-actions">
                 <button className="icon-btn" onClick={() => handleEditOp(i)} title="Editar"><i className="ti ti-pencil" /></button>
                 <button className="icon-btn" onClick={() => handleRemoveOp(i)} title="Excluir" style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
