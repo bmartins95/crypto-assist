@@ -26,7 +26,7 @@ declare global {
   }
 }
 
-export default function Home() {
+export default function DashboardPage() {
   const [ops, setOps] = useState<Op[]>([]);
   const [prices, setPrices] = useState<Prices>({});
   const [assets, setAssets] = useState<Asset[]>([]);
