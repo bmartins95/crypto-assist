@@ -1,5 +1,5 @@
--- Migration inicial: profiles, ops, exit_prices, price_cache
--- Execute no SQL Editor do Supabase (Dashboard → SQL Editor → New query)
+-- Initial migration: profiles, ops, exit_prices, price_cache
+-- Run in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query)
 
 -- ─── profiles ────────────────────────────────────────────────────────────
 create table public.profiles (
@@ -15,7 +15,7 @@ alter table public.profiles enable row level security;
 create policy "own profile" on public.profiles
   using (auth.uid() = id);
 
--- Cria automaticamente um profile quando um novo usuário se registra
+-- Automatically creates a profile row when a new user signs up
 create function public.handle_new_user()
 returns trigger as $$
 begin
@@ -38,16 +38,16 @@ create trigger on_auth_user_created
 create table public.ops (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  data        date not null,
-  coin_id     text not null,       -- ex: "bitcoin"
-  symbol      text not null,       -- ex: "BTC"
-  name        text not null,       -- ex: "Bitcoin"
-  tipo        text not null check (tipo in ('Compra', 'Venda')),
-  qtd         numeric(30,10) not null,
-  preco       numeric(30,10) not null,
-  taxa        numeric(30,10) not null default 0,
+  date        date not null,
+  coin_id     text not null,       -- e.g. "bitcoin"
+  symbol      text not null,       -- e.g. "BTC"
+  name        text not null,       -- e.g. "Bitcoin"
+  type        text not null check (type in ('Compra', 'Venda')),
+  qty         numeric(30,10) not null,
+  price       numeric(30,10) not null,
+  fee         numeric(30,10) not null default 0,
   total       numeric(30,10) not null,
-  plataforma  text not null default '',
+  platform    text not null default '',
   created_at  timestamptz default now()
 );
 
@@ -58,7 +58,7 @@ create policy "own ops" on public.ops
   with check (auth.uid() = user_id);
 
 create index ops_user_id_idx on public.ops(user_id);
-create index ops_data_idx on public.ops(data);
+create index ops_date_idx on public.ops(date);
 
 -- ─── exit_prices ─────────────────────────────────────────────────────────
 create table public.exit_prices (
@@ -83,9 +83,8 @@ create table public.price_cache (
   updated_at  timestamptz default now()
 );
 
--- Pública para leitura (sem RLS) — qualquer usuário autenticado lê.
--- Apenas o servidor (service_role) escreve, então RLS de escrita não é necessária
--- já que o service_role ignora RLS por padrão.
+-- Read-only for authenticated users; only the server (service_role) writes,
+-- since service_role bypasses RLS by default.
 alter table public.price_cache enable row level security;
 
 create policy "read price_cache" on public.price_cache
