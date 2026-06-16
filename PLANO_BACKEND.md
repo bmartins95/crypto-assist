@@ -1,6 +1,6 @@
 # Backend Plan — Crypto Portfolio
 
-Stack: **Next.js 16 (frontend) + Express + TypeScript (backend) + Supabase + Vercel**
+Stack: **Next.js 16 (frontend, on Vercel) + Express + TypeScript (backend, on Railway) + Supabase**
 Auth: **Supabase Auth** (Google OAuth + email/password) — used directly by the frontend, bypassing the backend
 Future mobile: **Expo + React Native**, consuming the same `backend/`
 
@@ -115,7 +115,7 @@ crypto-assist/
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-NEXT_PUBLIC_BACKEND_URL=http://localhost:3001        # production: the backend's Vercel URL
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001        # production: the backend's Railway URL
 ```
 
 ### `backend/.env`
@@ -252,10 +252,26 @@ Verified end-to-end against the live Supabase project (login, op CRUD,
 reload-persists, Carteira/Lucro tabs) — see commit history for details.
 
 ### Phase 4 — Deploy
+Both platforms deploy automatically on every `git push` to GitHub (each
+project's own "git pipeline" — no custom CI needed for this).
+
+`backend/` is a plain Express server, not Next.js — Vercel can only host it
+as serverless functions (cold starts, per-request timeout, no persistent
+connections), which needs an adapter. Decided to use **Railway** instead,
+which runs Express as a normal always-on process with zero adaptation.
+
 19. Push to GitHub
-20. Connect `web/` and `backend/` as **two separate Vercel projects** (each with its own root directory)
-21. Add environment variables to each project on Vercel
-22. Configure `NEXT_PUBLIC_BACKEND_URL` in `web/` pointing to the backend's production URL
+20. **`web/`** → Vercel project, root directory `web/` (Next.js auto-detected).
+    Env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+    `NEXT_PUBLIC_BACKEND_URL` (the Railway URL from step 21)
+21. **`backend/`** → Railway project, root directory `backend/` (Nixpacks
+    auto-detects `npm run build` + `npm start`). Env vars: `SUPABASE_URL`,
+    `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `COINGECKO_API_KEY`,
+    `FRONTEND_ORIGIN` (the Vercel URL from step 20). Enable a public domain
+    under Settings → Networking
+22. Update Supabase Authentication → URL Configuration → Redirect URLs, and
+    the Google Cloud OAuth client's Authorized JavaScript origins, with the
+    production `web/` URL
 23. Configure a custom domain (optional)
 
 ### Phase 5 — Mobile (future session)
