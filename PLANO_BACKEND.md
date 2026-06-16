@@ -224,7 +224,7 @@ Code sharing between web and mobile:
 
 ## Implementation order
 
-### Phase 1 — Supabase + Auth
+### Phase 1 — Supabase + Auth ✅ done
 1. Create the Supabase project
 2. Run `supabase/migrations/001_initial.sql`
 3. Configure Google OAuth in Supabase
@@ -234,7 +234,7 @@ Code sharing between web and mobile:
 7. Create the `/auth` page with Google + email/password login
 8. Create `dashboard/layout.tsx` + move the current app to `dashboard/page.tsx`
 
-### Phase 2 — Express backend
+### Phase 2 — Express backend ✅ done
 9. Scaffold `backend/` (Express + TypeScript)
 10. Authentication middleware (validates Bearer token)
 11. `GET/POST /api/ops`, `PUT/DELETE /api/ops/:id`
@@ -242,11 +242,14 @@ Code sharing between web and mobile:
 13. `GET /api/prices` (with cache in the `price_cache` table)
 14. `GET /api/export` and `POST /api/import`
 
-### Phase 3 — Migrate the frontend
+### Phase 3 — Migrate the frontend ✅ done
 15. Create `lib/api/client.ts` in `web/` (fetch + automatic Bearer token)
 16. Replace `localStorage` calls with calls to `backend/`
 17. Add loading states to the tables
 18. Implement detection and import of `localStorage` data
+
+Verified end-to-end against the live Supabase project (login, op CRUD,
+reload-persists, Carteira/Lucro tabs) — see commit history for details.
 
 ### Phase 4 — Deploy
 19. Push to GitHub
