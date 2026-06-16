@@ -18,10 +18,10 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:3000')
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
-// Health check — sem autenticação, útil para o Vercel/monitoramento
+// Health check — no auth required, useful for Vercel/monitoring
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
-// Todas as rotas abaixo exigem Authorization: Bearer <supabase_access_token>
+// All routes below require Authorization: Bearer <supabase_access_token>
 app.use('/api/ops', requireAuth, opsRouter);
 app.use('/api/exit-prices', requireAuth, exitPricesRouter);
 app.use('/api/prices', requireAuth, pricesRouter);
@@ -29,5 +29,5 @@ app.use('/api/export', requireAuth, exportRouter);
 app.use('/api/import', requireAuth, importRouter);
 
 app.listen(port, () => {
-  console.log(`Backend rodando em http://localhost:${port}`);
+  console.log(`Backend running at http://localhost:${port}`);
 });

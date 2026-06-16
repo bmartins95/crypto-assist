@@ -3,59 +3,59 @@ import type { Op } from '../types';
 
 export const opsRouter = Router();
 
-// Linha como vem do Postgres (snake_case) → forma usada pela API (camelCase).
+// Row as it comes from Postgres (snake_case) -> shape used by the API (camelCase).
 interface OpRow {
   id: string;
-  data: string;
+  date: string;
   coin_id: string;
   symbol: string;
   name: string;
-  tipo: 'Compra' | 'Venda';
-  qtd: number;
-  preco: number;
-  taxa: number;
+  type: 'Compra' | 'Venda';
+  qty: number;
+  price: number;
+  fee: number;
   total: number;
-  plataforma: string;
+  platform: string;
 }
 
 function rowToOp(row: OpRow): Op {
   return {
     id: row.id,
-    data: row.data,
+    date: row.date,
     coinId: row.coin_id,
     symbol: row.symbol,
     name: row.name,
-    tipo: row.tipo,
-    qtd: Number(row.qtd),
-    preco: Number(row.preco),
-    taxa: Number(row.taxa),
+    type: row.type,
+    qty: Number(row.qty),
+    price: Number(row.price),
+    fee: Number(row.fee),
     total: Number(row.total),
-    plataforma: row.plataforma,
+    platform: row.platform,
   };
 }
 
 function opToRow(op: Omit<Op, 'id'>, userId: string) {
   return {
     user_id: userId,
-    data: op.data,
+    date: op.date,
     coin_id: op.coinId,
     symbol: op.symbol,
     name: op.name,
-    tipo: op.tipo,
-    qtd: op.qtd,
-    preco: op.preco,
-    taxa: op.taxa,
+    type: op.type,
+    qty: op.qty,
+    price: op.price,
+    fee: op.fee,
     total: op.total,
-    plataforma: op.plataforma,
+    platform: op.platform,
   };
 }
 
-// GET /api/ops — lista as operações do usuário autenticado
+// GET /api/ops — lists the authenticated user's operations
 opsRouter.get('/', async (req, res) => {
   const { data, error } = await req
     .supabase!.from('ops')
     .select('*')
-    .order('data', { ascending: true });
+    .order('date', { ascending: true });
 
   if (error) {
     res.status(500).json({ error: error.message });
@@ -64,11 +64,11 @@ opsRouter.get('/', async (req, res) => {
   res.json((data as OpRow[]).map(rowToOp));
 });
 
-// POST /api/ops — cria uma operação
+// POST /api/ops — creates an operation
 opsRouter.post('/', async (req, res) => {
   const body = req.body as Partial<Op>;
-  if (!body.data || !body.coinId || !body.tipo) {
-    res.status(400).json({ error: 'Campos obrigatórios faltando.' });
+  if (!body.date || !body.coinId || !body.type) {
+    res.status(400).json({ error: 'Missing required fields.' });
     return;
   }
 
@@ -85,7 +85,7 @@ opsRouter.post('/', async (req, res) => {
   res.status(201).json(rowToOp(data as OpRow));
 });
 
-// PUT /api/ops/:id — atualiza uma operação existente
+// PUT /api/ops/:id — updates an existing operation
 opsRouter.put('/:id', async (req, res) => {
   const body = req.body as Partial<Op>;
   const { data, error } = await req
@@ -100,13 +100,13 @@ opsRouter.put('/:id', async (req, res) => {
     return;
   }
   if (!data) {
-    res.status(404).json({ error: 'Operação não encontrada.' });
+    res.status(404).json({ error: 'Operation not found.' });
     return;
   }
   res.json(rowToOp(data as OpRow));
 });
 
-// DELETE /api/ops/:id — remove uma operação
+// DELETE /api/ops/:id — removes an operation
 opsRouter.delete('/:id', async (req, res) => {
   const { error } = await req.supabase!.from('ops').delete().eq('id', req.params.id);
 

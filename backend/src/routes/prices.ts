@@ -4,7 +4,7 @@ import type { Prices } from '../types';
 
 export const pricesRouter = Router();
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface PriceCacheRow {
   coin_id: string;
@@ -28,11 +28,11 @@ async function fetchFromCoinGecko(ids: string[]): Promise<{ id: string; price: n
     .map((coin) => ({ id: coin.id as string, price: coin.current_price as number, image: coin.image as string | undefined }));
 }
 
-// GET /api/prices?ids=bitcoin,ethereum — cache de 5 min na tabela price_cache
+// GET /api/prices?ids=bitcoin,ethereum — 5-minute cache in the price_cache table
 pricesRouter.get('/', async (req, res) => {
   const idsParam = (req.query.ids as string | undefined)?.trim();
   if (!idsParam) {
-    res.status(400).json({ error: 'Query param "ids" é obrigatório (separado por vírgula).' });
+    res.status(400).json({ error: 'Query param "ids" is required (comma-separated).' });
     return;
   }
   const ids = [...new Set(idsParam.split(',').map((s) => s.trim()).filter(Boolean))];
@@ -69,15 +69,15 @@ pricesRouter.get('/', async (req, res) => {
       }
       for (const c of fetched) result[c.id] = c.price;
     } catch (e) {
-      // Se a CoinGecko falhar, ainda devolvemos o que tínhamos em cache (mesmo vencido)
-      // em vez de derrubar a resposta inteira.
+      // If CoinGecko fails, still return whatever we had cached (even if
+      // stale) instead of failing the whole response.
       for (const id of staleIds) {
         const stale = (cachedRows as PriceCacheRow[] | null)?.find((r) => r.coin_id === id);
         if (stale) result[id] = Number(stale.price_brl);
       }
       const status = (e as { status?: number }).status === 429 ? 429 : undefined;
       if (Object.keys(result).length === 0) {
-        res.status(status ?? 502).json({ error: 'Falha ao buscar preços na CoinGecko.' });
+        res.status(status ?? 502).json({ error: 'Failed to fetch prices from CoinGecko.' });
         return;
       }
     }

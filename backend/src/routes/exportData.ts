@@ -3,10 +3,10 @@ import type { BackupPayload, Op, ExitPrices } from '../types';
 
 export const exportRouter = Router();
 
-// GET /api/export — gera o JSON completo de backup do usuário autenticado
+// GET /api/export — generates the authenticated user's full backup JSON
 exportRouter.get('/', async (req, res) => {
   const [opsResult, exitPricesResult] = await Promise.all([
-    req.supabase!.from('ops').select('*').order('data', { ascending: true }),
+    req.supabase!.from('ops').select('*').order('date', { ascending: true }),
     req.supabase!.from('exit_prices').select('coin_id, exit_price'),
   ]);
 
@@ -21,16 +21,16 @@ exportRouter.get('/', async (req, res) => {
 
   const ops: Op[] = opsResult.data.map((row) => ({
     id: row.id,
-    data: row.data,
+    date: row.date,
     coinId: row.coin_id,
     symbol: row.symbol,
     name: row.name,
-    tipo: row.tipo,
-    qtd: Number(row.qtd),
-    preco: Number(row.preco),
-    taxa: Number(row.taxa),
+    type: row.type,
+    qty: Number(row.qty),
+    price: Number(row.price),
+    fee: Number(row.fee),
     total: Number(row.total),
-    plataforma: row.plataforma,
+    platform: row.platform,
   }));
 
   const exitPrices: ExitPrices = {};

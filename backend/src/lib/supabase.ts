@@ -6,22 +6,22 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !anonKey || !serviceRoleKey) {
   throw new Error(
-    'Faltam variáveis de ambiente: SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY são obrigatórias (ver backend/.env.example).'
+    'Missing environment variables: SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are required (see backend/.env.example).'
   );
 }
 
 /**
- * Client com privilégio de servidor (ignora RLS). Use apenas para operações
- * que não são por-usuário, como escrever no cache de preços compartilhado.
+ * Server-privileged client (bypasses RLS). Use only for operations that are
+ * not per-user, such as writing to the shared price cache.
  */
 export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
 /**
- * Client "como o usuário": usa a anon key, mas anexa o JWT do usuário em
- * todas as requisições. O RLS do Postgres garante que ele só acesse as
- * próprias linhas — não precisamos repetir o filtro de user_id manualmente.
+ * Client "as the user": uses the anon key, but attaches the user's JWT to
+ * every request. Postgres RLS then guarantees it can only access its own
+ * rows — we don't need to repeat the user_id filter manually.
  */
 export function supabaseForUser(accessToken: string) {
   return createClient(supabaseUrl!, anonKey!, {

@@ -3,7 +3,7 @@ import type { ExitPrices } from '../types';
 
 export const exitPricesRouter = Router();
 
-// GET /api/exit-prices — retorna { coinId: exitPrice } do usuário
+// GET /api/exit-prices — returns { coinId: exitPrice } for the user
 exitPricesRouter.get('/', async (req, res) => {
   const { data, error } = await req.supabase!.from('exit_prices').select('coin_id, exit_price');
 
@@ -23,7 +23,7 @@ exitPricesRouter.get('/', async (req, res) => {
 exitPricesRouter.put('/', async (req, res) => {
   const { coinId, exitPrice } = req.body as { coinId?: string; exitPrice?: number };
   if (!coinId || typeof exitPrice !== 'number') {
-    res.status(400).json({ error: 'coinId e exitPrice são obrigatórios.' });
+    res.status(400).json({ error: 'coinId and exitPrice are required.' });
     return;
   }
 

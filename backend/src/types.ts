@@ -1,20 +1,20 @@
-// Tipos compartilhados com o frontend (web/src/lib/types.ts).
-// Quando o projeto mobile/ existir, isso deve virar um pacote `shared/`.
+// Types shared with the frontend (web/src/lib/types.ts).
+// Once the mobile/ project exists, this should become a `shared/` package.
 
-export type OpTipo = 'Compra' | 'Venda';
+export type OpType = 'Compra' | 'Venda';
 
 export interface Op {
   id: string;
-  data: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   coinId: string;
   symbol: string;
   name: string;
-  tipo: OpTipo;
-  qtd: number;
-  preco: number;
-  taxa: number;
+  type: OpType;
+  qty: number;
+  price: number;
+  fee: number;
   total: number;
-  plataforma: string;
+  platform: string;
 }
 
 export type ExitPrices = Record<string, number>;
