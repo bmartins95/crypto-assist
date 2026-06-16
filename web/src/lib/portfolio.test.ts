@@ -1,0 +1,99 @@
+import { describe, it, expect } from 'vitest';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline } from './portfolio';
+import type { Op } from './types';
+
+function op(overrides: Partial<Op>): Op {
+  return {
+    date: '2024-01-01',
+    coinId: 'bitcoin',
+    symbol: 'BTC',
+    name: 'Bitcoin',
+    type: 'Compra',
+    qty: 1,
+    price: 100,
+    fee: 0,
+    total: 100,
+    platform: '',
+    ...overrides,
+  };
+}
+
+describe('computePositions', () => {
+  it('aggregates buys into a position with the weighted average price', () => {
+    const ops = [
+      op({ qty: 1, price: 100 }),
+      op({ qty: 1, price: 200 }),
+    ];
+    const [position] = computePositions(ops);
+    expect(position.qty).toBe(2);
+    expect(position.avgPrice).toBe(150);
+  });
+
+  it('subtracts sells from the held quantity without changing the average cost', () => {
+    const ops = [
+      op({ type: 'Compra', qty: 2, price: 100 }),
+      op({ type: 'Venda', qty: 1, price: 999 }),
+    ];
+    const [position] = computePositions(ops);
+    expect(position.qty).toBe(1);
+    expect(position.avgPrice).toBe(100);
+  });
+
+  it('omits assets whose position has been fully sold off', () => {
+    const ops = [
+      op({ type: 'Compra', qty: 1, price: 100 }),
+      op({ type: 'Venda', qty: 1, price: 100 }),
+    ];
+    expect(computePositions(ops)).toHaveLength(0);
+  });
+
+  it('keeps separate positions per coinId', () => {
+    const ops = [
+      op({ coinId: 'bitcoin', symbol: 'BTC', qty: 1, price: 100 }),
+      op({ coinId: 'ethereum', symbol: 'ETH', qty: 5, price: 10 }),
+    ];
+    const positions = computePositions(ops);
+    expect(positions).toHaveLength(2);
+    expect(positions.find((p) => p.coinId === 'ethereum')?.qty).toBe(5);
+  });
+
+  it('ignores operations without a coinId', () => {
+    expect(computePositions([op({ coinId: '' })])).toHaveLength(0);
+  });
+});
+
+describe('computePositionsByAssetAndPlatform', () => {
+  it('keeps the same asset separate per platform', () => {
+    const ops = [
+      op({ platform: 'Binance', qty: 1, price: 100 }),
+      op({ platform: 'MetaMask', qty: 2, price: 200 }),
+    ];
+    const positions = computePositionsByAssetAndPlatform(ops);
+    expect(positions).toHaveLength(2);
+    expect(positions.map((p) => p.platform).sort()).toEqual(['Binance', 'MetaMask']);
+  });
+
+  it('falls back to a default label when the platform is empty', () => {
+    const [position] = computePositionsByAssetAndPlatform([op({ platform: '' })]);
+    expect(position.platform).toBe('Sem plataforma');
+  });
+});
+
+describe('computeTimeline', () => {
+  it('produces one point per date, sorted chronologically', () => {
+    const ops = [
+      op({ date: '2024-01-02', type: 'Compra', qty: 1, price: 100 }),
+      op({ date: '2024-01-01', type: 'Compra', qty: 1, price: 50 }),
+    ];
+    const timeline = computeTimeline(ops, { bitcoin: 150 });
+    expect(timeline.map((t) => t.date)).toEqual(['2024-01-01', '2024-01-02']);
+  });
+
+  it('computes invested and current value using the given prices', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Compra', qty: 2, price: 100 })];
+    const [point] = computeTimeline(ops, { bitcoin: 120 });
+    expect(point.invested).toBe(200);
+    expect(point.currentValue).toBe(240);
+    expect(point.pnl).toBe(40);
+  });
+});
