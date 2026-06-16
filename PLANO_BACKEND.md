@@ -1,32 +1,33 @@
-# Plano de Backend — Carteira de Criptoativos
+# Backend Plan — Crypto Portfolio
 
 Stack: **Next.js 16 (frontend) + Express + TypeScript (backend) + Supabase + Vercel**
-Auth: **Supabase Auth** (OAuth Google + email/senha) — usada direto pelo frontend, sem passar pelo backend
-Mobile futuro: **Expo + React Native**, consumindo o mesmo `backend/`
+Auth: **Supabase Auth** (Google OAuth + email/password) — used directly by the frontend, bypassing the backend
+Future mobile: **Expo + React Native**, consuming the same `backend/`
 
-> Decisão: frontend (`web/`) e backend (`backend/`) são projetos separados no mesmo repositório,
-> para que o futuro app mobile (`mobile/`) consuma o mesmo backend HTTP sem depender do Next.js.
+> Decision: frontend (`web/`) and backend (`backend/`) are separate projects in the same
+> repository, so the future mobile app (`mobile/`) can consume the same HTTP backend
+> without depending on the Next.js project.
 
 ---
 
-## Visão geral da arquitetura
+## Architecture overview
 
 ```
 ┌─────────────────────────────┐     ┌───────────────────────┐
-│        web/ (Next.js)       │     │  mobile/ (Expo, futuro)│
-│   UI pura — sem API routes  │     │  iOS / Android         │
+│        web/ (Next.js)       │     │  mobile/ (Expo, future)│
+│   UI only — no API routes   │     │  iOS / Android         │
 └──────────┬───────────────┬──┘     └──────────┬─────────────┘
            │               │                    │
-           │ (1) Auth      │ (2) HTTP + Bearer JWT
-           │ direto        │     │              │
+           │ (1) Direct    │ (2) HTTP + Bearer JWT
+           │ Auth          │     │              │
            ▼               ▼     ▼              │
    ┌───────────────┐   ┌────────────────────────▼────┐
    │ Supabase Auth  │   │     backend/ (Express)      │
    │ (login/signup, │   │  /api/ops   /api/prices     │
-   │  OAuth Google) │   │  /api/exit-prices            │
+   │  Google OAuth) │   │  /api/exit-prices            │
    └───────┬────────┘   │  /api/export /api/import    │
-           │            │  Middleware: valida JWT      │
-           │            │  Supabase (RLS por usuário)  │
+           │            │  Middleware: validates JWT   │
+           │            │  Supabase (per-user RLS)     │
            │            └──────────────┬───────────────┘
            │                           │
            ▼                           ▼
@@ -39,67 +40,67 @@ Mobile futuro: **Expo + React Native**, consumindo o mesmo `backend/`
    └────────────────────────────────────────────────────┘
 ```
 
-**Fluxo de auth:**
-1. O frontend (web ou mobile) fala **direto com o Supabase Auth** via `@supabase/supabase-js` para login, signup, OAuth Google e refresh de sessão. Reimplementar esse fluxo no backend não traria benefício — o SDK do Supabase já cuida de PKCE, refresh tokens, etc., e isso é o que fica naturalmente compartilhado entre web e mobile.
-2. Para chamar o backend, o frontend envia o **access token JWT** da sessão Supabase no header `Authorization: Bearer <token>`.
-3. O backend valida esse token (via `supabase.auth.getUser(token)`) em um middleware, e usa um client Supabase **autenticado com o token do usuário** para que o RLS do Postgres garanta o isolamento por `user_id` automaticamente.
-4. Para operações que exigem privilégio de servidor (ex.: escrever no cache de preços compartilhado), o backend usa um client separado com a `service_role key`.
+**Auth flow:**
+1. The frontend (web or mobile) talks **directly to Supabase Auth** via `@supabase/supabase-js` for login, signup, Google OAuth and session refresh. Reimplementing this flow in the backend wouldn't add value — the Supabase SDK already handles PKCE, refresh tokens, etc., and this is naturally shared between web and mobile as-is.
+2. To call the backend, the frontend sends the Supabase session's **JWT access token** in the `Authorization: Bearer <token>` header.
+3. The backend validates that token (via `supabase.auth.getUser(token)`) in a middleware, and uses a Supabase client **authenticated with the user's token** so Postgres RLS automatically enforces `user_id` isolation.
+4. For operations that require server privileges (e.g. writing to the shared price cache), the backend uses a separate client with the `service_role key`.
 
 ---
 
-## Schema do banco de dados (PostgreSQL)
+## Database schema (PostgreSQL)
 
-Ver [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql) — contém as tabelas `profiles`, `ops`, `exit_prices` e `price_cache`, todas com RLS habilitada.
+See [`supabase/migrations/001_initial.sql`](supabase/migrations/001_initial.sql) — contains the `profiles`, `ops`, `exit_prices` and `price_cache` tables, all with RLS enabled.
 
 ---
 
-## Estrutura de pastas do repositório
+## Repository folder structure
 
 ```
 crypto-assist/
-├── web/                             ← Next.js (frontend, só UI)
+├── web/                             ← Next.js (frontend, UI only)
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── page.tsx             ← redireciona para /dashboard ou /auth
+│   │   │   ├── page.tsx             ← redirects to /dashboard or /auth
 │   │   │   ├── auth/
-│   │   │   │   ├── page.tsx         ← login/cadastro (Google + email/senha)
-│   │   │   │   └── callback/route.ts← troca o code do OAuth por sessão
+│   │   │   │   ├── page.tsx         ← login/signup (Google + email/password)
+│   │   │   │   └── callback/route.ts← exchanges the OAuth code for a session
 │   │   │   └── dashboard/
-│   │   │       ├── layout.tsx       ← verifica sessão no servidor, header com logout
-│   │   │       └── page.tsx         ← app principal (hoje é app/page.tsx)
-│   │   ├── components/              ← já existem
+│   │   │       ├── layout.tsx       ← verifies the session server-side, header with logout
+│   │   │       └── page.tsx         ← main app (used to be app/page.tsx)
+│   │   ├── components/              ← already exist
 │   │   ├── lib/
-│   │   │   ├── types.ts             ← já existe
-│   │   │   ├── format.ts            ← já existe
-│   │   │   ├── portfolio.ts         ← já existe
+│   │   │   ├── types.ts             ← already exists
+│   │   │   ├── format.ts            ← already exists
+│   │   │   ├── portfolio.ts         ← already exists
 │   │   │   ├── supabase/
 │   │   │   │   ├── client.ts        ← browser client (anon key)
 │   │   │   │   └── server.ts        ← server client (Server Components/Route Handlers)
 │   │   │   └── api/
-│   │   │       └── client.ts        ← funções fetch() para chamar o backend/
-│   │   └── proxy.ts                 ← Next 16: protege /dashboard (renomeado de middleware)
+│   │   │       └── client.ts        ← fetch() functions to call the backend/
+│   │   └── proxy.ts                 ← Next 16: protects /dashboard (renamed from middleware)
 │   └── .env.local                   ← NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
 │                                       NEXT_PUBLIC_BACKEND_URL
 │
-├── backend/                         ← Express + TypeScript (API HTTP, projeto independente)
+├── backend/                         ← Express + TypeScript (HTTP API, independent project)
 │   ├── src/
-│   │   ├── index.ts                 ← bootstrap do Express (cors, json, rotas)
+│   │   ├── index.ts                 ← Express bootstrap (cors, json, routes)
 │   │   ├── middleware/
-│   │   │   └── auth.ts              ← valida Bearer token, popula req.user
+│   │   │   └── auth.ts              ← validates Bearer token, populates req.user
 │   │   ├── lib/
 │   │   │   └── supabase.ts          ← supabaseAdmin (service_role) + supabaseForUser(token)
 │   │   └── routes/
 │   │       ├── ops.ts               ← GET/POST /api/ops, PUT/DELETE /api/ops/:id
 │   │       ├── exitPrices.ts        ← GET/PUT /api/exit-prices
-│   │       ├── prices.ts            ← GET /api/prices (cache CoinGecko)
+│   │       ├── prices.ts            ← GET /api/prices (CoinGecko cache)
 │   │       ├── exportData.ts        ← GET /api/export
 │   │       └── importData.ts        ← POST /api/import
 │   ├── .env                         ← SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
-│   │                                   COINGECKO_API_KEY, FRONTEND_ORIGIN (para CORS)
+│   │                                   COINGECKO_API_KEY, FRONTEND_ORIGIN (for CORS)
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── mobile/                          ← Expo + React Native (futuro)
+├── mobile/                          ← Expo + React Native (future)
 ├── supabase/
 │   └── migrations/
 │       └── 001_initial.sql
@@ -108,156 +109,156 @@ crypto-assist/
 
 ---
 
-## Variáveis de ambiente
+## Environment variables
 
 ### `web/.env.local`
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-NEXT_PUBLIC_BACKEND_URL=http://localhost:3001        # produção: URL do backend na Vercel
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3001        # production: the backend's Vercel URL
 ```
 
 ### `backend/.env`
 ```env
 SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...                              # mesmo valor do anon key do frontend
-SUPABASE_SERVICE_ROLE_KEY=eyJ...                      # nunca exposta ao cliente
-COINGECKO_API_KEY=                                    # opcional, chave Demo da CoinGecko
-FRONTEND_ORIGIN=http://localhost:3000                 # para configurar CORS
+SUPABASE_ANON_KEY=eyJ...                              # same value as the frontend's anon key
+SUPABASE_SERVICE_ROLE_KEY=eyJ...                      # never exposed to the client
+COINGECKO_API_KEY=                                    # optional, CoinGecko Demo key
+FRONTEND_ORIGIN=http://localhost:3000                 # for CORS configuration
 PORT=3001
 ```
 
 ---
 
-## API — contratos (backend/, prefixo `/api`)
+## API — contracts (backend/, `/api` prefix)
 
-Todas as rotas (exceto health check) exigem header `Authorization: Bearer <supabase_access_token>`.
+All routes (except the health check) require the `Authorization: Bearer <supabase_access_token>` header.
 
 ### `GET /api/ops`
-Retorna todas as operações do usuário autenticado, ordenadas por data.
+Returns all of the authenticated user's operations, ordered by date.
 ```json
 [
   {
     "id": "uuid",
-    "data": "2024-01-15",
+    "date": "2024-01-15",
     "coinId": "bitcoin",
     "symbol": "BTC",
     "name": "Bitcoin",
-    "tipo": "Compra",
-    "qtd": 0.01,
-    "preco": 250000,
-    "taxa": 5,
+    "type": "Compra",
+    "qty": 0.01,
+    "price": 250000,
+    "fee": 5,
     "total": 2505,
-    "plataforma": "Binance"
+    "platform": "Binance"
   }
 ]
 ```
 
 ### `POST /api/ops`
-Cria uma nova operação. Body = objeto Op sem `id`.
+Creates a new operation. Body = an Op object without `id`.
 
 ### `PUT /api/ops/:id`
-Atualiza uma operação existente.
+Updates an existing operation.
 
 ### `DELETE /api/ops/:id`
-Remove uma operação.
+Removes an operation.
 
 ### `GET /api/exit-prices`
-Retorna `{ coinId: exitPrice }` do usuário.
+Returns `{ coinId: exitPrice }` for the user.
 
 ### `PUT /api/exit-prices`
 Body: `{ coinId: string, exitPrice: number }`
 
 ### `GET /api/prices?ids=bitcoin,ethereum`
-Busca preços da CoinGecko com cache de 5 minutos na tabela `price_cache` (gravada com a service_role key).
-Retorna: `{ bitcoin: 350000, ethereum: 18000 }`
+Fetches CoinGecko prices with a 5-minute cache in the `price_cache` table (written with the service_role key).
+Returns: `{ bitcoin: 350000, ethereum: 18000 }`
 
 ### `GET /api/export`
-Gera e retorna o JSON completo de backup do usuário.
+Generates and returns the user's full backup as JSON.
 
 ### `POST /api/import`
-Importa um JSON de backup (mesmo formato do export).
+Imports a backup JSON (same format as the export).
 
 ---
 
-## Autenticação — fluxo detalhado
+## Authentication — detailed flow
 
 ```
-1. Usuário acessa web/ em "/"
-2. proxy.ts (Next.js) verifica sessão Supabase via cookie
-3. Se não autenticado → redireciona para /auth
-4. /auth oferece: "Entrar com Google" ou email/senha, via supabase-js no browser
-5. Supabase cria sessão (JWT access + refresh token), persistida em cookies pelo @supabase/ssr
-6. proxy.ts libera acesso a /dashboard
-7. O frontend lê o access token da sessão e o envia como Bearer token em toda chamada ao backend/
-8. O middleware do backend valida o token (supabase.auth.getUser(token))
-9. RLS no Postgres garante isolamento por user_id mesmo se o JWT vazar
+1. User opens web/ at "/"
+2. proxy.ts (Next.js) checks the Supabase session via cookie
+3. If not authenticated -> redirect to /auth
+4. /auth offers: "Sign in with Google" or email/password, via supabase-js in the browser
+5. Supabase creates a session (JWT access + refresh token), persisted in cookies by @supabase/ssr
+6. proxy.ts grants access to /dashboard
+7. The frontend reads the session's access token and sends it as a Bearer token on every call to backend/
+8. The backend's middleware validates the token (supabase.auth.getUser(token))
+9. Postgres RLS guarantees user_id isolation even if the JWT leaks
 ```
 
-No mobile (futuro), o mesmo `@supabase/supabase-js` é usado para login, e o access token é anexado às chamadas ao mesmo `backend/`.
+On mobile (future), the same `@supabase/supabase-js` is used for login, and the access token is attached to calls to the same `backend/`.
 
 ---
 
-## Migração de dados existentes
+## Migrating existing data
 
-Para usuários que já usam o `index.html` com `localStorage`:
-1. Na primeira vez que acessar o app autenticado, verificar se há dados no `localStorage`
-2. Oferecer: "Detectamos dados locais. Deseja importar para sua conta?"
-3. Se sim → chamar `POST /api/import` (no backend/) com os dados do `localStorage`
-4. Limpar `localStorage` após importação bem-sucedida
-
----
-
-## Mobile (Expo + React Native) — estratégia futura
-
-O Expo vai consumir o mesmo `backend/` (API HTTP) e o mesmo Supabase (para Auth), exatamente como o `web/` faz hoje.
-
-Compartilhamento de código entre web e mobile:
-- `lib/types.ts` — 100% reutilizável (TypeScript puro) → candidato a virar `shared/`
-- `lib/format.ts` — 100% reutilizável
-- `lib/portfolio.ts` — 100% reutilizável
-- `lib/api/client.ts` — 100% reutilizável (fetch HTTP para o backend/)
-- UI (componentes React) — **não** reutilizável diretamente; recriada em React Native
+For users who already use `index.html` with `localStorage`:
+1. The first time they access the app authenticated, check whether there's data in `localStorage`
+2. Offer: "We found local data. Would you like to import it into your account?"
+3. If yes -> call `POST /api/import` (on backend/) with the `localStorage` data
+4. Clear `localStorage` after a successful import
 
 ---
 
-## Ordem de implementação
+## Mobile (Expo + React Native) — future strategy
 
-### Fase 1 — Supabase + Auth
-1. Criar projeto no Supabase
-2. Executar `supabase/migrations/001_initial.sql`
-3. Configurar OAuth Google no Supabase
-4. Instalar `@supabase/ssr` no `web/`
-5. Criar `lib/supabase/client.ts` e `lib/supabase/server.ts`
-6. Criar `proxy.ts` para proteger rotas
-7. Criar página `/auth` com login Google + email/senha
-8. Criar `dashboard/layout.tsx` + mover o app atual para `dashboard/page.tsx`
+Expo will consume the same `backend/` (HTTP API) and the same Supabase project (for Auth), exactly like `web/` does today.
 
-### Fase 2 — Backend Express
+Code sharing between web and mobile:
+- `lib/types.ts` — 100% reusable (plain TypeScript) → candidate to become `shared/`
+- `lib/format.ts` — 100% reusable
+- `lib/portfolio.ts` — 100% reusable
+- `lib/api/client.ts` — 100% reusable (HTTP fetch to the backend/)
+- UI (React components) — **not** directly reusable; recreated in React Native
+
+---
+
+## Implementation order
+
+### Phase 1 — Supabase + Auth
+1. Create the Supabase project
+2. Run `supabase/migrations/001_initial.sql`
+3. Configure Google OAuth in Supabase
+4. Install `@supabase/ssr` in `web/`
+5. Create `lib/supabase/client.ts` and `lib/supabase/server.ts`
+6. Create `proxy.ts` to protect routes
+7. Create the `/auth` page with Google + email/password login
+8. Create `dashboard/layout.tsx` + move the current app to `dashboard/page.tsx`
+
+### Phase 2 — Express backend
 9. Scaffold `backend/` (Express + TypeScript)
-10. Middleware de autenticação (valida Bearer token)
+10. Authentication middleware (validates Bearer token)
 11. `GET/POST /api/ops`, `PUT/DELETE /api/ops/:id`
 12. `GET/PUT /api/exit-prices`
-13. `GET /api/prices` (com cache na tabela `price_cache`)
-14. `GET /api/export` e `POST /api/import`
+13. `GET /api/prices` (with cache in the `price_cache` table)
+14. `GET /api/export` and `POST /api/import`
 
-### Fase 3 — Migrar frontend
-15. Criar `lib/api/client.ts` no `web/` (fetch + Bearer token automático)
-16. Substituir chamadas ao `localStorage` por chamadas ao `backend/`
-17. Adicionar loading states nas tabelas
-18. Implementar detecção e importação de dados do `localStorage`
+### Phase 3 — Migrate the frontend
+15. Create `lib/api/client.ts` in `web/` (fetch + automatic Bearer token)
+16. Replace `localStorage` calls with calls to `backend/`
+17. Add loading states to the tables
+18. Implement detection and import of `localStorage` data
 
-### Fase 4 — Deploy
-19. Push para GitHub
-20. Conectar `web/` e `backend/` como **dois projetos Vercel separados** (cada um com seu próprio root directory)
-21. Adicionar variáveis de ambiente em cada projeto na Vercel
-22. Configurar `NEXT_PUBLIC_BACKEND_URL` no `web/` apontando para a URL do `backend/` em produção
-23. Configurar domínio customizado (opcional)
+### Phase 4 — Deploy
+19. Push to GitHub
+20. Connect `web/` and `backend/` as **two separate Vercel projects** (each with its own root directory)
+21. Add environment variables to each project on Vercel
+22. Configure `NEXT_PUBLIC_BACKEND_URL` in `web/` pointing to the backend's production URL
+23. Configure a custom domain (optional)
 
-### Fase 5 — Mobile (sessão futura)
-24. Criar pasta `mobile/` com `npx create-expo-app`
-25. Extrair `shared/` com types, format, portfolio, api client
-26. Implementar telas equivalentes em React Native
-27. Configurar OAuth Google no Expo
-28. Apontar o app para o mesmo `backend/` e Supabase
-29. Deploy na App Store / Google Play via EAS Build
+### Phase 5 — Mobile (future session)
+24. Create the `mobile/` folder with `npx create-expo-app`
+25. Extract `shared/` with types, format, portfolio, api client
+26. Implement equivalent screens in React Native
+27. Configure Google OAuth in Expo
+28. Point the app at the same `backend/` and Supabase project
+29. Deploy to the App Store / Google Play via EAS Build
