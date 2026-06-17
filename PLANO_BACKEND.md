@@ -251,7 +251,7 @@ Code sharing between web and mobile:
 Verified end-to-end against the live Supabase project (login, op CRUD,
 reload-persists, Carteira/Lucro tabs) — see commit history for details.
 
-### Phase 4 — Deploy
+### Phase 4 — Deploy ✅ done
 Both platforms deploy automatically on every `git push` to GitHub (each
 project's own "git pipeline" — no custom CI needed for this).
 
