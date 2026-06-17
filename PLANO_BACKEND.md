@@ -274,10 +274,15 @@ which runs Express as a normal always-on process with zero adaptation.
     production `web/` URL
 23. Configure a custom domain (optional)
 
-### Phase 5 — Mobile (future session)
-24. Create the `mobile/` folder with `npx create-expo-app`
-25. Extract `shared/` with types, format, portfolio, api client
-26. Implement equivalent screens in React Native
-27. Configure Google OAuth in Expo
-28. Point the app at the same `backend/` and Supabase project
+### Phase 5 — Mobile (in progress)
+24. ✅ Create the `mobile/` folder with `npx create-expo-app` (Expo SDK 56, blank-typescript template)
+25. ✅ Extract `shared/` with types, format, portfolio (pure TS — no build, no npm workspaces).
+    Resolution via tsconfig paths + webpack alias (web) and Metro `extraNodeModules` (mobile).
+26. ✅ Scaffold screens in React Native (expo-router file-based routing):
+    - `app/(auth)/login.tsx` — email/password + Google OAuth
+    - `app/(tabs)/wallet.tsx` — Carteira com cotações
+    - `app/(tabs)/profit.tsx` — Lucro/Prejuízo
+    - `app/(tabs)/history.tsx` — Histórico com remoção
+27. ✅ Supabase auth configured with `expo-secure-store` for session persistence
+28. Point the app at the same `backend/` and Supabase project (`.env.local`)
 29. Deploy to the App Store / Google Play via EAS Build

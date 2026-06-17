@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@crypto-assist/shared": ["../shared/src/index"],
+      "@crypto-assist/shared/*": ["../shared/src/*"]
     }
   },
   "include": [
