@@ -32,6 +32,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const redirectTo = Linking.createURL('/');
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo, skipBrowserRedirect: true },
@@ -40,10 +41,19 @@ export default function LoginScreen() {
       if (!data.url) return;
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
       if (result.type === 'success') {
         const url = new URL(result.url);
-        const access_token = url.searchParams.get('access_token');
-        const refresh_token = url.searchParams.get('refresh_token');
+        // PKCE flow: Supabase returns a `code` that must be exchanged
+        const code = url.searchParams.get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code);
+          return;
+        }
+        // Implicit flow fallback: tokens in hash fragment
+        const params = new URLSearchParams(url.hash.slice(1));
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
         if (access_token && refresh_token) {
           await supabase.auth.setSession({ access_token, refresh_token });
         }
