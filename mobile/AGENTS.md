@@ -3,11 +3,12 @@
 See the root [`AGENTS.md`](../AGENTS.md) for monorepo-wide conventions and
 [`../PLANO_BACKEND.md`](../PLANO_BACKEND.md) for the full architecture.
 
-## Expo SDK 56 — read the docs first
+## Expo SDK 54 — read the docs first
 
-This uses **Expo SDK 56**. APIs, hooks, and file conventions differ from
-older versions. Check https://docs.expo.dev/versions/v56.0.0/ before writing
-any code involving Expo-specific APIs.
+This uses **Expo SDK 54** (downgraded from 56 for physical device compatibility).
+APIs, hooks, and file conventions differ from older versions. Check
+https://docs.expo.dev/versions/v54.0.0/ before writing any code involving
+Expo-specific APIs.
 
 ## Routing — expo-router (file-based)
 
