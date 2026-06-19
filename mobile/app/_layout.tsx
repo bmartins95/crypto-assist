@@ -12,9 +12,10 @@ function RootLayoutNav() {
   useEffect(() => {
     if (loading) return;
     const inAuth = segments[0] === '(auth)';
+    const inTabs = segments[0] === '(tabs)';
     if (!session && !inAuth) {
       router.replace('/(auth)/login');
-    } else if (session && inAuth) {
+    } else if (session && !inTabs) {
       router.replace('/(tabs)/wallet');
     }
   }, [session, loading, segments]);
