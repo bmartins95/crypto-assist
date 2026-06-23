@@ -42,7 +42,7 @@ jobs:
         working-directory: web
 
   register-infra:
-    name: Register infra config
+    name: Register
     needs: test
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
@@ -52,7 +52,7 @@ jobs:
       infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
 
   deploy:
-    name: Deploy app
+    name: Deploy
     needs: register-infra
     runs-on: ubuntu-latest
     steps:
