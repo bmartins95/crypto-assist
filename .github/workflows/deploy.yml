@@ -1,0 +1,166 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+env:
+  AWS_REGION: us-east-1
+  INFRA_REPO: ${{ github.repository_owner }}/aws-infra
+  APP_NAME: crypto-assist
+  STAGE: prod
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            web/package-lock.json
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Install web deps
+        run: npm ci
+        working-directory: web
+
+      - name: Test backend
+        run: npm test
+        working-directory: backend
+
+      - name: Test web
+        run: npm test
+        working-directory: web
+
+  register-infra:
+    name: Register infra config
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push infra YAML to aws-infra
+        run: |
+          CONTENT=$(base64 -w 0 < infra/prod.yaml)
+          SHA=$(gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
+            --jq '.sha' 2>/dev/null || echo "")
+
+          if [ -n "$SHA" ]; then
+            gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
+              -X PUT \
+              -f "message=chore: update $APP_NAME $STAGE infra config" \
+              -f "content=$CONTENT" \
+              -f "sha=$SHA"
+          else
+            gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
+              -X PUT \
+              -f "message=chore: register $APP_NAME $STAGE infra config" \
+              -f "content=$CONTENT"
+          fi
+
+      - name: Trigger aws-infra pipeline
+        run: |
+          echo "DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          gh api "repos/$INFRA_REPO/dispatches" \
+            -f event_type=deploy-app \
+            -f "client_payload[stage]=$STAGE"
+
+      - name: Wait for aws-infra pipeline
+        run: |
+          sleep 30
+          RUN_ID=$(gh run list \
+            --repo "$INFRA_REPO" \
+            --event repository_dispatch \
+            --limit 10 \
+            --json databaseId,createdAt \
+            --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not find triggered run. Retrying..."
+            sleep 30
+            RUN_ID=$(gh run list \
+              --repo "$INFRA_REPO" \
+              --event repository_dispatch \
+              --limit 10 \
+              --json databaseId,createdAt \
+              --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
+          fi
+
+          echo "Watching run $RUN_ID in $INFRA_REPO"
+          gh run watch "$RUN_ID" --repo "$INFRA_REPO" --exit-status
+
+  deploy:
+    name: Deploy app
+    needs: register-infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read SSM outputs
+        id: ssm
+        run: |
+          get() {
+            aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text
+          }
+          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
+          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
+          echo "mobile_client_id=$(get /$APP_NAME/$STAGE/CognitoMobileClientId)" >> "$GITHUB_OUTPUT"
+          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
+          echo "backup_bucket=$(get /$APP_NAME/$STAGE/S3BackupBucket)" >> "$GITHUB_OUTPUT"
+          echo "db_host=$(get /platform/$STAGE/DbHost)" >> "$GITHUB_OUTPUT"
+          echo "db_secret_arn=$(get /platform/$STAGE/DbSecretArn)" >> "$GITHUB_OUTPUT"
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Deploy backend (Lambda)
+        run: npx sst deploy --stage ${{ env.STAGE }}
+        working-directory: backend
+        env:
+          COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
+          S3_BUCKET: ${{ steps.ssm.outputs.backup_bucket }}
+          DB_HOST: ${{ steps.ssm.outputs.db_host }}
+          DB_SECRET_ARN: ${{ steps.ssm.outputs.db_secret_arn }}
+
+      - name: Install web deps
+        run: npm ci
+        working-directory: web
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
+        env:
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
+          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
+
+      # TODO: add S3 sync + CloudFront invalidation once CloudFront distribution is created
+      # - name: Deploy web to S3
+      #   run: aws s3 sync web/dist/ s3://<web-bucket> --delete
+      # - name: Invalidate CloudFront
+      #   run: aws cloudfront create-invalidation --distribution-id <dist-id> --paths "/*"
