@@ -44,7 +44,7 @@ jobs:
   register-infra:
     name: Register infra config
     needs: test
-    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@main
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
       stage: prod
