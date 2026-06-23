@@ -2,13 +2,20 @@ name: Deploy
 
 on:
   push:
-    branches: [master]
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Stage to deploy"
+        required: true
+        type: choice
+        options:
+          - stg
+          - prod
 
 env:
   AWS_REGION: us-east-1
-  INFRA_REPO: ${{ github.repository_owner }}/aws-infra
   APP_NAME: crypto-assist
-  STAGE: prod
 
 jobs:
   test:
@@ -47,7 +54,7 @@ jobs:
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
-      stage: prod
+      stage: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
     secrets:
       infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
 
@@ -55,6 +62,8 @@ jobs:
     name: Deploy
     needs: register-infra
     runs-on: ubuntu-latest
+    env:
+      STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -62,7 +71,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: web/package-lock.json
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -79,24 +88,10 @@ jobs:
           }
           echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
           echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
-          echo "mobile_client_id=$(get /$APP_NAME/$STAGE/CognitoMobileClientId)" >> "$GITHUB_OUTPUT"
           echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
           echo "backup_bucket=$(get /$APP_NAME/$STAGE/S3BackupBucket)" >> "$GITHUB_OUTPUT"
           echo "db_host=$(get /platform/$STAGE/DbHost)" >> "$GITHUB_OUTPUT"
           echo "db_secret_arn=$(get /platform/$STAGE/DbSecretArn)" >> "$GITHUB_OUTPUT"
-
-      - name: Install backend deps
-        run: npm ci
-        working-directory: backend
-
-      - name: Deploy backend (Lambda)
-        run: npx sst deploy --stage ${{ env.STAGE }}
-        working-directory: backend
-        env:
-          COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
-          S3_BUCKET: ${{ steps.ssm.outputs.backup_bucket }}
-          DB_HOST: ${{ steps.ssm.outputs.db_host }}
-          DB_SECRET_ARN: ${{ steps.ssm.outputs.db_secret_arn }}
 
       - name: Install web deps
         run: npm ci
@@ -110,8 +105,5 @@ jobs:
           VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
 
+      # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: add S3 sync + CloudFront invalidation once CloudFront distribution is created
-      # - name: Deploy web to S3
-      #   run: aws s3 sync web/dist/ s3://<web-bucket> --delete
-      # - name: Invalidate CloudFront
-      #   run: aws cloudfront create-invalidation --distribution-id <dist-id> --paths "/*"

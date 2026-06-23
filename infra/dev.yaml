@@ -1,0 +1,14 @@
+name: crypto-assist
+cognito:
+  domain: crypto-assist-dev
+  googleEnabled: false
+  web:
+    callbackUrls:
+      - http://localhost:5173/callback
+    logoutUrls:
+      - http://localhost:5173
+  mobile:
+    callbackUrls:
+      - crypto-assist://callback
+    logoutUrls:
+      - crypto-assist://logout
