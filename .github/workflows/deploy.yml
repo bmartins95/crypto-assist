@@ -3,15 +3,6 @@ name: Deploy
 on:
   push:
     branches: [develop]
-  workflow_dispatch:
-    inputs:
-      stage:
-        description: "Stage to deploy"
-        required: true
-        type: choice
-        options:
-          - stg
-          - prod
 
 env:
   AWS_REGION: us-east-1
@@ -32,38 +23,34 @@ jobs:
             backend/package-lock.json
             web/package-lock.json
 
-      - name: Install backend deps
-        run: npm ci
+      - run: npm ci
         working-directory: backend
 
-      - name: Install web deps
-        run: npm ci
+      - run: npm ci
         working-directory: web
 
-      - name: Test backend
-        run: npm test
+      - run: npm test
         working-directory: backend
 
-      - name: Test web
-        run: npm test
+      - run: npm test
         working-directory: web
 
-  register-infra:
-    name: Register
+  register-dev:
+    name: Register dev
     needs: test
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
-      stage: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
+      stage: dev
     secrets:
       infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
 
-  deploy:
-    name: Deploy
-    needs: register-infra
+  deploy-dev:
+    name: Deploy dev
+    needs: register-dev
     runs-on: ubuntu-latest
     env:
-      STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
+      STAGE: dev
     steps:
       - uses: actions/checkout@v7
 
@@ -83,18 +70,12 @@ jobs:
       - name: Read SSM outputs
         id: ssm
         run: |
-          get() {
-            aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text
-          }
+          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
           echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
           echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
           echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
-          echo "backup_bucket=$(get /$APP_NAME/$STAGE/S3BackupBucket)" >> "$GITHUB_OUTPUT"
-          echo "db_host=$(get /platform/$STAGE/DbHost)" >> "$GITHUB_OUTPUT"
-          echo "db_secret_arn=$(get /platform/$STAGE/DbSecretArn)" >> "$GITHUB_OUTPUT"
 
-      - name: Install web deps
-        run: npm ci
+      - run: npm ci
         working-directory: web
 
       - name: Build web
@@ -106,4 +87,114 @@ jobs:
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
 
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
-      # TODO: add S3 sync + CloudFront invalidation once CloudFront distribution is created
+      # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
+
+  register-stg:
+    name: Register stg
+    needs: deploy-dev
+    environment: stg
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
+    with:
+      app_name: crypto-assist
+      stage: stg
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+
+  deploy-stg:
+    name: Deploy stg
+    needs: register-stg
+    runs-on: ubuntu-latest
+    env:
+      STAGE: stg
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read SSM outputs
+        id: ssm
+        run: |
+          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
+          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
+          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
+          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+        working-directory: web
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
+        env:
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
+          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
+
+      # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
+      # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
+
+  register-prod:
+    name: Register prod
+    needs: deploy-stg
+    environment: prod
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
+    with:
+      app_name: crypto-assist
+      stage: prod
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+
+  deploy-prod:
+    name: Deploy prod
+    needs: register-prod
+    runs-on: ubuntu-latest
+    env:
+      STAGE: prod
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Read SSM outputs
+        id: ssm
+        run: |
+          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
+          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
+          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
+          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+        working-directory: web
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
+        env:
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
+          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
+
+      # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
+      # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
