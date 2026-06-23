@@ -1,0 +1,42 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Promote to which environment?'
+        required: true
+        type: choice
+        options:
+          - stg
+          - prod
+
+jobs:
+  promote:
+    name: Promote to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PROMOTE_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge and push
+        run: |
+          if [ "${{ inputs.target }}" = "stg" ]; then
+            SOURCE=develop
+            TARGET=staging
+          else
+            SOURCE=staging
+            TARGET=master
+          fi
+          git checkout $TARGET
+          git merge origin/$SOURCE --ff-only
+          git push origin $TARGET

@@ -87,20 +87,11 @@ jobs:
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
 
-  # ── stg (manual approval on push to staging) ──────────────────────────────
-
-  approve-stg:
-    name: Approve stg
-    needs: test
-    if: github.ref_name == 'staging'
-    environment: stg
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Approved for stg"
+  # ── stg (push to staging via promote workflow) ────────────────────────────
 
   register-stg:
     name: Register stg
-    needs: approve-stg
+    needs: test
     if: github.ref_name == 'staging'
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
@@ -148,20 +139,11 @@ jobs:
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
 
-  # ── prod (manual approval on push to master) ──────────────────────────────
-
-  approve-prod:
-    name: Approve prod
-    needs: test
-    if: github.ref_name == 'master'
-    environment: prod
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Approved for prod"
+  # ── prod (push to master via promote workflow) ────────────────────────────
 
   register-prod:
     name: Register prod
-    needs: approve-prod
+    needs: test
     if: github.ref_name == 'master'
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
