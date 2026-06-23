@@ -7,11 +7,6 @@ const nextConfig: NextConfig = {
     config.resolve.alias['@crypto-assist/shared'] = path.resolve(__dirname, '../shared/src');
     return config;
   },
-  turbopack: {
-    resolveAlias: {
-      '@crypto-assist/shared': path.resolve(__dirname, '../shared/src'),
-    },
-  },
 };
 
 export default nextConfig;
