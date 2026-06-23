@@ -1,24 +1,27 @@
 # Crypto Assist — monorepo guide
 
-This repo has four projects that share the same Supabase project and `backend/` API:
+This repo has four projects sharing the same `backend/` API, deployed on AWS:
 
 - **`shared/`** — Pure TypeScript (no framework, no build step). Contains the
   types, formatters, and portfolio calculation logic used by both `web/` and
   `mobile/`. Import from `@crypto-assist/shared` — each project resolves it via
   its own path alias (see below).
-- **`web/`** — Next.js 16 frontend, deployed on Vercel. Has its own `AGENTS.md`
-  with Next.js-specific breaking-change warnings — read that too when working
-  inside `web/`.
-- **`backend/`** — Express 5 + TypeScript HTTP API, deployed on Railway. No auth
-  logic of its own; validates the Supabase JWT and serves data. Has its own
-  `AGENTS.md` (Express 5 gotchas, app.ts/index.ts split).
-- **`mobile/`** — Expo SDK 56 + React Native, not yet deployed. Uses expo-router
-  (file-based routing) and the same `backend/` API as `web/`. Has its own
-  `AGENTS.md` — read it before working inside `mobile/`.
-- **`supabase/`** — SQL migrations, shared by all projects.
+- **`web/`** — Vite + React + TanStack Router frontend, deployed to S3 + CloudFront.
+  Has its own `AGENTS.md` — read it when working inside `web/`.
+- **`backend/`** — Express 5 + TypeScript HTTP API, deployed to AWS Lambda via SST.
+  Validates Cognito JWTs and queries RDS directly. Has its own `AGENTS.md`
+  (Express 5 gotchas, app.ts/index.ts split, Lambda adapter).
+- **`mobile/`** — Expo SDK 54 + React Native. Uses expo-router (file-based routing)
+  and the same `backend/` API as `web/`. Has its own `AGENTS.md` — read it before
+  working inside `mobile/`.
 
-See [`PLANO_BACKEND.md`](PLANO_BACKEND.md) for the full architecture, auth flow,
-API contracts and the phased implementation plan (Fases 1–5).
+Infrastructure (VPC, RDS, Cognito, S3 buckets) is managed in a separate `aws-infra`
+repo using SST v4. `aws-infra` is a multi-app platform — this repo self-registers by
+pushing YAML configs to `aws-infra/apps/crypto-assist/` and triggering its pipeline.
+See [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) for the full architecture, auth flow,
+API contracts, and the phased migration checklist.
+See [`docs/aws-migration-guide.md`](docs/aws-migration-guide.md) for the platform
+model, YAML config format, and SSM output conventions.
 
 ## Shared code (`shared/`)
 
@@ -33,7 +36,7 @@ API contracts and the phased implementation plan (Fases 1–5).
 **Resolution — no npm workspaces** (they caused root-level `node_modules`
 pollution and broke per-project installs):
 
-- `web/`: tsconfig `paths` + webpack `alias` in `next.config.ts` + vitest `resolve.alias`
+- `web/`: tsconfig `paths` + `resolve.alias` in `vite.config.ts` + vitest `resolve.alias`
 - `mobile/`: Metro `resolver.extraNodeModules` in `metro.config.js`
 
 Never install packages at the repo root.
@@ -44,7 +47,7 @@ Decided explicitly partway through this project: **code is in English, the
 product is in Portuguese.**
 
 - English: variable/field/type names, comments, API error messages, SQL
-  schema, commit messages, and internal docs (this file, `PLANO_BACKEND.md`,
+  schema, commit messages, and internal docs (this file, `MIGRATION_PLAN.md`,
   the per-project `AGENTS.md` files).
 - Portuguese: everything the end user actually sees — UI labels, buttons,
   table headers, alert/toast messages. The app's audience is Brazilian and
@@ -69,7 +72,5 @@ Supabase project.
 
 ## Environment variables
 
-Supabase's current API key naming: `*_PUBLISHABLE_KEY` (safe in the browser,
-replaces the old "anon key") and `*_SECRET_KEY` (server-only, replaces the old
-"service_role key"). Each project has a `.env.example` — copy it to
-`.env`/`.env.local`, never commit the real values.
+Each project has a `.env.example` — copy it to `.env`/`.env.local`, never commit real values.
+See `MIGRATION_PLAN.md` for the full list of env vars for each project (web, backend, mobile).
