@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop]
 
 env:
   AWS_REGION: us-east-1
@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
@@ -22,25 +21,20 @@ jobs:
           cache-dependency-path: |
             backend/package-lock.json
             web/package-lock.json
-
       - run: npm ci
         working-directory: backend
-
       - run: npm ci
         working-directory: web
-
       - run: npm test
         working-directory: backend
-
       - run: npm test
         working-directory: web
 
-  # ── dev (auto on push to develop) ─────────────────────────────────────────
+  # ── dev (automatic) ───────────────────────────────────────────────────────
 
   register-dev:
     name: Register dev
     needs: test
-    if: github.ref_name == 'develop'
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
@@ -51,7 +45,6 @@ jobs:
   deploy-dev:
     name: Deploy dev
     needs: register-dev
-    if: github.ref_name == 'develop'
     runs-on: ubuntu-latest
     env:
       STAGE: dev
@@ -87,12 +80,19 @@ jobs:
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
 
-  # ── stg (push to staging via promote workflow) ────────────────────────────
+  # ── stg (manual approval) ─────────────────────────────────────────────────
+
+  approve-stg:
+    name: Approve stg
+    needs: deploy-dev
+    environment: stg
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Approved for stg"
 
   register-stg:
     name: Register stg
-    needs: test
-    if: github.ref_name == 'staging'
+    needs: approve-stg
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
@@ -103,7 +103,6 @@ jobs:
   deploy-stg:
     name: Deploy stg
     needs: register-stg
-    if: github.ref_name == 'staging'
     runs-on: ubuntu-latest
     env:
       STAGE: stg
@@ -138,13 +137,23 @@ jobs:
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
+      - name: Update staging branch
+        run: |
+          git push https://x-access-token:${{ secrets.PROMOTE_TOKEN }}@github.com/${{ github.repository }}.git HEAD:refs/heads/staging --force
 
-  # ── prod (push to master via promote workflow) ────────────────────────────
+  # ── prod (manual approval) ────────────────────────────────────────────────
+
+  approve-prod:
+    name: Approve prod
+    needs: deploy-stg
+    environment: prod
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Approved for prod"
 
   register-prod:
     name: Register prod
-    needs: test
-    if: github.ref_name == 'master'
+    needs: approve-prod
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
       app_name: crypto-assist
@@ -155,7 +164,6 @@ jobs:
   deploy-prod:
     name: Deploy prod
     needs: register-prod
-    if: github.ref_name == 'master'
     runs-on: ubuntu-latest
     env:
       STAGE: prod
@@ -190,3 +198,6 @@ jobs:
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
+      - name: Update master branch
+        run: |
+          git push https://x-access-token:${{ secrets.PROMOTE_TOKEN }}@github.com/${{ github.repository }}.git HEAD:refs/heads/master --force
