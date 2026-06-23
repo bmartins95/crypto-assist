@@ -108,6 +108,8 @@ jobs:
       STAGE: stg
     steps:
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.PROMOTE_TOKEN }}
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
@@ -138,8 +140,7 @@ jobs:
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
       - name: Update staging branch
-        run: |
-          git push https://x-access-token:${{ secrets.PROMOTE_TOKEN }}@github.com/${{ github.repository }}.git HEAD:refs/heads/staging --force
+        run: git push origin HEAD:refs/heads/staging --force
 
   # ── prod (manual approval) ────────────────────────────────────────────────
 
@@ -169,6 +170,8 @@ jobs:
       STAGE: prod
     steps:
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.PROMOTE_TOKEN }}
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
@@ -199,5 +202,4 @@ jobs:
       # TODO: deploy backend to Lambda once sst.config.ts is added to backend/
       # TODO: sync web/dist/ to S3 + CloudFront invalidation once distribution is created
       - name: Update master branch
-        run: |
-          git push https://x-access-token:${{ secrets.PROMOTE_TOKEN }}@github.com/${{ github.repository }}.git HEAD:refs/heads/master --force
+        run: git push origin HEAD:refs/heads/master --force
