@@ -44,61 +44,12 @@ jobs:
   register-infra:
     name: Register infra config
     needs: test
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.INFRA_GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Push infra YAML to aws-infra
-        run: |
-          CONTENT=$(base64 -w 0 < infra/prod.yaml)
-          SHA=$(gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
-            --jq '.sha' 2>/dev/null || echo "")
-
-          if [ -n "$SHA" ]; then
-            gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
-              -X PUT \
-              -f "message=chore: update $APP_NAME $STAGE infra config" \
-              -f "content=$CONTENT" \
-              -f "sha=$SHA"
-          else
-            gh api "repos/$INFRA_REPO/contents/apps/$APP_NAME/prod.yaml" \
-              -X PUT \
-              -f "message=chore: register $APP_NAME $STAGE infra config" \
-              -f "content=$CONTENT"
-          fi
-
-      - name: Trigger aws-infra pipeline
-        run: |
-          echo "DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-          gh api "repos/$INFRA_REPO/dispatches" \
-            -f event_type=deploy-app \
-            -f "client_payload[stage]=$STAGE"
-
-      - name: Wait for aws-infra pipeline
-        run: |
-          sleep 30
-          RUN_ID=$(gh run list \
-            --repo "$INFRA_REPO" \
-            --event repository_dispatch \
-            --limit 10 \
-            --json databaseId,createdAt \
-            --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
-
-          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-            echo "Could not find triggered run. Retrying..."
-            sleep 30
-            RUN_ID=$(gh run list \
-              --repo "$INFRA_REPO" \
-              --event repository_dispatch \
-              --limit 10 \
-              --json databaseId,createdAt \
-              --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
-          fi
-
-          echo "Watching run $RUN_ID in $INFRA_REPO"
-          gh run watch "$RUN_ID" --repo "$INFRA_REPO" --exit-status
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@main
+    with:
+      app_name: crypto-assist
+      stage: prod
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
 
   deploy:
     name: Deploy app
