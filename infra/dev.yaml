@@ -12,3 +12,6 @@ cognito:
       - crypto-assist://callback
     logoutUrls:
       - crypto-assist://logout
+
+web:
+  cloudFront: true

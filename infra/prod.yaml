@@ -16,3 +16,6 @@ cognito:
 
 storage:
   backupBucket: true
+
+web:
+  cloudFront: true
