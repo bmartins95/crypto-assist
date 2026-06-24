@@ -1,60 +1,78 @@
-# backend/ — Express 5 + TypeScript → AWS Lambda
+# backend/ — FastAPI + Python → AWS Lambda
 
-See the root [`AGENTS.md`](../AGENTS.md) for monorepo-wide conventions and
-[`../MIGRATION_PLAN.md`](../MIGRATION_PLAN.md) for the architecture.
+See the root [`AGENTS.md`](../AGENTS.md) for monorepo-wide conventions.
 
-## This is Express 5, not Express 4
+## Stack
 
-Express 5 has breaking changes from the Express 4 most training data assumes —
-most notably wildcard routes (`app.get('/*', ...)` no longer works; use `/*splat`)
-and the removal of several deprecated methods (`app.del`, `res.json(status, body)`,
-etc.). Check the [Express 5 migration guide](https://expressjs.com/en/guide/migrating-5.html)
-before adding anything with a wildcard or pattern route.
+- **FastAPI** + **Mangum** (Lambda adapter)
+- **supabase-py** for auth validation (validates Supabase JWT via `admin.auth.get_user()`) and database access (RLS via per-user postgrest client)
+- **pydantic-settings** for env var / `.env` loading
+- Runtime: Python 3.12
 
 ## Structure
 
-- `src/app.ts` builds and returns the Express app (no `.listen()`) — imported
-  directly by tests via Supertest. `src/index.ts` just calls `createApp().listen(...)`.
-  `src/lambda.ts` wraps `createApp()` with `@codegenie/serverless-express` for Lambda.
-  Keep this three-way split: tests use `app.ts`, local dev uses `index.ts`, Lambda uses `lambda.ts`.
-- `src/middleware/auth.ts` validates the Cognito JWT (verified locally against
-  Cognito's JWKS endpoint using `jsonwebtoken`) and populates `req.userId` (the
-  Cognito `sub` claim) and `req.accessToken`. Routes never read auth state directly.
-- `src/lib/db.ts` exports a `pg.Pool` connected to RDS. All DB access goes
-  through this pool. There is no Supabase client anywhere — user isolation is
-  enforced by `WHERE user_id = $userId` in every query, not by RLS.
-- `src/test/` has shared test helpers — reuse them instead of hand-rolling mocks.
+```
+app/
+  main.py          # FastAPI app + handler = Mangum(app)
+  config.py        # Settings (pydantic-settings, reads .env)
+  models.py        # Pydantic request/response models
+  dependencies.py  # require_auth FastAPI dependency → AuthContext
+  db/
+    supabase_client.py  # get_admin_client() and get_user_client(token)
+  routes/
+    ops.py          # CRUD /api/ops
+    exit_prices.py  # /api/exit-prices
+    prices.py       # /api/prices (CoinGecko + 5-min cache)
+    export_data.py  # GET /api/export
+    import_data.py  # POST /api/import
+tests/
+  conftest.py      # pytest fixtures with Supabase stubs
+  test_health.py
+  test_ops.py
+```
 
-## Auth middleware — key detail
+## Auth middleware
 
-The backend no longer calls any external service to validate JWTs. Instead,
-`auth.ts` fetches Cognito's JWKS once at startup (and re-fetches periodically),
-then verifies each incoming JWT locally. This means:
-- Zero latency added per request for auth
-- `req.userId` = Cognito `sub` claim (a UUID string)
-- No `req.supabase` — that pattern is gone
+`require_auth` (in `dependencies.py`) is a FastAPI dependency injected via `Depends(require_auth)`.
+It validates the `Authorization: Bearer <token>` header by calling Supabase's auth server:
+
+```python
+response = get_admin_client().auth.get_user(jwt=token)
+```
+
+On success it returns an `AuthContext` dataclass with `user_id`, `access_token`, and a per-user
+Supabase client (`supabase`) that respects Row Level Security.
 
 ## Database access
 
-Use `pool.query(sql, params)` from `src/lib/db.ts`. Always parameterize queries —
-never interpolate user-controlled values into SQL strings. Every query that
-accesses per-user data must include `WHERE user_id = $n` using `req.userId`.
+All per-user queries go through `auth.supabase` (the RLS-aware user client). The `user_id` filter
+is enforced by Supabase RLS policies, not manually.
 
-Example:
-```typescript
-const { rows } = await pool.query(
-  'SELECT * FROM ops WHERE user_id = $1 ORDER BY date DESC',
-  [req.userId]
-);
-```
+Admin operations (e.g., price cache writes) use `get_admin_client()`.
 
 ## Running locally
 
 ```bash
-npm run dev    # tsx watch src/index.ts (Express on port 3001)
-npm test       # Vitest + Supertest
-npm run build  # tsc → dist/ (used by Lambda)
+cp .env.example .env       # fill in SUPABASE_* values
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --port 3001
+pytest
 ```
 
-Lambda deployment is handled by SST (`sst.config.ts` in this folder).
-`sst dev` runs a live Lambda tunnel for local end-to-end testing against real AWS resources.
+## Lambda deployment
+
+`sst.config.ts` in this folder deploys a Python Lambda with a Function URL.
+Supabase credentials are read from SSM Parameter Store (SecureString) at deploy time
+and injected as Lambda env vars. The Lambda URL is written back to SSM as
+`/crypto-assist/{stage}/BackendApiUrl` for the frontend build to consume.
+
+Required SSM params (one-time setup per stage):
+- `/{stage}/SupabaseUrl`
+- `/{stage}/SupabasePublishableKey` (SecureString)
+- `/{stage}/SupabaseSecretKey` (SecureString)
+- `/{stage}/CoingeckoApiKey` (SecureString, can be empty)
+
+```bash
+cd backend
+npx sst deploy --stage dev
+```
