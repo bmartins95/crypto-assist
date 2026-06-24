@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Op, NewOp, Prices, AvatarCache, TabType, GroupMode, ChartType, BackupPayload } from '@/lib/types';
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
