@@ -5,8 +5,10 @@ cognito:
   googleEnabled: true
   web:
     callbackUrls:
-      - http://localhost:5173/callback
+      - https://d3nab81epd8vp1.cloudfront.net/auth/callback
+      - http://localhost:5173/auth/callback
     logoutUrls:
+      - https://d3nab81epd8vp1.cloudfront.net
       - http://localhost:5173
   mobile:
     callbackUrls:
