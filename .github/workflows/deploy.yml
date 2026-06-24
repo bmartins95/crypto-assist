@@ -4,10 +4,6 @@ on:
   push:
     branches: [develop]
 
-env:
-  AWS_REGION: us-east-1
-  APP_NAME: crypto-assist
-
 jobs:
   test:
     name: Test
@@ -48,48 +44,15 @@ jobs:
   deploy-dev:
     name: Deploy dev
     needs: register-dev
-    runs-on: ubuntu-latest
-    env:
-      STAGE: dev
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Deploy backend to Lambda
-        run: npx sst deploy --stage $STAGE
-        working-directory: backend
-      - name: Read SSM outputs
-        id: ssm
-        run: |
-          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
-          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
-          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
-          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
-          echo "backend_url=$(get /$APP_NAME/$STAGE/BackendApiUrl)" >> "$GITHUB_OUTPUT"
-      - run: npm ci
-        working-directory: web
-      - name: Build web
-        run: npm run build
-        working-directory: web
-        env:
-          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
-          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
-          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
-          NEXT_PUBLIC_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
-      # TODO: sync web/out/ to S3 + CloudFront invalidation once distribution is created
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: crypto-assist
+      stage: dev
+      python_version: "3.12"
+      setup_uv: true
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   # ── stg (manual approval) ─────────────────────────────────────────────────
 
@@ -114,52 +77,17 @@ jobs:
   deploy-stg:
     name: Deploy stg
     needs: register-stg
-    runs-on: ubuntu-latest
-    env:
-      STAGE: stg
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          token: ${{ secrets.PROMOTE_TOKEN }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Deploy backend to Lambda
-        run: npx sst deploy --stage $STAGE
-        working-directory: backend
-      - name: Read SSM outputs
-        id: ssm
-        run: |
-          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
-          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
-          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
-          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
-          echo "backend_url=$(get /$APP_NAME/$STAGE/BackendApiUrl)" >> "$GITHUB_OUTPUT"
-      - run: npm ci
-        working-directory: web
-      - name: Build web
-        run: npm run build
-        working-directory: web
-        env:
-          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
-          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
-          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
-          NEXT_PUBLIC_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
-      # TODO: sync web/out/ to S3 + CloudFront invalidation once distribution is created
-      - name: Update staging branch
-        run: git push origin HEAD:refs/heads/staging --force
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: crypto-assist
+      stage: stg
+      python_version: "3.12"
+      setup_uv: true
+      promote_branch: staging
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      promote_token: ${{ secrets.PROMOTE_TOKEN }}
 
   # ── prod (manual approval) ────────────────────────────────────────────────
 
@@ -184,49 +112,14 @@ jobs:
   deploy-prod:
     name: Deploy prod
     needs: register-prod
-    runs-on: ubuntu-latest
-    env:
-      STAGE: prod
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          token: ${{ secrets.PROMOTE_TOKEN }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: astral-sh/setup-uv@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Deploy backend to Lambda
-        run: npx sst deploy --stage $STAGE
-        working-directory: backend
-      - name: Read SSM outputs
-        id: ssm
-        run: |
-          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text; }
-          echo "pool_id=$(get /$APP_NAME/$STAGE/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
-          echo "web_client_id=$(get /$APP_NAME/$STAGE/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
-          echo "cognito_domain=$(get /$APP_NAME/$STAGE/CognitoDomain)" >> "$GITHUB_OUTPUT"
-          echo "backend_url=$(get /$APP_NAME/$STAGE/BackendApiUrl)" >> "$GITHUB_OUTPUT"
-      - run: npm ci
-        working-directory: web
-      - name: Build web
-        run: npm run build
-        working-directory: web
-        env:
-          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
-          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
-          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
-          NEXT_PUBLIC_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
-      # TODO: sync web/out/ to S3 + CloudFront invalidation once distribution is created
-      - name: Update master branch
-        run: git push origin HEAD:refs/heads/master --force
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: crypto-assist
+      stage: prod
+      python_version: "3.12"
+      setup_uv: true
+      promote_branch: master
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      promote_token: ${{ secrets.PROMOTE_TOKEN }}
