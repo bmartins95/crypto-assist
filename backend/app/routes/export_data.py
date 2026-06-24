@@ -1,6 +1,7 @@
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.dependencies import AuthContext, require_auth
+from app.db.supabase_client import get_admin_client
 from app.models import BackupPayload, Op
 
 router = APIRouter()
@@ -9,8 +10,9 @@ router = APIRouter()
 @router.get("/", response_model=BackupPayload)
 def export_backup(auth: AuthContext = Depends(require_auth)):
     try:
-        ops_result = auth.supabase.from_("ops").select("*").order("date", desc=False).execute()
-        exit_result = auth.supabase.from_("exit_prices").select("coin_id,exit_price").execute()
+        db = get_admin_client()
+        ops_result = db.from_("ops").select("*").eq("user_id", auth.user_id).order("date", desc=False).execute()
+        exit_result = db.from_("exit_prices").select("coin_id,exit_price").eq("user_id", auth.user_id).execute()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 

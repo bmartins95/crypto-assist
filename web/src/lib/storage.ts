@@ -1,6 +1,6 @@
 import type { AvatarCache, NewOp, ExitPrices } from './types';
 
-// Ops, exit prices and live CoinGecko prices now live in the backend/Supabase
+// Ops, exit prices and live CoinGecko prices now live in the backend
 // (see lib/api/client.ts) — this module only keeps purely client-side,
 // non-account data: the avatar image cache and the Google Drive integration
 // state, plus the one-time legacy-data migration helpers below.

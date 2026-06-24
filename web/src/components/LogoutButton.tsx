@@ -1,11 +1,9 @@
-import { createClient } from '@/lib/supabase/client';
+import { clearSession, buildLogoutUrl } from '@/lib/cognito/client';
 
 export default function LogoutButton() {
-  const supabase = createClient();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/auth';
+  const handleLogout = () => {
+    clearSession();
+    window.location.href = buildLogoutUrl();
   };
 
   return (

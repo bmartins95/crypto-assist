@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.dependencies import AuthContext, require_auth
+from app.db.supabase_client import get_admin_client
 from app.models import Op, NewOp
 
 router = APIRouter()
@@ -42,7 +43,7 @@ def _new_op_to_row(op: NewOp, user_id: str) -> dict:
 @router.get("/", response_model=list[Op])
 def list_ops(auth: AuthContext = Depends(require_auth)):
     try:
-        result = auth.supabase.from_("ops").select(_DB_COLS).order("date", desc=False).execute()
+        result = get_admin_client().from_("ops").select(_DB_COLS).eq("user_id", auth.user_id).order("date", desc=False).execute()
         return [_row_to_op(r) for r in result.data]
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -52,7 +53,7 @@ def list_ops(auth: AuthContext = Depends(require_auth)):
 def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         result = (
-            auth.supabase.from_("ops")
+            get_admin_client().from_("ops")
             .insert(_new_op_to_row(op, auth.user_id))
             .select(_DB_COLS)
             .single()
@@ -67,9 +68,10 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
 def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         result = (
-            auth.supabase.from_("ops")
+            get_admin_client().from_("ops")
             .update(_new_op_to_row(op, auth.user_id))
             .eq("id", op_id)
+            .eq("user_id", auth.user_id)
             .select(_DB_COLS)
             .single()
             .execute()
@@ -86,6 +88,6 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
 @router.delete("/{op_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_op(op_id: str, auth: AuthContext = Depends(require_auth)):
     try:
-        auth.supabase.from_("ops").delete().eq("id", op_id).execute()
+        get_admin_client().from_("ops").delete().eq("id", op_id).eq("user_id", auth.user_id).execute()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
