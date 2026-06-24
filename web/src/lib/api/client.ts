@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import type { Op, NewOp, ExitPrices, MarketPrices, BackupPayload } from '@/lib/types';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
 async function authHeader(): Promise<Record<string, string>> {
   const supabase = createClient();

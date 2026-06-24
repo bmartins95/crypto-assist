@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build --webpack",
-    "start": "next start",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -13,8 +13,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-router": "^1.121.0",
     "chart.js": "^4.5.1",
-    "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -28,10 +28,10 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^8.1.0",
     "vitest": "^4.1.9"
   }
 }
