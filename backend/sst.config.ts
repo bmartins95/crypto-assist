@@ -14,12 +14,7 @@ export default $config({
     const appName = "crypto-assist";
     const paramBase = `/${appName}/${stage}`;
 
-    // Credentials stored in SSM as SecureString (one-time manual setup)
     const supabaseUrl = aws.ssm.getParameterOutput({ name: `${paramBase}/SupabaseUrl` });
-    const supabasePublishableKey = aws.ssm.getParameterOutput({
-      name: `${paramBase}/SupabasePublishableKey`,
-      withDecryption: true,
-    });
     const supabaseSecretKey = aws.ssm.getParameterOutput({
       name: `${paramBase}/SupabaseSecretKey`,
       withDecryption: true,
@@ -28,6 +23,10 @@ export default $config({
       name: `${paramBase}/CoingeckoApiKey`,
       withDecryption: true,
     });
+    const cognitoUserPoolId = aws.ssm.getParameterOutput({
+      name: `${paramBase}/CognitoUserPoolId`,
+    });
+    const webUrl = aws.ssm.getParameterOutput({ name: `${paramBase}/WebUrl` });
 
     const fn = new sst.aws.Function("BackendApi", {
       handler: "app/main.handler",
@@ -38,14 +37,14 @@ export default $config({
       environment: {
         STAGE: stage,
         SUPABASE_URL: supabaseUrl.value,
-        SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey.value,
         SUPABASE_SECRET_KEY: supabaseSecretKey.value,
         COINGECKO_API_KEY: coingeckoApiKey.value,
-        FRONTEND_ORIGIN: "http://localhost:3000",
+        COGNITO_USER_POOL_ID: cognitoUserPoolId.value,
+        COGNITO_REGION: "us-east-1",
+        FRONTEND_ORIGIN: webUrl.value,
       },
     });
 
-    // Publish Lambda URL to SSM so the frontend build can read NEXT_PUBLIC_BACKEND_URL
     new aws.ssm.Parameter("BackendApiUrl", {
       name: `${paramBase}/BackendApiUrl`,
       type: "String",

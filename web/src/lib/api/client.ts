@@ -1,17 +1,16 @@
-import { createClient } from '@/lib/supabase/client';
+import { getSession } from '@/lib/cognito/client';
 import type { Op, NewOp, ExitPrices, MarketPrices, BackupPayload } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
-async function authHeader(): Promise<Record<string, string>> {
-  const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+function authHeader(): Record<string, string> {
+  const session = getSession();
   if (!session) throw new Error('Session not found. Please log in again.');
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = { ...(await authHeader()), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) };
+  const headers = { ...authHeader(), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) };
   const res = await fetch(`${BACKEND_URL}${path}`, { ...init, headers: { ...headers, ...init?.headers } });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

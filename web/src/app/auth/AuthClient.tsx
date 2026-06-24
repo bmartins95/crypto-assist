@@ -1,45 +1,15 @@
-import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { buildAuthUrl } from '@/lib/cognito/client';
 
-type Mode = 'login' | 'signup';
+const searchParams = new URLSearchParams(window.location.search);
+const authError = searchParams.get('error');
 
 export default function AuthClient() {
-  const [mode, setMode] = useState<Mode>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-
-  const supabase = createClient();
-
   const handleGoogle = async () => {
-    setMessage('');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) setMessage(error.message);
+    window.location.href = await buildAuthUrl('Google');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage(translateAuthError(error.message));
-      else window.location.href = '/dashboard';
-    } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      });
-      if (error) setMessage(translateAuthError(error.message));
-      else setMessage('Verifique seu e-mail para confirmar o cadastro.');
-    }
-    setLoading(false);
+  const handleEmail = async () => {
+    window.location.href = await buildAuthUrl();
   };
 
   return (
@@ -49,63 +19,31 @@ export default function AuthClient() {
           <i className="ti ti-currency-bitcoin" /> Carteira de Criptoativos
         </h1>
         <p style={{ color: 'var(--text3)', marginBottom: 24 }}>
-          {mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta'}
+          Entre ou crie sua conta para continuar
         </p>
 
         <button
           onClick={handleGoogle}
           className="btn-sm"
-          style={{ width: '100%', justifyContent: 'center', padding: '10px 0', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}
+          style={{ width: '100%', justifyContent: 'center', padding: '10px 0', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}
         >
           <i className="ti ti-brand-google" /> Continuar com Google
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0', color: 'var(--text3)', fontSize: 12 }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border2)' }} />
-          ou
-          <div style={{ flex: 1, height: 1, background: 'var(--border2)' }} />
-        </div>
+        <button
+          onClick={handleEmail}
+          className="btn-sm"
+          style={{ width: '100%', justifyContent: 'center', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <i className="ti ti-mail" /> Entrar com e-mail
+        </button>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <input
-            type="email"
-            placeholder="E-mail"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '0.5px solid var(--border2)' }}
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 'var(--radius)', border: '0.5px solid var(--border2)' }}
-          />
-          <button type="submit" disabled={loading} className="btn-sm" style={{ padding: '10px 0', justifyContent: 'center' }}>
-            {loading ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Cadastrar'}
-          </button>
-        </form>
-
-        {message && <p style={{ marginTop: 12, fontSize: 13, color: 'var(--text3)' }}>{message}</p>}
-
-        <p style={{ marginTop: 24, fontSize: 13, textAlign: 'center' }}>
-          {mode === 'login' ? (
-            <>Não tem conta? <a href="#" onClick={(e) => { e.preventDefault(); setMode('signup'); setMessage(''); }}>Cadastre-se</a></>
-          ) : (
-            <>Já tem conta? <a href="#" onClick={(e) => { e.preventDefault(); setMode('login'); setMessage(''); }}>Entrar</a></>
-          )}
-        </p>
+        {authError && (
+          <p style={{ marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
+            Falha na autenticação. Tente novamente.
+          </p>
+        )}
       </div>
     </div>
   );
-}
-
-function translateAuthError(msg: string): string {
-  if (msg.includes('Invalid login credentials')) return 'E-mail ou senha inválidos.';
-  if (msg.includes('User already registered')) return 'Este e-mail já está cadastrado.';
-  if (msg.includes('Password should be')) return 'A senha deve ter pelo menos 6 caracteres.';
-  return msg;
 }
