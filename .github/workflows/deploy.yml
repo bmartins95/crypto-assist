@@ -38,8 +38,7 @@ jobs:
     with:
       app_name: crypto-assist
       stage: dev
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-dev:
     name: Deploy dev
@@ -48,11 +47,8 @@ jobs:
     with:
       app_name: crypto-assist
       stage: dev
-      python_version: "3.12"
-      setup_uv: true
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      stack: python-sst
+    secrets: inherit
 
   # ── stg (manual approval) ─────────────────────────────────────────────────
 
@@ -71,8 +67,7 @@ jobs:
     with:
       app_name: crypto-assist
       stage: stg
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-stg:
     name: Deploy stg
@@ -81,13 +76,9 @@ jobs:
     with:
       app_name: crypto-assist
       stage: stg
-      python_version: "3.12"
-      setup_uv: true
+      stack: python-sst
       promote_branch: staging
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      promote_token: ${{ secrets.PROMOTE_TOKEN }}
+    secrets: inherit
 
   # ── prod (manual approval) ────────────────────────────────────────────────
 
@@ -106,8 +97,7 @@ jobs:
     with:
       app_name: crypto-assist
       stage: prod
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-prod:
     name: Deploy prod
@@ -116,10 +106,6 @@ jobs:
     with:
       app_name: crypto-assist
       stage: prod
-      python_version: "3.12"
-      setup_uv: true
+      stack: python-sst
       promote_branch: master
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      promote_token: ${{ secrets.PROMOTE_TOKEN }}
+    secrets: inherit
