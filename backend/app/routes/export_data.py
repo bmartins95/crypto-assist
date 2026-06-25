@@ -9,7 +9,7 @@ router = APIRouter()
 _SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform"
 
 
-@router.get("/", response_model=BackupPayload)
+@router.get("", response_model=BackupPayload)
 def export_backup(auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:

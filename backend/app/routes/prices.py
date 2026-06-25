@@ -36,7 +36,7 @@ def _fetch_from_coingecko(ids: list[str]) -> list[dict]:
     ]
 
 
-@router.get("/", response_model=dict[str, PriceInfo])
+@router.get("", response_model=dict[str, PriceInfo])
 def get_prices(
     ids: str = Query(..., description="Comma-separated CoinGecko coin IDs"),
     _auth=Depends(require_auth),

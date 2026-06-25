@@ -6,7 +6,7 @@ from app.models import ExitPriceUpdate
 router = APIRouter()
 
 
-@router.get("/", response_model=dict[str, float])
+@router.get("", response_model=dict[str, float])
 def get_exit_prices(auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
@@ -20,7 +20,7 @@ def get_exit_prices(auth: AuthContext = Depends(require_auth)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/", status_code=status.HTTP_204_NO_CONTENT)
+@router.put("", status_code=status.HTTP_204_NO_CONTENT)
 def set_exit_price(body: ExitPriceUpdate, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:

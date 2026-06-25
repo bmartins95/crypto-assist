@@ -13,7 +13,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="crypto-assist backend")
+# redirect_slashes=False prevents 307 loops when using Mangum + Lambda Function URLs.
+# Mangum strips the trailing slash before passing the path to FastAPI; with the default
+# redirect_slashes=True, FastAPI would redirect /api/ops → /api/ops/ infinitely.
+app = FastAPI(title="crypto-assist backend", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,

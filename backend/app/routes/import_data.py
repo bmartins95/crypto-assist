@@ -6,7 +6,7 @@ from app.models import BackupPayload
 router = APIRouter()
 
 
-@router.post("/", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("", status_code=status.HTTP_204_NO_CONTENT)
 def import_backup(payload: BackupPayload, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     user_id = auth.user_id
