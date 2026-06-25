@@ -47,7 +47,7 @@ export default $config({
       handler: "app/main.handler",
       runtime: "python3.12",
       url: { cors: false },
-      timeout: "30 seconds",
+      timeout: "90 seconds",
       memory: "512 MB",
       copyFiles: [{ from: "db/schema.sql" }],
       vpc: {
