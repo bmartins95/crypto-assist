@@ -46,7 +46,7 @@ _NEW_OP_BODY = {
 @pytest.mark.pgdata([_DB_ROW])
 def test_list_ops(client_with_db):
     client, _ = client_with_db
-    res = client.get("/api/ops/")
+    res = client.get("/api/ops")
     assert res.status_code == 200
     assert res.json() == [_API_OP]
 
@@ -54,7 +54,7 @@ def test_list_ops(client_with_db):
 @pytest.mark.pgdata(_DB_ROW)
 def test_create_op(client_with_db):
     client, _ = client_with_db
-    res = client.post("/api/ops/", json=_NEW_OP_BODY)
+    res = client.post("/api/ops", json=_NEW_OP_BODY)
     assert res.status_code == 201
     assert res.json() == _API_OP
 
@@ -62,7 +62,7 @@ def test_create_op(client_with_db):
 @pytest.mark.pgdata({})
 def test_create_op_missing_fields(client_with_db):
     client, _ = client_with_db
-    res = client.post("/api/ops/", json={"symbol": "BTC"})
+    res = client.post("/api/ops", json={"symbol": "BTC"})
     assert res.status_code == 422  # FastAPI validation error
 
 
