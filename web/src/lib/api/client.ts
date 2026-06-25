@@ -1,16 +1,16 @@
-import { getSession } from '@/lib/cognito/client';
+import { getValidSession } from '@/lib/cognito/client';
 import type { Op, NewOp, ExitPrices, MarketPrices, BackupPayload } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
-function authHeader(): Record<string, string> {
-  const session = getSession();
+async function authHeader(): Promise<Record<string, string>> {
+  const session = await getValidSession();
   if (!session) throw new Error('Session not found. Please log in again.');
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = { ...authHeader(), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) };
+  const headers = { ...(await authHeader()), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) };
   const res = await fetch(`${BACKEND_URL}${path}`, { ...init, headers: { ...headers, ...init?.headers } });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

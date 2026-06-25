@@ -192,7 +192,14 @@ export default function DashboardPage() {
         await api.importBackup(backup);
         await reloadFromBackend();
         e.target.value = '';
-      } catch { alert('Arquivo inválido. Use um backup exportado por esta aplicação.'); }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('Session not found')) {
+          alert('Sua sessão expirou. Recarregue a página e faça login novamente.');
+        } else {
+          alert('Erro ao importar: ' + (msg || 'verifique o arquivo e tente novamente.'));
+        }
+      }
     };
     reader.readAsText(file);
   };
