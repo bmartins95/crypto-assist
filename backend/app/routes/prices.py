@@ -1,7 +1,8 @@
+import datetime
 import time
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.dependencies import require_auth
-from app.db.supabase_client import get_admin_client
+from app.db.postgres_client import get_conn
 from app.config import get_settings
 from app.models import PriceInfo
 import httpx
@@ -44,20 +45,24 @@ def get_prices(
     if not coin_ids:
         raise HTTPException(status_code=400, detail='Query param "ids" is required.')
 
-    admin = get_admin_client()
+    conn = get_conn()
 
     try:
-        cached = admin.from_("price_cache").select("coin_id,price_brl,image_url,updated_at").in_("coin_id", coin_ids).execute()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT coin_id, price_brl, image_url, updated_at FROM price_cache"
+                " WHERE coin_id = ANY(%s)",
+                (coin_ids,),
+            )
+            cached = cur.fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     now = time.time()
     fresh: dict[str, dict] = {}
-    for row in cached.data:
+    for row in cached:
         updated = row["updated_at"]
-        # Parse ISO timestamp — Supabase returns UTC with timezone
-        import datetime
-        ts = datetime.datetime.fromisoformat(updated.replace("Z", "+00:00")).timestamp()
+        ts = updated.timestamp() if hasattr(updated, "timestamp") else datetime.datetime.fromisoformat(str(updated).replace("Z", "+00:00")).timestamp()
         if now - ts < _CACHE_TTL_S:
             fresh[row["coin_id"]] = row
 
@@ -71,22 +76,28 @@ def get_prices(
         try:
             fetched = _fetch_from_coingecko(stale_ids)
             if fetched:
-                admin.from_("price_cache").upsert([
-                    {"coin_id": c["id"], "price_brl": c["price"], "image_url": c.get("image"),
-                     "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
-                    for c in fetched
-                ]).execute()
+                now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                with conn.cursor() as cur:
+                    cur.executemany(
+                        "INSERT INTO price_cache (coin_id, price_brl, image_url, updated_at)"
+                        " VALUES (%s, %s, %s, %s)"
+                        " ON CONFLICT (coin_id) DO UPDATE SET price_brl = EXCLUDED.price_brl,"
+                        " image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at",
+                        [(c["id"], c["price"], c.get("image"), now_iso) for c in fetched],
+                    )
+                conn.commit()
             for c in fetched:
                 result[c["id"]] = PriceInfo(price=c["price"], image=c.get("image"))
         except HTTPException:
-            # On CoinGecko failure, fall back to stale cache rather than error
-            for row in cached.data:
+            # On CoinGecko failure, fall back to stale cache rather than erroring
+            for row in cached:
                 if row["coin_id"] in stale_ids and row["coin_id"] not in result:
                     result[row["coin_id"]] = PriceInfo(price=float(row["price_brl"]), image=row.get("image_url"))
             if not result:
                 raise
         except Exception as e:
-            for row in cached.data:
+            conn.rollback()
+            for row in cached:
                 if row["coin_id"] in stale_ids and row["coin_id"] not in result:
                     result[row["coin_id"]] = PriceInfo(price=float(row["price_brl"]), image=row.get("image_url"))
             if not result:
