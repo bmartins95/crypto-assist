@@ -50,6 +50,8 @@ Branch promotion: after deploy-stg → force-push to `staging`; after deploy-pro
 - `master` / `staging`: GitHub Ruleset (Admin bypass only). Pipeline uses PROMOTE_TOKEN (Admin) to push; humans cannot merge directly.
 - Default branch is `develop` — `gh pr create` without `--base` targets develop.
 
+**IMPORTANT for agents:** Never push directly to `develop`, `staging`, or `master`. Always work on a feature branch and open a PR. Merging to `develop` is the only way to trigger the CI/CD deploy pipeline.
+
 ## Environment variables
 
 Each project has a `.env.example`. Copy to `.env` / `.env.local`, never commit real values.
