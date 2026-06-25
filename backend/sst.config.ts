@@ -37,7 +37,7 @@ export default $config({
       timeout: "30 seconds",
       memory: "512 MB",
       vpc: {
-        subnets: vpcPrivateSubnets.value.apply(v => v.split(",")),
+        privateSubnets: vpcPrivateSubnets.value.apply(v => v.split(",")),
         securityGroups: lambdaSgId.value.apply(id => [id]),
       },
       permissions: [{
