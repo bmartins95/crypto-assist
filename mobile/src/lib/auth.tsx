@@ -1,32 +1,47 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import type { CognitoTokens } from './cognito';
+import { clearSession, getSession } from './cognito';
 
 interface AuthContextValue {
-  session: Session | null;
+  session: CognitoTokens | null;
   loading: boolean;
+  signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue>({ session: null, loading: true });
+const AuthContext = createContext<AuthContextValue>({
+  session: null,
+  loading: true,
+  signOut: async () => {},
+  refreshSession: async () => {},
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<CognitoTokens | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+  const refreshSession = useCallback(async () => {
+    const s = await getSession();
+    setSession(s);
   }, []);
 
-  return <AuthContext.Provider value={{ session, loading }}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    getSession().then(s => {
+      setSession(s);
+      setLoading(false);
+    });
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await clearSession();
+    setSession(null);
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ session, loading, signOut, refreshSession }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => useContext(AuthContext);

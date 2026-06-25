@@ -3,14 +3,13 @@ import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
   RefreshControl, TouchableOpacity, Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api/client';
 import { collectAssets, fmt, fmtPct, fmtQty } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 
 export default function WalletScreen() {
-  const router = useRouter();
+  const { signOut } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [prices, setPrices] = useState<MarketPrices>({});
   const [loading, setLoading] = useState(true);
@@ -37,8 +36,7 @@ export default function WalletScreen() {
   useEffect(() => { load(); }, [load]);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace('/(auth)/login');
+    await signOut();
   }
 
   if (loading) {

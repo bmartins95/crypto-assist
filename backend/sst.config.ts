@@ -27,8 +27,21 @@ export default $config({
 
     // Platform VPC + DB params (set by aws-infra platform stack)
     const dbSecretArn = aws.ssm.getParameterOutput({ name: `${platformBase}/DbSecretArn` });
+    const dbHost = aws.ssm.getParameterOutput({ name: `${platformBase}/DbHost` });
+    const dbPort = aws.ssm.getParameterOutput({ name: `${platformBase}/DbPort` });
     const vpcPrivateSubnets = aws.ssm.getParameterOutput({ name: `${platformBase}/VpcPrivateSubnetIds` });
     const lambdaSgId = aws.ssm.getParameterOutput({ name: `${platformBase}/LambdaSgId` });
+
+    // Read DB credentials at deploy time (machine has internet access) and inject as DB_DSN.
+    // This avoids a Secrets Manager API call from the Lambda at runtime, which would hang
+    // because private VPC subnets have no NAT Gateway or Secrets Manager VPC endpoint.
+    const dbSecret = aws.secretsmanager.getSecretVersionOutput({ secretId: dbSecretArn.value });
+    const dbDsn = $util.all([dbHost.value, dbPort.value, dbSecret.secretString]).apply(
+      ([host, port, secretStr]) => {
+        const c = JSON.parse(secretStr);
+        return `host=${host} port=${port} dbname=postgres user=${c.username} password=${c.password}`;
+      }
+    );
 
     const fn = new sst.aws.Function("BackendApi", {
       handler: "app/main.handler",
@@ -36,17 +49,14 @@ export default $config({
       url: { cors: false },
       timeout: "30 seconds",
       memory: "512 MB",
+      copyFiles: [{ from: "db/schema.sql" }],
       vpc: {
         privateSubnets: vpcPrivateSubnets.value.apply(v => v.split(",")),
         securityGroups: lambdaSgId.value.apply(id => [id]),
       },
-      permissions: [{
-        actions: ["secretsmanager:GetSecretValue"],
-        resources: [dbSecretArn.value],
-      }],
       environment: {
         STAGE: stage,
-        DB_SECRET_ARN: dbSecretArn.value,
+        DB_DSN: dbDsn,
         COGNITO_USER_POOL_ID: cognitoUserPoolId.value,
         COGNITO_REGION: "us-east-1",
         COINGECKO_API_KEY: coingeckoApiKey.value,
