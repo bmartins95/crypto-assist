@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { supabase } from '@/lib/supabase';
 import { useAuth, AuthProvider } from '@/lib/auth';
 
 function RootLayoutNav() {

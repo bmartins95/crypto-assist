@@ -1,10 +1,10 @@
-import { supabase } from '@/lib/supabase';
+import { getSession } from '@/lib/cognito';
 import type { Op, NewOp, ExitPrices, MarketPrices, BackupPayload } from '@crypto-assist/shared';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
 
 async function authHeader(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = await getSession();
   if (!session) throw new Error('Sessão não encontrada. Faça login novamente.');
   return { Authorization: `Bearer ${session.access_token}` };
 }
