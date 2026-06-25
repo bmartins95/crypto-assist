@@ -24,7 +24,7 @@ def _row_to_op(row: dict) -> Op:
     )
 
 
-@router.get("/", response_model=list[Op])
+@router.get("", response_model=list[Op])
 def list_ops(auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
@@ -38,7 +38,7 @@ def list_ops(auth: AuthContext = Depends(require_auth)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/", response_model=Op, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=Op, status_code=status.HTTP_201_CREATED)
 def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
