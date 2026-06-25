@@ -7,10 +7,10 @@ from mangum import Mangum
 
 from app.routes import ops, exit_prices, prices, export_data, import_data
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+# In Lambda the runtime pre-installs a root handler, so logging.basicConfig() is a
+# no-op and our INFO logs would be dropped (root defaults to WARNING). Set the level
+# explicitly on the root logger so application logs reach CloudWatch.
+logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
 # redirect_slashes=False prevents 307 loops when using Mangum + Lambda Function URLs.
@@ -46,19 +46,14 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# On Lambda cold start, run schema migrations (CREATE TABLE IF NOT EXISTS — idempotent).
-# If Aurora is paused (0 ACU), get_conn() retries with connect_timeout until it wakes.
+# NOTE: schema migration runs lazily on the first DB request (see get_conn), NOT here.
+# Connecting to a paused Aurora at import time would block the 10s cold-start init phase
+# and time it out before the function even handles a request.
 if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     logger.info(
         "Cold start: stage=%s pool=%s",
         os.environ.get("STAGE"),
         os.environ.get("COGNITO_USER_POOL_ID"),
     )
-    from app.db.postgres_client import ensure_schema
-    try:
-        ensure_schema()
-    except Exception as exc:
-        logger.error("Cold start: schema migration failed — %s", exc)
-        raise
 
 handler = Mangum(app, lifespan="off")
