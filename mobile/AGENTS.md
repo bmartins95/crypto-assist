@@ -29,12 +29,24 @@ app/
 Auth guard lives in `app/_layout.tsx` — redirects to `(auth)/login` when
 no session, to `(tabs)/wallet` when logged in.
 
+## Auth — Cognito PKCE
+
+Auth uses **Amazon Cognito Hosted UI** via `expo-web-browser.openAuthSessionAsync`.
+
+`src/lib/cognito.ts` — PKCE client: `buildAuthUrl`, `exchangeCode`, `getSession` (auto-refreshes), `clearSession`.
+- Uses `expo-crypto` for SHA-256 (Hermes lacks `crypto.subtle`)
+- Always call `.toString()` on `URLSearchParams` before passing to `fetch` body
+- Redirect URI: `crypto-assist://callback` (registered in Cognito mobile client)
+- Tokens stored in `expo-secure-store`
+
+`src/lib/auth.tsx` — `AuthProvider` + `useAuth` hook. Exposes `session`, `loading`, `signOut`, `refreshSession`.
+
 ## Shared code
 
 `src/lib/` holds mobile-specific code only:
-- `supabase.ts` — Supabase client using `expo-secure-store` for session storage
+- `cognito.ts` — Cognito PKCE client (replaces supabase.ts)
 - `auth.tsx` — `AuthProvider` + `useAuth` hook
-- `api/client.ts` — same HTTP client as web, but uses the mobile Supabase session
+- `api/client.ts` — HTTP client that reads Cognito `access_token` for Bearer header
 
 Types, formatters, and portfolio logic come from the monorepo-shared package:
 ```ts
@@ -51,6 +63,11 @@ the root `node_modules` symlink.
 
 Copy `.env.example` to `.env.local`. Expo exposes only `EXPO_PUBLIC_*` vars
 to the bundle — never put secrets here.
+
+Required vars:
+- `EXPO_PUBLIC_COGNITO_DOMAIN` — e.g. `https://crypto-assist-dev.auth.us-east-1.amazoncognito.com`
+- `EXPO_PUBLIC_COGNITO_CLIENT_ID` — mobile client ID from SSM `/crypto-assist/{stage}/CognitoMobileClientId`
+- `EXPO_PUBLIC_BACKEND_URL` — Lambda Function URL from SSM `/crypto-assist/{stage}/BackendApiUrl`
 
 ## Running
 
