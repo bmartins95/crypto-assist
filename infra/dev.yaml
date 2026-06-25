@@ -1,7 +1,7 @@
 name: crypto-assist
 cognito:
   domain: crypto-assist-dev
-  googleEnabled: false
+  googleEnabled: true
   web:
     callbackUrls:
       - https://d3apwa6oetv5aj.cloudfront.net/auth/callback

@@ -4,7 +4,7 @@ This repo has four projects sharing the same `backend/` API, deployed on AWS:
 
 - **`shared/`** — Pure TypeScript (no framework, no build step). Types, formatters, and portfolio calculation logic used by `web/` and `mobile/`. Import from `@crypto-assist/shared` via path aliases.
 - **`web/`** — Vite + React + TanStack Router frontend. Has its own `AGENTS.md`.
-- **`backend/`** — Python FastAPI + Mangum API, deployed to AWS Lambda via SST. Validates Supabase JWTs and queries Supabase DB (RLS-enforced). Has its own `AGENTS.md`.
+- **`backend/`** — Python FastAPI + Mangum API, deployed to AWS Lambda via SST. Validates Cognito JWTs and queries RDS Aurora. Has its own `AGENTS.md`.
 - **`mobile/`** — Expo SDK 54 + React Native. Has its own `AGENTS.md`.
 
 Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-registers by pushing YAML configs to `aws-infra/apps/crypto-assist/`.
@@ -54,11 +54,13 @@ Branch promotion: after deploy-stg → force-push to `staging`; after deploy-pro
 
 ## Environment variables
 
-Each project has a `.env.example`. Copy to `.env` / `.env.local`, never commit real values.
+Copy `backend/.env.example` to `backend/.env` for local dev. Never commit real values.
 
 Backend SSM params (stored in AWS SSM, injected at Lambda deploy time):
-- `/crypto-assist/{stage}/SupabaseUrl`
-- `/crypto-assist/{stage}/SupabasePublishableKey` (SecureString)
-- `/crypto-assist/{stage}/SupabaseSecretKey` (SecureString)
 - `/crypto-assist/{stage}/CoingeckoApiKey` (SecureString)
+- `/crypto-assist/{stage}/CognitoUserPoolId`
+- `/crypto-assist/{stage}/WebUrl`
 - `/crypto-assist/{stage}/BackendApiUrl` — written automatically after each deploy
+
+Platform SSM params (set by `aws-infra` deploy, under `/platform/{stage}/`):
+- `DbHost`, `DbPort`, `DbSecretArn`, `VpcPrivateSubnetIds`, `LambdaSgId`
