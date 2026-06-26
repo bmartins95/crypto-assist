@@ -19,7 +19,7 @@ description: "Task list for OWASP Top 10 Hardening implementation"
 
 **Purpose**: Read all design documents before writing any code.
 
-- [ ] T001 Read specs/003-owasp-hardening/plan.md, research.md, quickstart.md, and contracts/prices.md in full before starting any task
+- [x] T001 Read specs/003-owasp-hardening/plan.md, research.md, quickstart.md, and contracts/prices.md in full before starting any task
 
 **Checkpoint**: All five technical decisions from research.md understood — implementation phases can begin.
 
@@ -39,8 +39,8 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 ### Implementation for User Story 1
 
-- [ ] T002 [US1] Create `backend/tests/test_isolation.py` with: (a) constants `USER_A = "user-aaa-000"` and `USER_B = "user-bbb-111"`; (b) a `no_auth_client` fixture that does NOT override `require_auth`; (c) a `user_b_client` fixture that overrides `require_auth` to return `AuthContext(user_id=USER_B)` with `make_pg_stub([])` mock; (d) 401 tests for `GET /api/ops`, `GET /api/exit-prices`, `GET /api/export` using `no_auth_client`; (e) isolation tests for the same three endpoints using `user_b_client` — assert response body is `[]` or `{}` and assert `USER_B` appears in `str(cur.execute.call_args)` to prove the correct user_id reached the SQL layer
-- [ ] T003 [P] [US1] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_isolation.py -v` and confirm all tests pass; fix any failures before proceeding
+- [x] T002 [US1] Create `backend/tests/test_isolation.py` with: (a) constants `USER_A = "user-aaa-000"` and `USER_B = "user-bbb-111"`; (b) a `no_auth_client` fixture that does NOT override `require_auth`; (c) a `user_b_client` fixture that overrides `require_auth` to return `AuthContext(user_id=USER_B)` with `make_pg_stub([])` mock; (d) 401 tests for `GET /api/ops`, `GET /api/exit-prices`, `GET /api/export` using `no_auth_client`; (e) isolation tests for the same three endpoints using `user_b_client` — assert response body is `[]` or `{}` and assert `USER_B` appears in `str(cur.execute.call_args)` to prove the correct user_id reached the SQL layer
+- [x] T003 [P] [US1] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_isolation.py -v` and confirm all tests pass; fix any failures before proceeding
 
 **Checkpoint**: Six isolation/401 tests passing. Every protected endpoint verifies user_id scoping at the SQL layer.
 
@@ -54,9 +54,9 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 ### Implementation for User Story 2
 
-- [ ] T004 [US2] In `backend/app/routes/prices.py`, add `import re` and module-level constant `_COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')`; immediately after `coin_ids` is built from `ids.split(",")` (line ~44), add: `invalid = [cid for cid in coin_ids if not _COIN_ID_RE.fullmatch(cid)]` and `if invalid: raise HTTPException(status_code=400, detail=f"Invalid coin_id(s): {', '.join(invalid)}")`
-- [ ] T005 [P] [US2] Create `backend/tests/test_prices.py` with: (a) import fixtures from conftest; (b) test that `../evil` as the `ids` param returns 400; (c) test that a 121-character string of `a`s returns 400; (d) test that `bitcoin,../evil` (mixed valid + invalid) returns 400 (entire request rejected); (e) test that `bitcoin` (valid) reaches the cache query without raising 400 — mock the DB to return a cached row and assert HTTP 200
-- [ ] T006 [P] [US2] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_prices.py -v` and confirm all tests pass; fix any failures before proceeding
+- [x] T004 [US2] In `backend/app/routes/prices.py`, add `import re` and module-level constant `_COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')`; immediately after `coin_ids` is built from `ids.split(",")` (line ~44), add: `invalid = [cid for cid in coin_ids if not _COIN_ID_RE.fullmatch(cid)]` and `if invalid: raise HTTPException(status_code=400, detail=f"Invalid coin_id(s): {', '.join(invalid)}")`
+- [x] T005 [P] [US2] Create `backend/tests/test_prices.py` with: (a) import fixtures from conftest; (b) test that `../evil` as the `ids` param returns 400; (c) test that a 121-character string of `a`s returns 400; (d) test that `bitcoin,../evil` (mixed valid + invalid) returns 400 (entire request rejected); (e) test that `bitcoin` (valid) reaches the cache query without raising 400 — mock the DB to return a cached row and assert HTTP 200
+- [x] T006 [P] [US2] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_prices.py -v` and confirm all tests pass; fix any failures before proceeding
 
 **Checkpoint**: Four coin_id validation tests passing. No path-traversal or oversized ID can reach CoinGecko URL construction.
 
@@ -70,8 +70,8 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 ### Implementation for User Story 3
 
-- [ ] T007 [US3] In `backend/app/dependencies.py`: (a) add `import logging` and `from fastapi import Header, HTTPException, Request, status`; (b) add `logger = logging.getLogger(__name__)` at module level; (c) update `require_auth` signature to `def require_auth(request: Request, authorization: str | None = Header(default=None)) -> AuthContext:`; (d) in the missing-token branch, add `logger.warning("auth_failure path=%s ua=%s reason=missing", request.url.path, request.headers.get("user-agent", "-"))` before the `raise HTTPException`; (e) in the invalid-token `except` block, add `logger.warning("auth_failure path=%s ua=%s reason=invalid", request.url.path, request.headers.get("user-agent", "-"))` before the `raise HTTPException`
-- [ ] T008 [P] [US3] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_isolation.py tests/test_cors.py tests/test_config.py -v` and confirm all existing tests still pass after the `require_auth` signature change; fix any failures before proceeding
+- [x] T007 [US3] In `backend/app/dependencies.py`: (a) add `import logging` and `from fastapi import Header, HTTPException, Request, status`; (b) add `logger = logging.getLogger(__name__)` at module level; (c) update `require_auth` signature to `def require_auth(request: Request, authorization: str | None = Header(default=None)) -> AuthContext:`; (d) in the missing-token branch, add `logger.warning("auth_failure path=%s ua=%s reason=missing", request.url.path, request.headers.get("user-agent", "-"))` before the `raise HTTPException`; (e) in the invalid-token `except` block, add `logger.warning("auth_failure path=%s ua=%s reason=invalid", request.url.path, request.headers.get("user-agent", "-"))` before the `raise HTTPException`
+- [x] T008 [P] [US3] Run `cd backend && .venv/Scripts/python.exe -m pytest tests/test_isolation.py tests/test_cors.py tests/test_config.py -v` and confirm all existing tests still pass after the `require_auth` signature change; fix any failures before proceeding
 
 **Checkpoint**: `require_auth` logs WARNING on every auth failure. Existing test suite remains green. Token value never appears in any log entry.
 
@@ -85,7 +85,7 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 ### Implementation for User Story 4
 
-- [ ] T009 [US4] In `aws-infra/stacks/app-stack.ts`, inside the `if (config.web?.cloudFront)` block: (a) read the backend URL from SSM: `const backendApiUrl = aws.ssm.getParameterOutput({ name: \`${paramBase}/BackendApiUrl\` });`; (b) create the policy: `const cspPolicy = new aws.cloudfront.ResponseHeadersPolicy(\`${prefix}WebCspPolicy\`, { securityHeadersConfig: { contentSecurityPolicy: { contentSecurityPolicy: $util.interpolate\`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com \${backendApiUrl.value}\`, override: true } } });`; (c) add `responseHeadersPolicyId: cspPolicy.id` to the `defaultCacheBehavior` object of the `CryptoAssistWebCdn` distribution
+- [x] T009 [US4] In `aws-infra/stacks/app-stack.ts`, inside the `if (config.web?.cloudFront)` block: (a) read the backend URL from SSM: `const backendApiUrl = aws.ssm.getParameterOutput({ name: \`${paramBase}/BackendApiUrl\` });`; (b) create the policy: `const cspPolicy = new aws.cloudfront.ResponseHeadersPolicy(\`${prefix}WebCspPolicy\`, { securityHeadersConfig: { contentSecurityPolicy: { contentSecurityPolicy: $util.interpolate\`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com \${backendApiUrl.value}\`, override: true } } });`; (c) add `responseHeadersPolicyId: cspPolicy.id` to the `defaultCacheBehavior` object of the `CryptoAssistWebCdn` distribution
 
 **Checkpoint**: `aws-infra` TypeScript compiles without errors. After deploy, `curl -I` against the CloudFront domain returns a `content-security-policy` header.
 
@@ -99,8 +99,8 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 ### Implementation for User Story 5
 
-- [ ] T010 [US5] Resolve the commit SHAs for the three pinned actions by running: `git ls-remote https://github.com/actions/checkout refs/tags/v7`, `git ls-remote https://github.com/actions/setup-python refs/tags/v5`, `git ls-remote https://github.com/actions/setup-node refs/tags/v6`; use the dereferenced SHA (the line ending in `^{}`) if present; record the three 40-character SHAs
-- [ ] T011 [US5] In `.github/workflows/deploy.yml`, replace the three mutable action references with their pinned SHAs: `actions/checkout@<sha>  # v7`, `actions/setup-python@<sha>  # v5`, `actions/setup-node@<sha>  # v6`; verify no other `uses: actions/` lines remain with mutable tags
+- [x] T010 [US5] Resolve the commit SHAs for the three pinned actions by running: `git ls-remote https://github.com/actions/checkout refs/tags/v7`, `git ls-remote https://github.com/actions/setup-python refs/tags/v5`, `git ls-remote https://github.com/actions/setup-node refs/tags/v6`; use the dereferenced SHA (the line ending in `^{}`) if present; record the three 40-character SHAs
+- [x] T011 [US5] In `.github/workflows/deploy.yml`, replace the three mutable action references with their pinned SHAs: `actions/checkout@<sha>  # v7`, `actions/setup-python@<sha>  # v5`, `actions/setup-node@<sha>  # v6`; verify no other `uses: actions/` lines remain with mutable tags
 
 **Checkpoint**: `grep "uses: actions/" .github/workflows/deploy.yml` shows only full 40-char SHAs with version comments. No `@v` or `@main` patterns remain.
 
@@ -110,9 +110,9 @@ No blocking shared infrastructure changes are required. All user stories touch i
 
 **Purpose**: Full test runs, coverage verification, and CI tooling checks before opening the PR.
 
-- [ ] T012 [P] Run `cd backend && .venv/Scripts/python.exe -m pytest --cov=app --cov-report=term-missing` and confirm: (a) all tests pass; (b) `app/dependencies.py` coverage ≥ 90%; (c) `app/routes/prices.py` coverage ≥ 90%; paste the coverage summary in the PR description
-- [ ] T013 [P] Run `cd backend && bandit -r app/ -ll` and confirm exit 0; run `cd backend && pip-audit` and confirm exit 0 (document any accepted CVEs)
-- [ ] T014 [P] Run `cd web && npm run lint` and confirm exit 0; run `cd web && npm audit --audit-level=high` and confirm exit 0
+- [x] T012 [P] Run `cd backend && .venv/Scripts/python.exe -m pytest --cov=app --cov-report=term-missing` and confirm: (a) all tests pass; (b) `app/dependencies.py` coverage ≥ 90%; (c) `app/routes/prices.py` coverage ≥ 90%; paste the coverage summary in the PR description
+- [x] T013 [P] Run `cd backend && bandit -r app/ -ll` and confirm exit 0; run `cd backend && pip-audit` and confirm exit 0 (document any accepted CVEs)
+- [x] T014 [P] Run `cd web && npm run lint` and confirm exit 0; run `cd web && npm audit --audit-level=high` and confirm exit 0
 
 **Checkpoint**: All quality gates pass — branch ready for PR review.
 
