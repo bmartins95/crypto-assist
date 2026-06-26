@@ -34,7 +34,7 @@ verified until the Drive code is gone.
 **Purpose**: Confirm the existing test suite is green before any changes are made.
 No project initialization is needed — this is a code removal, not a new feature.
 
-- [ ] T001 Run `cd web && npm test` and confirm all tests pass (baseline before any edits)
+- [x] T001 Run `cd web && npm test` and confirm all tests pass (baseline before any edits)
 
 ---
 
@@ -47,14 +47,14 @@ are eliminated.
 
 **⚠️ CRITICAL**: No user story verification can begin until this phase is complete.
 
-- [ ] T002 [P] Delete `web/src/lib/gdrive.ts` (entire file — all 5 exports consumed only by dashboard)
-- [ ] T003 [P] Remove `getClientId`, `setClientId`, `removeClientId`, `getGdriveUsed`, `setGdriveUsed`, `removeGdriveUsed` from the `storage` object and update the module comment to remove "Google Drive integration state" in `web/src/lib/storage.ts`
-- [ ] T004 Remove `import { driveFindFile, driveUpload, driveDownload, GDRIVE_FILE_NAME, GDRIVE_CONFIG_NAME } from '@/lib/gdrive'` and the `declare global { interface Window { google?: ... } }` block from `web/src/app/dashboard/page.tsx`
-- [ ] T005 Remove the 6 Drive state variables (`driveStatus`, `driveToken`, `driveFileId`, `configFileId`, `coingeckoApiKey`, `tokenClient`, `driveConnected`) from `web/src/app/dashboard/page.tsx`
-- [ ] T006 Remove the 5 Drive handlers (`gdriveOnToken`, `gdriveConnect`, `gdriveDisconnect`, `gdriveSave`, `gdriveLoad`) and `gdriveConfigKey` from `web/src/app/dashboard/page.tsx`
-- [ ] T007 Remove the `if (storage.getGdriveUsed()) setDriveStatus(...)` line from the initial `useEffect`, remove the Drive button cluster JSX (`!driveConnected ? ... : <>...</>`), the separator `<div>`, the `driveStatus` `<span>`, and the `apiKey={coingeckoApiKey}` prop from `<HistoryTab>` in `web/src/app/dashboard/page.tsx`; also remove `storage.getGdriveUsed` from the `storage` import destructuring
-- [ ] T008 [P] Make `apiKey` optional with default `''` — change `Props.apiKey: string` to `apiKey?: string` and update function signature to `{ ..., apiKey = '', ... }` in `web/src/components/HistoryTab.tsx`
-- [ ] T009 [P] Remove `apiKey: ''` from `defaultProps` (or wherever `apiKey` is passed to the component under test) in `web/src/components/HistoryTab.test.tsx`
+- [x] T002 [P] Delete `web/src/lib/gdrive.ts` (entire file — all 5 exports consumed only by dashboard)
+- [x] T003 [P] Remove `getClientId`, `setClientId`, `removeClientId`, `getGdriveUsed`, `setGdriveUsed`, `removeGdriveUsed` from the `storage` object and update the module comment to remove "Google Drive integration state" in `web/src/lib/storage.ts`
+- [x] T004 Remove `import { driveFindFile, driveUpload, driveDownload, GDRIVE_FILE_NAME, GDRIVE_CONFIG_NAME } from '@/lib/gdrive'` and the `declare global { interface Window { google?: ... } }` block from `web/src/app/dashboard/page.tsx`
+- [x] T005 Remove the 6 Drive state variables (`driveStatus`, `driveToken`, `driveFileId`, `configFileId`, `coingeckoApiKey`, `tokenClient`, `driveConnected`) from `web/src/app/dashboard/page.tsx`
+- [x] T006 Remove the 5 Drive handlers (`gdriveOnToken`, `gdriveConnect`, `gdriveDisconnect`, `gdriveSave`, `gdriveLoad`) and `gdriveConfigKey` from `web/src/app/dashboard/page.tsx`
+- [x] T007 Remove the `if (storage.getGdriveUsed()) setDriveStatus(...)` line from the initial `useEffect`, remove the Drive button cluster JSX (`!driveConnected ? ... : <>...</>`), the separator `<div>`, the `driveStatus` `<span>`, and the `apiKey={coingeckoApiKey}` prop from `<HistoryTab>` in `web/src/app/dashboard/page.tsx`; also remove `storage.getGdriveUsed` from the `storage` import destructuring
+- [x] T008 [P] Make `apiKey` optional with default `''` — change `Props.apiKey: string` to `apiKey?: string` and update function signature to `{ ..., apiKey = '', ... }` in `web/src/components/HistoryTab.tsx`
+- [x] T009 [P] Remove `apiKey: ''` from `defaultProps` (or wherever `apiKey` is passed to the component under test) in `web/src/components/HistoryTab.test.tsx`
 
 **Checkpoint**: Run `cd web && npm test` — TypeScript must compile and all existing
 tests must pass before proceeding to user story phases.
@@ -70,7 +70,7 @@ is downloaded containing a valid `BackupPayload` (with `version`, `exportedAt`, 
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Create `web/src/app/dashboard/page.test.tsx`; add export test: mock `api.exportBackup` returning a minimal `BackupPayload`, mock `URL.createObjectURL`, simulate a click on the Exportar button, verify `URL.createObjectURL` is called and the anchor `download` attribute matches the expected filename pattern
+- [x] T010 [US1] Create `web/src/app/dashboard/page.test.tsx`; add export test: mock `api.exportBackup` returning a minimal `BackupPayload`, mock `URL.createObjectURL`, simulate a click on the Exportar button, verify `URL.createObjectURL` is called and the anchor `download` attribute matches the expected filename pattern
 
 **Checkpoint**: US1 passes independently — `npm test` shows the export test green.
 Running the app and clicking Exportar downloads a `.json` file.
@@ -88,8 +88,8 @@ called, data reloads. (b) Select `{ "notOps": true }` file → error alert shown
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Add import happy-path test to `web/src/app/dashboard/page.test.tsx`: simulate file input change event with a valid `BackupPayload` JSON (`{ version: 1, exportedAt: '...', ops: [] }`), verify `api.importBackup` is called with the parsed payload
-- [ ] T012 [P] [US2] Add import schema-rejection test to `web/src/app/dashboard/page.test.tsx`: simulate file input with `{ "notOps": true }` (valid JSON, missing `ops` array), verify `window.alert` is called with an error message and `api.importBackup` is NOT called
+- [x] T011 [P] [US2] Add import happy-path test to `web/src/app/dashboard/page.test.tsx`: simulate file input change event with a valid `BackupPayload` JSON (`{ version: 1, exportedAt: '...', ops: [] }`), verify `api.importBackup` is called with the parsed payload
+- [x] T012 [P] [US2] Add import schema-rejection test to `web/src/app/dashboard/page.test.tsx`: simulate file input with `{ "notOps": true }` (valid JSON, missing `ops` array), verify `window.alert` is called with an error message and `api.importBackup` is NOT called
 
 **Checkpoint**: US2 passes independently — both import tests green. Running the app
 and selecting an invalid file shows an alert with no data loss.
@@ -106,7 +106,7 @@ controls (Exportar and Importar) and no Drive-related text or icons.
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Add dashboard header render test to `web/src/app/dashboard/page.test.tsx`: mock `api.getOps` and `api.getExitPrices` to return empty arrays, render `DashboardPage`, verify no element with text "Drive" is present and no element with title attribute containing "Drive", "cloud", or "key" is present in the header
+- [x] T013 [US3] Add dashboard header render test to `web/src/app/dashboard/page.test.tsx`: mock `api.getOps` and `api.getExitPrices` to return empty arrays, render `DashboardPage`, verify no element with text "Drive" is present and no element with title attribute containing "Drive", "cloud", or "key" is present in the header
 
 **Checkpoint**: US3 passes independently — render test green. Visual inspection of
 the running app confirms the header shows only Exportar and Importar.
@@ -117,7 +117,7 @@ the running app confirms the header shows only Exportar and Importar.
 
 **Purpose**: Coverage verification and final cleanup.
 
-- [ ] T014 Run `cd web && npm run coverage` and confirm ≥90% coverage on `web/src/lib/storage.ts`, `web/src/app/dashboard/page.tsx`, and `web/src/components/HistoryTab.tsx`; paste the coverage summary as a comment on the PR
+- [x] T014 Run `cd web && npm run coverage` and confirm ≥90% coverage on `web/src/lib/storage.ts`, `web/src/app/dashboard/page.tsx`, and `web/src/components/HistoryTab.tsx`; paste the coverage summary as a comment on the PR
 
 ---
 

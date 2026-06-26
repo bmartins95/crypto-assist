@@ -3,26 +3,9 @@ import { Op, NewOp, Prices, AvatarCache, TabType, GroupMode, ChartType, BackupPa
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
 import { collectAssets } from '@/lib/portfolio';
-import { driveFindFile, driveUpload, driveDownload, GDRIVE_FILE_NAME, GDRIVE_CONFIG_NAME } from '@/lib/gdrive';
 import WalletTab from '@/components/WalletTab';
 import ProfitTab from '@/components/ProfitTab';
 import HistoryTab from '@/components/HistoryTab';
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        oauth2: {
-          initTokenClient: (cfg: {
-            client_id: string;
-            scope: string;
-            callback: (resp: { error?: string; access_token?: string }) => void;
-          }) => { requestAccessToken: (opts: { prompt: string }) => void };
-        };
-      };
-    };
-  }
-}
 
 export default function DashboardPage() {
   const [ops, setOps] = useState<Op[]>([]);
@@ -34,15 +17,6 @@ export default function DashboardPage() {
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
-  const [driveStatus, setDriveStatus] = useState('');
-
-  // Google Drive state
-  const [driveToken, setDriveToken] = useState<string | null>(null);
-  const [driveFileId, setDriveFileId] = useState<string | null>(null);
-  const [configFileId, setConfigFileId] = useState<string | null>(null);
-  const [coingeckoApiKey, setCoingeckoApiKey] = useState('');
-  const [tokenClient, setTokenClient] = useState<{ requestAccessToken: (o: { prompt: string }) => void } | null>(null);
-  const [driveConnected, setDriveConnected] = useState(false);
 
   const assets = useMemo(() => collectAssets(ops, exitPrices), [ops, exitPrices]);
 
@@ -57,7 +31,6 @@ export default function DashboardPage() {
     let cancelled = false;
     (async () => {
       setAvatarCache(storage.getAvatars());
-      if (storage.getGdriveUsed()) setDriveStatus('Clique em Drive para sincronizar');
       try {
         const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
         if (cancelled) return;
@@ -204,100 +177,6 @@ export default function DashboardPage() {
     reader.readAsText(file);
   };
 
-  // ─── Google Drive ─────────────────────────────────────────────────────────────
-  const gdriveOnToken = useCallback(async (resp: { error?: string; access_token?: string }) => {
-    if (resp.error || !resp.access_token) { setDriveStatus('Erro: ' + resp.error); return; }
-    const token = resp.access_token;
-    setDriveToken(token); setDriveConnected(true);
-    storage.setGdriveUsed();
-    setDriveStatus('Conectado');
-    // Load config (CoinGecko key)
-    try {
-      const cfgId = configFileId || await driveFindFile(GDRIVE_CONFIG_NAME, token);
-      if (cfgId) {
-        setConfigFileId(cfgId);
-        const cfg = await driveDownload<{ coingecko_api_key?: string }>(cfgId, token);
-        if (cfg.coingecko_api_key) setCoingeckoApiKey(cfg.coingecko_api_key);
-      }
-    } catch { /* sem config é ok */ }
-  }, [configFileId]);
-
-  const gdriveConnect = useCallback(() => {
-    let clientId = storage.getClientId();
-    if (!clientId) {
-      const input = prompt('Cole aqui o seu Google OAuth Client ID:\n\n(Acesse console.cloud.google.com → APIs & Services → Credentials)');
-      if (!input?.trim()) return;
-      clientId = input.trim();
-      storage.setClientId(clientId);
-    }
-    if (!window.google?.accounts) { alert('Google Identity Services ainda não carregou. Aguarde e tente novamente.'); return; }
-
-    let client = tokenClient;
-    if (!client) {
-      client = window.google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: 'https://www.googleapis.com/auth/drive.file', callback: gdriveOnToken });
-      setTokenClient(client);
-    }
-    client.requestAccessToken({ prompt: driveToken ? '' : 'consent' });
-  }, [tokenClient, driveToken, gdriveOnToken]);
-
-  const gdriveDisconnect = useCallback(() => {
-    if (!confirm('Desconectar do Google Drive?\n\nSeus dados na conta não serão apagados.')) return;
-    storage.removeClientId(); storage.removeGdriveUsed();
-    setDriveToken(null); setTokenClient(null); setDriveFileId(null); setConfigFileId(null);
-    setCoingeckoApiKey(''); setDriveConnected(false); setDriveStatus('');
-  }, []);
-
-  const gdriveSave = useCallback(async () => {
-    if (!driveToken) { gdriveConnect(); return; }
-    setDriveStatus('Salvando...');
-    try {
-      const backup = await api.exportBackup();
-      const payload = JSON.stringify(backup, null, 2);
-      const existingId = driveFileId || await driveFindFile(GDRIVE_FILE_NAME, driveToken);
-      const newId = await driveUpload(GDRIVE_FILE_NAME, payload, driveToken, existingId);
-      setDriveFileId(newId);
-      setDriveStatus('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    } catch (e: unknown) {
-      if ((e as Error).message !== 'token_expired') setDriveStatus('Erro ao salvar');
-      else { setDriveToken(null); setDriveConnected(false); setDriveStatus('Sessão expirada — reconecte'); }
-    }
-  }, [driveToken, driveFileId, gdriveConnect]);
-
-  const gdriveLoad = useCallback(async () => {
-    if (!driveToken) { gdriveConnect(); return; }
-    setDriveStatus('Carregando...');
-    try {
-      const fid = driveFileId || await driveFindFile(GDRIVE_FILE_NAME, driveToken);
-      if (!fid) { setDriveStatus('Nenhum backup no Drive'); return; }
-      setDriveFileId(fid);
-      const backup = await driveDownload<BackupPayload>(fid, driveToken);
-      if (!Array.isArray(backup.ops)) throw new Error('invalid');
-      await api.importBackup(backup);
-      await reloadFromBackend();
-      setDriveStatus('Carregado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    } catch (e: unknown) {
-      if ((e as Error).message !== 'token_expired') setDriveStatus('Erro ao carregar');
-      else { setDriveToken(null); setDriveConnected(false); setDriveStatus('Sessão expirada — reconecte'); }
-    }
-  }, [driveToken, driveFileId, gdriveConnect, reloadFromBackend]);
-
-  const gdriveConfigKey = useCallback(() => {
-    const key = prompt('Cole sua chave da API CoinGecko Demo:\n(deixe em branco para remover)', coingeckoApiKey);
-    if (key === null) return;
-    if (!driveToken) { gdriveConnect(); return; }
-    setDriveStatus('Salvando chave...');
-    const payload = JSON.stringify({ coingecko_api_key: key.trim() });
-    (async () => {
-      try {
-        const existingId = configFileId || await driveFindFile(GDRIVE_CONFIG_NAME, driveToken);
-        const newId = await driveUpload(GDRIVE_CONFIG_NAME, payload, driveToken, existingId);
-        setConfigFileId(newId);
-        setCoingeckoApiKey(key.trim());
-        setDriveStatus(key.trim() ? 'Chave salva no Drive' : 'Chave removida');
-      } catch { setDriveStatus('Erro ao salvar chave'); }
-    })();
-  }, [driveToken, configFileId, coingeckoApiKey, gdriveConnect]);
-
   const tabs: TabType[] = ['wallet', 'profit', 'history'];
 
   return (
@@ -314,25 +193,6 @@ export default function DashboardPage() {
             <i className="ti ti-upload" /> Importar
             <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
           </label>
-          <div style={{ width: 1, height: 20, background: 'var(--border2)', flexShrink: 0 }} />
-          {!driveConnected ? (
-            <button className="btn-sm" onClick={gdriveConnect} title="Conectar ao Google Drive">
-              <i className="ti ti-cloud" /> Drive
-            </button>
-          ) : (
-            <>
-              <button className="btn-sm" onClick={gdriveConnect} title="Reconectar ao Google Drive">
-                <i className="ti ti-check" /> Drive
-              </button>
-              <button className="btn-sm" onClick={gdriveSave} title="Salvar dados no Google Drive"><i className="ti ti-cloud-upload" /></button>
-              <button className="btn-sm" onClick={gdriveLoad} title="Carregar dados do Google Drive"><i className="ti ti-cloud-download" /></button>
-              <button className="btn-sm" onClick={gdriveConfigKey} title={coingeckoApiKey ? 'Chave CoinGecko carregada — clique para atualizar' : 'Configurar chave da API CoinGecko'}>
-                <i className={coingeckoApiKey ? 'ti ti-key' : 'ti ti-key-off'} />
-              </button>
-              <button className="btn-sm" onClick={gdriveDisconnect} title="Desconectar e esquecer Client ID"><i className="ti ti-logout" /></button>
-            </>
-          )}
-          <span style={{ fontSize: 11, color: 'var(--text3)', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driveStatus}</span>
         </div>
       </div>
 
@@ -371,7 +231,7 @@ export default function DashboardPage() {
           )}
           {activeTab === 'history' && (
             <HistoryTab
-              ops={ops} assets={assets} prices={prices} apiKey={coingeckoApiKey}
+              ops={ops} assets={assets} prices={prices}
               onAddOp={handleAddOp} onEditOp={handleEditOp} onRemoveOp={handleRemoveOp}
             />
           )}
