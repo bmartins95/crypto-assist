@@ -8,7 +8,7 @@ Check the box in a `chore: tick plan item N` commit when the PR merges to `devel
 ## Item 1 — Remove Google Drive integration
 **Branch:** `chore/remove-google-drive`
 **Depends on:** nothing
-- [ ] Done
+- [x] Done
 
 ### Current state
 `web/src/lib/gdrive.ts` implements Google Drive file upload/download. `dashboard/page.tsx` has ~200 lines of Drive state, handlers (`gdriveSave`, `gdriveLoad`, `gdriveConnect`, `gdriveDisconnect`, `gdriveConfigKey`), and Drive buttons in the header. `web/src/lib/storage.ts` has Drive-related keys (`gdrive_used`, `client_id`). The CoinGecko API key was stored in Drive config — it now lives in AWS SSM and is unused on the frontend.
