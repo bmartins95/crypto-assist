@@ -79,25 +79,30 @@ web/
 
 ## Implementation Tasks
 
-### T1 — FR-011: Startup validation of `FRONTEND_ORIGIN` [NOT DONE]
+### T1 — FR-011: Startup validation of `FRONTEND_ORIGIN` [NOT DONE] → tasks.md T002, T003
 
-Add a `@field_validator('frontend_origin')` to `backend/app/config.py`.
+Add a `@field_validator('frontend_origin', mode='before')` to `backend/app/config.py`.
 Must reject: empty string, missing scheme (`http://`/`https://`), trailing slash, surrounding whitespace.
-Must include a unit test in `backend/tests/` covering each rejection case and the happy path.
+Must include a unit test in `backend/tests/test_config.py` covering each rejection case and the happy path.
 
-### T2 — FR-008: Add nosec to all f-string SQL lines in ops.py [NOT DONE]
+### T1b — FR-001: CORS rejection test [NOT DONE] → tasks.md T004
+
+Add `backend/tests/test_cors.py` verifying a preflight from an unknown origin is rejected
+and a preflight from the configured origin succeeds (US1 acceptance scenarios 2–3).
+
+### T2 — FR-008: Add nosec to all f-string SQL lines in ops.py [NOT DONE] → tasks.md T005
 
 Lines 47 (`INSERT`) and 67 (`UPDATE`) in `backend/app/routes/ops.py` are f-strings beginning
 with SQL keywords. Add `# nosec B608` to those lines as a preventive measure.
-Lines 33/49/70 already have nosec; lines 18 in export_data.py already has nosec.
+Lines 33/49/70 already have nosec; line 18 in export_data.py already has nosec.
 
-### T3 — ESLint: Add `.next/**` to ignores [NOT DONE]
+### T3 — ESLint: Add `.next/**` to ignores [NOT DONE] → tasks.md T008
 
 `web/eslint.config.mjs` ignores `dist/**` but not `.next/**`. The stale `.next/` directory
 from the previous Next.js setup causes hundreds of false-positive findings when `eslint` runs
 without a path argument. Add `.next/**` to the `ignores` array.
 
-### T4 — Verify all CI tools pass [NOT DONE]
+### T4 — Verify all CI tools pass [NOT DONE] → tasks.md T006, T007, T009, T010
 
 After T1–T3, run each tool locally and confirm:
 - `cd backend && bandit -r app/ -ll` exits 0
@@ -105,11 +110,12 @@ After T1–T3, run each tool locally and confirm:
 - `cd web && npm run lint` exits 0
 - `cd web && npm audit --audit-level=high` exits 0
 
-### T5 — Verify existing tests still pass [NOT DONE]
+### T5 — Verify existing tests still pass [NOT DONE] → tasks.md T013, T014
 
 Run `cd backend && pytest` and `cd web && npm test`. Fix any regressions introduced by
 the pydantic validator (test fixtures that construct `Settings()` without `FRONTEND_ORIGIN`
 will now fail if the default is still valid but the validator rejects it).
+Coverage must reach ≥90% on all changed modules: `app/config.py`, `app/main.py`, `app/routes/ops.py`.
 
 ## Already-Implemented Changes
 
