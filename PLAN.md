@@ -62,7 +62,56 @@ No static analysis in CI. CORS config in `backend/app/main.py` is unknown — ma
 
 ---
 
-## Item 3 — i18n framework
+## Item 3 — OWASP Top 10 hardening
+**Branch:** `chore/owasp-hardening`
+**Depends on:** Item 2
+
+- [ ] Done
+
+### Current state
+Item 2 addressed A03 (SQL injection via bandit), A05 (CORS), A06 (dependency scanning), and A07 (token storage documentation). The following gaps remain after that audit:
+
+- **A01 Broken Access Control** — no test verifies that user A cannot access user B's resources; cross-user isolation is only enforced by `WHERE user_id = %s` in queries but never exercised in the test suite.
+- **A03/A10 Injection/SSRF** — `coin_id` values from stored ops are passed directly into CoinGecko URL paths (`/coins/{coin_id}/...`) in `backend/app/routes/prices.py` without format validation. A crafted ID could redirect the Lambda's outbound HTTP request to an attacker-controlled host.
+- **A05 Security Misconfiguration** — CSP header is missing from the CloudFront distribution (documented as a risk in `backend/AGENTS.md` but not implemented).
+- **A08 Software and Data Integrity** — GitHub Actions steps reference mutable version tags (`@v7`, `@v5`, `@v6`) instead of pinned commit SHAs. A compromised action tag could inject malicious code into CI.
+- **A09 Security Logging** — failed authentication attempts are not logged; only request paths are logged, making auth anomalies invisible in CloudWatch.
+
+A02 (cryptographic failures) is handled by Cognito RS256 + CloudFront TLS.
+A04 (insecure design) is addressed by architecture: JWT-gated API, no sensitive operations beyond per-user portfolio data.
+A07 (authentication failures) is covered by Cognito (built-in rate limiting, MFA support) plus Item 2 documentation.
+
+### Tasks
+
+**A01 — Cross-user isolation tests:**
+- `backend/tests/test_isolation.py` — for each of `GET /api/ops`, `GET /api/exit-prices`, `GET /api/export`: populate mock data scoped to user A's `user_id`; issue the same request with user B's auth context; assert the response body is empty (not user A's data). Also assert that every protected endpoint returns 401 when the `Authorization` header is absent.
+
+**A03/A10 — Input validation on coin_id:**
+- `backend/app/routes/prices.py` — validate each entry in the `ids` query param against `^[a-z0-9-]{1,120}$` before constructing the CoinGecko URL. Return HTTP 400 with a clear `detail` message if any ID is malformed.
+- `backend/tests/test_prices.py` — add: malformed `coin_id` (e.g. `../evil`, empty string, oversized value) returns 400; valid IDs proceed to normal cache/fetch flow.
+
+**A05 — Content-Security-Policy header:**
+- `aws-infra/stacks/app-stack.ts` — add a CloudFront `ResponseHeadersPolicy` with a strict CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com`. Attach the policy to the distribution's default cache behavior.
+
+**A08 — Pin GitHub Actions to commit SHAs:**
+- `.github/workflows/deploy.yml` — replace mutable version tags with pinned full-length commit SHAs for `actions/checkout`, `actions/setup-python`, `actions/setup-node`. Add a comment on each line with the human-readable version tag for maintainability.
+
+**A09 — Security event logging:**
+- `backend/app/dependencies.py` — in `require_auth`, log a `WARNING` including request path and `User-Agent` when a token is missing or fails validation. Never log the token value itself.
+- The `test_isolation.py` 401 tests from A01 cover this logging path indirectly.
+
+### Done when
+- `test_isolation.py` passes: user B receives an empty list (not user A's data) for every scoped endpoint.
+- `GET /api/prices?ids=../evil` returns 400.
+- CloudFront dev distribution serves a `Content-Security-Policy` response header (verified with `curl -I`).
+- All `actions/*` steps in `deploy.yml` are pinned to full commit SHAs.
+- An unauthenticated request to any protected endpoint produces a `WARNING` log entry.
+- `bandit -r app/ -ll`, `pip-audit`, `npm run lint`, `npm audit --audit-level=high` still exit 0.
+- `pytest` coverage on changed modules (`app/routes/prices.py`, `app/dependencies.py`) ≥ 90%.
+
+---
+
+## Item 4 — i18n framework
 **Branch:** `feat/i18n`
 **Depends on:** nothing
 
@@ -93,9 +142,9 @@ All UI strings are hardcoded Portuguese in JSX components. `shared/src/format.ts
 
 ---
 
-## Item 4 — Multi-currency display
+## Item 5 — Multi-currency display
 **Branch:** `feat/multi-currency`
-**Depends on:** item 3 (needs `Locale` and updated `fmt()`)
+**Depends on:** item 4 (needs `Locale` and updated `fmt()`)
 
 - [ ] Done
 
@@ -129,9 +178,9 @@ Store prices in USD (universal crypto reference). Fetch an exchange rate once pe
 
 ---
 
-## Item 5 — Fix historical charts
+## Item 6 — Fix historical charts
 **Branch:** `feat/historical-prices`
-**Depends on:** item 4 (prices now stored in USD; historical prices should also be USD)
+**Depends on:** item 5 (prices now stored in USD; historical prices should also be USD)
 
 - [ ] Done
 
@@ -156,9 +205,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 6 — Price provider abstraction + move coin search to backend
+## Item 7 — Price provider abstraction + move coin search to backend
 **Branch:** `feat/price-provider-abstraction`
-**Depends on:** item 4 (USD prices established)
+**Depends on:** item 5 (USD prices established)
 
 - [ ] Done
 
@@ -187,9 +236,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 7 — Test coverage
+## Item 8 — Test coverage
 **Branch:** `test/coverage`
-**Depends on:** items 4, 5, 6 (so tests cover the final endpoint shapes)
+**Depends on:** items 5, 6, 7 (so tests cover the final endpoint shapes)
 
 - [ ] Done
 
@@ -216,7 +265,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 8 — Facebook login
+## Item 9 — Facebook login
 **Branch:** `feat/facebook-login`
 **Depends on:** nothing
 
@@ -243,9 +292,9 @@ Google is the only social IdP. Facebook OAuth credentials are not in SSM. Patter
 
 ---
 
-## Item 9 — Custom auth UI
+## Item 10 — Custom auth UI
 **Branch:** `feat/custom-auth-ui`
-**Depends on:** item 8 (all social providers ready before redesigning the screen)
+**Depends on:** item 9 (all social providers ready before redesigning the screen)
 
 - [ ] Done
 
@@ -273,7 +322,7 @@ Build custom `/login` and `/signup` routes. Email/password flows use Amplify's `
 
 ---
 
-## Item 10 — Ops/trade UX study
+## Item 11 — Ops/trade UX study
 **Branch:** `docs/ops-ux-study`
 **Depends on:** nothing (research only)
 
@@ -297,9 +346,9 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 11 — New investment types (Phase 1: Brazilian stocks)
+## Item 12 — New investment types (Phase 1: Brazilian stocks)
 **Branch:** `feat/br-stocks`
-**Depends on:** items 3, 4, 6 (i18n, USD prices, provider abstraction)
+**Depends on:** items 4, 5, 7 (i18n, USD prices, provider abstraction)
 
 - [ ] Done
 
@@ -330,7 +379,7 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 12 — Feature roadmap document
+## Item 13 — Feature roadmap document
 **Branch:** `docs/feature-roadmap`
 **Depends on:** nothing
 

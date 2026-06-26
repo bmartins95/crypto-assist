@@ -44,7 +44,7 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform)"  # nosec B608
                 f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
@@ -64,7 +64,7 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"
+                f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"  # nosec B608
                 f" qty=%s, price=%s, fee=%s, total=%s, platform=%s"
                 f" WHERE id=%s AND user_id=%s"
                 f" RETURNING {_SELECT}",  # nosec B608
