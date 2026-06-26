@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.dependencies import require_auth
@@ -10,6 +11,7 @@ import httpx
 router = APIRouter()
 
 _CACHE_TTL_S = 5 * 60
+_COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')
 
 
 def _fetch_from_coingecko(ids: list[str]) -> list[dict]:
@@ -44,6 +46,10 @@ def get_prices(
     coin_ids = list({s.strip() for s in ids.split(",") if s.strip()})
     if not coin_ids:
         raise HTTPException(status_code=400, detail='Query param "ids" is required.')
+
+    invalid = [cid for cid in coin_ids if not _COIN_ID_RE.fullmatch(cid)]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid coin_id(s): {', '.join(invalid)}")
 
     conn = get_conn()
 
