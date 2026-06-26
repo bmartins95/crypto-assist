@@ -12,7 +12,6 @@ const baseProps = {
   ops: [] as Op[],
   assets: [],
   prices: {},
-  apiKey: '',
   onAddOp: vi.fn(),
   onEditOp: vi.fn(),
   onRemoveOp: vi.fn(),

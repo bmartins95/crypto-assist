@@ -2,19 +2,11 @@ import type { AvatarCache, NewOp, ExitPrices } from './types';
 
 // Ops, exit prices and live CoinGecko prices now live in the backend
 // (see lib/api/client.ts) — this module only keeps purely client-side,
-// non-account data: the avatar image cache and the Google Drive integration
-// state, plus the one-time legacy-data migration helpers below.
+// non-account data: the avatar image cache and the one-time legacy-data
+// migration helpers below.
 export const storage = {
   getAvatars: (): AvatarCache => JSON.parse(localStorage.getItem('cp_avatars') || '{}'),
   setAvatars: (a: AvatarCache) => localStorage.setItem('cp_avatars', JSON.stringify(a)),
-
-  getClientId: (): string => localStorage.getItem('cp_gdrive_client_id') || '',
-  setClientId: (id: string) => localStorage.setItem('cp_gdrive_client_id', id),
-  removeClientId: () => localStorage.removeItem('cp_gdrive_client_id'),
-
-  getGdriveUsed: (): boolean => !!localStorage.getItem('cp_gdrive_used'),
-  setGdriveUsed: () => localStorage.setItem('cp_gdrive_used', '1'),
-  removeGdriveUsed: () => localStorage.removeItem('cp_gdrive_used'),
 };
 
 // ─── Legacy localStorage migration ─────────────────────────────────────────

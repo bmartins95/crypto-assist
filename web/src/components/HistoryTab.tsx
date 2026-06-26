@@ -9,7 +9,7 @@ interface Props {
   ops: Op[];
   assets: Asset[];
   prices: Prices;
-  apiKey: string;
+  apiKey?: string;
   onAddOp: (op: NewOp) => void;
   onEditOp: (id: string, op: NewOp) => void;
   onRemoveOp: (id: string) => void;
@@ -60,7 +60,7 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange }: {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function HistoryTab({ ops, assets, prices, apiKey, onAddOp, onEditOp, onRemoveOp }: Props) {
+export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
   const [opDate, setOpDate] = useState(today());
   const [opCoin, setOpCoin] = useState<CoinSelection | null>(null);
   const [opCoinText, setOpCoinText] = useState('');

@@ -65,3 +65,9 @@
 - Before starting any plan item, read its entry in `PLAN.md` in full — current state, files, done criteria.
 - Do not skip ahead or combine plan items unless explicitly told to.
 - If a plan item's dependencies are not yet merged, say so and stop rather than working around them.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/001-remove-gdrive/plan.md
+<!-- SPECKIT END -->
