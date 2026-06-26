@@ -33,6 +33,20 @@ tests/
   test_ops.py
 ```
 
+## Token storage accepted risk
+
+Amplify stores Cognito access and refresh tokens in `localStorage` by default. The threat
+model is XSS — a script injected into the page could read these tokens and impersonate the
+user. This risk is accepted because:
+
+- No `eval()`, `dangerouslySetInnerHTML`, or `innerHTML` with user-controlled content exists
+  in the frontend codebase (enforced by ESLint security plugin in CI).
+- The CloudFront distribution should serve a Content-Security-Policy header that blocks
+  inline scripts and restricts script sources. If CSP is missing, add it to
+  `aws-infra/stacks/app-stack.ts` on the CloudFront distribution.
+
+No code change is required here; this note documents the decision.
+
 ## Auth
 
 `require_auth` in `dependencies.py` validates the `Authorization: Bearer <token>` header.

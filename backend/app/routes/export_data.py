@@ -15,7 +15,7 @@ def export_backup(auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date",
+                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date",  # nosec B608
                 (auth.user_id,),
             )
             ops_rows = cur.fetchall()

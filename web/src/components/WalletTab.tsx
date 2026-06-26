@@ -2,7 +2,6 @@
 
 import { Asset, AssetWithPlatform, GroupMode, Prices } from '@/lib/types';
 import { fmt, fmtPct, fmtQty } from '@/lib/format';
-import { storage } from '@/lib/storage';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op } from '@/lib/types';
 

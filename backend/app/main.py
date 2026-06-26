@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
+from app.config import get_settings
 from app.routes import ops, exit_prices, prices, export_data, import_data
 
 # In Lambda the runtime pre-installs a root handler, so logging.basicConfig() is a
@@ -20,7 +21,7 @@ app = FastAPI(title="crypto-assist backend", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[get_settings().frontend_origin],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
