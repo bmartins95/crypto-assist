@@ -30,7 +30,7 @@ def list_ops(auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date",
+                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date",  # nosec B608
                 (auth.user_id,),
             )
             return [_row_to_op(r) for r in cur.fetchall()]
@@ -46,7 +46,7 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
             cur.execute(
                 f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform)"
                 f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                f" RETURNING {_SELECT}",
+                f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
                  op.qty, op.price, op.fee, op.total, op.platform),
             )
@@ -67,7 +67,7 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
                 f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"
                 f" qty=%s, price=%s, fee=%s, total=%s, platform=%s"
                 f" WHERE id=%s AND user_id=%s"
-                f" RETURNING {_SELECT}",
+                f" RETURNING {_SELECT}",  # nosec B608
                 (op.date, op.coinId, op.symbol, op.name, op.type,
                  op.qty, op.price, op.fee, op.total, op.platform,
                  op_id, auth.user_id),

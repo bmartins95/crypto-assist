@@ -24,9 +24,17 @@ jobs:
         working-directory: backend
       - run: pytest
         working-directory: backend
+      - run: bandit -r app/ -ll
+        working-directory: backend
+      - run: pip-audit
+        working-directory: backend
       - run: npm ci
         working-directory: web
       - run: npm test
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm audit --audit-level=high
         working-directory: web
 
   # ── dev (automatic) ───────────────────────────────────────────────────────
