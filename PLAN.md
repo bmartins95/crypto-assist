@@ -66,7 +66,7 @@ No static analysis in CI. CORS config in `backend/app/main.py` is unknown — ma
 **Branch:** `chore/owasp-hardening`
 **Depends on:** Item 2
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 Item 2 addressed A03 (SQL injection via bandit), A05 (CORS), A06 (dependency scanning), and A07 (token storage documentation). The following gaps remain after that audit:
