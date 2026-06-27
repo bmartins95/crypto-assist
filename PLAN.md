@@ -155,9 +155,64 @@ All UI strings are hardcoded Portuguese in JSX/React Native components. `shared/
 
 ---
 
-## Item 5 — Multi-currency display
+## Item 5 — Settings page refactor
+**Branch:** `feat/settings-refactor`
+**Depends on:** item 4
+
+- [ ] Done
+
+### Goal
+Replace the minimal Settings page (web) and Settings screen (mobile) created in Item 4 with fully designed, production-quality UIs. Web uses a sectioned-cards layout (Stripe/Notion style). Mobile uses a grouped-list layout (iOS/Coinbase/Revolut style). Import/Export move from the dashboard header to the Settings "Dados" card. Theme selection, balance visibility, and wallet clearing are implemented as working features.
+
+### Current state
+`web/src/pages/settings.tsx` has only a language selector. `mobile/src/screens/SettingsScreen.tsx` has only a language row. Export/Import buttons live in `web/src/app/dashboard/page.tsx` header. No theme override (app always follows system preference). No hide-balances feature. No clear-wallet action.
+
+### New backend endpoint
+- `DELETE /api/ops` — deletes all ops for the authenticated user. Returns `{"deleted": N}`. Requires auth. Covered by a test asserting the count returns to zero.
+
+### Web — `web/src/pages/settings.tsx`
+Redesign as sectioned cards using the existing `.card` / `.card-head` / `.card-body` / `.row` CSS patterns (add any missing classes to `globals.css`). Four cards:
+
+1. **Aparência e idioma** — Language selector (existing `useLocale()` hook). Theme segmented control: Claro / Escuro / Sistema. Stores preference in localStorage as `theme`; applies by toggling a `data-theme` attribute on `<html>` so CSS variables switch without page reload.
+2. **Moeda e preços** — Currency selector placeholder (disabled, labelled "disponível em breve" — wired in Item 6). Price refresh interval placeholder (disabled — wired in Item 7). Hide balances toggle: stores boolean in localStorage as `hide_balances`; a React context `BalanceContext` exposes `hidden: boolean`; all `fmt()` call sites in dashboard wrap their output with `hidden ? '••••••' : value`.
+3. **Dados** — Export button (moves from dashboard header). Import file-input label (moves from dashboard header). Both call the same handlers already in `dashboard/page.tsx`; extract them to `web/src/lib/dataHandlers.ts` and import in both places.
+4. **Zona de perigo** — "Limpar carteira" button triggers a confirmation dialog (native `window.confirm`), then calls `DELETE /api/ops`, then clears local prices state and shows a toast.
+
+### Mobile — `mobile/src/screens/SettingsScreen.tsx`
+Redesign as grouped list. Three groups:
+
+1. **Preferências** — Language row (opens existing locale picker). Currency row placeholder (disabled). Price refresh row placeholder (disabled).
+2. **Aparência e privacidade** — Theme row (opens an action sheet: Claro / Escuro / Sistema; stores in AsyncStorage as `theme`). Hide balances toggle (stores in AsyncStorage as `hide_balances`; `BalanceContext` wraps the navigator).
+3. **Dados e conta** — Export row. Import row. "Limpar carteira" row (danger, red text; confirmation alert before calling `DELETE /api/ops`).
+
+### Files to create
+- `web/src/lib/dataHandlers.ts` — `exportData()` and `importData(file)` extracted from `dashboard/page.tsx`.
+- `web/src/contexts/BalanceContext.tsx` — `hidden` boolean + `setHidden`. Reads/writes localStorage `hide_balances`. Wraps `<App>`.
+- `mobile/src/contexts/BalanceContext.tsx` — same, but reads/writes AsyncStorage.
+- `backend/app/routes/ops.py` — add `DELETE ""` handler (deletes all ops for user).
+- `backend/tests/test_ops.py` — add test: DELETE clears all ops, returns correct count, auth required.
+
+### Files to modify
+- `web/src/pages/settings.tsx` — full redesign as described.
+- `web/src/app/dashboard/page.tsx` — remove Export/Import buttons from header; import handlers from `dataHandlers.ts`; wrap fmt() outputs with BalanceContext.
+- `web/src/app/globals.css` — add `.card`, `.card-head`, `.card-body` classes if not already present.
+- `mobile/src/screens/SettingsScreen.tsx` — full redesign as described.
+- `mobile/src/app/` (navigator root) — wrap with `BalanceContext`.
+
+### Done when
+- Settings page (web) has four sectioned cards with the described content.
+- Settings screen (mobile) has three grouped lists with the described content.
+- Theme toggle changes the app appearance immediately without reload (web) or remount (mobile).
+- Hide-balances toggle masks all monetary values across the app.
+- Import/Export no longer appear in the dashboard header.
+- `DELETE /api/ops` clears the wallet and the UI reflects zero positions.
+- `npm test` passes. `pytest` passes.
+
+---
+
+## Item 6 — Multi-currency display
 **Branch:** `feat/multi-currency`
-**Depends on:** item 4 (needs `Locale` and updated `fmt()`)
+**Depends on:** items 4, 5
 
 - [ ] Done
 
@@ -180,20 +235,50 @@ Store prices in USD (universal crypto reference). Fetch an exchange rate once pe
 - `backend/app/models.py` — add `currency: str = 'BRL'` to Op model.
 - `backend/db/schema.sql` — add `currency VARCHAR(8) DEFAULT 'BRL'` to `ops` table.
 - `shared/src/format.ts` — `fmt(v, locale, currency)` uses `Intl.NumberFormat` with `style: 'currency'` and the correct currency code. Existing call sites `fmt(v)` continue to work (default BRL/pt-BR).
-- `web/src/` — add `CurrencyContext.tsx` (saves preference to localStorage). A currency picker in the header (next to language picker). All `fmt()` calls receive `currency` from context.
+- `web/src/pages/settings.tsx` — wire the currency selector in the "Moeda e preços" card (was placeholder in Item 5); reads/writes `CurrencyContext`.
+- `web/src/` — add `CurrencyContext.tsx` (saves preference to localStorage). All `fmt()` calls receive `currency` from context.
 - `web/src/lib/api/client.ts` — `getPrices(ids)` stays the same; add `getExchangeRates(): Promise<Record<string, number>>` call.
+- `mobile/src/screens/SettingsScreen.tsx` — wire the currency row (was placeholder in Item 5).
 
 ### Done when
-- Switching currency in the header changes all displayed values immediately (no reload).
+- Switching currency in Settings changes all displayed values immediately (no reload).
 - New ops record their currency.
 - `price_cache` stores USD prices. Exchange rates are cached in DB.
 - `pytest` and `npm test` pass.
 
 ---
 
-## Item 6 — Fix historical charts
+## Item 7 — Auto-refresh prices
+**Branch:** `feat/price-auto-refresh`
+**Depends on:** item 6
+
+- [ ] Done
+
+### Goal
+Users can configure how often prices refresh automatically. The interval is stored per-device and survives page reload. The currently selected interval is shown in the Settings page/screen "Moeda e preços" card (wired, replacing the placeholder left in Item 5).
+
+### Supported intervals
+Manual (default), 30 s, 1 min, 5 min.
+
+### Web
+- `web/src/contexts/PriceRefreshContext.tsx` — stores `interval: number | null` (null = manual) in localStorage as `price_refresh_interval`. Exposes `interval` and `setInterval`. At the top of the component tree, a `useEffect` sets up `setInterval(() => fetchPrices(), interval)` when `interval` is non-null and clears it on unmount or change.
+- `web/src/pages/settings.tsx` — wire the "Atualizar preços" selector in the "Moeda e preços" card (was placeholder in Item 5).
+
+### Mobile
+- `mobile/src/contexts/PriceRefreshContext.tsx` — same pattern, reads/writes AsyncStorage. The navigator root sets up the refresh effect.
+- `mobile/src/screens/SettingsScreen.tsx` — wire the price refresh row (was placeholder in Item 5).
+
+### Done when
+- Selecting "A cada 30s" causes the prices API to be called every 30 seconds without user interaction.
+- Selecting "Manual" stops auto-refresh.
+- The interval persists across page reloads (web) and app restarts (mobile).
+- `npm test` passes (mock timers verify the interval effect fires).
+
+---
+
+## Item 8 — Fix historical charts
 **Branch:** `feat/historical-prices`
-**Depends on:** item 5 (prices now stored in USD; historical prices should also be USD)
+**Depends on:** item 6 (prices now stored in USD; historical prices should also be USD)
 
 - [ ] Done
 
@@ -218,9 +303,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 7 — Price provider abstraction + move coin search to backend
+## Item 9 — Price provider abstraction + move coin search to backend
 **Branch:** `feat/price-provider-abstraction`
-**Depends on:** item 5 (USD prices established)
+**Depends on:** item 6 (USD prices established)
 
 - [ ] Done
 
@@ -249,9 +334,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 8 — Test coverage
+## Item 10 — Test coverage
 **Branch:** `test/coverage`
-**Depends on:** items 5, 6, 7 (so tests cover the final endpoint shapes)
+**Depends on:** items 6, 8, 9 (so tests cover the final endpoint shapes)
 
 - [ ] Done
 
@@ -278,7 +363,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 9 — Facebook login
+## Item 11 — Facebook login
 **Branch:** `feat/facebook-login`
 **Depends on:** nothing
 
@@ -305,9 +390,9 @@ Google is the only social IdP. Facebook OAuth credentials are not in SSM. Patter
 
 ---
 
-## Item 10 — Custom auth UI
+## Item 12 — Custom auth UI
 **Branch:** `feat/custom-auth-ui`
-**Depends on:** item 9 (all social providers ready before redesigning the screen)
+**Depends on:** item 11 (all social providers ready before redesigning the screen)
 
 - [ ] Done
 
@@ -335,7 +420,7 @@ Build custom `/login` and `/signup` routes. Email/password flows use Amplify's `
 
 ---
 
-## Item 11 — Ops/trade UX study
+## Item 13 — Ops/trade UX study
 **Branch:** `docs/ops-ux-study`
 **Depends on:** nothing (research only)
 
@@ -359,9 +444,9 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 12 — New investment types (Phase 1: Brazilian stocks)
+## Item 14 — New investment types (Phase 1: Brazilian stocks)
 **Branch:** `feat/br-stocks`
-**Depends on:** items 4, 5, 7 (i18n, USD prices, provider abstraction)
+**Depends on:** items 4, 6, 9 (i18n, USD prices, provider abstraction)
 
 - [ ] Done
 
@@ -392,7 +477,7 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 13 — Feature roadmap document
+## Item 15 — Feature roadmap document
 **Branch:** `docs/feature-roadmap`
 **Depends on:** nothing
 

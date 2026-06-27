@@ -25,14 +25,17 @@ If `$ARGUMENTS` is empty, stop immediately and ask the user to describe the feat
 - Pushing commits to the feature branch
 - Creating a GitHub PR
 - Any technical or architectural decisions within the scope of the current plan
-- Auto-answering internal `[NEEDS CLARIFICATION]` markers inside `/speckit-specify` using sensible defaults from the existing codebase and constitution
+- Auto-answering `[NEEDS CLARIFICATION]` markers in `/speckit-specify` — resolve them using sensible defaults from the codebase, constitution, and AGENTS.md; never surface them to the user
+- Auto-answering any prompts raised internally by sub-skills (specify, plan, tasks, implement) that fall outside the explicit pause categories below — resolve autonomously and continue
 
 **Always pause and wait for the user** before:
 - Merging any PR
 - Modifying database schemas or running migrations in any environment
-- Changing server or infrastructure configuration
-- The structured clarification questions in the Clarify step (Step 2)
-- Presenting consistency issues found in the Analyze step (Step 5)
+- Changing server or infrastructure configuration (e.g., SSM parameters, CloudFront, Cognito)
+- The structured clarification questions in the Clarify step (Step 2) — these are the user's primary design input point
+- Presenting consistency or coverage issues found in the Analyze step (Step 5) when they are CRITICAL or HIGH severity
+
+No other pause points exist. If a sub-skill attempts to prompt for something not in the list above, resolve it autonomously without surfacing it to the user.
 
 ## Pipeline
 
@@ -48,15 +51,15 @@ Check whether `.specify/memory/constitution.md` exists.
 
 Invoke the **speckit-specify** skill, passing `$ARGUMENTS` verbatim as the feature description.
 
-The specify skill may surface up to 3 `[NEEDS CLARIFICATION]` questions about the feature. Resolve them autonomously using sensible defaults drawn from the existing codebase, the constitution, and the AGENTS.md conventions. Do not pause the pipeline for these internal specify questions.
+Auto-resolve all `[NEEDS CLARIFICATION]` markers using context from the codebase, `AGENTS.md`, `PLAN.md`, and the constitution. Do not stop to ask the user. If the sub-skill pauses or surfaces a clarification question, answer it autonomously and continue.
 
 Wait for the skill to complete and confirm the spec file and feature directory are created before proceeding.
 
-### Step 2 — Clarify (interactive)
+### Step 2 — Clarify (interactive — the only interactive step)
 
 Invoke the **speckit-clarify** skill.
 
-**This step pauses the pipeline.** Present each clarification question to the user one at a time as the skill produces it, and wait for their response before continuing. Do not skip, merge, or auto-answer these questions — they are the user's primary intervention point.
+**This is the only step that pauses the pipeline.** Present each clarification question to the user one at a time as the skill produces it, and wait for their response before continuing. Do not skip, merge, or auto-answer these questions.
 
 Wait for the skill to complete (all questions answered and spec updated) before proceeding.
 
@@ -64,30 +67,30 @@ Wait for the skill to complete (all questions answered and spec updated) before 
 
 Invoke the **speckit-plan** skill.
 
-Proceed autonomously. The plan skill derives the tech stack from the constitution, the clarified spec, and the existing codebase. Do not stop to ask the user for tech stack input.
+Proceed fully autonomously. The plan skill derives the tech stack from the constitution, the clarified spec, and the existing codebase. Do not stop for any input.
 
 ### Step 4 — Tasks
 
 Invoke the **speckit-tasks** skill.
 
-Proceed autonomously. The task list will be generated with dependency order and `[P]` parallel markers.
+Proceed fully autonomously. The task list is generated with dependency order and `[P]` parallel markers. Do not stop for any input.
 
 ### Step 5 — Analyze (conditional pause)
 
 Invoke the **speckit-analyze** skill.
 
-After the analysis completes:
-- If no issues are found: proceed to Step 6 automatically.
-- If issues are found: present the findings to the user and wait for their decision (proceed as-is / fix first). Do not auto-resolve analyze findings.
+After analysis completes:
+- If no CRITICAL or HIGH issues are found: proceed to Step 6 automatically without pausing.
+- If CRITICAL or HIGH issues are found: present only those findings to the user and wait for their decision (proceed as-is / fix first). Do not surface LOW or MEDIUM issues — resolve or ignore them autonomously.
 
 ### Step 6 — Implement
 
 Invoke the **speckit-implement** skill.
 
-Proceed autonomously through all tasks:
+Proceed fully autonomously through all tasks:
 - Write code, push commits, and make implementation decisions without asking.
-- If a task would require a database migration or server configuration change: pause, present the specific change to the user, and wait for their approval before running it.
 - Mark each task `[X]` in tasks.md as it completes.
+- **Exception:** if a task requires a database migration or server configuration change, pause, present the specific change, and wait for approval. This is the only implementation pause point.
 
 ### Step 7 — Push and open PR
 
@@ -103,7 +106,7 @@ Report to the user:
 - Feature directory and spec file path
 - Branch name and PR URL
 - Number of tasks completed
-- Any steps where the user was asked to intervene and what was decided
+- Steps where the user was asked to intervene and what was decided
 - Any items left pending (e.g., DB migrations awaiting approval)
 
 ## Done When
