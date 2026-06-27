@@ -90,11 +90,18 @@ button {
   font-family: inherit; cursor: pointer; border: 0.5px solid var(--border2);
   background: transparent; color: var(--text); border-radius: var(--radius);
   padding: 8px 14px; font-size: 13px; display: inline-flex; align-items: center;
-  gap: 6px; transition: background .15s;
+  gap: 6px; transition: background .15s; text-decoration: none;
 }
 button:hover { background: var(--bg2); }
 button:active { transform: scale(0.98); }
-.btn-sm { font-size: 12px; padding: 6px 12px; }
+.btn-sm {
+  font-family: inherit; cursor: pointer; border: 0.5px solid var(--border2);
+  background: transparent; color: var(--text); border-radius: var(--radius);
+  padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center;
+  gap: 6px; transition: background .15s; text-decoration: none;
+}
+.btn-sm:hover { background: var(--bg2); }
+.btn-sm:active { transform: scale(0.98); }
 
 input, select {
   font-family: inherit; font-size: 13px; background: var(--bg); color: var(--text);

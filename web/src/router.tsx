@@ -72,7 +72,7 @@ function DashboardLayout() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
         <span>{email}</span>
-        <Link to="/settings" className="btn-sm" style={{ textDecoration: 'none' }}>
+        <Link to="/settings" className="btn-sm">
           <i className="ti ti-settings" /> {t.nav_settings}
         </Link>
         <LogoutButton />
@@ -104,7 +104,7 @@ function SettingsLayout() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
         <span>{email}</span>
-        <Link to="/dashboard" className="btn-sm" style={{ textDecoration: 'none' }}>
+        <Link to="/dashboard" className="btn-sm">
           <i className="ti ti-arrow-left" /> Dashboard
         </Link>
         <LogoutButton />

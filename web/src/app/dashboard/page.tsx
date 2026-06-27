@@ -188,7 +188,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2, alignItems: 'center' }}>
           <button className="btn-sm" onClick={exportData} title={t.dashboard_export}><i className="ti ti-download" /> {t.dashboard_export}</button>
-          <label className="btn-sm" style={{ cursor: 'pointer', border: '0.5px solid var(--border2)', borderRadius: 'var(--radius)', padding: '6px 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }} title={t.dashboard_import}>
+          <label className="btn-sm" title={t.dashboard_import}>
             <i className="ti ti-upload" /> {t.dashboard_import}
             <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} aria-label={t.dashboard_import} />
           </label>
