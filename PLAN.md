@@ -33,7 +33,7 @@ Check the box in a `chore: tick plan item N` commit when the PR merges to `devel
 **Branch:** `chore/security-audit`
 **Depends on:** nothing
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 No static analysis in CI. CORS config in `backend/app/main.py` is unknown — may allow `*`. Tokens stored in localStorage by Amplify. No dependency vulnerability scanning.
