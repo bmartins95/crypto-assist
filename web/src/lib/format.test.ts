@@ -1,17 +1,20 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { fmt, fmtPct, fmtQty, fmtDate } from './format';
+
+const norm = (s: string) => s.replace(/ /g, ' ');
+
 
 describe('fmt', () => {
   it('formats a positive value as BRL', () => {
-    expect(fmt(1234.5)).toBe('R$ 1.234,50');
+    expect(norm(fmt(1234.5))).toBe('R$ 1.234,50');
   });
 
   it('formats zero', () => {
-    expect(fmt(0)).toBe('R$ 0,00');
+    expect(norm(fmt(0))).toBe('R$ 0,00');
   });
 
   it('formats a negative value', () => {
-    expect(fmt(-50)).toBe('R$ -50,00');
+    expect(norm(fmt(-50))).toBe('-R$ 50,00');
   });
 });
 
@@ -46,5 +49,27 @@ describe('fmtDate', () => {
 
   it('returns a dash for an empty string', () => {
     expect(fmtDate('')).toBe('—');
+  });
+
+  it('formats a date in de-DE locale', () => {
+    expect(fmtDate('2024-01-15', 'de-DE')).toBe('15.1.2024');
+  });
+});
+
+describe('fmt with locale and currency', () => {
+  it('formats in en-US with USD', () => {
+    const result = fmt(1234.56, 'en-US', 'USD');
+    expect(result.replace(/ /g, ' ')).toBe('$1,234.56');
+  });
+
+  it('uses pt-BR and BRL when called with no arguments', () => {
+    const result = fmt(1234.5);
+    expect(result.replace(/ /g, ' ')).toBe('R$ 1.234,50');
+  });
+});
+
+describe('fmtQty with locale', () => {
+  it('formats quantity in ja-JP locale', () => {
+    expect(fmtQty(1.5, 'ja-JP')).toBe('1.50');
   });
 });

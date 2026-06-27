@@ -5,11 +5,14 @@ import {
   createRouter,
   redirect,
   Outlet,
+  Link,
 } from '@tanstack/react-router';
 import AuthClient from './app/auth/AuthClient';
 import DashboardPage from './app/dashboard/page';
+import SettingsPage from './pages/settings';
 import LogoutButton from './components/LogoutButton';
 import { exchangeCode, getSession, getEmailFromIdToken } from './lib/cognito/client';
+import { useLocale } from './context/LocaleContext';
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
@@ -29,6 +32,7 @@ const authRoute = createRoute({
 });
 
 function AuthCallbackPage() {
+  const { t } = useLocale();
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -45,8 +49,8 @@ function AuthCallbackPage() {
       });
   }, []);
 
-  if (error) return <p style={{ padding: 32 }}>Falha na autenticação. Redirecionando...</p>;
-  return <p style={{ padding: 32 }}>Autenticando...</p>;
+  if (error) return <p style={{ padding: 32 }}>{t.auth_failed}</p>;
+  return <p style={{ padding: 32 }}>{t.auth_authenticating}</p>;
 }
 
 const authCallbackRoute = createRoute({
@@ -56,6 +60,7 @@ const authCallbackRoute = createRoute({
 });
 
 function DashboardLayout() {
+  const { t } = useLocale();
   const [email, setEmail] = useState('');
 
   useEffect(() => {
@@ -67,6 +72,9 @@ function DashboardLayout() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
         <span>{email}</span>
+        <Link to="/settings" className="btn-sm" style={{ textDecoration: 'none' }}>
+          <i className="ti ti-settings" /> {t.nav_settings}
+        </Link>
         <LogoutButton />
       </div>
       <DashboardPage />
@@ -83,11 +91,49 @@ const dashboardRoute = createRoute({
   component: DashboardLayout,
 });
 
+function SettingsLayout() {
+  const { t } = useLocale();
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const session = getSession();
+    if (session) setEmail(getEmailFromIdToken(session.id_token));
+  }, []);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
+        <span>{email}</span>
+        <Link to="/dashboard" className="btn-sm" style={{ textDecoration: 'none' }}>
+          <i className="ti ti-arrow-left" /> Dashboard
+        </Link>
+        <LogoutButton />
+      </div>
+      <div className="app">
+        <div className="header">
+          <h2>{t.settings_title}</h2>
+        </div>
+        <SettingsPage />
+      </div>
+    </div>
+  );
+}
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  beforeLoad: () => {
+    if (!getSession()) throw redirect({ to: '/auth' });
+  },
+  component: SettingsLayout,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   authCallbackRoute,
   dashboardRoute,
+  settingsRoute,
 ]);
 
 export const router = createRouter({ routeTree });

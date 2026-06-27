@@ -9,7 +9,7 @@ function op(overrides: Partial<Op>): Op {
     coinId: 'bitcoin',
     symbol: 'BTC',
     name: 'Bitcoin',
-    type: 'Compra',
+    type: 'Buy',
     qty: 1,
     price: 100,
     fee: 0,
@@ -32,8 +32,8 @@ describe('computePositions', () => {
 
   it('subtracts sells from the held quantity without changing the average cost', () => {
     const ops = [
-      op({ type: 'Compra', qty: 2, price: 100 }),
-      op({ type: 'Venda', qty: 1, price: 999 }),
+      op({ type: 'Buy', qty: 2, price: 100 }),
+      op({ type: 'Sell', qty: 1, price: 999 }),
     ];
     const [position] = computePositions(ops);
     expect(position.qty).toBe(1);
@@ -42,8 +42,8 @@ describe('computePositions', () => {
 
   it('omits assets whose position has been fully sold off', () => {
     const ops = [
-      op({ type: 'Compra', qty: 1, price: 100 }),
-      op({ type: 'Venda', qty: 1, price: 100 }),
+      op({ type: 'Buy', qty: 1, price: 100 }),
+      op({ type: 'Sell', qty: 1, price: 100 }),
     ];
     expect(computePositions(ops)).toHaveLength(0);
   });
@@ -74,24 +74,24 @@ describe('computePositionsByAssetAndPlatform', () => {
     expect(positions.map((p) => p.platform).sort()).toEqual(['Binance', 'MetaMask']);
   });
 
-  it('falls back to a default label when the platform is empty', () => {
+  it('falls back to an empty string when the platform is empty', () => {
     const [position] = computePositionsByAssetAndPlatform([op({ platform: '' })]);
-    expect(position.platform).toBe('Sem plataforma');
+    expect(position.platform).toBe('');
   });
 });
 
 describe('computeTimeline', () => {
   it('produces one point per date, sorted chronologically', () => {
     const ops = [
-      op({ date: '2024-01-02', type: 'Compra', qty: 1, price: 100 }),
-      op({ date: '2024-01-01', type: 'Compra', qty: 1, price: 50 }),
+      op({ date: '2024-01-02', type: 'Buy', qty: 1, price: 100 }),
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 50 }),
     ];
     const timeline = computeTimeline(ops, { bitcoin: 150 });
     expect(timeline.map((t) => t.date)).toEqual(['2024-01-01', '2024-01-02']);
   });
 
   it('computes invested and current value using the given prices', () => {
-    const ops = [op({ date: '2024-01-01', type: 'Compra', qty: 2, price: 100 })];
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 2, price: 100 })];
     const [point] = computeTimeline(ops, { bitcoin: 120 });
     expect(point.invested).toBe(200);
     expect(point.currentValue).toBe(240);

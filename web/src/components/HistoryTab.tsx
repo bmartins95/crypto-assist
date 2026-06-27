@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
 import { fmt, fmtQty, fmtDate } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
+import { useLocale } from '@/context/LocaleContext';
 
 interface Props {
   ops: Op[];
@@ -61,10 +62,11 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange }: {
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
+  const { locale, t } = useLocale();
   const [opDate, setOpDate] = useState(today());
   const [opCoin, setOpCoin] = useState<CoinSelection | null>(null);
   const [opCoinText, setOpCoinText] = useState('');
-  const [opType, setOpType] = useState<'Compra' | 'Venda'>('Compra');
+  const [opType, setOpType] = useState<'Buy' | 'Sell'>('Buy');
   const [opQty, setOpQty] = useState('');
   const [opPrice, setOpPrice] = useState('');
   const [opFee, setOpFee] = useState('');
@@ -72,7 +74,6 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
   const [priceMode, setPriceMode] = useState<'unit' | 'total'>('unit');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Trade form
   const [trDate, setTrDate] = useState(today());
   const [trFromCoinId, setTrFromCoinId] = useState('');
   const [trFromQty, setTrFromQty] = useState('');
@@ -85,10 +86,10 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
 
   const qty = parseFloat(opQty) || 0;
   const val = parseFloat(opPrice) || 0;
-  const hint = qty && val ? (priceMode === 'unit' ? 'Total: ' + fmt(qty * val) : 'Unit.: ' + fmt(val / qty)) : '';
+  const hint = qty && val ? (priceMode === 'unit' ? `${t.history_col_total}: ${fmt(qty * val, locale)}` : `${t.history_col_price}: ${fmt(val / qty, locale)}`) : '';
 
   const resetOpForm = () => {
-    setOpDate(today()); setOpCoin(null); setOpCoinText(''); setOpType('Compra');
+    setOpDate(today()); setOpCoin(null); setOpCoinText(''); setOpType('Buy');
     setOpQty(''); setOpPrice(''); setOpFee(''); setOpPlatform('');
     setPriceMode('unit'); setEditingId(null);
   };
@@ -99,7 +100,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
     if (priceMode === 'total') {
       total = val; price = qty > 0 ? val / qty : 0;
     } else {
-      price = val; total = opType === 'Venda' ? qty * price - (parseFloat(opFee) || 0) : qty * price + (parseFloat(opFee) || 0);
+      price = val; total = opType === 'Sell' ? qty * price - (parseFloat(opFee) || 0) : qty * price + (parseFloat(opFee) || 0);
     }
     const op: NewOp = { date: opDate, coinId: opCoin.coinId, symbol: opCoin.symbol, name: opCoin.name, type: opType, qty, price, fee: parseFloat(opFee) || 0, total, platform: opPlatform.trim() };
     if (editingId !== null) onEditOp(editingId, op); else onAddOp(op);
@@ -150,12 +151,12 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
   const handleAddTrade = () => {
     const fromAsset = assets.find(a => a.coinId === trFromCoinId);
     if (!trFromCoinId || !trToCoin || !trFromQty || !trToQty || !trTotal) {
-      alert('Preencha: moeda de origem, qtd. vendida, moeda de destino, qtd. comprada e total em R$.'); return;
+      alert('Preencha: moeda de origem, qtd. vendida, moeda de destino, qtd. comprada e total.'); return;
     }
     if (trFromCoinId === trToCoin.coinId) { alert('A moeda de origem e de destino não podem ser a mesma.'); return; }
     const fromQty = parseFloat(trFromQty), toQty = parseFloat(trToQty), total = parseFloat(trTotal), fee = parseFloat(trFee) || 0;
-    const sellOp: NewOp = { date: trDate, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', type: 'Venda', qty: fromQty, price: total / fromQty, fee: 0, total, platform: '' };
-    const buyOp: NewOp = { date: trDate, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, type: 'Compra', qty: toQty, price: (total + fee) / toQty, fee, total: total + fee, platform: '' };
+    const sellOp: NewOp = { date: trDate, coinId: trFromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '', type: 'Sell', qty: fromQty, price: total / fromQty, fee: 0, total, platform: '' };
+    const buyOp: NewOp = { date: trDate, coinId: trToCoin.coinId, symbol: trToCoin.symbol, name: trToCoin.name, type: 'Buy', qty: toQty, price: (total + fee) / toQty, fee, total: total + fee, platform: '' };
     onAddOp(sellOp); onAddOp(buyOp);
     setTrFromQty(''); setTrToCoin(null); setTrToCoinText(''); setTrToQty(''); setTrTotal(''); setTrFee(''); setTrTotalHint('');
   };
@@ -164,133 +165,131 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
 
   return (
     <div id="tab-historico" className="section active">
-      {/* Register operation */}
       <div className="op-card">
         <div className="sec-title" style={{ marginBottom: '.75rem' }}>
           <i className={`ti ${isEditing ? 'ti-pencil' : 'ti-plus'}`} style={{ fontSize: 13, verticalAlign: 'middle', marginRight: 4 }} />
-          {isEditing ? 'Editar operação' : 'Registrar operação'}
+          {isEditing ? t.history_form_editOp : t.history_form_addOp}
         </div>
         <div className="op-fields">
           <div className="field">
-            <label>Data</label>
-            <input type="date" value={opDate} onChange={e => setOpDate(e.target.value)} />
+            <label htmlFor="op-date">{t.history_form_date}</label>
+            <input id="op-date" type="date" value={opDate} onChange={e => setOpDate(e.target.value)} />
           </div>
           <div className="field" style={{ position: 'relative' }}>
-            <label>Moeda</label>
+            <label htmlFor="op-moeda-search">{t.history_form_asset}</label>
             <CoinSearch id="op-moeda-search" placeholder="Bitcoin, BTC..." apiKey={apiKey}
               value={opCoinText} onChange={setOpCoinText}
               onSelect={c => setOpCoin(c)} />
           </div>
           <div className="field">
-            <label>Tipo</label>
-            <select value={opType} onChange={e => setOpType(e.target.value as 'Compra' | 'Venda')}>
-              <option>Compra</option><option>Venda</option>
+            <label htmlFor="op-type">{t.history_form_type}</label>
+            <select id="op-type" value={opType} onChange={e => setOpType(e.target.value as 'Buy' | 'Sell')}>
+              <option value="Buy">{t.history_opType_buy}</option>
+              <option value="Sell">{t.history_opType_sell}</option>
             </select>
           </div>
           <div className="field">
-            <label>Quantidade</label>
-            <input type="number" placeholder="0" step="any" value={opQty} onChange={e => setOpQty(e.target.value)} />
+            <label htmlFor="op-qty">{t.history_form_qty}</label>
+            <input id="op-qty" type="number" placeholder="0" step="any" value={opQty} onChange={e => setOpQty(e.target.value)} />
           </div>
           <div className="field" style={{ position: 'relative' }}>
-            <label>
-              <span>{priceMode === 'total' ? 'Total (R$)' : 'Preço unit. (R$)'}</span>
+            <label htmlFor="op-price">
+              <span>{priceMode === 'total' ? t.history_form_total : t.history_form_price}</span>
               <button type="button" className="op-price-toggle" onClick={() => { setPriceMode(m => m === 'unit' ? 'total' : 'unit'); setOpPrice(''); }}>
-                ⇄ {priceMode === 'total' ? 'unit.' : 'total'}
+                ⇄ {priceMode === 'total' ? t.history_form_price : t.history_form_total}
               </button>
             </label>
-            <input type="number" placeholder="0.00" step="any" value={opPrice} onChange={e => setOpPrice(e.target.value)} />
+            <input id="op-price" type="number" placeholder="0.00" step="any" value={opPrice} onChange={e => setOpPrice(e.target.value)} />
             {hint && <div className="field-hint">{hint}</div>}
           </div>
           <div className="field">
-            <label>Taxa (R$)</label>
-            <input type="number" placeholder="0.00" step="any" value={opFee} onChange={e => setOpFee(e.target.value)} />
+            <label htmlFor="op-fee">{t.history_form_fee}</label>
+            <input id="op-fee" type="number" placeholder="0.00" step="any" value={opFee} onChange={e => setOpFee(e.target.value)} />
           </div>
           <div className="field">
-            <label>Plataforma</label>
-            <input type="text" placeholder="Binance, MetaMask..." value={opPlatform} onChange={e => setOpPlatform(e.target.value)} />
+            <label htmlFor="op-platform">{t.history_form_platform}</label>
+            <input id="op-platform" type="text" placeholder="Binance, MetaMask..." value={opPlatform} onChange={e => setOpPlatform(e.target.value)} />
           </div>
           <div className="field-btn">
             <button className="btn-sm" onClick={handleAddOp}>
-              <i className={`ti ${isEditing ? 'ti-check' : 'ti-plus'}`} /> {isEditing ? 'Salvar' : 'Registrar'}
+              <i className={`ti ${isEditing ? 'ti-check' : 'ti-plus'}`} /> {isEditing ? t.history_form_save : t.trade_form_save}
             </button>
             {isEditing && (
               <button className="btn-sm" onClick={resetOpForm} style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                <i className="ti ti-x" /> Cancelar
+                <i className="ti ti-x" /> {t.history_form_cancel}
               </button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Trade between assets */}
       <div className="trade-card">
         <div className="sec-title" style={{ marginBottom: '.75rem' }}>
           <i className="ti ti-arrows-exchange" style={{ fontSize: 13, verticalAlign: 'middle', marginRight: 4 }} />
-          Trade entre ativos
+          {t.trade_form_title}
         </div>
         <div className="trade-fields">
           <div className="field">
-            <label>Data</label>
-            <input type="date" value={trDate} onChange={e => setTrDate(e.target.value)} />
+            <label htmlFor="tr-date">{t.history_form_date}</label>
+            <input id="tr-date" type="date" value={trDate} onChange={e => setTrDate(e.target.value)} />
           </div>
           <div className="field">
-            <label>De (vender)</label>
-            <select value={trFromCoinId} onChange={e => { setTrFromCoinId(e.target.value); syncTradeTotal(e.target.value, trFromQty, trToCoin, trTotal); }}>
-              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {fmtQty(a.qty)}</option>) : <option value="">Sem ativos na carteira</option>}
+            <label htmlFor="tr-from">{t.trade_form_from}</label>
+            <select id="tr-from" value={trFromCoinId} onChange={e => { setTrFromCoinId(e.target.value); syncTradeTotal(e.target.value, trFromQty, trToCoin, trTotal); }}>
+              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {fmtQty(a.qty, locale)}</option>) : <option value="">{t.trade_form_noAssets}</option>}
             </select>
           </div>
           <div className="field">
-            <label>Qtd. vendida</label>
-            <input type="number" placeholder="0" step="any" value={trFromQty} onChange={e => { setTrFromQty(e.target.value); syncTradeTotal(trFromCoinId, e.target.value, trToCoin, trTotal); }} />
+            <label htmlFor="tr-from-qty">{t.trade_form_qty}</label>
+            <input id="tr-from-qty" type="number" placeholder="0" step="any" value={trFromQty} onChange={e => { setTrFromQty(e.target.value); syncTradeTotal(trFromCoinId, e.target.value, trToCoin, trTotal); }} />
           </div>
           <div className="field" style={{ position: 'relative' }}>
-            <label>Para (comprar)</label>
+            <label htmlFor="tr-to-search">{t.trade_form_to}</label>
             <CoinSearch id="tr-to-search" placeholder="Bitcoin, BTC..." apiKey={apiKey}
               value={trToCoinText} onChange={setTrToCoinText}
               onSelect={handleTrToCoinSelect} />
           </div>
           <div className="field">
-            <label>Qtd. comprada</label>
-            <input type="number" placeholder="0" step="any" value={trToQty} onChange={e => setTrToQty(e.target.value)} />
+            <label htmlFor="tr-to-qty">{t.trade_form_toQty}</label>
+            <input id="tr-to-qty" type="number" placeholder="0" step="any" value={trToQty} onChange={e => setTrToQty(e.target.value)} />
           </div>
           <div className="field">
-            <label>Total (R$) <span className="trade-hint">{trTotalHint}</span></label>
-            <input type="number" placeholder="0.00" step="any" value={trTotal} onChange={e => setTrTotal(e.target.value)} />
+            <label htmlFor="tr-total">{t.trade_form_price} <span className="trade-hint">{trTotalHint}</span></label>
+            <input id="tr-total" type="number" placeholder="0.00" step="any" value={trTotal} onChange={e => setTrTotal(e.target.value)} />
           </div>
           <div className="field">
-            <label>Taxa (R$)</label>
-            <input type="number" placeholder="0.00" step="any" value={trFee} onChange={e => setTrFee(e.target.value)} />
+            <label htmlFor="tr-fee">{t.trade_form_fee}</label>
+            <input id="tr-fee" type="number" placeholder="0.00" step="any" value={trFee} onChange={e => setTrFee(e.target.value)} />
           </div>
           <div className="field-btn">
             <button className="btn-sm" onClick={handleAddTrade}>
-              <i className="ti ti-arrows-exchange" /> Registrar
+              <i className="ti ti-arrows-exchange" /> {t.trade_form_save}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Operations list */}
       {!ops.length ? (
-        <div className="empty-state"><i className="ti ti-receipt" /><span>Nenhuma operação registrada</span></div>
+        <div className="empty-state"><i className="ti ti-receipt" /><span>{t.history_emptyState}</span></div>
       ) : (
         <div className="op-list-wrap">
           <div className="op-list-row op-list-head">
-            <span>Data</span><span>Moeda</span><span>Tipo</span><span>Qtd.</span>
-            <span>Preço unit.</span><span>Total</span><span>Taxa</span><span>Plataforma</span><span />
+            <span>{t.history_col_date}</span><span>{t.history_col_asset}</span><span>{t.history_col_type}</span><span>{t.history_col_qty}</span>
+            <span>{t.history_col_price}</span><span>{t.history_col_total}</span><span>{t.history_col_fee}</span><span>{t.history_col_platform}</span><span />
           </div>
           {ops.map(o => (
             <div className="op-list-row" key={o.id}>
-              <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date)}</span>
+              <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date, locale)}</span>
               <span style={{ fontWeight: 500 }}>{o.symbol || '—'}</span>
-              <span><span className={`pill ${o.type === 'Compra' ? 'pill-pos' : 'pill-neg'}`}>{o.type}</span></span>
-              <span>{fmtQty(o.qty)}</span>
-              <span>{fmt(o.price)}</span>
-              <span style={{ fontWeight: 500 }}>{fmt(o.total)}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? fmt(o.fee) : '—'}</span>
+              <span><span className={`pill ${o.type === 'Buy' ? 'pill-pos' : 'pill-neg'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span></span>
+              <span>{fmtQty(o.qty, locale)}</span>
+              <span>{fmt(o.price, locale)}</span>
+              <span style={{ fontWeight: 500 }}>{fmt(o.total, locale)}</span>
+              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? fmt(o.fee, locale) : '—'}</span>
               <span style={{ color: 'var(--text2)' }}>{o.platform || '—'}</span>
               <span className="op-actions">
-                <button className="icon-btn" onClick={() => handleEditOp(o)} title="Editar"><i className="ti ti-pencil" /></button>
-                <button className="icon-btn" onClick={() => handleRemoveOp(o.id)} title="Excluir" style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
+                <button className="icon-btn" onClick={() => handleEditOp(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>
+                <button className="icon-btn" onClick={() => handleRemoveOp(o.id)} title={t.history_form_delete} style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
               </span>
             </div>
           ))}

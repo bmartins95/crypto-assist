@@ -5,7 +5,7 @@ export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
   ops.forEach(o => {
     if (!o.coinId) return;
     if (!map[o.coinId]) map[o.coinId] = { coinId: o.coinId, symbol: o.symbol, name: o.name, buyQty: 0, buyTotal: 0, sellQty: 0 };
-    if (o.type === 'Compra') { map[o.coinId].buyQty += o.qty; map[o.coinId].buyTotal += o.qty * o.price; }
+    if (o.type === 'Buy') { map[o.coinId].buyQty += o.qty; map[o.coinId].buyTotal += o.qty * o.price; }
     else { map[o.coinId].sellQty += o.qty; }
   });
   return Object.values(map).map(m => ({
@@ -23,10 +23,10 @@ export function computePositionsByAssetAndPlatform(ops: Op[]): AssetWithPlatform
   const map: Record<string, { coinId: string; symbol: string; name: string; platform: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
   ops.forEach(o => {
     if (!o.coinId) return;
-    const plat = o.platform || 'Sem plataforma';
+    const plat = o.platform || '';
     const key = o.coinId + '||' + plat;
     if (!map[key]) map[key] = { coinId: o.coinId, symbol: o.symbol, name: o.name, platform: plat, buyQty: 0, buyTotal: 0, sellQty: 0 };
-    if (o.type === 'Compra') { map[key].buyQty += o.qty; map[key].buyTotal += o.qty * o.price; }
+    if (o.type === 'Buy') { map[key].buyQty += o.qty; map[key].buyTotal += o.qty * o.price; }
     else { map[key].sellQty += o.qty; }
   });
   return Object.values(map).map(m => ({
@@ -51,7 +51,7 @@ export function computeTimeline(ops: Op[], prices: Prices): TimelinePoint[] {
     if (!op.coinId) return;
     if (!holdings[op.coinId]) holdings[op.coinId] = { qty: 0, avgCost: 0 };
     const h = holdings[op.coinId];
-    if (op.type === 'Compra') {
+    if (op.type === 'Buy') {
       const newQty = h.qty + op.qty;
       h.avgCost = newQty > 0 ? (h.qty * h.avgCost + op.qty * op.price) / newQty : 0;
       h.qty = newQty;

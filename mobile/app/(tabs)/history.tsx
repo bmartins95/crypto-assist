@@ -6,8 +6,10 @@ import {
 import { api } from '@/lib/api/client';
 import { fmt, fmtQty, fmtDate } from '@crypto-assist/shared';
 import type { Op } from '@crypto-assist/shared';
+import { useLocale } from '@/context/LocaleContext';
 
 export default function HistoryScreen() {
+  const { locale, t } = useLocale();
   const [ops, setOps] = useState<Op[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -16,8 +18,8 @@ export default function HistoryScreen() {
     try {
       const data = await api.getOps();
       setOps([...data].reverse());
-    } catch (e: any) {
-      Alert.alert('Erro', e.message);
+    } catch (e: unknown) {
+      Alert.alert(t.common_error, (e as Error).message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -27,17 +29,17 @@ export default function HistoryScreen() {
   useEffect(() => { load(); }, [load]);
 
   async function handleDelete(id: string) {
-    Alert.alert('Remover operação', 'Tem certeza?', [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t.history_form_delete, t.common_delete, [
+      { text: t.history_form_cancel, style: 'cancel' },
       {
-        text: 'Remover',
+        text: t.history_form_delete,
         style: 'destructive',
         onPress: async () => {
           try {
             await api.deleteOp(id);
             setOps(prev => prev.filter(o => o.id !== id));
-          } catch (e: any) {
-            Alert.alert('Erro', e.message);
+          } catch (e: unknown) {
+            Alert.alert(t.common_error, (e as Error).message);
           }
         },
       },
@@ -59,23 +61,23 @@ export default function HistoryScreen() {
             <View style={styles.rowTop}>
               <View style={styles.rowLeft}>
                 <Text style={styles.symbol}>{o.symbol}</Text>
-                <View style={[styles.badge, o.type === 'Compra' ? styles.badgeBuy : styles.badgeSell]}>
-                  <Text style={styles.badgeText}>{o.type}</Text>
+                <View style={[styles.badge, o.type === 'Buy' ? styles.badgeBuy : styles.badgeSell]}>
+                  <Text style={styles.badgeText}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => handleDelete(o.id)}>
-                <Text style={styles.deleteBtn}>Remover</Text>
+              <TouchableOpacity onPress={() => handleDelete(o.id)} accessibilityLabel={t.history_form_delete}>
+                <Text style={styles.deleteBtn}>{t.history_form_delete}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.rowDetails}>
-              <Text style={styles.detail}>{fmtDate(o.date)}</Text>
-              <Text style={styles.detail}>{fmtQty(o.qty)} × {fmt(o.price)}</Text>
-              <Text style={styles.total}>{fmt(o.total)}</Text>
+              <Text style={styles.detail}>{fmtDate(o.date, locale)}</Text>
+              <Text style={styles.detail}>{fmtQty(o.qty, locale)} × {fmt(o.price, locale)}</Text>
+              <Text style={styles.total}>{fmt(o.total, locale)}</Text>
             </View>
             {o.platform ? <Text style={styles.platform}>{o.platform}</Text> : null}
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>Nenhuma operação registrada.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t.history_emptyState}</Text>}
       />
     </View>
   );
