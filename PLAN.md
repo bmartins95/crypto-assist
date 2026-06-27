@@ -117,27 +117,40 @@ A07 (authentication failures) is covered by Cognito (built-in rate limiting, MFA
 
 - [ ] Done
 
+### Goal
+Full multi-language support across web and mobile. Every user-facing string goes through the i18n layer. Users select their language from a dedicated Settings page (web) and Settings screen (mobile). The app defaults to `pt-BR` but supports the 10 most spoken languages in the world.
+
 ### Current state
-All UI strings are hardcoded Portuguese in JSX components. `shared/src/format.ts` hardcodes `pt-BR` locale and `R$`. No abstraction exists.
+All UI strings are hardcoded Portuguese in JSX/React Native components. `shared/src/format.ts` hardcodes `pt-BR` locale and `R$`. `Op.type` stores Portuguese words (`'Compra'`/`'Venda'`) — these must be migrated to English (`'Buy'`/`'Sell'`) in code and in the database, since all code and stored values must be in English (see AGENTS.md).
+
+### Supported locales
+`pt-BR`, `en-US`, `es-ES`, `fr-FR`, `de-DE`, `zh-CN`, `ja-JP`, `ar-SA`, `hi-IN`, `ru-RU`
 
 ### Files to create
-- `shared/src/i18n/types.ts` — `Locale` union type and `UIText` interface. `UIText` must cover every user-facing string in the app (labels, empty states, error messages, button text, column headers, chart labels, date/number format hints). Derive the initial list by reading all three tab components and `dashboard/page.tsx`.
-- `shared/src/i18n/locales/pt-BR.ts` — reference implementation. Extract every hardcoded string from current components. This file defines the canonical shape.
-- `shared/src/i18n/locales/en-US.ts`, `es-ES.ts`, `fr-FR.ts`, `de-DE.ts`, `zh-CN.ts`, `ja-JP.ts`, `ar-SA.ts`, `hi-IN.ts`, `ru-RU.ts` — each must satisfy `UIText` (TypeScript enforces this at compile time). Use accurate translations; do not machine-translate slang or financial terms blindly.
+- `shared/src/i18n/types.ts` — `Locale` union type and `UIText` interface covering every user-facing string in the app (labels, empty states, error messages, button text, column headers, chart labels, date/number format hints). Derive the initial key list by reading all tab components, dashboard, and mobile screens.
+- `shared/src/i18n/locales/pt-BR.ts` — reference implementation. Defines the canonical shape; every other locale file must match it exactly (TypeScript enforces this).
+- `shared/src/i18n/locales/en-US.ts`, `es-ES.ts`, `fr-FR.ts`, `de-DE.ts`, `zh-CN.ts`, `ja-JP.ts`, `ar-SA.ts`, `hi-IN.ts`, `ru-RU.ts` — each must satisfy `UIText`. Use accurate translations for financial/investment terminology in each language.
 - `shared/src/i18n/index.ts` — export `Locale`, `UIText`, `LOCALES: Record<Locale, UIText>`, `getLocale(code: Locale): UIText`.
+- `web/src/pages/settings.tsx` (or equivalent route) — Settings page with a Language selector (dropdown or list of locale options). Language change takes effect immediately without page reload.
+- `mobile/src/screens/SettingsScreen.tsx` — Settings screen with a Language row that opens a locale picker.
 
 ### Files to modify
+- `shared/src/types.ts` — change `Op.type` from `'Compra' | 'Venda'` to `'Buy' | 'Sell'`. Update `NewOp` accordingly.
 - `shared/src/format.ts` — `fmt(v: number, locale?: Locale, currency?: string): string`. Default `locale='pt-BR'`, default `currency='BRL'`. Keep `fmt(v)` working with one argument (backwards-compatible). Update `fmtDate` and `fmtQty` similarly.
 - `shared/src/index.ts` — export all new i18n symbols.
-- `web/src/` — add `LocaleContext.tsx` (React context + `useLocale()` hook). Read preference from localStorage, default to `'pt-BR'`. Wrap `<App>` in it.
+- `backend/app/models.py` — update `Op.type` enum/validation to accept `'Buy' | 'Sell'`.
+- `backend/db/schema.sql` — update `ops.type` CHECK constraint to `'Buy'`, `'Sell'`.
+- `backend/db/migrations/` — add migration to `UPDATE ops SET type = 'Buy' WHERE type = 'Compra'` and `'Sell'` for `'Venda'`. **Pause for user approval before running this migration.**
+- `web/src/` — add `LocaleContext.tsx` (React context + `useLocale()` hook). Reads preference from localStorage, defaults to `'pt-BR'`. Wrap `<App>` in it. Add Settings route to the router.
 - `web/src/components/` — replace every hardcoded string in `WalletTab.tsx`, `ProfitTab.tsx`, `HistoryTab.tsx` with `t.xxx` from `useLocale()`.
-- `web/src/app/dashboard/page.tsx` — same replacement; add a `<LanguagePicker>` button/dropdown in the header that calls `setLocale`.
-- `mobile/src/` — add same `LocaleContext` (saves to AsyncStorage). Replace hardcoded strings in all screens.
+- `web/src/app/dashboard/page.tsx` — replace hardcoded strings; add a Settings link/icon in the header.
+- `mobile/src/` — add `LocaleContext` (saves to AsyncStorage, defaults to `'pt-BR'`). Replace hardcoded strings in all screens. Add Settings screen to the navigator.
 
 ### Done when
 - TypeScript errors if any locale file is missing a key defined in `UIText`.
-- A language picker exists in the web header and in the mobile settings screen.
-- Switching to English changes all UI labels.
+- Settings page (web) and Settings screen (mobile) exist with a working language selector.
+- Switching language changes all UI labels immediately without reload.
+- `Op.type` is `'Buy'`/`'Sell'` in all code, models, and the database.
 - `npm test` passes. `pytest` passes.
 
 ---
