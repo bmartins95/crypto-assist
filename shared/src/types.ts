@@ -4,7 +4,7 @@ export interface NewOp {
   coinId: string;
   symbol: string;
   name: string;
-  type: 'Compra' | 'Venda';
+  type: 'Buy' | 'Sell';
   qty: number;
   price: number;
   fee: number;

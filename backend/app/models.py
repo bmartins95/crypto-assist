@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-OpType = Literal["Compra", "Venda"]
+OpType = Literal["Buy", "Sell"]
 
 
 class Op(BaseModel):

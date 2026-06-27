@@ -1,9 +1,12 @@
 import { buildAuthUrl } from '@/lib/cognito/client';
+import { useLocale } from '@/context/LocaleContext';
 
 const searchParams = new URLSearchParams(window.location.search);
 const authError = searchParams.get('error');
 
 export default function AuthClient() {
+  const { t } = useLocale();
+
   const handleGoogle = async () => {
     window.location.href = await buildAuthUrl('Google');
   };
@@ -16,10 +19,10 @@ export default function AuthClient() {
     <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ width: '100%', maxWidth: 380 }}>
         <h1 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <i className="ti ti-currency-bitcoin" /> Carteira de Criptoativos
+          <i className="ti ti-currency-bitcoin" /> {t.app_title}
         </h1>
         <p style={{ color: 'var(--text3)', marginBottom: 24 }}>
-          Entre ou crie sua conta para continuar
+          {t.auth_subtitle}
         </p>
 
         <button
@@ -27,7 +30,7 @@ export default function AuthClient() {
           className="btn-sm"
           style={{ width: '100%', justifyContent: 'center', padding: '10px 0', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <i className="ti ti-brand-google" /> Continuar com Google
+          <i className="ti ti-brand-google" /> {t.auth_google}
         </button>
 
         <button
@@ -35,12 +38,12 @@ export default function AuthClient() {
           className="btn-sm"
           style={{ width: '100%', justifyContent: 'center', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          <i className="ti ti-mail" /> Entrar com e-mail
+          <i className="ti ti-mail" /> {t.auth_email}
         </button>
 
         {authError && (
           <p style={{ marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
-            Falha na autenticação. Tente novamente.
+            {t.auth_failed}
           </p>
         )}
       </div>

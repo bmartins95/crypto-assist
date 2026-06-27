@@ -35,7 +35,7 @@ _DB_ROW = {
     "coin_id": "bitcoin",
     "symbol": "BTC",
     "name": "Bitcoin",
-    "type": "Compra",
+    "type": "Buy",
     "qty": "0.01",
     "price": "250000",
     "fee": "5",
@@ -49,7 +49,7 @@ _API_OP = {
     "coinId": "bitcoin",
     "symbol": "BTC",
     "name": "Bitcoin",
-    "type": "Compra",
+    "type": "Buy",
     "qty": 0.01,
     "price": 250000.0,
     "fee": 5.0,
@@ -62,7 +62,7 @@ _NEW_OP_BODY = {
     "coinId": "bitcoin",
     "symbol": "BTC",
     "name": "Bitcoin",
-    "type": "Compra",
+    "type": "Buy",
     "qty": 0.01,
     "price": 250000.0,
     "fee": 5.0,
@@ -91,7 +91,23 @@ def test_create_op(client_with_db):
 def test_create_op_missing_fields(client_with_db):
     client, _ = client_with_db
     res = client.post("/api/ops", json={"symbol": "BTC"})
-    assert res.status_code == 422  # FastAPI validation error
+    assert res.status_code == 422
+
+
+@pytest.mark.pgdata({})
+def test_create_op_portuguese_type_rejected(client_with_db):
+    client, _ = client_with_db
+    body = {**_NEW_OP_BODY, "type": "Compra"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 422
+
+
+@pytest.mark.pgdata({})
+def test_create_op_portuguese_sell_rejected(client_with_db):
+    client, _ = client_with_db
+    body = {**_NEW_OP_BODY, "type": "Venda"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 422
 
 
 @pytest.mark.pgdata(_DB_ROW)

@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
+import { useLocale } from '@/context/LocaleContext';
 
 export default function TabsLayout() {
+  const { t } = useLocale();
   return (
     <Tabs
       screenOptions={{
@@ -13,15 +15,15 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="wallet"
-        options={{ title: 'Carteira', tabBarLabel: 'Carteira' }}
+        options={{ title: t.tabs_wallet, tabBarLabel: t.tabs_wallet }}
       />
       <Tabs.Screen
         name="profit"
-        options={{ title: 'Lucro', tabBarLabel: 'Lucro' }}
+        options={{ title: t.tabs_profit, tabBarLabel: t.tabs_profit }}
       />
       <Tabs.Screen
         name="history"
-        options={{ title: 'Histórico', tabBarLabel: 'Histórico' }}
+        options={{ title: t.tabs_history, tabBarLabel: t.tabs_history }}
       />
     </Tabs>
   );

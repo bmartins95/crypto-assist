@@ -16,14 +16,15 @@ Navigation is handled by **expo-router v4** (file-based, like Next.js App Router
 
 ```
 app/
-  _layout.tsx          ← root layout (AuthProvider, Stack navigator)
+  _layout.tsx          ← root layout (AuthProvider, LocaleProvider, Stack navigator)
+  settings.tsx         ← Settings screen (language picker, reachable from wallet tab header)
   (auth)/
     login.tsx          ← unauthenticated users land here
   (tabs)/
-    _layout.tsx        ← tab bar for authenticated users
-    wallet.tsx         ← Carteira tab
-    profit.tsx         ← Lucro tab
-    history.tsx        ← Histórico tab
+    _layout.tsx        ← tab bar (labels from t.tabs_*)
+    wallet.tsx         ← Wallet tab
+    profit.tsx         ← Profit tab
+    history.tsx        ← History tab
 ```
 
 Auth guard lives in `app/_layout.tsx` — redirects to `(auth)/login` when
@@ -40,6 +41,12 @@ Auth uses **Amazon Cognito Hosted UI** via `expo-web-browser.openAuthSessionAsyn
 - Tokens stored in `expo-secure-store`
 
 `src/lib/auth.tsx` — `AuthProvider` + `useAuth` hook. Exposes `session`, `loading`, `signOut`, `refreshSession`.
+
+## i18n
+
+`mobile/src/context/LocaleContext.tsx` — `LocaleProvider` + `useLocale()` hook. Reads/writes locale preference to `expo-secure-store` under the key `crypto-assist:locale`. Defaults to `pt-BR`. For `ar-SA` (RTL), calls `I18nManager.forceRTL(true)` and shows a restart alert since layout direction requires a full reload.
+
+Settings screen is at `mobile/app/settings.tsx` — displays 10 locale options as a scrollable list. Navigate to it via the ⚙ button in the wallet tab header.
 
 ## Shared code
 

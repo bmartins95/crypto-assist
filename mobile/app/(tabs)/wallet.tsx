@@ -3,13 +3,17 @@ import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
   RefreshControl, TouchableOpacity, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api/client';
 import { collectAssets, fmt, fmtPct, fmtQty } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
+import { useLocale } from '@/context/LocaleContext';
 
 export default function WalletScreen() {
   const { signOut } = useAuth();
+  const { locale, t } = useLocale();
+  const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [prices, setPrices] = useState<MarketPrices>({});
   const [loading, setLoading] = useState(true);
@@ -25,8 +29,8 @@ export default function WalletScreen() {
         const mkt = await api.getPrices(ids);
         setPrices(mkt);
       }
-    } catch (e: any) {
-      Alert.alert('Erro', e.message);
+    } catch (e: unknown) {
+      Alert.alert(t.common_error, (e as Error).message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -34,10 +38,6 @@ export default function WalletScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  async function handleLogout() {
-    await signOut();
-  }
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
@@ -52,15 +52,20 @@ export default function WalletScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerLabel}>Valor total</Text>
-          <Text style={styles.headerValue}>{fmt(totalValue)}</Text>
+          <Text style={styles.headerLabel}>{t.profit_currentValue}</Text>
+          <Text style={styles.headerValue}>{fmt(totalValue, locale)}</Text>
           <Text style={[styles.headerPnl, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-            {fmt(totalPnl)} ({fmtPct(totalPct)})
+            {fmt(totalPnl, locale)} ({fmtPct(totalPct)})
           </Text>
         </View>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logout}>Sair</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => router.push('/settings' as Parameters<typeof router.push>[0])} accessibilityLabel={t.nav_settings}>
+            <Text style={styles.headerBtn}>⚙</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => signOut()} accessibilityLabel={t.nav_logout}>
+            <Text style={styles.headerBtn}>{t.nav_logout}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -77,19 +82,19 @@ export default function WalletScreen() {
               <View style={styles.rowLeft}>
                 <Text style={styles.symbol}>{a.symbol}</Text>
                 <Text style={styles.name}>{a.name}</Text>
-                <Text style={styles.qty}>{fmtQty(a.qty)} unid.</Text>
+                <Text style={styles.qty}>{fmtQty(a.qty, locale)}</Text>
               </View>
               <View style={styles.rowRight}>
-                <Text style={styles.value}>{fmt(value)}</Text>
+                <Text style={styles.value}>{fmt(value, locale)}</Text>
                 <Text style={[styles.pnl, { color: pnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-                  {fmt(pnl)} ({fmtPct(pct)})
+                  {fmt(pnl, locale)} ({fmtPct(pct)})
                 </Text>
-                <Text style={styles.avgPrice}>PM: {fmt(a.avgPrice)}</Text>
+                <Text style={styles.avgPrice}>{t.wallet_col_avgPrice}: {fmt(a.avgPrice, locale)}</Text>
               </View>
             </View>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>Nenhuma operação encontrada.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t.wallet_emptyState}</Text>}
       />
     </View>
   );
@@ -102,7 +107,8 @@ const styles = StyleSheet.create({
   headerLabel: { color: '#94a3b8', fontSize: 13 },
   headerValue: { color: '#fff', fontSize: 28, fontWeight: 'bold', marginTop: 2 },
   headerPnl: { fontSize: 14, marginTop: 2 },
-  logout: { color: '#94a3b8', fontSize: 14 },
+  headerActions: { flexDirection: 'row', gap: 16, alignItems: 'center' },
+  headerBtn: { color: '#94a3b8', fontSize: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#fff', padding: 16, marginHorizontal: 12, marginTop: 8, borderRadius: 10, elevation: 1 },
   rowLeft: { flex: 1 },
   rowRight: { alignItems: 'flex-end' },

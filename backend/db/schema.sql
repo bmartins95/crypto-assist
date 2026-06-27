@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS ops (
     coin_id     text        NOT NULL,
     symbol      text        NOT NULL,
     name        text        NOT NULL,
-    type        text        NOT NULL CHECK (type IN ('Compra', 'Venda')),
+    type        text        NOT NULL CHECK (type IN ('Buy', 'Sell')),
     qty         numeric(30,10) NOT NULL,
     price       numeric(30,10) NOT NULL,
     fee         numeric(30,10) NOT NULL DEFAULT 0,

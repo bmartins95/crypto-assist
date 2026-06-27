@@ -2,9 +2,12 @@ import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth, AuthProvider } from '@/lib/auth';
+import { LocaleProvider } from '@/context/LocaleContext';
+import { useLocale } from '@/context/LocaleContext';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
+  const { t } = useLocale();
   const segments = useSegments();
   const router = useRouter();
 
@@ -22,7 +25,9 @@ function RootLayoutNav() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="settings" options={{ headerShown: true, title: t.settings_title, presentation: 'modal' }} />
+      </Stack>
     </>
   );
 }
@@ -30,7 +35,9 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <LocaleProvider>
+        <RootLayoutNav />
+      </LocaleProvider>
     </AuthProvider>
   );
 }

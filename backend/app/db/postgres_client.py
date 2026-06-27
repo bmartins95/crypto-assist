@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _conn: psycopg.Connection | None = None
 _schema_ready = False
+_migrations_ready = False
 
 # Aurora Serverless v2 at min=0 ACU pauses when idle and refuses connections
 # until it wakes (~15-20s). connect_timeout caps each attempt; the retry loop
@@ -68,20 +69,62 @@ def get_conn() -> psycopg.Connection:
     import. Doing it at import would block Lambda's 10s cold-start init phase while
     Aurora wakes from its 0 ACU pause, causing an init timeout.
     """
-    global _conn, _schema_ready
+    global _conn, _schema_ready, _migrations_ready
     if _conn is None or _conn.closed:
         _conn = _connect()
     if not _schema_ready:
         _ensure_schema(_conn)
         _schema_ready = True
+    if not _migrations_ready:
+        _run_migrations(_conn)
+        _migrations_ready = True
     return _conn
 
 
 def _ensure_schema(conn: psycopg.Connection) -> None:
     schema_path = Path(__file__).parent.parent.parent / "db" / "schema.sql"
     logger.info("Schema: applying %s", schema_path)
-    schema_sql = schema_path.read_text()
     with conn.cursor() as cur:
-        cur.execute(schema_sql)
+        cur.execute(schema_path.read_text())
     conn.commit()
     logger.info("Schema: ensured successfully.")
+
+
+def _run_migrations(conn: psycopg.Connection, migrations_dir: Path | None = None) -> None:
+    if migrations_dir is None:
+        migrations_dir = Path(__file__).parent.parent.parent / "db" / "migrations"
+    if not migrations_dir.exists():
+        return
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                filename TEXT PRIMARY KEY,
+                applied_at TIMESTAMPTZ DEFAULT now()
+            )
+        """)
+    conn.commit()
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT filename FROM schema_migrations")
+        applied = {row["filename"] for row in cur.fetchall()}
+
+    for path in sorted(migrations_dir.glob("*.sql")):
+        if path.name in applied:
+            logger.info("Migration: %s already applied, skipping", path.name)
+            continue
+        logger.info("Migration: applying %s", path.name)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(path.read_text())
+            conn.commit()
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO schema_migrations (filename) VALUES (%s)", (path.name,)
+                )
+            conn.commit()
+            logger.info("Migration: applied %s", path.name)
+        except Exception as exc:
+            conn.rollback()
+            logger.error("Migration: failed to apply %s: %s", path.name, exc)
+            raise

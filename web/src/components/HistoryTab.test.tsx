@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
+import { LocaleProvider } from '@/context/LocaleContext';
 
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
@@ -23,7 +24,7 @@ const existingOp: Op = {
   coinId: 'bitcoin',
   symbol: 'BTC',
   name: 'Bitcoin',
-  type: 'Compra',
+  type: 'Buy',
   qty: 0.5,
   price: 200000,
   fee: 5,
@@ -31,14 +32,23 @@ const existingOp: Op = {
   platform: 'Binance',
 };
 
+const STORAGE_KEY = 'crypto-assist:locale';
+
+function renderWithLocale(ui: React.ReactElement) {
+  return render(<LocaleProvider>{ui}</LocaleProvider>);
+}
+
+beforeEach(() => localStorage.clear());
+afterEach(() => localStorage.clear());
+
 describe('HistoryTab', () => {
   it('shows the empty state when there are no operations', () => {
-    render(<HistoryTab {...baseProps} />);
+    renderWithLocale(<HistoryTab {...baseProps} />);
     expect(screen.getByText('Nenhuma operação registrada')).toBeInTheDocument();
   });
 
   it('lists existing operations', () => {
-    render(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
     expect(screen.getByText('BTC')).toBeInTheDocument();
     expect(screen.getByText('Binance')).toBeInTheDocument();
     // "Compra" also appears as a <option> in the Tipo select, so scope to the pill.
@@ -48,7 +58,7 @@ describe('HistoryTab', () => {
 
   it('does not submit the operation form without a selected coin', () => {
     const onAddOp = vi.fn();
-    render(<HistoryTab {...baseProps} onAddOp={onAddOp} />);
+    renderWithLocale(<HistoryTab {...baseProps} onAddOp={onAddOp} />);
     // The first "Registrar" button belongs to the operation form (the
     // second belongs to the trade-between-assets form).
     fireEvent.click(screen.getAllByText('Registrar')[0]);
@@ -57,15 +67,25 @@ describe('HistoryTab', () => {
 
   it('calls onRemoveOp when clicking the delete button on a row', () => {
     const onRemoveOp = vi.fn();
-    render(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
     expect(onRemoveOp).toHaveBeenCalledWith('op-1');
   });
 
   it('loads an operation into the form for editing', () => {
-    render(<HistoryTab {...baseProps} ops={[existingOp]} />);
-    fireEvent.click(screen.getByTitle('Editar'));
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    fireEvent.click(screen.getByTitle('Editar operação'));
     expect(screen.getByText('Editar operação')).toBeInTheDocument();
     expect(screen.getByDisplayValue('0.5')).toBeInTheDocument();
+  });
+
+  it('shows translated op type labels in es-ES locale', () => {
+    localStorage.setItem(STORAGE_KEY, 'es-ES');
+    const sellOp: Op = { ...existingOp, id: 'op-sell', type: 'Sell' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, sellOp]} />);
+    const pills = document.querySelectorAll('.op-list-row .pill');
+    const texts = Array.from(pills).map(p => p.textContent);
+    expect(texts).toContain('Compra');
+    expect(texts).toContain('Venta');
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DashboardPage from './page';
 import { api } from '@/lib/api/client';
+import { LocaleProvider } from '@/context/LocaleContext';
 
 vi.mock('@/lib/api/client', () => ({
   api: {
@@ -34,12 +35,16 @@ vi.mock('@/components/ProfitTab', () => ({ default: () => null }));
 vi.mock('@/components/HistoryTab', () => ({ default: () => null }));
 vi.mock('@/lib/portfolio', () => ({ collectAssets: vi.fn(() => []) }));
 
+function renderWithLocale(ui: React.ReactElement) {
+  return render(<LocaleProvider>{ui}</LocaleProvider>);
+}
+
 function stubFileReader(fileContent: string) {
   class MockFileReader {
     onload: ((ev: { target: { result: string } }) => void) | null = null;
     readAsText = vi.fn(() => {
       Promise.resolve().then(() =>
-        this.onload?.({ target: { result: fileContent } } as unknown as ProgressEvent<FileReader>)
+        this.onload?.({ target: { result: fileContent } })
       );
     });
   }
@@ -69,7 +74,7 @@ describe('DashboardPage', () => {
       return el;
     });
 
-    render(<DashboardPage />);
+    renderWithLocale(<DashboardPage />);
     fireEvent.click(screen.getByText('Exportar'));
 
     await waitFor(() => expect(api.exportBackup).toHaveBeenCalled());
@@ -80,7 +85,7 @@ describe('DashboardPage', () => {
   });
 
   it('exports a valid blob even when there are no operations', async () => {
-    render(<DashboardPage />);
+    renderWithLocale(<DashboardPage />);
     fireEvent.click(screen.getByText('Exportar'));
     await waitFor(() => expect(api.exportBackup).toHaveBeenCalled());
     expect(URL.createObjectURL).toHaveBeenCalledWith(
@@ -92,7 +97,7 @@ describe('DashboardPage', () => {
     const payload = JSON.stringify({ version: 1, exportedAt: '2026-01-01T00:00:00.000Z', ops: [] });
     stubFileReader(payload);
 
-    render(<DashboardPage />);
+    renderWithLocale(<DashboardPage />);
     const file = new File([payload], 'backup.json', { type: 'application/json' });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
@@ -106,7 +111,7 @@ describe('DashboardPage', () => {
     const payload = JSON.stringify({ notOps: true });
     stubFileReader(payload);
 
-    render(<DashboardPage />);
+    renderWithLocale(<DashboardPage />);
     const file = new File([payload], 'bad.json', { type: 'application/json' });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
@@ -116,7 +121,7 @@ describe('DashboardPage', () => {
   });
 
   it('renders header with Exportar and Importar but no Drive controls', async () => {
-    render(<DashboardPage />);
+    renderWithLocale(<DashboardPage />);
     await waitFor(() =>
       expect(screen.queryByText('Carregando sua carteira...')).not.toBeInTheDocument()
     );

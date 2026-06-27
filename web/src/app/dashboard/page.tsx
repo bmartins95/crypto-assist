@@ -6,8 +6,10 @@ import { collectAssets } from '@/lib/portfolio';
 import WalletTab from '@/components/WalletTab';
 import ProfitTab from '@/components/ProfitTab';
 import HistoryTab from '@/components/HistoryTab';
+import { useLocale } from '@/context/LocaleContext';
 
 export default function DashboardPage() {
+  const { locale, t } = useLocale();
   const [ops, setOps] = useState<Op[]>([]);
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Prices>({});
@@ -26,7 +28,6 @@ export default function DashboardPage() {
     setExitPrices(remoteExitPrices);
   }, []);
 
-  // ─── Initial load: fetch from the backend, offer to import legacy localStorage data ──
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -38,7 +39,7 @@ export default function DashboardPage() {
         if (remoteOps.length === 0) {
           const legacyOps = getLegacyOps();
           if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
-            const wantsImport = confirm('Detectamos dados salvos neste navegador. Deseja importar para sua conta?');
+            const wantsImport = confirm(t.dashboard_confirm_legacy);
             if (wantsImport) {
               const legacyExitPrices = getLegacyExitPrices();
               const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
@@ -55,7 +56,7 @@ export default function DashboardPage() {
         setOps(remoteOps);
         setExitPrices(remoteExitPrices);
       } catch {
-        setStatusMsg('Erro ao carregar seus dados. Recarregue a página.');
+        setStatusMsg(t.dashboard_error_load);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -68,27 +69,27 @@ export default function DashboardPage() {
       const created = await api.createOp(op);
       setOps(prev => [...prev, created]);
     } catch {
-      alert('Erro ao registrar a operação. Tente novamente.');
+      alert(t.dashboard_error_add_op);
     }
-  }, []);
+  }, [t]);
 
   const handleEditOp = useCallback(async (id: string, op: NewOp) => {
     try {
       const updated = await api.updateOp(id, op);
       setOps(prev => prev.map(o => (o.id === id ? updated : o)));
     } catch {
-      alert('Erro ao salvar a operação. Tente novamente.');
+      alert(t.dashboard_error_edit_op);
     }
-  }, []);
+  }, [t]);
 
   const handleRemoveOp = useCallback(async (id: string) => {
     try {
       await api.deleteOp(id);
       setOps(prev => prev.filter(o => o.id !== id));
     } catch {
-      alert('Erro ao excluir a operação. Tente novamente.');
+      alert(t.dashboard_error_delete_op);
     }
-  }, []);
+  }, [t]);
 
   const handleExitPriceChange = useCallback(async (coinId: string, value: string) => {
     const exitPrice = parseFloat(value) || 0;
@@ -100,14 +101,13 @@ export default function DashboardPage() {
         return next;
       });
     } catch {
-      setStatusMsg('Erro ao salvar meta de saída.');
+      setStatusMsg(t.dashboard_error_exit_price);
     }
-  }, []);
+  }, [t]);
 
-  // ─── Prices (backend-cached CoinGecko) ────────────────────────────────────
   const fetchPrices = useCallback(async () => {
-    if (!assets.length) { setStatusMsg('Registre operações no Histórico primeiro.'); return; }
-    setStatusMsg('Buscando cotações...');
+    if (!assets.length) { setStatusMsg(t.dashboard_status_no_ops); return; }
+    setStatusMsg(t.dashboard_status_fetching);
     const ids = [...new Set(assets.map(a => a.coinId))];
     try {
       const market = await api.getPrices(ids);
@@ -122,17 +122,18 @@ export default function DashboardPage() {
       setPrices(newPrices);
       setAvatarCache(newAvatars);
       storage.setAvatars(newAvatars);
-      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const now = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
       const missing = ids.length - updated;
-      setStatusMsg(missing > 0 ? `Atualizado às ${now} (${missing} ativo(s) sem cotação)` : 'Atualizado às ' + now);
+      setStatusMsg(missing > 0
+        ? t.dashboard_status_updated_missing.replace('{time}', now).replace('{count}', String(missing))
+        : t.dashboard_status_updated.replace('{time}', now));
     } catch (e: unknown) {
       const status = (e as { status?: number }).status;
-      if (status === 429) setStatusMsg('Limite de requisições atingido. Aguarde alguns minutos.');
-      else setStatusMsg('Erro ao buscar preços. Verifique sua conexão.');
+      if (status === 429) setStatusMsg(t.dashboard_status_rate_limited);
+      else setStatusMsg(t.dashboard_status_fetch_error);
     }
-  }, [assets, prices, avatarCache]);
+  }, [assets, prices, avatarCache, locale, t]);
 
-  // Fetch prices once automatically after the wallet first has assets to price.
   const didAutoFetchPrices = useRef(false);
   useEffect(() => {
     if (!loading && assets.length > 0 && !didAutoFetchPrices.current) {
@@ -141,7 +142,6 @@ export default function DashboardPage() {
     }
   }, [loading, assets, fetchPrices]);
 
-  // ─── Export / Import (full account backup via the backend) ────────────────
   const exportData = async () => {
     try {
       const backup = await api.exportBackup();
@@ -151,7 +151,7 @@ export default function DashboardPage() {
       a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
       a.click(); URL.revokeObjectURL(a.href);
     } catch {
-      alert('Erro ao exportar backup.');
+      alert(t.dashboard_error_export);
     }
   };
 
@@ -168,9 +168,9 @@ export default function DashboardPage() {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '';
         if (msg.includes('Session not found')) {
-          alert('Sua sessão expirou. Recarregue a página e faça login novamente.');
+          alert(t.dashboard_error_session);
         } else {
-          alert('Erro ao importar: ' + (msg || 'verifique o arquivo e tente novamente.'));
+          alert(t.dashboard_error_import);
         }
       }
     };
@@ -181,37 +181,34 @@ export default function DashboardPage() {
 
   return (
     <div className="app">
-      {/* Header */}
       <div className="header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <h1><i className="ti ti-currency-bitcoin" /> Carteira de Criptoativos</h1>
-          <p>Cotações em tempo real via CoinGecko · Valores em reais (BRL)</p>
+          <h1><i className="ti ti-currency-bitcoin" /> {t.app_title}</h1>
+          <p>{t.dashboard_subtitle}</p>
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2, alignItems: 'center' }}>
-          <button className="btn-sm" onClick={exportData} title="Exportar backup em JSON"><i className="ti ti-download" /> Exportar</button>
-          <label className="btn-sm" style={{ cursor: 'pointer', border: '0.5px solid var(--border2)', borderRadius: 'var(--radius)', padding: '6px 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Importar backup JSON">
-            <i className="ti ti-upload" /> Importar
-            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
+          <button className="btn-sm" onClick={exportData} title={t.dashboard_export}><i className="ti ti-download" /> {t.dashboard_export}</button>
+          <label className="btn-sm" title={t.dashboard_import}>
+            <i className="ti ti-upload" /> {t.dashboard_import}
+            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} aria-label={t.dashboard_import} />
           </label>
         </div>
       </div>
 
-      {/* Nav */}
       <div className="nav">
-        {tabs.map(t => (
-          <button key={t} className={`nav-btn${activeTab === t ? ' active' : ''}`} onClick={() => setActiveTab(t)}>
-            {t === 'wallet' && <><i className="ti ti-wallet" /> <span>Carteira</span></>}
-            {t === 'profit' && <><i className="ti ti-trending-up" /> <span>Lucro</span></>}
-            {t === 'history' && <><i className="ti ti-receipt" /> <span>Histórico</span></>}
+        {tabs.map(tab => (
+          <button key={tab} className={`nav-btn${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>
+            {tab === 'wallet' && <><i className="ti ti-wallet" /> <span>{t.tabs_wallet}</span></>}
+            {tab === 'profit' && <><i className="ti ti-trending-up" /> <span>{t.tabs_profit}</span></>}
+            {tab === 'history' && <><i className="ti ti-receipt" /> <span>{t.tabs_history}</span></>}
           </button>
         ))}
       </div>
 
-      {/* Tabs */}
       {loading ? (
         <div className="empty-state" style={{ marginTop: 40 }}>
           <i className="ti ti-loader-2" />
-          <span>Carregando sua carteira...</span>
+          <span>{t.common_loading}</span>
         </div>
       ) : (
         <>

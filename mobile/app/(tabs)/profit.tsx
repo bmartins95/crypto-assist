@@ -6,6 +6,7 @@ import {
 import { api } from '@/lib/api/client';
 import { collectAssets, fmt, fmtPct } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
+import { useLocale } from '@/context/LocaleContext';
 
 interface AssetProfit extends Asset {
   currentPrice: number;
@@ -15,6 +16,7 @@ interface AssetProfit extends Asset {
 }
 
 export default function ProfitScreen() {
+  const { locale, t } = useLocale();
   const [rows, setRows] = useState<AssetProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,8 +39,8 @@ export default function ProfitScreen() {
         return { ...a, currentPrice, currentValue, pnlValue, pnlPct };
       });
       setRows(enriched);
-    } catch (e: any) {
-      Alert.alert('Erro', e.message);
+    } catch (e: unknown) {
+      Alert.alert(t.common_error, (e as Error).message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -58,9 +60,9 @@ export default function ProfitScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>Lucro/Prejuízo total</Text>
+        <Text style={styles.headerLabel}>{t.profit_pnl}</Text>
         <Text style={[styles.headerValue, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-          {fmt(totalPnl)}
+          {fmt(totalPnl, locale)}
         </Text>
         <Text style={[styles.headerPct, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
           {fmtPct(totalPct)}
@@ -76,12 +78,12 @@ export default function ProfitScreen() {
             <View style={styles.rowLeft}>
               <Text style={styles.symbol}>{r.symbol}</Text>
               <Text style={styles.name}>{r.name}</Text>
-              <Text style={styles.detail}>PM: {fmt(r.avgPrice)}</Text>
-              {r.exitPrice > 0 && <Text style={styles.detail}>Preço saída: {fmt(r.exitPrice)}</Text>}
+              <Text style={styles.detail}>{t.wallet_col_avgPrice}: {fmt(r.avgPrice, locale)}</Text>
+              {r.exitPrice > 0 && <Text style={styles.detail}>{t.wallet_col_exitPrice}: {fmt(r.exitPrice, locale)}</Text>}
             </View>
             <View style={styles.rowRight}>
               <Text style={[styles.pnl, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
-                {fmt(r.pnlValue)}
+                {fmt(r.pnlValue, locale)}
               </Text>
               <Text style={[styles.pct, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
                 {fmtPct(r.pnlPct)}
@@ -89,7 +91,7 @@ export default function ProfitScreen() {
             </View>
           </View>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>Nenhuma posição encontrada.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t.profit_emptyState}</Text>}
       />
     </View>
   );
