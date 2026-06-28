@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth, AuthProvider } from '@/lib/auth';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { useLocale } from '@/context/LocaleContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { BalanceProvider } from '@/context/BalanceContext';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -35,9 +37,13 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <LocaleProvider>
-        <RootLayoutNav />
-      </LocaleProvider>
+      <ThemeProvider>
+        <LocaleProvider>
+          <BalanceProvider>
+            <RootLayoutNav />
+          </BalanceProvider>
+        </LocaleProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

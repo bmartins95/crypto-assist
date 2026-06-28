@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { BalanceProvider } from '@/context/BalanceContext';
 
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
@@ -35,7 +36,7 @@ const existingOp: Op = {
 const STORAGE_KEY = 'crypto-assist:locale';
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider>{ui}</LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
 }
 
 beforeEach(() => localStorage.clear());

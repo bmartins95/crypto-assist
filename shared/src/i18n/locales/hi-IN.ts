@@ -100,6 +100,23 @@ const hiIN: UIText = {
   dashboard_status_fetch_error: 'कीमतें प्राप्त करने में विफल। अपना कनेक्शन जाँचें।',
   dashboard_status_updated: '{time} पर अपडेट',
   dashboard_status_updated_missing: '{time} पर अपडेट ({count} एसेट की कीमत नहीं)',
+  settings_section_appearance: 'रूप और भाषा',
+  settings_section_currency: 'मुद्रा और कीमतें',
+  settings_section_data: 'डेटा',
+  settings_section_danger: 'खतरे का क्षेत्र',
+  settings_theme: 'थीम',
+  settings_theme_light: 'हल्का',
+  settings_theme_dark: 'गहरा',
+  settings_theme_system: 'सिस्टम',
+  settings_hide_balances: 'बैलेंस छुपाएं',
+  settings_currency_placeholder: 'जल्द आ रहा है',
+  settings_refresh_placeholder: 'जल्द आ रहा है',
+  settings_clear_wallet: 'वॉलेट साफ करें',
+  settings_clear_wallet_confirm: 'क्या आप सुनिश्चित हैं? सभी ऑपरेशन स्थायी रूप से हटा दिए जाएंगे।',
+  settings_clear_wallet_success: 'वॉलेट सफलतापूर्वक साफ किया गया।',
+  settings_preferences: 'प्राथमिकताएं',
+  settings_appearance_privacy: 'रूप और गोपनीयता',
+  settings_data_account: 'डेटा और खाता',
 };
 
 export default hiIN;

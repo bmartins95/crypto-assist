@@ -100,6 +100,23 @@ const enUS: UIText = {
   dashboard_status_fetch_error: 'Failed to fetch prices. Check your connection.',
   dashboard_status_updated: 'Updated at {time}',
   dashboard_status_updated_missing: 'Updated at {time} ({count} asset(s) without price)',
+  settings_section_appearance: 'Appearance & language',
+  settings_section_currency: 'Currency & prices',
+  settings_section_data: 'Data',
+  settings_section_danger: 'Danger zone',
+  settings_theme: 'Theme',
+  settings_theme_light: 'Light',
+  settings_theme_dark: 'Dark',
+  settings_theme_system: 'System',
+  settings_hide_balances: 'Hide balances',
+  settings_currency_placeholder: 'Coming soon',
+  settings_refresh_placeholder: 'Coming soon',
+  settings_clear_wallet: 'Clear wallet',
+  settings_clear_wallet_confirm: 'Are you sure? All operations will be permanently deleted.',
+  settings_clear_wallet_success: 'Wallet cleared successfully.',
+  settings_preferences: 'Preferences',
+  settings_appearance_privacy: 'Appearance & privacy',
+  settings_data_account: 'Data & account',
 };
 
 export default enUS;

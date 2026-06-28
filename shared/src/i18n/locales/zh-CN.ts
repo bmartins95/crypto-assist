@@ -100,6 +100,23 @@ const zhCN: UIText = {
   dashboard_status_fetch_error: '获取价格失败。请检查您的连接。',
   dashboard_status_updated: '更新于 {time}',
   dashboard_status_updated_missing: '更新于 {time}（{count} 个资产无价格）',
+  settings_section_appearance: '外观与语言',
+  settings_section_currency: '货币与价格',
+  settings_section_data: '数据',
+  settings_section_danger: '危险区域',
+  settings_theme: '主题',
+  settings_theme_light: '浅色',
+  settings_theme_dark: '深色',
+  settings_theme_system: '跟随系统',
+  settings_hide_balances: '隐藏余额',
+  settings_currency_placeholder: '即将推出',
+  settings_refresh_placeholder: '即将推出',
+  settings_clear_wallet: '清空钱包',
+  settings_clear_wallet_confirm: '确定吗？所有操作记录将被永久删除。',
+  settings_clear_wallet_success: '钱包已成功清空。',
+  settings_preferences: '偏好设置',
+  settings_appearance_privacy: '外观与隐私',
+  settings_data_account: '数据与账户',
 };
 
 export default zhCN;

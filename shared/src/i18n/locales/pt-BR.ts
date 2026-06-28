@@ -100,6 +100,23 @@ const ptBR: UIText = {
   dashboard_status_fetch_error: 'Erro ao buscar preços. Verifique sua conexão.',
   dashboard_status_updated: 'Atualizado às {time}',
   dashboard_status_updated_missing: 'Atualizado às {time} ({count} ativo(s) sem cotação)',
+  settings_section_appearance: 'Aparência e idioma',
+  settings_section_currency: 'Moeda e preços',
+  settings_section_data: 'Dados',
+  settings_section_danger: 'Zona de perigo',
+  settings_theme: 'Tema',
+  settings_theme_light: 'Claro',
+  settings_theme_dark: 'Escuro',
+  settings_theme_system: 'Sistema',
+  settings_hide_balances: 'Ocultar saldos',
+  settings_currency_placeholder: 'Disponível em breve',
+  settings_refresh_placeholder: 'Disponível em breve',
+  settings_clear_wallet: 'Limpar carteira',
+  settings_clear_wallet_confirm: 'Tem certeza? Todas as operações serão removidas permanentemente.',
+  settings_clear_wallet_success: 'Carteira limpa com sucesso.',
+  settings_preferences: 'Preferências',
+  settings_appearance_privacy: 'Aparência e privacidade',
+  settings_data_account: 'Dados e conta',
 };
 
 export default ptBR;

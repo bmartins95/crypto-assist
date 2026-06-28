@@ -6,6 +6,7 @@ import { Asset, ChartType, Op, Prices } from '@/lib/types';
 import { fmt, fmtPct, fmtDate } from '@/lib/format';
 import { computeTimeline } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#888780','#0F6E56'];
 
@@ -19,6 +20,8 @@ interface Props {
 
 export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwitch }: Props) {
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
@@ -112,11 +115,11 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
       <div className="metrics" style={{ marginBottom: '1rem' }}>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-check" /> {t.profit_realized}</div>
-          <div className={`metric-value ${realizado >= 0 ? 'pos' : 'neg'}`}>{fmt(realizado, locale)}</div>
+          <div className={`metric-value ${realizado >= 0 ? 'pos' : 'neg'}`}>{mask(fmt(realizado, locale))}</div>
         </div>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-clock" /> {t.profit_unrealized}</div>
-          <div className={`metric-value ${totalNR >= 0 ? 'pos' : 'neg'}`}>{withPrice.length ? fmt(totalNR, locale) : '—'}</div>
+          <div className={`metric-value ${totalNR >= 0 ? 'pos' : 'neg'}`}>{withPrice.length ? mask(fmt(totalNR, locale)) : '—'}</div>
         </div>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-arrow-up" /> {t.profit_bestAsset}</div>
@@ -158,7 +161,7 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
               <div className="bar-row" key={d.coinId}>
                 <div className="bar-header">
                   <span className="bar-name">{d.name} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>{d.symbol}</span></span>
-                  <span className="bar-pct">{pct.toFixed(1)}% — {fmt(d.inv, locale)}</span>
+                  <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmt(d.inv, locale))}</span>
                 </div>
                 <div className="bar-track">
                   <div className="bar-fill" style={{ width: `${pct.toFixed(1)}%`, background: PALETTE[i % PALETTE.length] }} />

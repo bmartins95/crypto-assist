@@ -1,7 +1,14 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import type { Locale } from '@crypto-assist/shared';
+import type { ThemeMode } from '@crypto-assist/shared';
 import { LOCALES } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
+import { useTheme } from '@/context/ThemeContext';
+import { useBalance } from '@/context/BalanceContext';
+import { api } from '@/lib/api/client';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'pt-BR': 'Português (Brasil)',
@@ -16,34 +23,211 @@ const LOCALE_LABELS: Record<Locale, string> = {
   'ru-RU': 'Русский',
 };
 
-export default function SettingsScreen() {
+const THEME_MODES: ThemeMode[] = ['system', 'light', 'dark'];
+
+export default function SettingsScreen(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
+  const { theme, setTheme } = useTheme();
+  const { hidden, toggleHidden } = useBalance();
+
+  const themeLabel = (m: ThemeMode): string => {
+    if (m === 'light') return t.settings_theme_light;
+    if (m === 'dark') return t.settings_theme_dark;
+    return t.settings_theme_system;
+  };
+
+  async function handleExport(): Promise<void> {
+    try {
+      const backup = await api.exportBackup();
+      const path = FileSystem.cacheDirectory + 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      await FileSystem.writeAsStringAsync(path, JSON.stringify(backup, null, 2));
+      await Sharing.shareAsync(path, { mimeType: 'application/json' });
+    } catch {
+      Alert.alert(t.common_error, t.dashboard_error_export);
+    }
+  }
+
+  async function handleImport(): Promise<void> {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const text = await FileSystem.readAsStringAsync(asset.uri);
+      const backup = JSON.parse(text) as Record<string, unknown>;
+      if (!Array.isArray(backup.ops)) throw new Error('invalid-format');
+      await api.importBackup(backup as Parameters<typeof api.importBackup>[0]);
+      Alert.alert(t.settings_clear_wallet_success);
+    } catch {
+      Alert.alert(t.common_error, t.dashboard_error_import);
+    }
+  }
+
+  function handleClearWallet(): void {
+    Alert.alert(
+      t.settings_clear_wallet,
+      t.settings_clear_wallet_confirm,
+      [
+        { text: t.common_cancel, style: 'cancel' },
+        {
+          text: t.settings_clear_wallet,
+          style: 'destructive',
+          onPress: () => {
+            api.clearOps()
+              .then(() => Alert.alert(t.settings_clear_wallet_success))
+              .catch(() => Alert.alert(t.common_error));
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>{t.settings_language}</Text>
-      {(Object.keys(LOCALES) as Locale[]).map(code => (
+
+      <Text style={styles.sectionHeader}>{t.settings_preferences}</Text>
+      <View style={styles.group}>
+        <Text style={styles.groupSubheader}>{t.settings_language}</Text>
+        {(Object.keys(LOCALES) as Locale[]).map((code, idx, arr) => (
+          <TouchableOpacity
+            key={code}
+            style={[styles.row, idx === arr.length - 1 && styles.rowLast]}
+            onPress={() => setLocale(code)}
+            accessibilityLabel={LOCALE_LABELS[code]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: locale === code }}
+          >
+            <Text style={styles.rowLabel}>{LOCALE_LABELS[code]}</Text>
+            {locale === code && <Text style={styles.checkmark}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+        <View style={[styles.row, styles.rowDisabled]}>
+          <Text style={styles.rowLabel}>Moeda</Text>
+          <Text style={styles.rowHint}>{t.settings_currency_placeholder}</Text>
+        </View>
+        <View style={[styles.row, styles.rowLast, styles.rowDisabled]}>
+          <Text style={styles.rowLabel}>Intervalo de atualização</Text>
+          <Text style={styles.rowHint}>{t.settings_refresh_placeholder}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionHeader}>{t.settings_appearance_privacy}</Text>
+      <View style={styles.group}>
+        <Text style={styles.groupSubheader}>{t.settings_theme}</Text>
+        {THEME_MODES.map((m, idx, arr) => (
+          <TouchableOpacity
+            key={m}
+            style={[styles.row, idx === arr.length - 1 && styles.rowNoBottomBorder]}
+            onPress={() => setTheme(m)}
+            accessibilityLabel={themeLabel(m)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: theme === m }}
+          >
+            <Text style={styles.rowLabel}>{themeLabel(m)}</Text>
+            {theme === m && <Text style={styles.checkmark}>✓</Text>}
+          </TouchableOpacity>
+        ))}
+        <View style={[styles.row, styles.rowLast]}>
+          <Text style={styles.rowLabel}>{t.settings_hide_balances}</Text>
+          <Switch
+            value={hidden}
+            onValueChange={toggleHidden}
+            accessibilityLabel={t.settings_hide_balances}
+          />
+        </View>
+      </View>
+
+      <Text style={styles.sectionHeader}>{t.settings_data_account}</Text>
+      <View style={styles.group}>
         <TouchableOpacity
-          key={code}
-          style={[styles.row, locale === code && styles.rowSelected]}
-          onPress={() => setLocale(code)}
-          accessibilityLabel={LOCALE_LABELS[code]}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: locale === code }}
+          style={styles.row}
+          onPress={handleExport}
+          accessibilityLabel={t.dashboard_export}
         >
-          <Text style={[styles.label, locale === code && styles.labelSelected]}>{LOCALE_LABELS[code]}</Text>
-          {locale === code && <Text style={styles.check}>✓</Text>}
+          <Text style={styles.rowLabel}>{t.dashboard_export}</Text>
         </TouchableOpacity>
-      ))}
+        <TouchableOpacity
+          style={styles.row}
+          onPress={handleImport}
+          accessibilityLabel={t.dashboard_import}
+        >
+          <Text style={styles.rowLabel}>{t.dashboard_import}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.row, styles.rowLast]}
+          onPress={handleClearWallet}
+          accessibilityLabel={t.settings_clear_wallet}
+        >
+          <Text style={[styles.rowLabel, styles.rowDanger]}>{t.settings_clear_wallet}</Text>
+        </TouchableOpacity>
+      </View>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  sectionTitle: { fontSize: 13, color: '#64748b', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e2e8f0' },
-  rowSelected: { backgroundColor: '#eff6ff' },
-  label: { fontSize: 16, color: '#1a1a2e' },
-  labelSelected: { color: '#2563eb', fontWeight: '600' },
-  check: { fontSize: 16, color: '#2563eb' },
+  container: { flex: 1, backgroundColor: '#f2f2f7' },
+  sectionHeader: {
+    fontSize: 13,
+    color: '#6b7280',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  group: {
+    backgroundColor: '#fff',
+    marginHorizontal: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d1d5db',
+  },
+  groupSubheader: {
+    fontSize: 12,
+    color: '#9ca3af',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e7eb',
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  rowNoBottomBorder: {
+    borderBottomWidth: 0,
+  },
+  rowDisabled: {
+    opacity: 0.5,
+  },
+  rowDisabledText: {
+    color: '#9ca3af',
+  },
+  rowLabel: {
+    fontSize: 16,
+    color: '#111827',
+    flex: 1,
+  },
+  rowHint: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+  rowDanger: {
+    color: '#dc2626',
+  },
+  checkmark: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
 });

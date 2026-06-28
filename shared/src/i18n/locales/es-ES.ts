@@ -100,6 +100,23 @@ const esES: UIText = {
   dashboard_status_fetch_error: 'Error al obtener precios. Verifica tu conexión.',
   dashboard_status_updated: 'Actualizado a las {time}',
   dashboard_status_updated_missing: 'Actualizado a las {time} ({count} activo(s) sin precio)',
+  settings_section_appearance: 'Apariencia e idioma',
+  settings_section_currency: 'Moneda y precios',
+  settings_section_data: 'Datos',
+  settings_section_danger: 'Zona de peligro',
+  settings_theme: 'Tema',
+  settings_theme_light: 'Claro',
+  settings_theme_dark: 'Oscuro',
+  settings_theme_system: 'Sistema',
+  settings_hide_balances: 'Ocultar saldos',
+  settings_currency_placeholder: 'Próximamente',
+  settings_refresh_placeholder: 'Próximamente',
+  settings_clear_wallet: 'Vaciar cartera',
+  settings_clear_wallet_confirm: '¿Estás seguro? Todas las operaciones se eliminarán permanentemente.',
+  settings_clear_wallet_success: 'Cartera vaciada correctamente.',
+  settings_preferences: 'Preferencias',
+  settings_appearance_privacy: 'Apariencia y privacidad',
+  settings_data_account: 'Datos y cuenta',
 };
 
 export default esES;

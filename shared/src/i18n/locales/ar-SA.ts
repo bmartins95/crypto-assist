@@ -100,6 +100,23 @@ const arSA: UIText = {
   dashboard_status_fetch_error: 'فشل جلب الأسعار. تحقق من اتصالك.',
   dashboard_status_updated: 'تم التحديث في {time}',
   dashboard_status_updated_missing: 'تم التحديث في {time} ({count} أصل بدون سعر)',
+  settings_section_appearance: 'المظهر واللغة',
+  settings_section_currency: 'العملة والأسعار',
+  settings_section_data: 'البيانات',
+  settings_section_danger: 'منطقة الخطر',
+  settings_theme: 'المظهر',
+  settings_theme_light: 'فاتح',
+  settings_theme_dark: 'داكن',
+  settings_theme_system: 'النظام',
+  settings_hide_balances: 'إخفاء الأرصدة',
+  settings_currency_placeholder: 'قريباً',
+  settings_refresh_placeholder: 'قريباً',
+  settings_clear_wallet: 'مسح المحفظة',
+  settings_clear_wallet_confirm: 'هل أنت متأكد؟ سيتم حذف جميع العمليات نهائياً.',
+  settings_clear_wallet_success: 'تم مسح المحفظة بنجاح.',
+  settings_preferences: 'التفضيلات',
+  settings_appearance_privacy: 'المظهر والخصوصية',
+  settings_data_account: 'البيانات والحساب',
 };
 
 export default arSA;

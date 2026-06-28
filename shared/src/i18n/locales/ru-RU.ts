@@ -100,6 +100,23 @@ const ruRU: UIText = {
   dashboard_status_fetch_error: 'Ошибка получения цен. Проверьте соединение.',
   dashboard_status_updated: 'Обновлено в {time}',
   dashboard_status_updated_missing: 'Обновлено в {time} ({count} актив(а/ов) без цены)',
+  settings_section_appearance: 'Внешний вид и язык',
+  settings_section_currency: 'Валюта и цены',
+  settings_section_data: 'Данные',
+  settings_section_danger: 'Опасная зона',
+  settings_theme: 'Тема',
+  settings_theme_light: 'Светлая',
+  settings_theme_dark: 'Тёмная',
+  settings_theme_system: 'Системная',
+  settings_hide_balances: 'Скрыть балансы',
+  settings_currency_placeholder: 'Скоро появится',
+  settings_refresh_placeholder: 'Скоро появится',
+  settings_clear_wallet: 'Очистить кошелёк',
+  settings_clear_wallet_confirm: 'Вы уверены? Все операции будут удалены безвозвратно.',
+  settings_clear_wallet_success: 'Кошелёк успешно очищен.',
+  settings_preferences: 'Настройки',
+  settings_appearance_privacy: 'Внешний вид и конфиденциальность',
+  settings_data_account: 'Данные и аккаунт',
 };
 
 export default ruRU;

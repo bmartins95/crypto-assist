@@ -9,10 +9,13 @@ import { api } from '@/lib/api/client';
 import { collectAssets, fmt, fmtPct, fmtQty } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 export default function WalletScreen() {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [prices, setPrices] = useState<MarketPrices>({});
@@ -53,9 +56,9 @@ export default function WalletScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerLabel}>{t.profit_currentValue}</Text>
-          <Text style={styles.headerValue}>{fmt(totalValue, locale)}</Text>
+          <Text style={styles.headerValue}>{mask(fmt(totalValue, locale))}</Text>
           <Text style={[styles.headerPnl, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-            {fmt(totalPnl, locale)} ({fmtPct(totalPct)})
+            {mask(fmt(totalPnl, locale))} ({fmtPct(totalPct)})
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -82,14 +85,14 @@ export default function WalletScreen() {
               <View style={styles.rowLeft}>
                 <Text style={styles.symbol}>{a.symbol}</Text>
                 <Text style={styles.name}>{a.name}</Text>
-                <Text style={styles.qty}>{fmtQty(a.qty, locale)}</Text>
+                <Text style={styles.qty}>{mask(fmtQty(a.qty, locale))}</Text>
               </View>
               <View style={styles.rowRight}>
-                <Text style={styles.value}>{fmt(value, locale)}</Text>
+                <Text style={styles.value}>{mask(fmt(value, locale))}</Text>
                 <Text style={[styles.pnl, { color: pnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-                  {fmt(pnl, locale)} ({fmtPct(pct)})
+                  {mask(fmt(pnl, locale))} ({fmtPct(pct)})
                 </Text>
-                <Text style={styles.avgPrice}>{t.wallet_col_avgPrice}: {fmt(a.avgPrice, locale)}</Text>
+                <Text style={styles.avgPrice}>{t.wallet_col_avgPrice}: {mask(fmt(a.avgPrice, locale))}</Text>
               </View>
             </View>
           );

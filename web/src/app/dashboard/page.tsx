@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Op, NewOp, Prices, AvatarCache, TabType, GroupMode, ChartType, BackupPayload } from '@/lib/types';
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
+import { importData } from '@/lib/dataHandlers';
 import { collectAssets } from '@/lib/portfolio';
 import WalletTab from '@/components/WalletTab';
 import ProfitTab from '@/components/ProfitTab';
@@ -142,39 +143,14 @@ export default function DashboardPage() {
     }
   }, [loading, assets, fetchPrices]);
 
-  const exportData = async () => {
-    try {
-      const backup = await api.exportBackup();
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'carteira-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-      a.click(); URL.revokeObjectURL(a.href);
-    } catch {
-      alert(t.dashboard_error_export);
-    }
-  };
-
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async ev => {
-      try {
-        const backup = JSON.parse(ev.target?.result as string);
-        if (!Array.isArray(backup.ops)) throw new Error('Formato inválido');
-        await api.importBackup(backup);
-        await reloadFromBackend();
-        e.target.value = '';
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : '';
-        if (msg.includes('Session not found')) {
-          alert(t.dashboard_error_session);
-        } else {
-          alert(t.dashboard_error_import);
-        }
-      }
-    };
-    reader.readAsText(file);
+    importData(file, reloadFromBackend).then(() => {
+      e.target.value = '';
+    }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : '';
+      alert(msg.includes('Session not found') ? t.dashboard_error_session : t.dashboard_error_import);
+    });
   };
 
   const tabs: TabType[] = ['wallet', 'profit', 'history'];
@@ -186,13 +162,7 @@ export default function DashboardPage() {
           <h1><i className="ti ti-currency-bitcoin" /> {t.app_title}</h1>
           <p>{t.dashboard_subtitle}</p>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2, alignItems: 'center' }}>
-          <button className="btn-sm" onClick={exportData} title={t.dashboard_export}><i className="ti ti-download" /> {t.dashboard_export}</button>
-          <label className="btn-sm" title={t.dashboard_import}>
-            <i className="ti ti-upload" /> {t.dashboard_import}
-            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} aria-label={t.dashboard_import} />
-          </label>
-        </div>
+        <input type="file" id="dashboard-import-input" accept=".json" onChange={handleImport} style={{ display: 'none' }} aria-label={t.dashboard_import} />
       </div>
 
       <div className="nav">

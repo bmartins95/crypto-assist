@@ -100,6 +100,23 @@ const deDE: UIText = {
   dashboard_status_fetch_error: 'Fehler beim Abrufen der Preise. Verbindung prüfen.',
   dashboard_status_updated: 'Aktualisiert um {time}',
   dashboard_status_updated_missing: 'Aktualisiert um {time} ({count} Asset(s) ohne Preis)',
+  settings_section_appearance: 'Erscheinungsbild & Sprache',
+  settings_section_currency: 'Währung & Preise',
+  settings_section_data: 'Daten',
+  settings_section_danger: 'Gefahrenzone',
+  settings_theme: 'Thema',
+  settings_theme_light: 'Hell',
+  settings_theme_dark: 'Dunkel',
+  settings_theme_system: 'System',
+  settings_hide_balances: 'Guthaben verbergen',
+  settings_currency_placeholder: 'Demnächst verfügbar',
+  settings_refresh_placeholder: 'Demnächst verfügbar',
+  settings_clear_wallet: 'Wallet leeren',
+  settings_clear_wallet_confirm: 'Sind Sie sicher? Alle Operationen werden dauerhaft gelöscht.',
+  settings_clear_wallet_success: 'Wallet erfolgreich geleert.',
+  settings_preferences: 'Einstellungen',
+  settings_appearance_privacy: 'Erscheinungsbild & Datenschutz',
+  settings_data_account: 'Daten & Konto',
 };
 
 export default deDE;

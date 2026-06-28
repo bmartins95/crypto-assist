@@ -5,6 +5,7 @@ import { fmt, fmtPct, fmtQty } from '@/lib/format';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op } from '@/lib/types';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 interface Props {
   ops: Op[];
@@ -29,6 +30,8 @@ function AvatarImg({ coinId, symbol, avatarCache }: { coinId: string; symbol: st
 
 export default function WalletTab({ ops, assets, prices, avatarCache, groupMode, onGroupMode, statusMsg, onFetchPrices, onExitPriceChange }: Props) {
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   let totalInv = 0, totalAtual = 0;
   let content: React.ReactNode;
 
@@ -67,9 +70,9 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
             <tr key={plat || '__none__'}>
               <td style={{ fontWeight: 500 }}>{plat || t.wallet_noPlatform}</td>
               <td style={{ color: 'var(--text2)', fontSize: 12 }}>{symbols}</td>
-              <td>{fmt(inv, locale)}</td>
-              <td>{hasPrice ? fmt(atual, locale) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{hasPrice ? fmt(lucro, locale) : '—'}</td>
+              <td>{mask(fmt(inv, locale))}</td>
+              <td>{hasPrice ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
+              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{hasPrice ? mask(fmt(lucro, locale)) : '—'}</td>
               <td>{hasPrice ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
             </tr>
           ))}</tbody>
@@ -111,12 +114,12 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                       <tr key={p.coinId + p.platform}>
                         <td><div className="coin-cell">
                           <AvatarImg coinId={p.coinId} symbol={p.symbol} avatarCache={avatarCache} />
-                          <div><div className="coin-name">{p.name}</div><div className="coin-sym">{p.symbol} · {fmtQty(p.qty, locale)}</div></div>
+                          <div><div className="coin-name">{p.name}</div><div className="coin-sym">{p.symbol} · {mask(fmtQty(p.qty, locale))}</div></div>
                         </div></td>
-                        <td style={{ fontWeight: 500 }}>{price ? fmt(price, locale) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                        <td>{fmt(inv, locale)}</td>
-                        <td>{price ? fmt(atual, locale) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                        <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{price ? fmt(lucro, locale) : '—'}</td>
+                        <td style={{ fontWeight: 500 }}>{price ? mask(fmt(price, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
+                        <td>{mask(fmt(inv, locale))}</td>
+                        <td>{price ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
+                        <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{price ? mask(fmt(lucro, locale)) : '—'}</td>
                         <td>{price ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
                       </tr>
                     );
@@ -155,12 +158,12 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
             <tr key={a.coinId}>
               <td><div className="coin-cell">
                 <AvatarImg coinId={a.coinId} symbol={a.symbol} avatarCache={avatarCache} />
-                <div><div className="coin-name">{a.name}</div><div className="coin-sym">{a.symbol} · {fmtQty(a.qty, locale)}</div></div>
+                <div><div className="coin-name">{a.name}</div><div className="coin-sym">{a.symbol} · {mask(fmtQty(a.qty, locale))}</div></div>
               </div></td>
-              <td style={{ fontWeight: 500 }}>{p ? fmt(p, locale) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td>{fmt(inv, locale)}</td>
-              <td>{p ? fmt(atual, locale) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{p ? fmt(lucro, locale) : '—'}</td>
+              <td style={{ fontWeight: 500 }}>{p ? mask(fmt(p, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
+              <td>{mask(fmt(inv, locale))}</td>
+              <td>{p ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
+              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{p ? mask(fmt(lucro, locale)) : '—'}</td>
               <td>{p ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -188,15 +191,15 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
       <div className="metrics">
         <div className="metric">
           <div className="metric-label"><i className="ti ti-arrow-down-circle" /> {t.profit_invested}</div>
-          <div className="metric-value">{fmt(inv, locale)}</div>
+          <div className="metric-value">{mask(fmt(inv, locale))}</div>
         </div>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-coin" /> {t.profit_currentValue}</div>
-          <div className="metric-value">{inv && atual ? fmt(atual, locale) : '—'}</div>
+          <div className="metric-value">{inv && atual ? mask(fmt(atual, locale)) : '—'}</div>
         </div>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-plus-minus" /> {t.profit_pnl}</div>
-          <div className={`metric-value ${l >= 0 ? 'pos' : 'neg'}`}>{inv && atual ? fmt(l, locale) : '—'}</div>
+          <div className={`metric-value ${l >= 0 ? 'pos' : 'neg'}`}>{inv && atual ? mask(fmt(l, locale)) : '—'}</div>
         </div>
         <div className="metric">
           <div className="metric-label"><i className="ti ti-percentage" /> {t.wallet_col_pnlPct}</div>

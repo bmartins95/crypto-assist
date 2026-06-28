@@ -10,6 +10,8 @@ export type Locale =
   | 'hi-IN'
   | 'ru-RU';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 export interface UIText {
   tabs_wallet: string;
   tabs_profit: string;
@@ -110,4 +112,21 @@ export interface UIText {
   dashboard_status_fetch_error: string;
   dashboard_status_updated: string;
   dashboard_status_updated_missing: string;
+  settings_section_appearance: string;
+  settings_section_currency: string;
+  settings_section_data: string;
+  settings_section_danger: string;
+  settings_theme: string;
+  settings_theme_light: string;
+  settings_theme_dark: string;
+  settings_theme_system: string;
+  settings_hide_balances: string;
+  settings_currency_placeholder: string;
+  settings_refresh_placeholder: string;
+  settings_clear_wallet: string;
+  settings_clear_wallet_confirm: string;
+  settings_clear_wallet_success: string;
+  settings_preferences: string;
+  settings_appearance_privacy: string;
+  settings_data_account: string;
 }

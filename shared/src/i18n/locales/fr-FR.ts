@@ -100,6 +100,23 @@ const frFR: UIText = {
   dashboard_status_fetch_error: 'Échec de la récupération des prix. Vérifiez votre connexion.',
   dashboard_status_updated: 'Mis à jour à {time}',
   dashboard_status_updated_missing: 'Mis à jour à {time} ({count} actif(s) sans prix)',
+  settings_section_appearance: 'Apparence et langue',
+  settings_section_currency: 'Devise et prix',
+  settings_section_data: 'Données',
+  settings_section_danger: 'Zone de danger',
+  settings_theme: 'Thème',
+  settings_theme_light: 'Clair',
+  settings_theme_dark: 'Sombre',
+  settings_theme_system: 'Système',
+  settings_hide_balances: 'Masquer les soldes',
+  settings_currency_placeholder: 'Bientôt disponible',
+  settings_refresh_placeholder: 'Bientôt disponible',
+  settings_clear_wallet: 'Vider le portefeuille',
+  settings_clear_wallet_confirm: 'Êtes-vous sûr ? Toutes les opérations seront supprimées définitivement.',
+  settings_clear_wallet_success: 'Portefeuille vidé avec succès.',
+  settings_preferences: 'Préférences',
+  settings_appearance_privacy: 'Apparence et confidentialité',
+  settings_data_account: 'Données et compte',
 };
 
 export default frFR;

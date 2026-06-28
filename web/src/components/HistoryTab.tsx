@@ -5,6 +5,7 @@ import { Op, NewOp, Asset, Prices } from '@/lib/types';
 import { fmt, fmtQty, fmtDate } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 interface Props {
   ops: Op[];
@@ -63,6 +64,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   const [opDate, setOpDate] = useState(today());
   const [opCoin, setOpCoin] = useState<CoinSelection | null>(null);
   const [opCoinText, setOpCoinText] = useState('');
@@ -236,7 +239,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
           <div className="field">
             <label htmlFor="tr-from">{t.trade_form_from}</label>
             <select id="tr-from" value={trFromCoinId} onChange={e => { setTrFromCoinId(e.target.value); syncTradeTotal(e.target.value, trFromQty, trToCoin, trTotal); }}>
-              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {fmtQty(a.qty, locale)}</option>) : <option value="">{t.trade_form_noAssets}</option>}
+              {assets.length ? assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol} · {mask(fmtQty(a.qty, locale))}</option>) : <option value="">{t.trade_form_noAssets}</option>}
             </select>
           </div>
           <div className="field">
@@ -282,10 +285,10 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
               <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date, locale)}</span>
               <span style={{ fontWeight: 500 }}>{o.symbol || '—'}</span>
               <span><span className={`pill ${o.type === 'Buy' ? 'pill-pos' : 'pill-neg'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span></span>
-              <span>{fmtQty(o.qty, locale)}</span>
-              <span>{fmt(o.price, locale)}</span>
-              <span style={{ fontWeight: 500 }}>{fmt(o.total, locale)}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? fmt(o.fee, locale) : '—'}</span>
+              <span>{mask(fmtQty(o.qty, locale))}</span>
+              <span>{mask(fmt(o.price, locale))}</span>
+              <span style={{ fontWeight: 500 }}>{mask(fmt(o.total, locale))}</span>
+              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? mask(fmt(o.fee, locale)) : '—'}</span>
               <span style={{ color: 'var(--text2)' }}>{o.platform || '—'}</span>
               <span className="op-actions">
                 <button className="icon-btn" onClick={() => handleEditOp(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>

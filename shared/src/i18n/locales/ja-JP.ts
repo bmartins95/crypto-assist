@@ -100,6 +100,23 @@ const jaJP: UIText = {
   dashboard_status_fetch_error: '価格の取得に失敗しました。接続を確認してください。',
   dashboard_status_updated: '{time} に更新',
   dashboard_status_updated_missing: '{time} に更新（{count} 銘柄価格なし）',
+  settings_section_appearance: '外観と言語',
+  settings_section_currency: '通貨と価格',
+  settings_section_data: 'データ',
+  settings_section_danger: '危険ゾーン',
+  settings_theme: 'テーマ',
+  settings_theme_light: 'ライト',
+  settings_theme_dark: 'ダーク',
+  settings_theme_system: 'システム',
+  settings_hide_balances: '残高を隠す',
+  settings_currency_placeholder: '近日公開',
+  settings_refresh_placeholder: '近日公開',
+  settings_clear_wallet: 'ウォレットを空にする',
+  settings_clear_wallet_confirm: '本当によろしいですか？すべての操作記録が完全に削除されます。',
+  settings_clear_wallet_success: 'ウォレットを正常にクリアしました。',
+  settings_preferences: '設定',
+  settings_appearance_privacy: '外観とプライバシー',
+  settings_data_account: 'データとアカウント',
 };
 
 export default jaJP;

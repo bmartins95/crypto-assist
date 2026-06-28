@@ -10,7 +10,7 @@ import arSA from './locales/ar-SA';
 import hiIN from './locales/hi-IN';
 import ruRU from './locales/ru-RU';
 
-export type { Locale, UIText };
+export type { Locale, UIText, ThemeMode };
 
 export const LOCALES: Record<Locale, UIText> = {
   'pt-BR': ptBR,
