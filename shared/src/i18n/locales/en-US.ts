@@ -117,6 +117,22 @@ const enUS: UIText = {
   settings_preferences: 'Preferences',
   settings_appearance_privacy: 'Appearance & privacy',
   settings_data_account: 'Data & account',
+  settings_subtitle: 'Manage preferences, display, and data in one place.',
+  settings_appearance_desc: 'How the interface is displayed.',
+  settings_currency_desc: 'Price source and refresh rate.',
+  settings_data_desc: 'Back up or restore your operations.',
+  settings_danger_desc: 'Irreversible actions.',
+  settings_currency_label: 'Currency',
+  settings_currency_hint: 'Conversion of portfolio values.',
+  settings_currency_value: 'Real (BRL)',
+  settings_refresh_label: 'Refresh prices',
+  settings_refresh_hint: 'Fetch interval from CoinGecko.',
+  settings_export_label: 'Export data',
+  settings_export_hint: 'Downloads a .json file of the wallet.',
+  settings_import_label: 'Import data',
+  settings_import_hint: 'Restores from a backup file.',
+  settings_clear_hint: 'Removes all operations and assets.',
+  settings_clear_data: 'Clear data',
 };
 
 export default enUS;

@@ -117,6 +117,22 @@ const hiIN: UIText = {
   settings_preferences: 'प्राथमिकताएं',
   settings_appearance_privacy: 'रूप और गोपनीयता',
   settings_data_account: 'डेटा और खाता',
+  settings_subtitle: 'प्राथमिकताएं, प्रदर्शन और डेटा प्रबंधित करें।',
+  settings_appearance_desc: 'इंटरफ़ेस कैसे प्रदर्शित होता है।',
+  settings_currency_desc: 'मूल्य स्रोत और अपडेट सेटिंग।',
+  settings_data_desc: 'ऑपरेशन का बैकअप लें या पुनर्स्थापित करें।',
+  settings_danger_desc: 'अपरिवर्तनीय क्रियाएं।',
+  settings_currency_label: 'मुद्रा',
+  settings_currency_hint: 'पोर्टफोलियो मूल्यों का रूपांतरण।',
+  settings_currency_value: 'रियाल (BRL)',
+  settings_refresh_label: 'कीमतें अपडेट करें',
+  settings_refresh_hint: 'CoinGecko से प्राप्त करने का अंतराल।',
+  settings_export_label: 'डेटा निर्यात करें',
+  settings_export_hint: 'वॉलेट का .json फ़ाइल डाउनलोड करें।',
+  settings_import_label: 'डेटा आयात करें',
+  settings_import_hint: 'बैकअप फ़ाइल से पुनर्स्थापित करें।',
+  settings_clear_hint: 'सभी ऑपरेशन और संपत्तियां हटाता है।',
+  settings_clear_data: 'डेटा साफ़ करें',
 };
 
 export default hiIN;

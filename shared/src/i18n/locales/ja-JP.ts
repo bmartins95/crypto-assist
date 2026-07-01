@@ -117,6 +117,22 @@ const jaJP: UIText = {
   settings_preferences: '設定',
   settings_appearance_privacy: '外観とプライバシー',
   settings_data_account: 'データとアカウント',
+  settings_subtitle: '設定、表示、データを管理します。',
+  settings_appearance_desc: 'インターフェースの表示方法。',
+  settings_currency_desc: '価格ソースと更新間隔。',
+  settings_data_desc: '操作のバックアップまたは復元。',
+  settings_danger_desc: '取り消せない操作。',
+  settings_currency_label: '通貨',
+  settings_currency_hint: 'ポートフォリオ価値の換算。',
+  settings_currency_value: 'レアル (BRL)',
+  settings_refresh_label: '価格を更新',
+  settings_refresh_hint: 'CoinGeckoからの取得間隔。',
+  settings_export_label: 'データのエクスポート',
+  settings_export_hint: 'ウォレットの .json ファイルをダウンロードします。',
+  settings_import_label: 'データのインポート',
+  settings_import_hint: 'バックアップファイルから復元します。',
+  settings_clear_hint: 'すべての操作と資産を削除します。',
+  settings_clear_data: 'データを消去',
 };
 
 export default jaJP;

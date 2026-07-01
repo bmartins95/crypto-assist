@@ -117,6 +117,22 @@ const arSA: UIText = {
   settings_preferences: 'التفضيلات',
   settings_appearance_privacy: 'المظهر والخصوصية',
   settings_data_account: 'البيانات والحساب',
+  settings_subtitle: 'إدارة التفضيلات والعرض والبيانات.',
+  settings_appearance_desc: 'كيفية عرض الواجهة.',
+  settings_currency_desc: 'مصدر السعر وإعدادات التحديث.',
+  settings_data_desc: 'نسخ احتياطي للعمليات أو استعادتها.',
+  settings_danger_desc: 'إجراءات لا يمكن التراجع عنها.',
+  settings_currency_label: 'العملة',
+  settings_currency_hint: 'تحويل قيم المحفظة.',
+  settings_currency_value: 'ريال (BRL)',
+  settings_refresh_label: 'تحديث الأسعار',
+  settings_refresh_hint: 'فترة الجلب من CoinGecko.',
+  settings_export_label: 'تصدير البيانات',
+  settings_export_hint: 'تنزيل ملف .json للمحفظة.',
+  settings_import_label: 'استيراد البيانات',
+  settings_import_hint: 'الاستعادة من ملف نسخ احتياطي.',
+  settings_clear_hint: 'إزالة جميع العمليات والأصول.',
+  settings_clear_data: 'مسح البيانات',
 };
 
 export default arSA;

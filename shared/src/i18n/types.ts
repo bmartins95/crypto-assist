@@ -129,4 +129,20 @@ export interface UIText {
   settings_preferences: string;
   settings_appearance_privacy: string;
   settings_data_account: string;
+  settings_subtitle: string;
+  settings_appearance_desc: string;
+  settings_currency_desc: string;
+  settings_data_desc: string;
+  settings_danger_desc: string;
+  settings_currency_label: string;
+  settings_currency_hint: string;
+  settings_currency_value: string;
+  settings_refresh_label: string;
+  settings_refresh_hint: string;
+  settings_export_label: string;
+  settings_export_hint: string;
+  settings_import_label: string;
+  settings_import_hint: string;
+  settings_clear_hint: string;
+  settings_clear_data: string;
 }

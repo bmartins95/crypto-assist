@@ -117,6 +117,22 @@ const frFR: UIText = {
   settings_preferences: 'Préférences',
   settings_appearance_privacy: 'Apparence et confidentialité',
   settings_data_account: 'Données et compte',
+  settings_subtitle: 'Gérez les préférences, l\'affichage et les données.',
+  settings_appearance_desc: 'Comment l\'interface s\'affiche.',
+  settings_currency_desc: 'Source de prix et actualisation.',
+  settings_data_desc: 'Sauvegardez ou restaurez vos opérations.',
+  settings_danger_desc: 'Actions irréversibles.',
+  settings_currency_label: 'Devise',
+  settings_currency_hint: 'Conversion des valeurs du portefeuille.',
+  settings_currency_value: 'Real (BRL)',
+  settings_refresh_label: 'Actualiser les prix',
+  settings_refresh_hint: 'Intervalle de récupération depuis CoinGecko.',
+  settings_export_label: 'Exporter les données',
+  settings_export_hint: 'Télécharge un fichier .json du portefeuille.',
+  settings_import_label: 'Importer les données',
+  settings_import_hint: 'Restaure depuis un fichier de sauvegarde.',
+  settings_clear_hint: 'Supprime toutes les opérations et les actifs.',
+  settings_clear_data: 'Effacer les données',
 };
 
 export default frFR;

@@ -56,9 +56,12 @@ describe('SettingsPage', () => {
     expect(screen.getByLabelText(/idioma/i)).toBeTruthy();
   });
 
-  it('theme select has an associated label', () => {
+  it('theme segmented control is rendered with three buttons', () => {
     renderSettings();
-    expect(screen.getByLabelText(/tema/i)).toBeTruthy();
+    expect(screen.getByRole('group', { name: /tema/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /claro/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /escuro/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /sistema/i })).toBeTruthy();
   });
 
   it('changing language select persists to localStorage', () => {
@@ -68,18 +71,17 @@ describe('SettingsPage', () => {
     expect(localStorage.getItem('crypto-assist:locale')).toBe('en-US');
   });
 
-  it('changing theme select to light sets data-theme="light"', () => {
+  it('clicking Claro button sets data-theme="light" and persists to localStorage', () => {
     renderSettings();
-    const themeSelect = screen.getByLabelText(/tema/i) as HTMLSelectElement;
-    fireEvent.change(themeSelect, { target: { value: 'light' } });
+    fireEvent.click(screen.getByRole('button', { name: /claro/i }));
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(localStorage.getItem('crypto-assist:theme')).toBe('light');
   });
 
-  it('theme select defaults to system', () => {
+  it('Sistema button has aria-pressed="true" by default', () => {
     renderSettings();
-    const themeSelect = screen.getByLabelText(/tema/i) as HTMLSelectElement;
-    expect(themeSelect.value).toBe('system');
+    const sysBtn = screen.getByRole('button', { name: /sistema/i });
+    expect(sysBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('currency and price-refresh selects are disabled placeholders', () => {
@@ -90,24 +92,24 @@ describe('SettingsPage', () => {
   });
 
   describe('US2 — Hide balances', () => {
-    it('hide-balances checkbox starts unchecked', () => {
+    it('hide-balances switch starts with aria-checked="false"', () => {
       renderSettings();
-      const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
-      expect(checkbox.checked).toBe(false);
+      const toggle = screen.getByRole('switch');
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
     });
 
-    it('toggling hide-balances checkbox updates localStorage', () => {
+    it('toggling hide-balances switch updates localStorage', () => {
       renderSettings();
-      const checkbox = screen.getByRole('checkbox');
-      fireEvent.click(checkbox);
+      const toggle = screen.getByRole('switch');
+      fireEvent.click(toggle);
       expect(localStorage.getItem('crypto-assist:balance-hidden')).toBe('true');
     });
 
-    it('hide-balances checkbox reflects stored value', () => {
+    it('hide-balances switch reflects stored value', () => {
       localStorage.setItem('crypto-assist:balance-hidden', 'true');
       renderSettings();
-      const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
+      const toggle = screen.getByRole('switch');
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
     });
   });
 

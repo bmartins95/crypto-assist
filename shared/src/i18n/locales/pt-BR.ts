@@ -117,6 +117,22 @@ const ptBR: UIText = {
   settings_preferences: 'Preferências',
   settings_appearance_privacy: 'Aparência e privacidade',
   settings_data_account: 'Dados e conta',
+  settings_subtitle: 'Gerencie preferências, exibição e dados em blocos.',
+  settings_appearance_desc: 'Como a interface é exibida.',
+  settings_currency_desc: 'Fonte de preço e atualização.',
+  settings_data_desc: 'Faça backup ou restaure suas operações.',
+  settings_danger_desc: 'Ações irreversíveis.',
+  settings_currency_label: 'Moeda',
+  settings_currency_hint: 'Conversão dos valores na carteira.',
+  settings_currency_value: 'Real (BRL)',
+  settings_refresh_label: 'Atualizar preços',
+  settings_refresh_hint: 'Intervalo de busca na CoinGecko.',
+  settings_export_label: 'Exportar dados',
+  settings_export_hint: 'Baixa um arquivo .json da carteira.',
+  settings_import_label: 'Importar dados',
+  settings_import_hint: 'Restaura a partir de um backup.',
+  settings_clear_hint: 'Remove todas as operações e ativos.',
+  settings_clear_data: 'Limpar dados',
 };
 
 export default ptBR;

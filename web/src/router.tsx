@@ -110,8 +110,13 @@ function SettingsLayout() {
         <LogoutButton />
       </div>
       <div className="app">
-        <div className="header">
-          <h2>{t.settings_title}</h2>
+        <div style={{ marginBottom: '1.75rem' }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>
+            {t.settings_title}
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--s-text-dim)', marginTop: 3 }}>
+            {t.settings_subtitle}
+          </p>
         </div>
         <SettingsPage />
       </div>

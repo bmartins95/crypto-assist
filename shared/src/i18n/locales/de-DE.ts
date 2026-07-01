@@ -117,6 +117,22 @@ const deDE: UIText = {
   settings_preferences: 'Einstellungen',
   settings_appearance_privacy: 'Erscheinungsbild & Datenschutz',
   settings_data_account: 'Daten & Konto',
+  settings_subtitle: 'Einstellungen, Anzeige und Daten verwalten.',
+  settings_appearance_desc: 'Wie die Benutzeroberfläche angezeigt wird.',
+  settings_currency_desc: 'Preisquelle und Aktualisierungsintervall.',
+  settings_data_desc: 'Operationen sichern oder wiederherstellen.',
+  settings_danger_desc: 'Nicht rückgängig zu machende Aktionen.',
+  settings_currency_label: 'Währung',
+  settings_currency_hint: 'Umrechnung der Portfolio-Werte.',
+  settings_currency_value: 'Real (BRL)',
+  settings_refresh_label: 'Preise aktualisieren',
+  settings_refresh_hint: 'Abrufintervall von CoinGecko.',
+  settings_export_label: 'Daten exportieren',
+  settings_export_hint: 'Lädt eine .json-Datei des Portfolios herunter.',
+  settings_import_label: 'Daten importieren',
+  settings_import_hint: 'Stellt aus einer Sicherungsdatei wieder her.',
+  settings_clear_hint: 'Entfernt alle Operationen und Vermögenswerte.',
+  settings_clear_data: 'Daten löschen',
 };
 
 export default deDE;

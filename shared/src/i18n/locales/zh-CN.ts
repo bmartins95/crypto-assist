@@ -117,6 +117,22 @@ const zhCN: UIText = {
   settings_preferences: '偏好设置',
   settings_appearance_privacy: '外观与隐私',
   settings_data_account: '数据与账户',
+  settings_subtitle: '在此管理偏好设置、显示和数据。',
+  settings_appearance_desc: '界面的显示方式。',
+  settings_currency_desc: '价格来源和刷新设置。',
+  settings_data_desc: '备份或恢复您的操作记录。',
+  settings_danger_desc: '不可逆操作。',
+  settings_currency_label: '货币',
+  settings_currency_hint: '投资组合价值的换算。',
+  settings_currency_value: '雷亚尔 (BRL)',
+  settings_refresh_label: '刷新价格',
+  settings_refresh_hint: 'CoinGecko 的获取间隔。',
+  settings_export_label: '导出数据',
+  settings_export_hint: '下载钱包的 .json 文件。',
+  settings_import_label: '导入数据',
+  settings_import_hint: '从备份文件恢复。',
+  settings_clear_hint: '删除所有操作和资产。',
+  settings_clear_data: '清除数据',
 };
 
 export default zhCN;
