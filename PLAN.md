@@ -210,7 +210,134 @@ Redesign as grouped list. Three groups:
 
 ---
 
-## Item 6 — Multi-currency display
+## Item 6 — Collapsible sidebar navigation
+**Branch:** `feat/sidebar-collapsible`
+**Depends on:** item 5
+
+- [ ] Done
+
+### Goal
+Replace the current top-bar navigation (email + Settings link + Logout) with a persistent collapsible sidebar. The three main views (Wallet, Profit, History) become real routes with their own URLs. The sidebar collapses to a 66px icon-only rail with CSS tooltips; expanded state persists across page loads. Settings and Logout move into the sidebar footer.
+
+### Design reference
+`docs/design/dashboard-collapsible-sidebar.html` — open in a browser for the visual source of truth.
+`docs/design/dashboard-refactor-notes.md` — CSS tokens, layout rules, and component specifications.
+
+### Current state
+`web/src/router.tsx` defines a single `/dashboard` route rendered by `DashboardLayout`, which contains a top bar (email, Settings link, LogoutButton) and `<DashboardPage>` with in-page tab switching (Wallet / Profit / History via `useState`). `web/src/app/dashboard/page.tsx` owns all three tab views.
+
+### Files to create
+- `web/src/components/Sidebar.tsx` — collapsible sidebar component. Props: `collapsed: boolean`, `onToggle: () => void`. Uses TanStack Router `<Link>` with `activeProps` for the active-route highlight. Reads `email` from the existing `getEmailFromIdToken` utility. Footer contains Settings link, Logout button (move `LogoutButton` here), user chip.
+- `web/src/components/AppLayout.tsx` — app shell component rendered as the root layout for authenticated routes. Owns `collapsed` state (read/write `localStorage('sidebar:collapsed')`). Renders `<Sidebar>` + `<main><Outlet /></main>` in a two-column CSS grid.
+
+### Files to modify
+- `web/src/router.tsx` — add `/wallet`, `/profit`, `/history` routes as children of a new `appLayoutRoute` (uses `AppLayout` as component). Remove `DashboardLayout` (the inline function with the old top bar). Change the `/` redirect from `/dashboard` to `/wallet`. Keep `/auth`, `/auth/callback`, and `/settings` routes unchanged (Settings gets its own sidebar-wrapped layout).
+- `web/src/app/globals.css` — add sidebar/layout CSS: `.layout`, `.layout.collapsed`, `.sb`, `.sb-top`, `.sb-foot`, `.navi`, `.navi.active`, `.navlbl`, `.userchip`, collapsed-state rules, and CSS tooltip via `[data-tip]::after`. Design tokens (`--surface`, `--surface-hover`, `--border`, `--border-soft`, `--text-muted`, `--text-dim`, `--accent`) should align with the tokens already established by the settings page.
+- `web/src/app/dashboard/page.tsx` — the tab-switching shell is no longer needed; keep only the data-fetching logic and the three view components. The view components will be extracted in items 7–9 respectively.
+- `shared/src/i18n/types.ts` — add `nav_wallet`, `nav_profit`, `nav_history`, `nav_logout` keys (sidebar labels). Add to all locale files.
+
+### Done when
+- `/wallet`, `/profit`, `/history` are real routes that render the existing WalletTab, ProfitTab, HistoryTab content respectively (the views themselves are not redesigned in this item — that is items 7–9).
+- The sidebar is visible on all three routes, collapses to 66px with tooltips, and restores state from localStorage on reload.
+- The old top bar (email + Settings link + Logout floating row) is gone.
+- Settings link in the sidebar navigates to `/settings`.
+- `npm test` passes (update any tests that referenced the old `/dashboard` route or `DashboardLayout`).
+
+---
+
+## Item 7 — Wallet view redesign
+**Branch:** `feat/wallet-view-refactor`
+**Depends on:** item 6
+
+- [ ] Done
+
+### Goal
+Redesign the Wallet view (`/wallet`) to match the prototype: a content header with title, subtitle, and a refresh button; four metric cards (Invested, Current value, P/L, Return); a segmented view toggle (By asset / By platform / Asset + platform); and an improved holdings table with coin image, name, ticker, and tabular-nums alignment. Reuse the sidebar shell from item 6.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Carteira" view.
+
+### Current state
+`web/src/components/WalletTab.tsx` renders the wallet content inside the old tab-switching dashboard. It has the segmented toggle and table but no metric cards and no content header. It is passed `prices`, `ops`, `exitPrices`, and handlers as props from `DashboardPage`.
+
+### Files to create
+- `web/src/components/MetricCard.tsx` — reusable card: `label`, `value`, `valueColor?`, `sub?`, `subColor?` props. Used by Wallet, Profit, and any future view.
+- `web/src/components/ContentHeader.tsx` — reusable page header: `title`, `subtitle`, `children` (right-side actions slot).
+
+### Files to modify
+- `web/src/components/WalletTab.tsx` — add `<ContentHeader>` with title from `t.nav_wallet` and the refresh button + last-updated timestamp. Add a `<div className="metrics">` grid with four `<MetricCard>` components driven by `computePositions` output (invested, current value, P/L, return). Keep the existing segmented toggle and table logic; update table CSS classes to match the design tokens (`.tbl.scroll`, `.asset`, `.coin`, `.pill.up/.down`).
+- `web/src/app/globals.css` — add shared view primitives: `.chead`, `.metrics`, `.mcard`, `.pill.up/.down`, `.tbl`, `.asset`, `.coin`, `.iconbtn`, `.btn`, `.btn-accent`, `.seg`. Consolidate with any existing rule definitions.
+
+### Done when
+- The Wallet route (`/wallet`) shows the content header, four metric cards, segmented toggle, and holdings table matching the prototype.
+- Coin images load from CoinGecko (already stored in price cache) and fall back to the colored initials badge when absent.
+- Metric cards show correct computed values from `computePositions`.
+- `npm test` passes; `WalletTab.test.tsx` updated for the new structure.
+
+---
+
+## Item 8 — Profit view redesign
+**Branch:** `feat/profit-view-refactor`
+**Depends on:** item 6
+
+- [ ] Done
+
+### Goal
+Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view.
+
+### Current state
+`web/src/components/ProfitTab.tsx` renders charts and P/L data. No metric cards. Charts are partially implemented. The "Over time" and "Portfolio value" modes render `computeTimeline` output.
+
+### Files to modify
+- `web/src/components/ProfitTab.tsx` — add `<ContentHeader>` and four `<MetricCard>` components. Add the chart-mode segmented control (component state). Implement the P/L-by-asset divergent bar chart using Recharts `<BarChart>` with a `<ReferenceLine y={0} />` and per-bar fill computed from sign (`fill={pl >= 0 ? 'var(--green)' : 'var(--red)'}`). Add the allocation bars panel (`.dist-row`, `.bar`, `.bar i`) driven by each asset's invested fraction of total.
+- `web/src/app/globals.css` — add `.panel`, `.panel h3`, `.dist-row`, `.dist-head`, `.bar` if not already present from item 7.
+
+### Done when
+- The Profit route (`/profit`) shows four metric cards, chart-mode selector, divergent bar chart, and allocation bars.
+- Best asset and worst asset cards show the correct ticker and percentage.
+- Realized P/L metric is driven by closed positions; unrealized by open positions (using `computePositions`).
+- `npm test` passes; `ProfitTab.test.tsx` updated.
+
+---
+
+## Item 9 — History view redesign with entry drawer
+**Branch:** `feat/history-view-refactor`
+**Depends on:** item 6
+
+- [ ] Done
+
+### Goal
+Redesign the History view (`/history`) to match the prototype: a content header with a primary "+ Register operation" button; a full-width operations table; and a right-side slide-over drawer that replaces the two always-visible forms. The drawer has three modes: Buy, Sell, Trade. Buy/Sell show a single-asset fieldset; Trade shows a two-block swap form (sell block + receive block). Focus trap, Escape-to-close, and body-scroll lock are required.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Histórico" view and drawer.
+
+### Current state
+`web/src/components/HistoryTab.tsx` has two always-visible forms (one for Buy/Sell, one for Trade) above the operations table. There is no drawer. The table and form logic are tightly coupled in one component.
+
+### Files to create
+- `web/src/components/OpDrawer.tsx` — slide-over drawer component. Props: `open: boolean`, `onClose: () => void`, `onSubmit: (op: NewOp | [NewOp, NewOp]) => void`, `editingOp?: Op`, `coins: CoinSearchResult[]`. State: `opType: 'buy' | 'sell' | 'trade'`. Renders the segmented type selector, the appropriate fieldset (simple or trade), and the footer buttons. Implements focus trap (move focus to first input on open; trap Tab/Shift+Tab within drawer; restore focus on close) and body-scroll lock (`document.body.style.overflow`). Closes on Escape and backdrop click. Uses `role="dialog" aria-modal="true" aria-labelledby`.
+- `web/src/components/OpDrawer.test.tsx` — tests: drawer opens/closes, type switching swaps fieldsets, submitting a Buy creates one op, submitting a Trade creates two ops, Escape closes, backdrop click closes.
+
+### Files to modify
+- `web/src/components/HistoryTab.tsx` — remove the two always-visible form sections. Add `<ContentHeader>` with the "+ Register operation" button (`.btn-accent`). Replace forms with `<OpDrawer>`. Keep the operations table; update CSS classes to match design tokens.
+- `web/src/app/globals.css` — add `.drawer`, `.drawer-backdrop`, `.drawer-head`, `.drawer-body`, `.drawer-foot`, `.drawer-grid`, `.drawer.open`, `.drawer-backdrop.open`, `.trade-block`, `.trade-block.out`, `.trade-block.in`, `.trade-arrow`, `.fhint`, `.tag` if not already present.
+
+### Done when
+- The History route (`/history`) shows the content header, operations table, and no always-visible forms.
+- The "+ Register operation" button opens the drawer; clicking the backdrop, pressing Escape, or clicking Cancel closes it.
+- Switching to "Trade" mode shows the two-block swap form instead of the simple fieldset.
+- Submitting a Buy or Sell creates one op; submitting a Trade creates two ops (one sell, one buy).
+- Edit: clicking the edit icon on a table row opens the drawer pre-filled with that op's data.
+- Focus management works correctly (focus moves to drawer on open, traps inside, returns to trigger on close).
+- `npm test` passes; `HistoryTab.test.tsx` and `OpDrawer.test.tsx` pass.
+
+---
+
+## Item 10 — Multi-currency display
 **Branch:** `feat/multi-currency`
 **Depends on:** items 4, 5
 
@@ -248,9 +375,9 @@ Store prices in USD (universal crypto reference). Fetch an exchange rate once pe
 
 ---
 
-## Item 7 — Auto-refresh prices
+## Item 11 — Auto-refresh prices
 **Branch:** `feat/price-auto-refresh`
-**Depends on:** item 6
+**Depends on:** item 10
 
 - [ ] Done
 
@@ -276,9 +403,9 @@ Manual (default), 30 s, 1 min, 5 min.
 
 ---
 
-## Item 8 — Fix historical charts
+## Item 12 — Fix historical charts
 **Branch:** `feat/historical-prices`
-**Depends on:** item 6 (prices now stored in USD; historical prices should also be USD)
+**Depends on:** item 10 (prices now stored in USD; historical prices should also be USD)
 
 - [ ] Done
 
@@ -303,9 +430,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 9 — Price provider abstraction + move coin search to backend
+## Item 13 — Price provider abstraction + move coin search to backend
 **Branch:** `feat/price-provider-abstraction`
-**Depends on:** item 6 (USD prices established)
+**Depends on:** item 10 (USD prices established)
 
 - [ ] Done
 
@@ -334,9 +461,9 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 10 — Test coverage
+## Item 14 — Test coverage
 **Branch:** `test/coverage`
-**Depends on:** items 6, 8, 9 (so tests cover the final endpoint shapes)
+**Depends on:** items 10, 12, 13 (so tests cover the final endpoint shapes)
 
 - [ ] Done
 
@@ -363,7 +490,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 
 ---
 
-## Item 11 — Facebook login
+## Item 15 — Facebook login
 **Branch:** `feat/facebook-login`
 **Depends on:** nothing
 
@@ -390,9 +517,9 @@ Google is the only social IdP. Facebook OAuth credentials are not in SSM. Patter
 
 ---
 
-## Item 12 — Custom auth UI
+## Item 16 — Custom auth UI
 **Branch:** `feat/custom-auth-ui`
-**Depends on:** item 11 (all social providers ready before redesigning the screen)
+**Depends on:** item 15 (all social providers ready before redesigning the screen)
 
 - [ ] Done
 
@@ -420,7 +547,7 @@ Build custom `/login` and `/signup` routes. Email/password flows use Amplify's `
 
 ---
 
-## Item 13 — Ops/trade UX study
+## Item 17 — Ops/trade UX study
 **Branch:** `docs/ops-ux-study`
 **Depends on:** nothing (research only)
 
@@ -444,9 +571,9 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 14 — New investment types (Phase 1: Brazilian stocks)
+## Item 18 — New investment types (Phase 1: Brazilian stocks)
 **Branch:** `feat/br-stocks`
-**Depends on:** items 4, 6, 9 (i18n, USD prices, provider abstraction)
+**Depends on:** items 4, 10, 13 (i18n, USD prices, provider abstraction)
 
 - [ ] Done
 
@@ -477,7 +604,7 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 15 — Feature roadmap document
+## Item 19 — Feature roadmap document
 **Branch:** `docs/feature-roadmap`
 **Depends on:** nothing
 
