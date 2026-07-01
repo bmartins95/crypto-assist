@@ -1,8 +1,10 @@
 from typing import Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 OpType = Literal["Buy", "Sell"]
+
+_LEGACY_TYPE_MAP = {"Compra": "Buy", "Venda": "Sell"}
 
 
 class Op(BaseModel):
@@ -12,6 +14,11 @@ class Op(BaseModel):
     symbol: str
     name: str
     type: OpType
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def coerce_legacy_type(cls, v: object) -> object:
+        return _LEGACY_TYPE_MAP.get(str(v), v)
     qty: float
     price: float
     fee: float
