@@ -1,40 +1,146 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import SettingsPage from './settings';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { ThemeProvider } from '@/context/ThemeContext';
+import { BalanceProvider } from '@/context/BalanceContext';
+import SettingsPage from './settings';
 
-const STORAGE_KEY = 'crypto-assist:locale';
+vi.mock('@/lib/api/client', () => ({
+  api: {
+    exportBackup: vi.fn().mockResolvedValue({ version: 1, exportedAt: '', ops: [], exitPrices: {} }),
+    clearOps: vi.fn().mockResolvedValue({ deleted: 0 }),
+    importBackup: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('@/lib/dataHandlers', () => ({
+  exportData: vi.fn().mockResolvedValue(undefined),
+  importData: vi.fn().mockResolvedValue(undefined),
+}));
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider>
+      <LocaleProvider>
+        <BalanceProvider>{children}</BalanceProvider>
+      </LocaleProvider>
+    </ThemeProvider>
+  );
+}
 
 function renderSettings() {
-  return render(<LocaleProvider><SettingsPage /></LocaleProvider>);
+  return render(<Wrapper><SettingsPage /></Wrapper>);
 }
 
 describe('SettingsPage', () => {
-  beforeEach(() => localStorage.clear());
-  afterEach(() => localStorage.clear());
-
-  it('renders all 10 locale options in the language picker', () => {
-    renderSettings();
-    const options = screen.getAllByRole('option');
-    expect(options).toHaveLength(10);
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    localStorage.clear();
+    document.documentElement.removeAttribute('data-theme');
   });
 
-  it('has a label associated with the language select', () => {
+  it('renders all four section headings', () => {
     renderSettings();
-    expect(screen.getByLabelText(/idioma/i)).toBeInTheDocument();
+    expect(screen.getByText('Aparência e idioma')).toBeTruthy();
+    expect(screen.getByText('Moeda e preços')).toBeTruthy();
+    expect(screen.getByText('Dados')).toBeTruthy();
+    expect(screen.getByText('Zona de perigo')).toBeTruthy();
   });
 
-  it('persists the selected locale to localStorage', () => {
+  it('language select has an associated label', () => {
     renderSettings();
-    const select = screen.getByRole('combobox');
-    fireEvent.change(select, { target: { value: 'en-US' } });
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('en-US');
+    expect(screen.getByLabelText(/idioma/i)).toBeTruthy();
   });
 
-  it('updates the select value when locale changes', () => {
+  it('theme segmented control is rendered with three buttons', () => {
     renderSettings();
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: 'de-DE' } });
-    expect(select.value).toBe('de-DE');
+    expect(screen.getByRole('group', { name: /tema/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /claro/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /escuro/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /sistema/i })).toBeTruthy();
+  });
+
+  it('changing language select persists to localStorage', () => {
+    renderSettings();
+    const langSelect = screen.getByLabelText(/idioma/i) as HTMLSelectElement;
+    fireEvent.change(langSelect, { target: { value: 'en-US' } });
+    expect(localStorage.getItem('crypto-assist:locale')).toBe('en-US');
+  });
+
+  it('clicking Claro button sets data-theme="light" and persists to localStorage', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /claro/i }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('crypto-assist:theme')).toBe('light');
+  });
+
+  it('Sistema button has aria-pressed="true" by default', () => {
+    renderSettings();
+    const sysBtn = screen.getByRole('button', { name: /sistema/i });
+    expect(sysBtn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('currency and price-refresh selects are disabled placeholders', () => {
+    renderSettings();
+    const allSelects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    const disabled = allSelects.filter(s => s.disabled);
+    expect(disabled.length).toBeGreaterThanOrEqual(2);
+  });
+
+  describe('US2 — Hide balances', () => {
+    it('hide-balances switch starts with aria-checked="false"', () => {
+      renderSettings();
+      const toggle = screen.getByRole('switch');
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+    });
+
+    it('toggling hide-balances switch updates localStorage', () => {
+      renderSettings();
+      const toggle = screen.getByRole('switch');
+      fireEvent.click(toggle);
+      expect(localStorage.getItem('crypto-assist:balance-hidden')).toBe('true');
+    });
+
+    it('hide-balances switch reflects stored value', () => {
+      localStorage.setItem('crypto-assist:balance-hidden', 'true');
+      renderSettings();
+      const toggle = screen.getByRole('switch');
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+    });
+  });
+
+  describe('US3 — Export / Import / Clear Wallet', () => {
+    it('Export button calls exportData', async () => {
+      const { exportData } = await import('@/lib/dataHandlers');
+      renderSettings();
+      const exportBtn = screen.getByRole('button', { name: /exportar/i });
+      fireEvent.click(exportBtn);
+      await waitFor(() => expect(exportData).toHaveBeenCalledTimes(1));
+    });
+
+    it('Clear Wallet button shows confirm dialog and calls clearOps on confirm', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      vi.spyOn(window, 'alert').mockImplementation(() => {});
+      renderSettings();
+      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
+      if (!clearBtn) throw new Error('Clear wallet button not found');
+      fireEvent.click(clearBtn);
+      await waitFor(() => expect(api.clearOps).toHaveBeenCalledTimes(1));
+    });
+
+    it('Clear Wallet button does not call clearOps on cancel', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      renderSettings();
+      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
+      if (!clearBtn) throw new Error('Clear wallet button not found');
+      fireEvent.click(clearBtn);
+      expect(api.clearOps).not.toHaveBeenCalled();
+    });
   });
 });

@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import WalletTab from './WalletTab';
 import type { Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { BalanceProvider } from '@/context/BalanceContext';
 
 const baseProps = {
   ops: [],
@@ -17,7 +18,7 @@ const baseProps = {
 const asset: Asset = { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', qty: 2, avgPrice: 100, exitPrice: 0 };
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider>{ui}</LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
 }
 
 describe('WalletTab', () => {

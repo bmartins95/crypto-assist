@@ -34,4 +34,5 @@ export const api = {
 
   exportBackup: () => request<BackupPayload>('/api/export'),
   importBackup: (backup: BackupPayload) => request<void>('/api/import', { method: 'POST', body: JSON.stringify(backup) }),
+  clearOps: () => request<{ deleted: number }>('/api/ops', { method: 'DELETE' }),
 };

@@ -47,3 +47,7 @@ class BackupPayload(BaseModel):
     exportedAt: str
     ops: list[Op]
     exitPrices: dict[str, float] = {}
+
+
+class DeleteAllOpsResponse(BaseModel):
+    deleted: int

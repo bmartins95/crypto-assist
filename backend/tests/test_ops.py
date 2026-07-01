@@ -157,3 +157,33 @@ def test_delete_op_db_error(error_client):
     res = client.delete("/api/ops/op-1")
     assert res.status_code == 500
     conn.rollback.assert_called_once()
+
+
+def test_delete_all_ops_no_auth():
+    res = TestClient(app).delete("/api/ops")
+    assert res.status_code == 401
+
+
+@pytest.mark.pgdata([])
+def test_delete_all_ops_success(client_with_db):
+    client, conn = client_with_db
+    conn.cursor.return_value.rowcount = 5
+    res = client.delete("/api/ops")
+    assert res.status_code == 200
+    assert res.json() == {"deleted": 5}
+
+
+@pytest.mark.pgdata([])
+def test_delete_all_ops_empty(client_with_db):
+    client, conn = client_with_db
+    conn.cursor.return_value.rowcount = 0
+    res = client.delete("/api/ops")
+    assert res.status_code == 200
+    assert res.json() == {"deleted": 0}
+
+
+def test_delete_all_ops_db_error(error_client):
+    client, conn = error_client
+    res = client.delete("/api/ops")
+    assert res.status_code == 500
+    conn.rollback.assert_called_once()

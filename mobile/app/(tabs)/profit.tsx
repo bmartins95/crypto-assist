@@ -7,6 +7,7 @@ import { api } from '@/lib/api/client';
 import { collectAssets, fmt, fmtPct } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 interface AssetProfit extends Asset {
   currentPrice: number;
@@ -17,6 +18,8 @@ interface AssetProfit extends Asset {
 
 export default function ProfitScreen() {
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   const [rows, setRows] = useState<AssetProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,7 +65,7 @@ export default function ProfitScreen() {
       <View style={styles.header}>
         <Text style={styles.headerLabel}>{t.profit_pnl}</Text>
         <Text style={[styles.headerValue, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-          {fmt(totalPnl, locale)}
+          {mask(fmt(totalPnl, locale))}
         </Text>
         <Text style={[styles.headerPct, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
           {fmtPct(totalPct)}
@@ -78,12 +81,12 @@ export default function ProfitScreen() {
             <View style={styles.rowLeft}>
               <Text style={styles.symbol}>{r.symbol}</Text>
               <Text style={styles.name}>{r.name}</Text>
-              <Text style={styles.detail}>{t.wallet_col_avgPrice}: {fmt(r.avgPrice, locale)}</Text>
-              {r.exitPrice > 0 && <Text style={styles.detail}>{t.wallet_col_exitPrice}: {fmt(r.exitPrice, locale)}</Text>}
+              <Text style={styles.detail}>{t.wallet_col_avgPrice}: {mask(fmt(r.avgPrice, locale))}</Text>
+              {r.exitPrice > 0 && <Text style={styles.detail}>{t.wallet_col_exitPrice}: {mask(fmt(r.exitPrice, locale))}</Text>}
             </View>
             <View style={styles.rowRight}>
               <Text style={[styles.pnl, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
-                {fmt(r.pnlValue, locale)}
+                {mask(fmt(r.pnlValue, locale))}
               </Text>
               <Text style={[styles.pct, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
                 {fmtPct(r.pnlPct)}

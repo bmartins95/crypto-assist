@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ProfitTab from './ProfitTab';
 import type { Asset, Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { BalanceProvider } from '@/context/BalanceContext';
 
 // jsdom has no real canvas backend; chart.js itself isn't what we're
 // testing here, so replace it with a no-op constructor and stub
@@ -22,7 +23,7 @@ const ops: Op[] = [
 ];
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider>{ui}</LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
 }
 
 describe('ProfitTab', () => {

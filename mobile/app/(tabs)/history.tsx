@@ -7,9 +7,12 @@ import { api } from '@/lib/api/client';
 import { fmt, fmtQty, fmtDate } from '@crypto-assist/shared';
 import type { Op } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
+import { useBalance } from '@/context/BalanceContext';
 
 export default function HistoryScreen() {
   const { locale, t } = useLocale();
+  const { hidden } = useBalance();
+  const mask = (v: string): string => (hidden ? '••••••' : v);
   const [ops, setOps] = useState<Op[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,8 +74,8 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.rowDetails}>
               <Text style={styles.detail}>{fmtDate(o.date, locale)}</Text>
-              <Text style={styles.detail}>{fmtQty(o.qty, locale)} × {fmt(o.price, locale)}</Text>
-              <Text style={styles.total}>{fmt(o.total, locale)}</Text>
+              <Text style={styles.detail}>{mask(fmtQty(o.qty, locale))} × {mask(fmt(o.price, locale))}</Text>
+              <Text style={styles.total}>{mask(fmt(o.total, locale))}</Text>
             </View>
             {o.platform ? <Text style={styles.platform}>{o.platform}</Text> : null}
           </View>
