@@ -30,7 +30,8 @@
 
 ### Implementation for User Story 1
 
-- [x] T001 [US1] Update the CSP string in aws-infra/stacks/app-stack.ts (line 166) to add `font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com` and append `https://cdn.jsdelivr.net https://fonts.googleapis.com` to `style-src`
+- [x] T001 [US1] Update the CSP string in aws-infra/stacks/app-stack.ts to add `font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com` and append `https://cdn.jsdelivr.net https://fonts.googleapis.com` to `style-src`
+- [x] T002 [US2] Update the CSP string in aws-infra/stacks/app-stack.ts to add `img-src 'self' https://coin-images.coingecko.com`
 
 **Checkpoint**: After this change is deployed, all icons and fonts should be visible in the deployed environment.
 

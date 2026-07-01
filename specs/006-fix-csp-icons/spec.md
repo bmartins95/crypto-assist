@@ -27,10 +27,24 @@ A user visiting the deployed app (auth page, dashboard, settings) sees all icons
 
 ---
 
+### User Story 2 - Coin images visible in production (Priority: P1)
+
+A user viewing the Wallet or History tab sees each coin's image thumbnail rendered correctly, matching the local experience.
+
+**Independent Test**: Load the deployed dev Wallet tab — coin avatars (Bitcoin, Ethereum, etc.) show the CoinGecko thumbnail image instead of the fallback text initials.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user loads the Wallet tab on the deployed app, **When** prices have loaded, **Then** each coin row shows its CoinGecko thumbnail image (not a broken image or the text fallback).
+2. **Given** the browser dev tools Network tab is open, **When** the Wallet tab loads, **Then** image requests to `coin-images.coingecko.com` return 200 (not blocked).
+
+---
+
 ### Edge Cases
 
 - What happens if `cdn.jsdelivr.net` is unreachable? Icons fall back to missing glyphs (acceptable — this is an external CDN; no code change required for this case).
 - What if a future icon CDN or font CDN is added? The CSP must be updated in the same PR as the new CDN reference.
+- What if CoinGecko changes its image CDN domain? The CSP `img-src` will need updating in the same way.
 
 ## Requirements *(mandatory)*
 
@@ -40,6 +54,7 @@ A user visiting the deployed app (auth page, dashboard, settings) sees all icons
 - **FR-002**: The CSP MUST permit web fonts from `cdn.jsdelivr.net` and `fonts.gstatic.com`.
 - **FR-003**: The CSP MUST NOT weaken any existing directive beyond what is required to allow the listed CDN origins (no new `'unsafe-eval'`, no wildcard origins).
 - **FR-004**: All other existing CSP directives (`default-src`, `script-src`, `connect-src`) MUST remain unchanged.
+- **FR-005**: The CSP MUST permit images from `coin-images.coingecko.com` so coin thumbnails render in the Wallet and History tabs.
 
 ## Success Criteria *(mandatory)*
 
@@ -48,7 +63,8 @@ A user visiting the deployed app (auth page, dashboard, settings) sees all icons
 - **SC-001**: Every Tabler Icons glyph visible locally is also visible on the deployed dev environment — zero missing-glyph placeholders on the auth and settings pages.
 - **SC-002**: The Inter font renders on the deployed environment, matching the local appearance.
 - **SC-003**: No new CSP violations appear in the browser console after the fix is deployed.
-- **SC-004**: `curl -I <deployed-url>` shows a `Content-Security-Policy` header that includes both `font-src` and the updated `style-src` with the CDN origins.
+- **SC-004**: `curl -I <deployed-url>` shows a `Content-Security-Policy` header that includes `font-src`, `img-src`, and the updated `style-src` with the CDN origins.
+- **SC-005**: Coin avatar images load on the deployed Wallet tab — no broken images or text fallbacks for coins that have a CoinGecko thumbnail.
 
 ## Assumptions
 
