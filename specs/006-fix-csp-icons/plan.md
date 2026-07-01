@@ -69,8 +69,9 @@ All CDN origins are known from `web/index.html`:
 | Tabler Icons woff2 | `https://cdn.jsdelivr.net` | `font-src` |
 | Inter CSS | `https://fonts.googleapis.com` | `style-src` |
 | Inter woff2 | `https://fonts.gstatic.com` | `font-src` |
+| CoinGecko coin images | `https://coin-images.coingecko.com` | `img-src` |
 
-**Decision**: Add `font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com` as a new directive and append `https://cdn.jsdelivr.net https://fonts.googleapis.com` to the existing `style-src` value.
+**Decision**: Add `font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com` as a new directive, append `https://cdn.jsdelivr.net https://fonts.googleapis.com` to the existing `style-src` value, and add `img-src 'self' https://coin-images.coingecko.com` as a new directive.
 
 **Alternatives considered**:
 - Bundling Tabler Icons and Inter locally (avoids CDN dependency entirely) — deferred; scope of this fix is minimal; bundling is a separate improvement.
@@ -87,7 +88,7 @@ default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect
 
 **After**:
 ```
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com ${backendApiUrl.value}
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' https://coin-images.coingecko.com; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com ${backendApiUrl.value}
 ```
 
 ## Complexity Tracking
