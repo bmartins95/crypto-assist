@@ -115,7 +115,7 @@ A07 (authentication failures) is covered by Cognito (built-in rate limiting, MFA
 **Branch:** `feat/i18n`
 **Depends on:** nothing
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Full multi-language support across web and mobile. Every user-facing string goes through the i18n layer. Users select their language from a dedicated Settings page (web) and Settings screen (mobile). The app defaults to `pt-BR` but supports the 10 most spoken languages in the world.
@@ -159,7 +159,7 @@ All UI strings are hardcoded Portuguese in JSX/React Native components. `shared/
 **Branch:** `feat/settings-refactor`
 **Depends on:** item 4
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Replace the minimal Settings page (web) and Settings screen (mobile) created in Item 4 with fully designed, production-quality UIs. Web uses a sectioned-cards layout (Stripe/Notion style). Mobile uses a grouped-list layout (iOS/Coinbase/Revolut style). Import/Export move from the dashboard header to the Settings "Dados" card. Theme selection, balance visibility, and wallet clearing are implemented as working features.
