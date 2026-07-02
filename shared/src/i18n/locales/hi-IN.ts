@@ -8,6 +8,7 @@ const hiIN: UIText = {
   chart_overTime: 'समय के साथ लाभ',
   chart_value: 'पोर्टफोलियो मूल्य',
   wallet_emptyState: 'अपना पोर्टफोलियो देखने के लिए इतिहास में ऑपरेशन जोड़ें',
+  wallet_subtitle: 'CoinGecko के माध्यम से वास्तविक समय दरें · BRL',
   wallet_groupBy_asset: 'संपत्ति के अनुसार',
   wallet_groupBy_platform: 'प्लेटफ़ॉर्म के अनुसार',
   wallet_groupBy_both: 'संपत्ति + प्लेटफ़ॉर्म',

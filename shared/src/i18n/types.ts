@@ -20,6 +20,7 @@ export interface UIText {
   chart_overTime: string;
   chart_value: string;
   wallet_emptyState: string;
+  wallet_subtitle: string;
   wallet_groupBy_asset: string;
   wallet_groupBy_platform: string;
   wallet_groupBy_both: string;
