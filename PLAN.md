@@ -249,7 +249,7 @@ Replace the current top-bar navigation (email + Settings link + Logout) with a p
 **Branch:** `feat/wallet-view-refactor`
 **Depends on:** item 6
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Redesign the Wallet view (`/wallet`) to match the prototype: a content header with title, subtitle, and a refresh button; four metric cards (Invested, Current value, P/L, Return); a segmented view toggle (By asset / By platform / Asset + platform); and an improved holdings table with coin image, name, ticker, and tabular-nums alignment. Reuse the sidebar shell from item 6.
