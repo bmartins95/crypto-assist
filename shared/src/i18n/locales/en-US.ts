@@ -8,6 +8,7 @@ const enUS: UIText = {
   chart_overTime: 'Profit over time',
   chart_value: 'Portfolio value',
   wallet_emptyState: 'Add operations in History to see your portfolio',
+  wallet_subtitle: 'Real-time quotes via CoinGecko · BRL',
   wallet_groupBy_asset: 'By asset',
   wallet_groupBy_platform: 'By platform',
   wallet_groupBy_both: 'Asset + platform',

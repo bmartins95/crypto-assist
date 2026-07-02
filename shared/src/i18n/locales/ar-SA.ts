@@ -8,6 +8,7 @@ const arSA: UIText = {
   chart_overTime: 'الأرباح عبر الزمن',
   chart_value: 'قيمة المحفظة',
   wallet_emptyState: 'أضف عمليات في السجل لعرض محفظتك',
+  wallet_subtitle: 'أسعار لحظية عبر CoinGecko · BRL',
   wallet_groupBy_asset: 'حسب الأصل',
   wallet_groupBy_platform: 'حسب المنصة',
   wallet_groupBy_both: 'الأصل + المنصة',

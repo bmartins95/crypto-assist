@@ -16,6 +16,8 @@
 
 **Alternatives considered**: Migrating `HistoryTab`/`ProfitTab` onto the new tokens in this PR too — rejected, out of this item's scope per PLAN.md.
 
+**Implementation update**: During implementation, `.metrics`/`.metric`/`.metric-label`/`.metric-value` turned out to already be shared by `ProfitTab.tsx`, not private to `WalletTab.tsx` as assumed above — introducing a parallel `.mcard` class set would have left two visually inconsistent card systems side by side. Per PLAN Item 7's own instruction to "consolidate with any existing rule definitions," the existing `.metric` rules were restyled onto the `--s-*` surface tokens (matching the prototype's `.mcard` look) instead of adding new `.mcard`/`.ml`/`.mv` classes; `MetricCard` renders `.metric`/`.metric-label`/`.metric-value` internally. `ProfitTab` picks up the nicer surface styling for free with no JSX changes. `.chead`/`.refresh`/`.tbl`/`.asset`/`.coin`/`.pill.up`/`.pill.down`/`.btn` were genuinely new (no prior usage) and were added as planned.
+
 ## R3 — MetricCard color contract
 
 **Decision**: `MetricCard` accepts `valueColor?: 'pos' | 'neg'` and `subColor?: 'pos' | 'neg'`, reusing the app's existing `.pos`/`.neg` utility classes (already defined in `globals.css`, already used for red/green throughout the app) rather than introducing prototype-named `.red`/`.green` classes.

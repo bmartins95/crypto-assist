@@ -6,6 +6,8 @@ import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op } from '@/lib/types';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import ContentHeader from '@/components/ContentHeader';
+import MetricCard from '@/components/MetricCard';
 
 interface Props {
   ops: Op[];
@@ -19,10 +21,10 @@ interface Props {
   onExitPriceChange: (coinId: string, value: string) => void;
 }
 
-function AvatarImg({ coinId, symbol, avatarCache }: { coinId: string; symbol: string; avatarCache: Record<string, { url: string }> }) {
+function CoinBadge({ coinId, symbol, avatarCache }: { coinId: string; symbol: string; avatarCache: Record<string, { url: string }> }) {
   const url = avatarCache[coinId]?.url;
   return (
-    <div className="avatar">
+    <div className="coin">
       {url ? <img src={url} alt={symbol} /> : (symbol || '?').slice(0, 3)}
     </div>
   );
@@ -57,23 +59,23 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
       return { plat, inv, atual, lucro, pct, hasPrice, symbols };
     });
     content = (
-      <div className="table-wrap">
+      <div className="tbl scroll">
         <table>
           <thead><tr>
             <th>{t.wallet_col_platform}</th><th>{t.wallet_col_asset}</th>
-            <th style={{ width: 110 }}>{t.profit_invested}</th>
-            <th style={{ width: 110 }}>{t.profit_currentValue}</th>
-            <th style={{ width: 120 }}>{t.wallet_col_pnl}</th>
-            <th style={{ width: 90 }}>{t.wallet_col_pnlPct}</th>
+            <th className="num">{t.profit_invested}</th>
+            <th className="num">{t.profit_currentValue}</th>
+            <th className="num">{t.wallet_col_pnl}</th>
+            <th className="num">{t.wallet_col_pnlPct}</th>
           </tr></thead>
           <tbody>{rows.map(({ plat, inv, atual, lucro, pct, hasPrice, symbols }) => (
             <tr key={plat || '__none__'}>
               <td style={{ fontWeight: 500 }}>{plat || t.wallet_noPlatform}</td>
-              <td style={{ color: 'var(--text2)', fontSize: 12 }}>{symbols}</td>
-              <td>{mask(fmt(inv, locale))}</td>
-              <td>{hasPrice ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{hasPrice ? mask(fmt(lucro, locale)) : '—'}</td>
-              <td>{hasPrice ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
+              <td style={{ color: 'var(--s-text-dim)', fontSize: 12 }}>{symbols}</td>
+              <td className="num">{mask(fmt(inv, locale))}</td>
+              <td className="num">{hasPrice ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
+              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{hasPrice ? mask(fmt(lucro, locale)) : '—'}</td>
+              <td className="num">{hasPrice ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -86,12 +88,12 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
     positions.forEach(p => { (platMap[p.platform] ||= []).push(p); });
     const tableHeader = (
       <thead><tr>
-        <th style={{ width: 170 }}>{t.wallet_col_asset}</th>
-        <th style={{ width: 120 }}>{t.wallet_col_currentPrice}</th>
-        <th style={{ width: 110 }}>{t.profit_invested}</th>
-        <th style={{ width: 110 }}>{t.profit_currentValue}</th>
-        <th style={{ width: 120 }}>{t.wallet_col_pnl}</th>
-        <th style={{ width: 90 }}>{t.wallet_col_pnlPct}</th>
+        <th>{t.wallet_col_asset}</th>
+        <th className="num">{t.wallet_col_currentPrice}</th>
+        <th className="num">{t.profit_invested}</th>
+        <th className="num">{t.profit_currentValue}</th>
+        <th className="num">{t.wallet_col_pnl}</th>
+        <th className="num">{t.wallet_col_pnlPct}</th>
       </tr></thead>
     );
     content = (
@@ -103,7 +105,7 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                 <i className="ti ti-building-bank" style={{ fontSize: 12, verticalAlign: 'middle', marginRight: 4 }} />
                 {plat || t.wallet_noPlatform}
               </div>
-              <div className="table-wrap">
+              <div className="tbl scroll">
                 <table>
                   {tableHeader}
                   <tbody>{rows.map(p => {
@@ -112,15 +114,15 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                     totalInv += inv; if (price) totalAtual += atual;
                     return (
                       <tr key={p.coinId + p.platform}>
-                        <td><div className="coin-cell">
-                          <AvatarImg coinId={p.coinId} symbol={p.symbol} avatarCache={avatarCache} />
-                          <div><div className="coin-name">{p.name}</div><div className="coin-sym">{p.symbol} · {mask(fmtQty(p.qty, locale))}</div></div>
+                        <td><div className="asset">
+                          <CoinBadge coinId={p.coinId} symbol={p.symbol} avatarCache={avatarCache} />
+                          <div><div className="nm">{p.name}</div><div className="tk">{p.symbol} · {mask(fmtQty(p.qty, locale))}</div></div>
                         </div></td>
-                        <td style={{ fontWeight: 500 }}>{price ? mask(fmt(price, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                        <td>{mask(fmt(inv, locale))}</td>
-                        <td>{price ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                        <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{price ? mask(fmt(lucro, locale)) : '—'}</td>
-                        <td>{price ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
+                        <td className="num" style={{ fontWeight: 500 }}>{price ? mask(fmt(price, locale)) : <span className="muted">—</span>}</td>
+                        <td className="num">{mask(fmt(inv, locale))}</td>
+                        <td className="num">{price ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
+                        <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{price ? mask(fmt(lucro, locale)) : '—'}</td>
+                        <td className="num">{price ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
                       </tr>
                     );
                   })}</tbody>
@@ -143,34 +145,35 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
       return { a, p, inv, atual, lucro, pct, lMeta, pMeta };
     });
     content = (
-      <div className="table-wrap">
+      <div className="tbl scroll">
         <table>
           <thead><tr>
-            <th style={{ width: 170 }}>{t.wallet_col_asset}</th>
-            <th style={{ width: 120 }}>{t.wallet_col_currentPrice}</th>
-            <th style={{ width: 110 }}>{t.profit_invested}</th>
-            <th style={{ width: 110 }}>{t.profit_currentValue}</th>
-            <th style={{ width: 120 }}>{t.wallet_col_pnl}</th>
-            <th style={{ width: 90 }}>{t.wallet_col_pnlPct}</th>
+            <th>{t.wallet_col_asset}</th>
+            <th className="num">{t.wallet_col_currentPrice}</th>
+            <th className="num">{t.profit_invested}</th>
+            <th className="num">{t.profit_currentValue}</th>
+            <th className="num">{t.wallet_col_pnl}</th>
+            <th className="num">{t.wallet_col_pnlPct}</th>
             <th>{t.wallet_col_exitPrice}</th>
           </tr></thead>
           <tbody>{rows.map(({ a, p, inv, atual, lucro, pct, lMeta, pMeta }) => (
             <tr key={a.coinId}>
-              <td><div className="coin-cell">
-                <AvatarImg coinId={a.coinId} symbol={a.symbol} avatarCache={avatarCache} />
-                <div><div className="coin-name">{a.name}</div><div className="coin-sym">{a.symbol} · {mask(fmtQty(a.qty, locale))}</div></div>
+              <td><div className="asset">
+                <CoinBadge coinId={a.coinId} symbol={a.symbol} avatarCache={avatarCache} />
+                <div><div className="nm">{a.name}</div><div className="tk">{a.symbol} · {mask(fmtQty(a.qty, locale))}</div></div>
               </div></td>
-              <td style={{ fontWeight: 500 }}>{p ? mask(fmt(p, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td>{mask(fmt(inv, locale))}</td>
-              <td>{p ? mask(fmt(atual, locale)) : <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-              <td className={lucro >= 0 ? 'pos' : 'neg'} style={{ fontWeight: 500 }}>{p ? mask(fmt(lucro, locale)) : '—'}</td>
-              <td>{p ? <span className={`pill ${pct >= 0 ? 'pill-pos' : 'pill-neg'}`}>{fmtPct(pct)}</span> : '—'}</td>
+              <td className="num" style={{ fontWeight: 500 }}>{p ? mask(fmt(p, locale)) : <span className="muted">—</span>}</td>
+              <td className="num">{mask(fmt(inv, locale))}</td>
+              <td className="num">{p ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
+              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{p ? mask(fmt(lucro, locale)) : '—'}</td>
+              <td className="num">{p ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
                     type="number" className="exit-input" placeholder="—" step="any"
                     defaultValue={a.exitPrice || ''}
                     style={{ width: 90 }}
+                    aria-label={t.wallet_col_exitPrice}
                     onChange={e => onExitPriceChange(a.coinId, e.target.value)}
                   />
                   {lMeta !== null && <span className="pill pill-neu" style={{ fontSize: 11 }}>{fmtPct(pMeta!)}</span>}
@@ -185,29 +188,36 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
 
   const inv = totalInv, atual = totalAtual;
   const l = atual - inv, pPct = inv > 0 ? (l / inv) * 100 : 0;
+  const hasPrices = inv > 0 && atual > 0;
 
   return (
     <div id="tab-carteira" className="section active">
-      <div className="metrics">
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-arrow-down-circle" /> {t.profit_invested}</div>
-          <div className="metric-value">{mask(fmt(inv, locale))}</div>
+      <ContentHeader title={t.nav_wallet} subtitle={t.wallet_subtitle}>
+        <span className="ts">{statusMsg}</span>
+        <button className="btn" onClick={onFetchPrices}>
+          <i className="ti ti-refresh" /> {t.wallet_updatePrices}
+        </button>
+      </ContentHeader>
+
+      {assets.length > 0 && (
+        <div className="metrics">
+          <MetricCard label={t.profit_invested} value={mask(fmt(inv, locale))} />
+          <MetricCard label={t.profit_currentValue} value={hasPrices ? mask(fmt(atual, locale)) : '—'} />
+          <MetricCard
+            label={t.profit_pnl}
+            value={hasPrices ? mask(fmt(l, locale)) : '—'}
+            valueColor={hasPrices ? (l >= 0 ? 'pos' : 'neg') : undefined}
+          />
+          <MetricCard
+            label={t.wallet_col_pnlPct}
+            value={hasPrices ? fmtPct(pPct) : '—'}
+            valueColor={hasPrices ? (pPct >= 0 ? 'pos' : 'neg') : undefined}
+          />
         </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-coin" /> {t.profit_currentValue}</div>
-          <div className="metric-value">{inv && atual ? mask(fmt(atual, locale)) : '—'}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-plus-minus" /> {t.profit_pnl}</div>
-          <div className={`metric-value ${l >= 0 ? 'pos' : 'neg'}`}>{inv && atual ? mask(fmt(l, locale)) : '—'}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-percentage" /> {t.wallet_col_pnlPct}</div>
-          <div className={`metric-value ${pPct >= 0 ? 'pos' : 'neg'}`}>{inv && atual ? fmtPct(pPct) : '—'}</div>
-        </div>
-      </div>
-      <div className="topbar">
-        <div className="chart-switcher" style={{ marginBottom: 0 }}>
+      )}
+
+      {assets.length > 0 && (
+        <div className="chart-switcher">
           {(['asset', 'platform', 'both'] as GroupMode[]).map(m => (
             <button
               key={m}
@@ -220,11 +230,8 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="status">{statusMsg}</span>
-          <button className="btn-sm" onClick={onFetchPrices}><i className="ti ti-refresh" /> {t.wallet_updatePrices}</button>
-        </div>
-      </div>
+      )}
+
       <div id="table-wrap">{content}</div>
     </div>
   );
