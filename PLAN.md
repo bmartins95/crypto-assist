@@ -283,23 +283,31 @@ See `docs/design/dashboard-collapsible-sidebar.html` → "Carteira" view.
 - [ ] Done
 
 ### Goal
-Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars.
+Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars. Also strip the icons from the segmented-control options in both the Profit view and the Wallet view, leaving text-only labels. A follow-up color-and-contrast QA pass (see `dashboard-color-contrast-pass.md`) is folded into this same item/branch: restore the metric-card label icons dropped by the `MetricCard` swap, add a chart panel title, and fix several components that rendered directly on the page background instead of the `--s-surface` card tokens (chart panel, distribution panel, segmented-control container, metric cards, table), so cards/panels/sidebar visually lift off the canvas.
 
 ### Design reference
-See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view.
+See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view. See `dashboard-color-contrast-pass.md` for the color/contrast fix notes.
 
-### Current state
-`web/src/components/ProfitTab.tsx` renders charts and P/L data. No metric cards. Charts are partially implemented. The "Over time" and "Portfolio value" modes render `computeTimeline` output.
+### Current state (as implemented)
+`web/src/components/ProfitTab.tsx` now renders a `<ContentHeader>`, four `<MetricCard>`s (each with a label icon), a text-only chart-mode segmented control, an uppercase panel title above the chart canvas, a Chart.js divergent bar chart, and an allocation panel — all driven by a new `computeProfitByAsset` function in `shared/src/portfolio.ts` (average-cost method, splits realized P/L from closed lots vs. unrealized P/L from open lots; Best/Worst asset ranks only open, priced positions by unrealized % return). No Recharts dependency was added — Chart.js was already used for all three chart modes. `web/src/components/WalletTab.tsx`'s grouping segmented control is also text-only now. `web/src/app/globals.css` gained a `--s-border` token (solid `#27272a`/light equivalent, distinct from the pre-existing translucent `--border`) and the dark-mode `--bg` moved from `#1a1a1a` to `#0a0a0b` so `--s-surface` cards/sidebar/panels visually lift off the canvas; `.metric`, `.tbl`, `.chart-area`, `.dist-section`, `.chart-switcher` were switched from `--bg`/`--border` to `--s-surface`/`--s-border`.
 
-### Files to modify
-- `web/src/components/ProfitTab.tsx` — add `<ContentHeader>` and four `<MetricCard>` components. Add the chart-mode segmented control (component state). Implement the P/L-by-asset divergent bar chart using Recharts `<BarChart>` with a `<ReferenceLine y={0} />` and per-bar fill computed from sign (`fill={pl >= 0 ? 'var(--green)' : 'var(--red)'}`). Add the allocation bars panel (`.dist-row`, `.bar`, `.bar i`) driven by each asset's invested fraction of total.
-- `web/src/app/globals.css` — add `.panel`, `.panel h3`, `.dist-row`, `.dist-head`, `.bar` if not already present from item 7.
+### Files modified
+- `shared/src/portfolio.ts` — added `computeProfitByAsset` (+ `AssetProfit` type), tested in `web/src/lib/portfolio.test.ts`.
+- `shared/src/i18n/types.ts` and all 10 `shared/src/i18n/locales/*.ts` — added `profit_subtitle`.
+- `web/src/components/ProfitTab.tsx`, `ProfitTab.test.tsx` — full redesign described above.
+- `web/src/components/WalletTab.tsx`, `WalletTab.test.tsx` — icon removal from the grouping control.
+- `web/src/components/MetricCard.tsx` — added an optional `icon` prop.
+- `web/src/router.tsx` — threads `statusMsg`/`onFetchPrices` into `ProfitTab`.
+- `web/src/app/globals.css` — `--s-border` token, dark `--bg` value, surface/border fixes on `.metric`, `.tbl`, `.chart-area`, `.dist-section`, `.chart-switcher`, `.chart-btn.active`.
+- HistoryTab's legacy `--bg`-based classes (`.op-card`, `.trade-card`, `.op-list-wrap`, `.table-wrap`) were deliberately left untouched — out of scope until item 9 redesigns that view.
 
 ### Done when
-- The Profit route (`/profit`) shows four metric cards, chart-mode selector, divergent bar chart, and allocation bars.
-- Best asset and worst asset cards show the correct ticker and percentage.
-- Realized P/L metric is driven by closed positions; unrealized by open positions (using `computePositions`).
-- `npm test` passes; `ProfitTab.test.tsx` updated.
+- The Profit route (`/profit`) shows four metric cards, chart-mode selector, divergent bar chart, allocation bars, and a chart panel title.
+- Best asset and worst asset cards show the correct ticker and percentage, ranked from open positions only.
+- Realized P/L metric is driven by closed positions; unrealized by open positions (using `computeProfitByAsset`).
+- Neither the Profit view's nor the Wallet view's segmented-control options render an icon — text labels only; metric cards do retain their label icons.
+- Cards, panels, table, and segmented controls render on `--s-surface` with a visible `--s-border`, distinguishable from the page background.
+- `npm test` passes; `ProfitTab.test.tsx` and `WalletTab.test.tsx` updated.
 
 ---
 

@@ -89,8 +89,9 @@ function ProfitRoute() {
   return (
     <div className="app">
       <ProfitTab
-        assets={p.assets} ops={p.ops} prices={p.prices}
+        ops={p.ops} prices={p.prices}
         activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
+        statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
       />
     </div>
   );

@@ -9,6 +9,7 @@ const esES: UIText = {
   chart_value: 'Valor de la cartera',
   wallet_emptyState: 'Registra operaciones en Historial para ver tu cartera',
   wallet_subtitle: 'Cotizaciones en tiempo real vía CoinGecko · BRL',
+  profit_subtitle: 'Resultado realizado y no realizado · BRL',
   wallet_groupBy_asset: 'Por activo',
   wallet_groupBy_platform: 'Por plataforma',
   wallet_groupBy_both: 'Activo + plataforma',

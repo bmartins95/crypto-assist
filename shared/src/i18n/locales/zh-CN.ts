@@ -9,6 +9,7 @@ const zhCN: UIText = {
   chart_value: '投资组合价值',
   wallet_emptyState: '在历史记录中添加操作以查看您的钱包',
   wallet_subtitle: '通过 CoinGecko 提供的实时行情 · BRL',
+  profit_subtitle: '已实现与未实现的收益 · BRL',
   wallet_groupBy_asset: '按资产',
   wallet_groupBy_platform: '按平台',
   wallet_groupBy_both: '资产 + 平台',

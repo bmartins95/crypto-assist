@@ -224,9 +224,9 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
               className={`chart-btn${groupMode === m ? ' active' : ''}`}
               onClick={() => onGroupMode(m)}
             >
-              {m === 'asset' && <><i className="ti ti-coins" /> {t.wallet_groupBy_asset}</>}
-              {m === 'platform' && <><i className="ti ti-building-bank" /> {t.wallet_groupBy_platform}</>}
-              {m === 'both' && <><i className="ti ti-layout-grid" /> {t.wallet_groupBy_both}</>}
+              {m === 'asset' && t.wallet_groupBy_asset}
+              {m === 'platform' && t.wallet_groupBy_platform}
+              {m === 'both' && t.wallet_groupBy_both}
             </button>
           ))}
         </div>

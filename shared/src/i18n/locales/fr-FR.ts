@@ -9,6 +9,7 @@ const frFR: UIText = {
   chart_value: 'Valeur du portefeuille',
   wallet_emptyState: 'Enregistrez des opérations dans Historique pour voir votre portefeuille',
   wallet_subtitle: 'Cotations en temps réel via CoinGecko · BRL',
+  profit_subtitle: 'Résultat réalisé et non réalisé · BRL',
   wallet_groupBy_asset: 'Par actif',
   wallet_groupBy_platform: 'Par plateforme',
   wallet_groupBy_both: 'Actif + plateforme',

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets } from './portfolio';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset } from './portfolio';
 import type { Op } from './types';
 
 function op(overrides: Partial<Op>): Op {
@@ -105,5 +105,48 @@ describe('collectAssets', () => {
     const assets = collectAssets(ops, { bitcoin: 500000 });
     expect(assets.find((a) => a.coinId === 'bitcoin')?.exitPrice).toBe(500000);
     expect(assets.find((a) => a.coinId === 'ethereum')?.exitPrice).toBe(0);
+  });
+});
+
+describe('computeProfitByAsset', () => {
+  it('attributes P/L to realizedPnl only when the position is fully closed', () => {
+    const ops = [
+      op({ type: 'Buy', qty: 1, price: 100 }),
+      op({ date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+    ];
+    const [profit] = computeProfitByAsset(ops, {});
+    expect(profit.realizedPnl).toBe(50);
+    expect(profit.unrealizedPnl).toBe(0);
+    expect(profit.hasOpenPosition).toBe(false);
+  });
+
+  it('attributes P/L to unrealizedPnl only when the position is fully open', () => {
+    const ops = [op({ type: 'Buy', qty: 1, price: 100 })];
+    const [profit] = computeProfitByAsset(ops, { bitcoin: 150 });
+    expect(profit.realizedPnl).toBe(0);
+    expect(profit.unrealizedPnl).toBe(50);
+    expect(profit.hasOpenPosition).toBe(true);
+  });
+
+  it('splits realized and unrealized correctly on a partial sell without double-counting cost basis', () => {
+    const ops = [
+      op({ type: 'Buy', qty: 1, price: 100 }),
+      op({ date: '2024-01-02', type: 'Sell', qty: 0.5, price: 150 }),
+    ];
+    const [profit] = computeProfitByAsset(ops, { bitcoin: 150 });
+    expect(profit.realizedPnl).toBe(25);
+    expect(profit.investedOpen).toBe(50);
+    expect(profit.unrealizedPnl).toBe(25);
+    expect(profit.hasOpenPosition).toBe(true);
+  });
+
+  it('marks an asset as priceless when no price is available for it', () => {
+    const [profit] = computeProfitByAsset([op({ type: 'Buy', qty: 1, price: 100 })], {});
+    expect(profit.hasPrice).toBe(false);
+    expect(profit.currentValue).toBe(0);
+  });
+
+  it('ignores operations without a coinId', () => {
+    expect(computeProfitByAsset([op({ coinId: '' })], {})).toHaveLength(0);
   });
 });

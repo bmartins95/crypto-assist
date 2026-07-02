@@ -9,6 +9,7 @@ const arSA: UIText = {
   chart_value: 'قيمة المحفظة',
   wallet_emptyState: 'أضف عمليات في السجل لعرض محفظتك',
   wallet_subtitle: 'أسعار لحظية عبر CoinGecko · BRL',
+  profit_subtitle: 'النتائج المحققة وغير المحققة · BRL',
   wallet_groupBy_asset: 'حسب الأصل',
   wallet_groupBy_platform: 'حسب المنصة',
   wallet_groupBy_both: 'الأصل + المنصة',

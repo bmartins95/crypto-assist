@@ -69,5 +69,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/008-wallet-view-refactor/plan.md
+at specs/009-profit-view-refactor/plan.md
 <!-- SPECKIT END -->

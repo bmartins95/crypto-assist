@@ -9,6 +9,7 @@ const deDE: UIText = {
   chart_value: 'Portfoliowert',
   wallet_emptyState: 'Transaktionen im Verlauf erfassen, um das Portfolio zu sehen',
   wallet_subtitle: 'Echtzeitkurse über CoinGecko · BRL',
+  profit_subtitle: 'Realisiertes und unrealisiertes Ergebnis · BRL',
   wallet_groupBy_asset: 'Nach Asset',
   wallet_groupBy_platform: 'Nach Plattform',
   wallet_groupBy_both: 'Asset + Plattform',

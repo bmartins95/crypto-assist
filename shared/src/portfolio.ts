@@ -36,6 +36,53 @@ export function computePositionsByAssetAndPlatform(ops: Op[]): AssetWithPlatform
   })).filter(a => a.qty > 1e-9);
 }
 
+export interface AssetProfit {
+  coinId: string;
+  symbol: string;
+  name: string;
+  investedOpen: number;
+  currentValue: number;
+  unrealizedPnl: number;
+  unrealizedPct: number;
+  realizedPnl: number;
+  hasOpenPosition: boolean;
+  hasPrice: boolean;
+}
+
+export function computeProfitByAsset(ops: Op[], prices: Prices): AssetProfit[] {
+  const sorted = [...ops].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const map: Record<string, { symbol: string; name: string; qty: number; avgCost: number; realizedPnl: number }> = {};
+  sorted.forEach(o => {
+    if (!o.coinId) return;
+    if (!map[o.coinId]) map[o.coinId] = { symbol: o.symbol, name: o.name, qty: 0, avgCost: 0, realizedPnl: 0 };
+    const h = map[o.coinId];
+    if (o.type === 'Buy') {
+      const newQty = h.qty + o.qty;
+      h.avgCost = newQty > 0 ? (h.qty * h.avgCost + o.qty * o.price) / newQty : 0;
+      h.qty = newQty;
+    } else {
+      const sellQty = Math.min(o.qty, h.qty);
+      h.realizedPnl += sellQty * (o.price - h.avgCost);
+      h.qty -= sellQty;
+    }
+  });
+  return Object.entries(map).map(([coinId, h]) => {
+    const qty = +h.qty.toFixed(10);
+    const price = prices[coinId] || 0;
+    const investedOpen = qty * h.avgCost;
+    const currentValue = qty * price;
+    const unrealizedPnl = currentValue - investedOpen;
+    return {
+      coinId, symbol: h.symbol, name: h.name,
+      investedOpen, currentValue, unrealizedPnl,
+      unrealizedPct: investedOpen > 0 ? (unrealizedPnl / investedOpen) * 100 : 0,
+      realizedPnl: h.realizedPnl,
+      hasOpenPosition: qty > 1e-9,
+      hasPrice: price > 0,
+    };
+  });
+}
+
 export interface TimelinePoint {
   date: string;
   invested: number;

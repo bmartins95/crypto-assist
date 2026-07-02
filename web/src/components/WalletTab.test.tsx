@@ -54,6 +54,11 @@ describe('WalletTab', () => {
     expect(onGroupMode).toHaveBeenCalledWith('platform');
   });
 
+  it('renders no icon inside the grouping segmented control', () => {
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} groupMode="asset" />);
+    expect(document.querySelectorAll('.chart-switcher i')).toHaveLength(0);
+  });
+
   it('groups by platform when groupMode is "platform"', () => {
     const opsForPlatform = [
       { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platform: 'Binance' },
