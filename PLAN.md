@@ -214,7 +214,7 @@ Redesign as grouped list. Three groups:
 **Branch:** `feat/sidebar-collapsible`
 **Depends on:** item 5
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Replace the current top-bar navigation (email + Settings link + Logout) with a persistent collapsible sidebar. The three main views (Wallet, Profit, History) become real routes with their own URLs. The sidebar collapses to a 66px icon-only rail with CSS tooltips; expanded state persists across page loads. Settings and Logout move into the sidebar footer.
