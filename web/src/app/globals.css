@@ -30,7 +30,7 @@
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
     --bg: #0a0a0b;
     --bg2: #242424;
-    --bg3: #2e2e2e;
+    --bg3: #0a0a0b;
     --text: #e8e8e8;
     --text2: #aaaaaa;
     --text3: #666666;
@@ -57,7 +57,7 @@
 html[data-theme="dark"] {
   --bg: #0a0a0b;
   --bg2: #242424;
-  --bg3: #2e2e2e;
+  --bg3: #0a0a0b;
   --text: #e8e8e8;
   --text2: #aaaaaa;
   --text3: #666666;
@@ -287,7 +287,7 @@ tr:hover td { background: var(--bg2); }
 .bar-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
 .bar-name { color: var(--text); font-weight: 500; }
 .bar-pct { color: var(--text2); }
-.bar-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.bar-track { height: 6px; background: var(--s-surface-2); border-radius: 3px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 3px; }
 
 .op-card {
@@ -352,7 +352,7 @@ tr:hover td { background: var(--bg2); }
   padding: 2px 6px; font-size: 13px; line-height: 1;
   border-color: transparent; color: var(--text3);
 }
-.icon-btn:hover { color: var(--text); background: var(--bg3); }
+.icon-btn:hover { color: var(--text); background: var(--s-surface-2); }
 
 .exit-input {
   width: 100%; font-size: 12px; padding: 4px 8px;
