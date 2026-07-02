@@ -259,8 +259,9 @@ tr:hover td { background: var(--bg2); }
 .chart-area {
   background: var(--s-surface); border: 1px solid var(--s-border);
   border-radius: var(--radius-lg); padding: 1.25rem;
-  margin-bottom: 1rem; position: relative; height: 300px;
+  margin-bottom: 1rem;
 }
+.chart-canvas-wrap { position: relative; height: 260px; }
 .chart-switcher {
   display: flex; gap: 2px; background: var(--s-surface); border-radius: 9px;
   padding: 3px; margin-bottom: 10px; border: 1px solid var(--s-border); width: fit-content;

@@ -156,10 +156,12 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
         ))}
       </div>
 
-      <div className="chart-area" style={{ position: 'relative' }}>
+      <div className="chart-area">
         <div className="sec-title">{{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}</div>
-        <canvas ref={chartRef} />
-        {noPriceData && noDataOverlay}
+        <div className="chart-canvas-wrap">
+          <canvas ref={chartRef} />
+          {noPriceData && noDataOverlay}
+        </div>
       </div>
 
       <div className="dist-section">
