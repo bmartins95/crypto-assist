@@ -283,23 +283,25 @@ See `docs/design/dashboard-collapsible-sidebar.html` → "Carteira" view.
 - [ ] Done
 
 ### Goal
-Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars.
+Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars. Also strip the icons from the segmented-control options in both the Profit view and the Wallet view, leaving text-only labels.
 
 ### Design reference
 See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view.
 
 ### Current state
-`web/src/components/ProfitTab.tsx` renders charts and P/L data. No metric cards. Charts are partially implemented. The "Over time" and "Portfolio value" modes render `computeTimeline` output.
+`web/src/components/ProfitTab.tsx` renders charts and P/L data. No metric cards. Charts are partially implemented. The "Over time" and "Portfolio value" modes render `computeTimeline` output. Its segmented control ("Por ativo" / "Lucro no tempo" / "Valor da carteira") and the Wallet view's segmented control ("Por ativo" / "Por Plataforma" / "Ativo + plataforma", built in item 7) both render an icon next to each label.
 
 ### Files to modify
-- `web/src/components/ProfitTab.tsx` — add `<ContentHeader>` and four `<MetricCard>` components. Add the chart-mode segmented control (component state). Implement the P/L-by-asset divergent bar chart using Recharts `<BarChart>` with a `<ReferenceLine y={0} />` and per-bar fill computed from sign (`fill={pl >= 0 ? 'var(--green)' : 'var(--red)'}`). Add the allocation bars panel (`.dist-row`, `.bar`, `.bar i`) driven by each asset's invested fraction of total.
+- `web/src/components/ProfitTab.tsx` — add `<ContentHeader>` and four `<MetricCard>` components. Add the chart-mode segmented control (component state), text-only ("Por ativo" / "Lucro no tempo" / "Valor da carteira" with no icons). Implement the P/L-by-asset divergent bar chart using Recharts `<BarChart>` with a `<ReferenceLine y={0} />` and per-bar fill computed from sign (`fill={pl >= 0 ? 'var(--green)' : 'var(--red)'}`). Add the allocation bars panel (`.dist-row`, `.bar`, `.bar i`) driven by each asset's invested fraction of total.
+- `web/src/components/WalletTab.tsx` — remove the icons from the "Por ativo" / "Por Plataforma" / "Ativo + plataforma" segmented control options, leaving text-only labels.
 - `web/src/app/globals.css` — add `.panel`, `.panel h3`, `.dist-row`, `.dist-head`, `.bar` if not already present from item 7.
 
 ### Done when
 - The Profit route (`/profit`) shows four metric cards, chart-mode selector, divergent bar chart, and allocation bars.
 - Best asset and worst asset cards show the correct ticker and percentage.
 - Realized P/L metric is driven by closed positions; unrealized by open positions (using `computePositions`).
-- `npm test` passes; `ProfitTab.test.tsx` updated.
+- Neither the Profit view's nor the Wallet view's segmented-control options render an icon — text labels only.
+- `npm test` passes; `ProfitTab.test.tsx` and `WalletTab.test.tsx` updated.
 
 ---
 
