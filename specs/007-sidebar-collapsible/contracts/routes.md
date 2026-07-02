@@ -15,7 +15,7 @@
 
 ## AppLayout contract
 
-- Two-column CSS grid `.layout` (260px | 1fr), `.layout.collapsed` (66px | 1fr), 0.22s transition; nav items separated by a 4px gap.
+- Two-column CSS grid `.layout` (288px | 1fr), `.layout.collapsed` (66px | 1fr), 0.22s transition; nav items separated by a 4px gap.
 - Owns `collapsed: boolean` from `localStorage('sidebar:collapsed')` (lazy init, `'1'` = collapsed).
 - Owns portfolio data via `PortfolioProvider`; children consume `usePortfolio()`.
 - Below 820px: single column; sidebar stacks on top with bottom border (per prototype media query).

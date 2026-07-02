@@ -467,7 +467,7 @@ tr:hover td { background: var(--bg2); }
 
 /* ── App shell / collapsible sidebar ─────────────────────────── */
 .layout {
-  display: grid; grid-template-columns: 260px 1fr;
+  display: grid; grid-template-columns: 288px 1fr;
   min-height: 100vh; transition: grid-template-columns .22s ease;
 }
 .layout.collapsed { grid-template-columns: 66px 1fr; }
