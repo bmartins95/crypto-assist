@@ -4,3 +4,4 @@ pytest-anyio>=0.0.0
 httpx>=0.28
 bandit>=1.8
 pip-audit>=2.8
+uvicorn[standard]>=0.34,<1.0
