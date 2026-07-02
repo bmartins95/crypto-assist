@@ -467,7 +467,7 @@ tr:hover td { background: var(--bg2); }
 
 /* ── App shell / collapsible sidebar ─────────────────────────── */
 .layout {
-  display: grid; grid-template-columns: 232px 1fr;
+  display: grid; grid-template-columns: 260px 1fr;
   min-height: 100vh; transition: grid-template-columns .22s ease;
 }
 .layout.collapsed { grid-template-columns: 66px 1fr; }
@@ -510,6 +510,7 @@ tr:hover td { background: var(--bg2); }
   text-decoration: none; font-family: inherit; text-align: left;
 }
 .navi:active { transform: none; }
+.navi + .navi { margin-top: 4px; }
 .navi i { font-size: 18px; opacity: .75; flex-shrink: 0; }
 .navi .lbl { overflow: hidden; }
 .navi:hover, .navi.active { background: var(--s-surface-hover); color: var(--text); }

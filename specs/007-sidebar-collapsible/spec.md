@@ -87,7 +87,7 @@ The old floating top bar (email, Settings link, Logout button) is gone. The side
 - **FR-003**: Unauthenticated access to any of the three routes (and `/settings`) MUST redirect to the sign-in page, preserving the existing auth-guard behaviour.
 - **FR-004**: A persistent sidebar MUST be visible on `/wallet`, `/profit`, `/history`, and `/settings`, showing brand, the three portfolio destinations, and a footer with Settings, Logout, and a user chip (email + avatar initial).
 - **FR-005**: The sidebar MUST highlight the destination matching the current route.
-- **FR-006**: A collapse control MUST toggle the sidebar between a 232px expanded state and a 66px icon-only rail, with labels hidden and icons centered when collapsed.
+- **FR-006**: A collapse control MUST toggle the sidebar between a 260px expanded state (wide enough for the app name in the brand) and a 66px icon-only rail, with labels hidden and icons centered when collapsed.
 - **FR-007**: While collapsed, hovering a sidebar item MUST show a tooltip with the item's label.
 - **FR-008**: The collapsed/expanded preference MUST persist per device across page reloads and restore on layout load.
 - **FR-009**: The old floating top bar (email, Settings link, Logout) MUST be removed from all pages.
