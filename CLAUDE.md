@@ -69,5 +69,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/006-fix-csp-icons/plan.md
+at specs/007-sidebar-collapsible/plan.md
 <!-- SPECKIT END -->
