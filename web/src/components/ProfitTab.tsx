@@ -125,19 +125,22 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
       </ContentHeader>
 
       <div className="metrics" style={{ marginBottom: '1rem' }}>
-        <MetricCard label={t.profit_realized} value={mask(fmt(totalRealized, locale))} valueColor={totalRealized >= 0 ? 'pos' : 'neg'} />
+        <MetricCard icon="ti ti-check" label={t.profit_realized} value={mask(fmt(totalRealized, locale))} valueColor={totalRealized >= 0 ? 'pos' : 'neg'} />
         <MetricCard
+          icon="ti ti-clock"
           label={t.profit_unrealized}
           value={withPrice.length ? mask(fmt(totalUnrealized, locale)) : '—'}
           valueColor={withPrice.length ? (totalUnrealized >= 0 ? 'pos' : 'neg') : undefined}
         />
         <MetricCard
+          icon="ti ti-arrow-up"
           label={t.profit_bestAsset}
           value={best ? best.symbol : '—'}
           sub={best ? fmtPct(best.unrealizedPct) : undefined}
           subColor={best ? (best.unrealizedPct >= 0 ? 'pos' : 'neg') : undefined}
         />
         <MetricCard
+          icon="ti ti-arrow-down"
           label={t.profit_worstAsset}
           value={worst ? worst.symbol : '—'}
           sub={worst ? fmtPct(worst.unrealizedPct) : undefined}
@@ -154,6 +157,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
       </div>
 
       <div className="chart-area" style={{ position: 'relative' }}>
+        <div className="sec-title">{{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}</div>
         <canvas ref={chartRef} />
         {noPriceData && noDataOverlay}
       </div>

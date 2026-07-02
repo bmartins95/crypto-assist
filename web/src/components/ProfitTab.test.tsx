@@ -127,6 +127,17 @@ describe('ProfitTab', () => {
     expect(document.querySelectorAll('.chart-switcher i')).toHaveLength(0);
   });
 
+  it('renders a label icon on each of the four metric cards', () => {
+    renderProfitTab([op({})]);
+    expect(document.querySelectorAll('.metric-label i')).toHaveLength(4);
+  });
+
+  it('shows an uppercase chart panel title matching the active chart mode', () => {
+    renderProfitTab([op({})], {}, 'over-time');
+    const title = document.querySelector('.chart-area .sec-title');
+    expect(title?.textContent).toBe('Lucro no tempo');
+  });
+
   it('plots realized and unrealized P/L for every asset, including fully-closed ones, and reconciles with the metric cards', () => {
     const ops = [
       op({ type: 'Buy', qty: 1, price: 100 }),
