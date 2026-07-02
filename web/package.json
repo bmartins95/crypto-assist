@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.121.0",
@@ -25,6 +26,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9",
     "eslint-plugin-security": "^4.0.1",
     "jsdom": "^29.1.1",

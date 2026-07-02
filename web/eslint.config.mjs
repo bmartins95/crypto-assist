@@ -12,6 +12,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", ".next/**", "routeTree.gen.ts"],
+    ignores: ["dist/**", "node_modules/**", ".next/**", "coverage/**", "routeTree.gen.ts"],
   },
 );

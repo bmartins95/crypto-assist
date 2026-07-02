@@ -76,6 +76,11 @@ export interface UIText {
   settings_language: string;
   nav_settings: string;
   nav_logout: string;
+  nav_wallet: string;
+  nav_profit: string;
+  nav_history: string;
+  nav_toggle_sidebar: string;
+  nav_section_portfolio: string;
   app_title: string;
   auth_subtitle: string;
   auth_google: string;

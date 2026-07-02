@@ -6,6 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useBalance } from '@/context/BalanceContext';
 import { exportData, importData } from '@/lib/dataHandlers';
 import { api } from '@/lib/api/client';
+import { usePortfolio } from '@/components/AppLayout';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'pt-BR': 'Português (Brasil)',
@@ -24,6 +25,7 @@ export default function SettingsPage(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const { hidden, toggleHidden } = useBalance();
+  const { reload } = usePortfolio();
   const importRef = React.useRef<HTMLInputElement>(null);
 
   function handleExport(): void {
@@ -37,7 +39,7 @@ export default function SettingsPage(): React.ReactElement {
   function handleImportChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const file = e.target.files?.[0];
     if (!file) return;
-    importData(file)
+    importData(file, reload)
       .then(() => { e.target.value = ''; alert(t.settings_clear_wallet_success); })
       .catch(() => alert(t.dashboard_error_import));
   }
@@ -45,7 +47,7 @@ export default function SettingsPage(): React.ReactElement {
   function handleClearWallet(): void {
     if (!window.confirm(t.settings_clear_wallet_confirm)) return;
     api.clearOps()
-      .then(() => alert(t.settings_clear_wallet_success))
+      .then(async () => { await reload(); alert(t.settings_clear_wallet_success); })
       .catch(() => alert(t.common_error));
   }
 

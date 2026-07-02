@@ -1,4 +1,4 @@
-import type { Locale, UIText } from './types';
+import type { Locale, UIText, ThemeMode } from './types';
 import ptBR from './locales/pt-BR';
 import enUS from './locales/en-US';
 import esES from './locales/es-ES';
