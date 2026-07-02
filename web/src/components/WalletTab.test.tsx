@@ -21,6 +21,8 @@ function renderWithLocale(ui: React.ReactElement) {
   return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
 }
 
+const assetWithAvatar: Asset = { coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 1, avgPrice: 50, exitPrice: 0 };
+
 describe('WalletTab', () => {
   it('shows the empty state when there are no assets', () => {
     renderWithLocale(<WalletTab {...baseProps} assets={[]} groupMode="asset" />);
@@ -67,5 +69,68 @@ describe('WalletTab', () => {
     renderWithLocale(<WalletTab {...baseProps} ops={opsForBoth} assets={[asset]} groupMode="both" />);
     expect(screen.getByText('Binance')).toBeInTheDocument();
     expect(screen.getByText('Bitcoin')).toBeInTheDocument();
+  });
+
+  describe('US1 — metric cards', () => {
+    it('colors the P/L and Return cards by sign', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="asset" />);
+      const pnlCards = document.querySelectorAll('.metric-value.pos');
+      expect(pnlCards.length).toBe(2); // P/L (+100) and Return (+50%)
+    });
+
+    it('colors the P/L and Return cards negative when the position is down', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 50 }} groupMode="asset" />);
+      const negCards = document.querySelectorAll('.metric-value.neg');
+      expect(negCards.length).toBe(2);
+    });
+
+    it('shows a placeholder on all price-dependent cards when no asset has a known price', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{}} groupMode="asset" />);
+      const dashCards = screen.getAllByText('—').filter(el => el.className.includes('metric-value'));
+      expect(dashCards.length).toBe(3); // current value, P/L, return
+    });
+
+    it('masks metric card values when balances are hidden', () => {
+      localStorage.setItem('crypto-assist:balance-hidden', 'true');
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="asset" />);
+      expect(document.querySelector('.metric-value')?.textContent).toBe('••••••');
+      localStorage.clear();
+    });
+  });
+
+  describe('US2 — content header', () => {
+    it('renders the view title and subtitle', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} groupMode="asset" />);
+      expect(screen.getByText('Carteira')).toBeInTheDocument();
+      expect(screen.getByText(/CoinGecko/)).toBeInTheDocument();
+    });
+
+    it('shows the status message text', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} statusMsg="Atualizado às 14:00" groupMode="asset" />);
+      expect(screen.getByText('Atualizado às 14:00')).toBeInTheDocument();
+    });
+
+    it('calls onFetchPrices when the refresh button is clicked', () => {
+      const onFetchPrices = vi.fn();
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} onFetchPrices={onFetchPrices} groupMode="asset" />);
+      fireEvent.click(screen.getByRole('button', { name: /atualizar preços/i }));
+      expect(onFetchPrices).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('US3 — coin image / table restyle', () => {
+    it('renders a coin image when the avatar cache has one', () => {
+      renderWithLocale(
+        <WalletTab {...baseProps} assets={[assetWithAvatar]} avatarCache={{ ethereum: { url: 'https://img/eth.png' } }} groupMode="asset" />
+      );
+      const img = document.querySelector('.coin img') as HTMLImageElement;
+      expect(img).toBeTruthy();
+      expect(img.src).toBe('https://img/eth.png');
+    });
+
+    it('falls back to initials when no avatar is cached', () => {
+      renderWithLocale(<WalletTab {...baseProps} assets={[asset]} avatarCache={{}} groupMode="asset" />);
+      expect(screen.getByText('BTC')).toBeInTheDocument();
+    });
   });
 });

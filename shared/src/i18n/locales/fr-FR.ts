@@ -8,6 +8,7 @@ const frFR: UIText = {
   chart_overTime: 'Bénéfice dans le temps',
   chart_value: 'Valeur du portefeuille',
   wallet_emptyState: 'Enregistrez des opérations dans Historique pour voir votre portefeuille',
+  wallet_subtitle: 'Cotations en temps réel via CoinGecko · BRL',
   wallet_groupBy_asset: 'Par actif',
   wallet_groupBy_platform: 'Par plateforme',
   wallet_groupBy_both: 'Actif + plateforme',
