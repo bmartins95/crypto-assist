@@ -83,6 +83,17 @@ NAT instance (`nat: "ec2"` in `aws-infra/stacks/platform.ts`). Without it every 
 
 ## Running locally
 
+Needs a reachable Postgres instance — Aurora (used in AWS) is not reachable from a local
+machine. The quickest option is a disposable Docker container:
+
+```bash
+docker run -d --name crypto-assist-pg -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=crypto_assist -p 5432:5432 postgres:16
+```
+
+Schema and migrations apply automatically on first backend connection — no manual setup
+needed beyond the empty database above.
+
 ```bash
 cp .env.example .env       # fill in DB_DSN, COGNITO_USER_POOL_ID, etc.
 pip install -r requirements-dev.txt

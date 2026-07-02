@@ -2,4 +2,6 @@ crypto_portfolio_resumo.md
 
 .local/
 .claude/settings.json
+
 backend/.coverage
+backend/dev.py
