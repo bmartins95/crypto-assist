@@ -9,6 +9,7 @@ const jaJP: UIText = {
   chart_value: 'ポートフォリオ価値',
   wallet_emptyState: '履歴に取引を追加してポートフォリオを確認しましょう',
   wallet_subtitle: 'CoinGecko によるリアルタイム相場 · BRL',
+  profit_subtitle: '実現損益と未実現損益 · BRL',
   wallet_groupBy_asset: '資産別',
   wallet_groupBy_platform: 'プラットフォーム別',
   wallet_groupBy_both: '資産＋プラットフォーム',

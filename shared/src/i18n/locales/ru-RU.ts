@@ -9,6 +9,7 @@ const ruRU: UIText = {
   chart_value: 'Стоимость портфеля',
   wallet_emptyState: 'Добавьте операции в Историю, чтобы увидеть портфель',
   wallet_subtitle: 'Курсы в реальном времени через CoinGecko · BRL',
+  profit_subtitle: 'Реализованный и нереализованный результат · BRL',
   wallet_groupBy_asset: 'По активу',
   wallet_groupBy_platform: 'По платформе',
   wallet_groupBy_both: 'Актив + платформа',

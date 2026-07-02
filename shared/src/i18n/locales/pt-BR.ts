@@ -9,6 +9,7 @@ const ptBR: UIText = {
   chart_value: 'Valor da carteira',
   wallet_emptyState: 'Registre operações no Histórico para ver sua carteira',
   wallet_subtitle: 'Cotações em tempo real via CoinGecko · BRL',
+  profit_subtitle: 'Resultado realizado e não realizado · BRL',
   wallet_groupBy_asset: 'Por ativo',
   wallet_groupBy_platform: 'Por plataforma',
   wallet_groupBy_both: 'Ativo + plataforma',
