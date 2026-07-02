@@ -1,29 +1,60 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Op, NewOp, Prices, AvatarCache, TabType, GroupMode, ChartType, BackupPayload } from '@/lib/types';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Outlet } from '@tanstack/react-router';
+import { Op, NewOp, Prices, AvatarCache, GroupMode, ChartType, BackupPayload, Asset } from '@/lib/types';
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
-import { importData } from '@/lib/dataHandlers';
 import { collectAssets } from '@/lib/portfolio';
-import WalletTab from '@/components/WalletTab';
-import ProfitTab from '@/components/ProfitTab';
-import HistoryTab from '@/components/HistoryTab';
+import Sidebar from '@/components/Sidebar';
 import { useLocale } from '@/context/LocaleContext';
 
-export default function DashboardPage() {
+interface PortfolioContextValue {
+  ops: Op[];
+  assets: Asset[];
+  prices: Prices;
+  avatarCache: AvatarCache;
+  statusMsg: string;
+  groupMode: GroupMode;
+  setGroupMode: (mode: GroupMode) => void;
+  activeChart: ChartType;
+  setActiveChart: (chart: ChartType) => void;
+  fetchPrices: () => Promise<void>;
+  addOp: (op: NewOp) => Promise<void>;
+  editOp: (id: string, op: NewOp) => Promise<void>;
+  removeOp: (id: string) => Promise<void>;
+  setExitPrice: (coinId: string, value: string) => Promise<void>;
+  reload: () => Promise<void>;
+}
+
+const PortfolioContext = createContext<PortfolioContextValue | null>(null);
+
+export function usePortfolio(): PortfolioContextValue {
+  const ctx = useContext(PortfolioContext);
+  if (!ctx) throw new Error('usePortfolio must be used within AppLayout');
+  return ctx;
+}
+
+export default function AppLayout() {
   const { locale, t } = useLocale();
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar:collapsed') === '1');
   const [ops, setOps] = useState<Op[]>([]);
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Prices>({});
   const [avatarCache, setAvatarCache] = useState<AvatarCache>({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabType>('wallet');
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
 
+  const toggleSidebar = useCallback(() => {
+    setCollapsed(prev => {
+      localStorage.setItem('sidebar:collapsed', prev ? '0' : '1');
+      return !prev;
+    });
+  }, []);
+
   const assets = useMemo(() => collectAssets(ops, exitPrices), [ops, exitPrices]);
 
-  const reloadFromBackend = useCallback(async () => {
+  const reload = useCallback(async () => {
     const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
     setOps(remoteOps);
     setExitPrices(remoteExitPrices);
@@ -46,7 +77,7 @@ export default function DashboardPage() {
               const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
               await api.importBackup(legacyBackup);
               clearLegacyData();
-              await reloadFromBackend();
+              await reload();
               if (!cancelled) setLoading(false);
               return;
             }
@@ -63,9 +94,9 @@ export default function DashboardPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [reloadFromBackend]);
+  }, [reload]);
 
-  const handleAddOp = useCallback(async (op: NewOp) => {
+  const addOp = useCallback(async (op: NewOp) => {
     try {
       const created = await api.createOp(op);
       setOps(prev => [...prev, created]);
@@ -74,7 +105,7 @@ export default function DashboardPage() {
     }
   }, [t]);
 
-  const handleEditOp = useCallback(async (id: string, op: NewOp) => {
+  const editOp = useCallback(async (id: string, op: NewOp) => {
     try {
       const updated = await api.updateOp(id, op);
       setOps(prev => prev.map(o => (o.id === id ? updated : o)));
@@ -83,7 +114,7 @@ export default function DashboardPage() {
     }
   }, [t]);
 
-  const handleRemoveOp = useCallback(async (id: string) => {
+  const removeOp = useCallback(async (id: string) => {
     try {
       await api.deleteOp(id);
       setOps(prev => prev.filter(o => o.id !== id));
@@ -92,7 +123,7 @@ export default function DashboardPage() {
     }
   }, [t]);
 
-  const handleExitPriceChange = useCallback(async (coinId: string, value: string) => {
+  const setExitPrice = useCallback(async (coinId: string, value: string) => {
     const exitPrice = parseFloat(value) || 0;
     try {
       await api.setExitPrice(coinId, exitPrice);
@@ -143,67 +174,27 @@ export default function DashboardPage() {
     }
   }, [loading, assets, fetchPrices]);
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    importData(file, reloadFromBackend).then(() => {
-      e.target.value = '';
-    }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : '';
-      alert(msg.includes('Session not found') ? t.dashboard_error_session : t.dashboard_error_import);
-    });
-  };
-
-  const tabs: TabType[] = ['wallet', 'profit', 'history'];
+  const portfolio = useMemo<PortfolioContextValue>(() => ({
+    ops, assets, prices, avatarCache, statusMsg,
+    groupMode, setGroupMode, activeChart, setActiveChart,
+    fetchPrices, addOp, editOp, removeOp, setExitPrice, reload,
+  }), [ops, assets, prices, avatarCache, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, setExitPrice, reload]);
 
   return (
-    <div className="app">
-      <div className="header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <h1><i className="ti ti-currency-bitcoin" /> {t.app_title}</h1>
-          <p>{t.dashboard_subtitle}</p>
-        </div>
-        <input type="file" id="dashboard-import-input" accept=".json" onChange={handleImport} style={{ display: 'none' }} aria-label={t.dashboard_import} />
-      </div>
-
-      <div className="nav">
-        {tabs.map(tab => (
-          <button key={tab} className={`nav-btn${activeTab === tab ? ' active' : ''}`} onClick={() => setActiveTab(tab)}>
-            {tab === 'wallet' && <><i className="ti ti-wallet" /> <span>{t.tabs_wallet}</span></>}
-            {tab === 'profit' && <><i className="ti ti-trending-up" /> <span>{t.tabs_profit}</span></>}
-            {tab === 'history' && <><i className="ti ti-receipt" /> <span>{t.tabs_history}</span></>}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="empty-state" style={{ marginTop: 40 }}>
-          <i className="ti ti-loader-2" />
-          <span>{t.common_loading}</span>
-        </div>
-      ) : (
-        <>
-          {activeTab === 'wallet' && (
-            <WalletTab
-              ops={ops} assets={assets} prices={prices} avatarCache={avatarCache}
-              groupMode={groupMode} onGroupMode={setGroupMode}
-              statusMsg={statusMsg} onFetchPrices={fetchPrices}
-              onExitPriceChange={handleExitPriceChange}
-            />
-          )}
-          {activeTab === 'profit' && (
-            <ProfitTab
-              assets={assets} ops={ops} prices={prices}
-              activeChart={activeChart} onChartSwitch={setActiveChart}
-            />
-          )}
-          {activeTab === 'history' && (
-            <HistoryTab
-              ops={ops} assets={assets} prices={prices}
-              onAddOp={handleAddOp} onEditOp={handleEditOp} onRemoveOp={handleRemoveOp}
-            />
-          )}
-        </>
-      )}
+    <div className={collapsed ? 'layout collapsed' : 'layout'}>
+      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+      <main className="content">
+        {loading ? (
+          <div className="empty-state" style={{ marginTop: 40 }}>
+            <i className="ti ti-loader-2" />
+            <span>{t.common_loading}</span>
+          </div>
+        ) : (
+          <PortfolioContext.Provider value={portfolio}>
+            <Outlet />
+          </PortfolioContext.Provider>
+        )}
+      </main>
     </div>
   );
 }

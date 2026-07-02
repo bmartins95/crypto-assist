@@ -5,13 +5,15 @@ import {
   createRouter,
   redirect,
   Outlet,
-  Link,
+  type RouterHistory,
 } from '@tanstack/react-router';
 import AuthClient from './app/auth/AuthClient';
-import DashboardPage from './app/dashboard/page';
 import SettingsPage from './pages/settings';
-import LogoutButton from './components/LogoutButton';
-import { exchangeCode, getSession, getEmailFromIdToken } from './lib/cognito/client';
+import AppLayout, { usePortfolio } from './components/AppLayout';
+import WalletTab from './components/WalletTab';
+import ProfitTab from './components/ProfitTab';
+import HistoryTab from './components/HistoryTab';
+import { exchangeCode, getSession } from './lib/cognito/client';
 import { useLocale } from './context/LocaleContext';
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
@@ -19,14 +21,14 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => { throw redirect({ to: '/dashboard' }); },
+  beforeLoad: () => { throw redirect({ to: '/wallet' }); },
 });
 
 const authRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth',
   beforeLoad: () => {
-    if (getSession()) throw redirect({ to: '/dashboard' });
+    if (getSession()) throw redirect({ to: '/wallet' });
   },
   component: () => <AuthClient />,
 });
@@ -42,7 +44,7 @@ function AuthCallbackPage() {
       return;
     }
     exchangeCode(code)
-      .then(() => window.location.replace('/dashboard'))
+      .then(() => window.location.replace('/wallet'))
       .catch(() => {
         setError(true);
         setTimeout(() => window.location.replace('/auth?error=auth_callback_failed'), 2000);
@@ -59,89 +61,106 @@ const authCallbackRoute = createRoute({
   component: AuthCallbackPage,
 });
 
-function DashboardLayout() {
-  const { t } = useLocale();
-  const [email, setEmail] = useState('');
-
-  useEffect(() => {
-    const session = getSession();
-    if (session) setEmail(getEmailFromIdToken(session.id_token));
-  }, []);
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
-        <span>{email}</span>
-        <Link to="/settings" className="btn-sm">
-          <i className="ti ti-settings" /> {t.nav_settings}
-        </Link>
-        <LogoutButton />
-      </div>
-      <DashboardPage />
-    </div>
-  );
-}
-
-const dashboardRoute = createRoute({
+const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/dashboard',
+  id: 'app',
   beforeLoad: () => {
     if (!getSession()) throw redirect({ to: '/auth' });
   },
-  component: DashboardLayout,
+  component: AppLayout,
 });
 
-function SettingsLayout() {
-  const { t } = useLocale();
-  const [email, setEmail] = useState('');
-
-  useEffect(() => {
-    const session = getSession();
-    if (session) setEmail(getEmailFromIdToken(session.id_token));
-  }, []);
-
+function WalletRoute() {
+  const p = usePortfolio();
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, padding: '8px 16px', fontSize: 12, color: 'var(--text3)' }}>
-        <span>{email}</span>
-        <Link to="/dashboard" className="btn-sm">
-          <i className="ti ti-arrow-left" /> Dashboard
-        </Link>
-        <LogoutButton />
-      </div>
-      <div className="app">
-        <div style={{ marginBottom: '1.75rem' }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>
-            {t.settings_title}
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--s-text-dim)', marginTop: 3 }}>
-            {t.settings_subtitle}
-          </p>
-        </div>
-        <SettingsPage />
-      </div>
+    <div className="app">
+      <WalletTab
+        ops={p.ops} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
+        groupMode={p.groupMode} onGroupMode={p.setGroupMode}
+        statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
+        onExitPriceChange={p.setExitPrice}
+      />
     </div>
   );
 }
 
+function ProfitRoute() {
+  const p = usePortfolio();
+  return (
+    <div className="app">
+      <ProfitTab
+        assets={p.assets} ops={p.ops} prices={p.prices}
+        activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
+      />
+    </div>
+  );
+}
+
+function HistoryRoute() {
+  const p = usePortfolio();
+  return (
+    <div className="app">
+      <HistoryTab
+        ops={p.ops} assets={p.assets} prices={p.prices}
+        onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp}
+      />
+    </div>
+  );
+}
+
+function SettingsRoute() {
+  const { t } = useLocale();
+  return (
+    <div className="app">
+      <div style={{ marginBottom: '1.75rem' }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>
+          {t.settings_title}
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--s-text-dim)', marginTop: 3 }}>
+          {t.settings_subtitle}
+        </p>
+      </div>
+      <SettingsPage />
+    </div>
+  );
+}
+
+const walletRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/wallet',
+  component: WalletRoute,
+});
+
+const profitRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/profit',
+  component: ProfitRoute,
+});
+
+const historyRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: '/history',
+  component: HistoryRoute,
+});
+
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: '/settings',
-  beforeLoad: () => {
-    if (!getSession()) throw redirect({ to: '/auth' });
-  },
-  component: SettingsLayout,
+  component: SettingsRoute,
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   authCallbackRoute,
-  dashboardRoute,
-  settingsRoute,
+  appLayoutRoute.addChildren([walletRoute, profitRoute, historyRoute, settingsRoute]),
 ]);
 
-export const router = createRouter({ routeTree });
+export function createAppRouter(history?: RouterHistory) {
+  return createRouter({ routeTree, history });
+}
+
+export const router = createAppRouter();
 
 declare module '@tanstack/react-router' {
   interface Register {

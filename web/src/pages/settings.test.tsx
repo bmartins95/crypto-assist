@@ -18,6 +18,11 @@ vi.mock('@/lib/dataHandlers', () => ({
   importData: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { reloadMock } = vi.hoisted(() => ({ reloadMock: vi.fn(async () => {}) }));
+vi.mock('@/components/AppLayout', () => ({
+  usePortfolio: () => ({ reload: reloadMock }),
+}));
+
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
@@ -131,6 +136,48 @@ describe('SettingsPage', () => {
       if (!clearBtn) throw new Error('Clear wallet button not found');
       fireEvent.click(clearBtn);
       await waitFor(() => expect(api.clearOps).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(reloadMock).toHaveBeenCalledTimes(1));
+    });
+
+    it('Import file selection calls importData with the file and portfolio reload', async () => {
+      const { importData } = await import('@/lib/dataHandlers');
+      vi.spyOn(window, 'alert').mockImplementation(() => {});
+      renderSettings();
+      const file = new File(['{"version":1,"ops":[]}'], 'backup.json', { type: 'application/json' });
+      const input = screen.getByLabelText('Importar') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      await waitFor(() => expect(importData).toHaveBeenCalledWith(file, reloadMock));
+    });
+
+    it('Import button opens the hidden file input', () => {
+      renderSettings();
+      const input = screen.getByLabelText('Importar') as HTMLInputElement;
+      const clickSpy = vi.spyOn(input, 'click').mockImplementation(() => {});
+      fireEvent.click(screen.getByRole('button', { name: /importar/i }));
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('Import failure shows an alert', async () => {
+      const { importData } = await import('@/lib/dataHandlers');
+      vi.mocked(importData).mockRejectedValueOnce(new Error('invalid-format'));
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      renderSettings();
+      const file = new File(['nonsense'], 'backup.json', { type: 'application/json' });
+      const input = screen.getByLabelText('Importar') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(1));
+    });
+
+    it('Clear Wallet failure shows an alert', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.clearOps).mockRejectedValueOnce(new Error('fail'));
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      renderSettings();
+      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
+      if (!clearBtn) throw new Error('Clear wallet button not found');
+      fireEvent.click(clearBtn);
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(1));
     });
 
     it('Clear Wallet button does not call clearOps on cancel', async () => {

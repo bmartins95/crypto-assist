@@ -35,7 +35,6 @@ export type AvatarCache = Record<string, { url: string }>;
 export type ExitPrices = Record<string, number>;
 export type GroupMode = 'asset' | 'platform' | 'both';
 export type ChartType = 'by-asset' | 'over-time' | 'value';
-export type TabType = 'wallet' | 'profit' | 'history';
 
 // Response shape of GET /api/prices — price plus (optionally) the coin's avatar image.
 export interface PriceInfo {
