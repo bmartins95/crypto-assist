@@ -280,7 +280,7 @@ See `docs/design/dashboard-collapsible-sidebar.html` → "Carteira" view.
 **Branch:** `feat/profit-view-refactor`
 **Depends on:** item 6
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars. Also strip the icons from the segmented-control options in both the Profit view and the Wallet view, leaving text-only labels. A follow-up color-and-contrast QA pass (see `dashboard-color-contrast-pass.md`) is folded into this same item/branch: restore the metric-card label icons dropped by the `MetricCard` swap, add a chart panel title, and fix several components that rendered directly on the page background instead of the `--s-surface` card tokens (chart panel, distribution panel, segmented-control container, metric cards, table), so cards/panels/sidebar visually lift off the canvas.
