@@ -8,6 +8,14 @@
 
 **Input**: User description: "PLAN.md Item 6 — Collapsible sidebar navigation: replace the top-bar navigation with a persistent collapsible sidebar; /wallet, /profit, /history become real routes; sidebar collapses to 66px icon rail with tooltips; state persists in localStorage; Settings and Logout move to sidebar footer. Design references: docs/design/dashboard-collapsible-sidebar.html and docs/design/dashboard-refactor-notes.md"
 
+## Clarifications
+
+### Session 2026-07-01
+
+- Q: How should portfolio data behave when navigating between /wallet, /profit, and /history? → A: Shared layout state — data is fetched once in the authenticated layout shell; switching routes is instant with no refetch; the refresh button still refetches on demand.
+- Q: What happens to the legacy /dashboard URL? → A: Remove it entirely — no redirect; old bookmarks hit the router's not-found handling.
+- Q: Does /settings render inside the new sidebar shell in this item? → A: Yes — Settings becomes a child of the app layout; its old top bar (back link + Logout) is removed.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Navigate between views via sidebar routes (Priority: P1)
@@ -24,7 +32,8 @@ A signed-in user sees a persistent sidebar on the left with three portfolio dest
 2. **Given** a signed-in user on `/profit`, **When** they press the browser back button, **Then** they return to `/wallet` and the Wallet view renders.
 3. **Given** a signed-out visitor, **When** they open `/wallet`, `/profit`, or `/history` directly, **Then** they are redirected to the sign-in page.
 4. **Given** a signed-in user, **When** they open the root URL `/`, **Then** they land on `/wallet`.
-5. **Given** a signed-in user, **When** they open the legacy `/dashboard` URL, **Then** they land on `/wallet` (no dead bookmark).
+5. **Given** a signed-in user, **When** they navigate from `/wallet` to `/profit` or `/history`, **Then** the view renders immediately with the already-loaded portfolio data (no loading state, no refetch).
+6. **Given** a signed-in user, **When** they open the legacy `/dashboard` URL, **Then** the route no longer exists and the router's not-found handling applies.
 
 ---
 
@@ -54,7 +63,7 @@ The old floating top bar (email, Settings link, Logout button) is gone. The side
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in user on any of the three views, **When** they look at the top of the content area, **Then** no floating email/Settings/Logout bar is present.
-2. **Given** the sidebar footer, **When** the user clicks Settings, **Then** they navigate to `/settings` and the sidebar remains visible there.
+2. **Given** the sidebar footer, **When** the user clicks Settings, **Then** they navigate to `/settings`, which renders inside the sidebar shell (its old top bar with back link and Logout is removed).
 3. **Given** the sidebar footer, **When** the user clicks Logout, **Then** they are signed out exactly as with the previous Logout button.
 4. **Given** a signed-in user, **When** they view the sidebar footer, **Then** a user chip shows their email (and only an avatar initial when collapsed).
 
@@ -73,7 +82,8 @@ The old floating top bar (email, Settings link, Logout button) is gone. The side
 ### Functional Requirements
 
 - **FR-001**: The application MUST expose Wallet, Profit, and History as distinct authenticated routes (`/wallet`, `/profit`, `/history`), each rendering the existing corresponding view content unchanged (view redesigns are Items 7–9).
-- **FR-002**: The root URL `/` MUST redirect signed-in users to `/wallet`; the legacy `/dashboard` URL MUST also land on `/wallet`.
+- **FR-002**: The root URL `/` MUST redirect signed-in users to `/wallet`; the legacy `/dashboard` route MUST be removed entirely (no redirect).
+- **FR-002a**: Portfolio data (operations, prices, exit targets) MUST be loaded once at the authenticated layout level and shared by the three views; switching routes MUST NOT trigger a refetch, while the per-view refresh action still refetches on demand.
 - **FR-003**: Unauthenticated access to any of the three routes (and `/settings`) MUST redirect to the sign-in page, preserving the existing auth-guard behaviour.
 - **FR-004**: A persistent sidebar MUST be visible on `/wallet`, `/profit`, `/history`, and `/settings`, showing brand, the three portfolio destinations, and a footer with Settings, Logout, and a user chip (email + avatar initial).
 - **FR-005**: The sidebar MUST highlight the destination matching the current route.
@@ -102,7 +112,7 @@ The old floating top bar (email, Settings link, Logout button) is gone. The side
 ## Assumptions
 
 - This item delivers the shell and routing only; the visual redesign of the Wallet, Profit, and History views is deferred to Items 7–9 as stated in PLAN.md.
-- The legacy `/dashboard` URL redirects to `/wallet` rather than returning 404, since existing users may have it bookmarked.
+- The legacy `/dashboard` route is removed without a redirect (clarified 2026-07-01); stale bookmarks fall through to the router's not-found handling.
 - Mobile (React Native) app is out of scope — this is a web-only navigation change; no `shared/` type contracts change beyond adding i18n label keys, which mobile tolerates additively.
 - The design prototype `docs/design/dashboard-collapsible-sidebar.html` and `docs/design/dashboard-refactor-notes.md` are the visual source of truth (tokens, spacing, widths 232px/66px).
 - Responsive behaviour below tablet width follows the prototype; no separate mobile-web drawer is introduced in this item.
