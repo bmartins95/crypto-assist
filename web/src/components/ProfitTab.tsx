@@ -2,41 +2,42 @@
 
 import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
-import { Asset, ChartType, Op, Prices } from '@/lib/types';
+import { ChartType, Op, Prices } from '@/lib/types';
 import { fmt, fmtPct, fmtDate } from '@/lib/format';
-import { computeTimeline } from '@/lib/portfolio';
+import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import ContentHeader from '@/components/ContentHeader';
+import MetricCard from '@/components/MetricCard';
 
 const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#888780','#0F6E56'];
 
 interface Props {
-  assets: Asset[];
   ops: Op[];
   prices: Prices;
   activeChart: ChartType;
   onChartSwitch: (t: ChartType) => void;
+  statusMsg: string;
+  onFetchPrices: () => void;
 }
 
-export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwitch }: Props) {
+export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
-  const data = assets.map(a => {
-    const p = prices[a.coinId] || 0, inv = a.qty * a.avgPrice, atual = a.qty * p, l = atual - inv, pct = inv > 0 ? (l / inv) * 100 : 0;
-    return { name: a.name, symbol: a.symbol, coinId: a.coinId, inv, l, pct, hasPrice: p > 0 };
-  }).filter(d => d.inv > 0);
-
-  const withPrice = data.filter(d => d.hasPrice);
-  const totalNR = withPrice.reduce((s, d) => s + d.l, 0);
-  const realizado = ops.filter(o => o.type === 'Sell').reduce((s, o) => s + o.total, 0)
-    - ops.filter(o => o.type === 'Buy').reduce((s, o) => s + o.total, 0);
-  const best = withPrice.length ? withPrice.reduce((a, b) => b.pct > a.pct ? b : a) : null;
-  const worst = withPrice.length ? withPrice.reduce((a, b) => b.pct < a.pct ? b : a) : null;
-  const totalInv = data.reduce((s, d) => s + d.inv, 0);
+  const profitByAsset = computeProfitByAsset(ops, prices);
+  const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
+  const withPrice = profitByAsset.filter(p => p.hasPrice);
+  const totalUnrealized = withPrice.reduce((s, p) => s + p.unrealizedPnl, 0);
+  const openWithPrice = profitByAsset.filter(p => p.hasOpenPosition && p.hasPrice);
+  const best = openWithPrice.length ? openWithPrice.reduce((a, b) => (b.unrealizedPct > a.unrealizedPct ? b : a)) : null;
+  const worst = openWithPrice.length ? openWithPrice.reduce((a, b) => (b.unrealizedPct < a.unrealizedPct ? b : a)) : null;
+  const openPositions = profitByAsset.filter(p => p.hasOpenPosition);
+  const totalInvestedOpen = openPositions.reduce((s, p) => s + p.investedOpen, 0);
+  const noPriceData = !profitByAsset.some(p => p.hasPrice);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -45,15 +46,19 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
     const ctx = chartRef.current.getContext('2d');
     if (!ctx) return;
 
-    const noPrice = !withPrice.length;
     const timeline = (activeChart === 'over-time' || activeChart === 'value') ? computeTimeline(ops, prices) : [];
 
-    if (activeChart === 'by-asset' && !noPrice) {
+    if (activeChart === 'by-asset' && profitByAsset.length) {
       chartInstance.current = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: withPrice.map(d => d.symbol),
-          datasets: [{ label: t.profit_pnl, data: withPrice.map(d => parseFloat(d.l.toFixed(2))), backgroundColor: withPrice.map(d => d.l >= 0 ? '#1D9E75' : '#E24B4A'), borderRadius: 6, borderSkipped: false }],
+          labels: profitByAsset.map(p => p.symbol),
+          datasets: [{
+            label: t.profit_pnl,
+            data: profitByAsset.map(p => parseFloat((p.realizedPnl + p.unrealizedPnl).toFixed(2))),
+            backgroundColor: profitByAsset.map(p => (p.realizedPnl + p.unrealizedPnl >= 0 ? '#1D9E75' : '#E24B4A')),
+            borderRadius: 6, borderSkipped: false,
+          }],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
@@ -64,7 +69,7 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
           },
         },
       });
-    } else if (activeChart === 'over-time' && timeline.length && !noPrice) {
+    } else if (activeChart === 'over-time' && timeline.length && !noPriceData) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -80,7 +85,7 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
           },
         },
       });
-    } else if (activeChart === 'value' && timeline.length && !noPrice) {
+    } else if (activeChart === 'value' && timeline.length && !noPriceData) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -102,7 +107,7 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-  }, [assets, ops, prices, activeChart, locale, t]);
+  }, [ops, prices, activeChart, locale, t, profitByAsset, noPriceData]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
@@ -112,56 +117,61 @@ export default function ProfitTab({ assets, ops, prices, activeChart, onChartSwi
 
   return (
     <div id="tab-lucro" className="section active">
+      <ContentHeader title={t.nav_profit} subtitle={t.profit_subtitle}>
+        <span className="ts">{statusMsg}</span>
+        <button className="btn" onClick={onFetchPrices}>
+          <i className="ti ti-refresh" /> {t.wallet_updatePrices}
+        </button>
+      </ContentHeader>
+
       <div className="metrics" style={{ marginBottom: '1rem' }}>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-check" /> {t.profit_realized}</div>
-          <div className={`metric-value ${realizado >= 0 ? 'pos' : 'neg'}`}>{mask(fmt(realizado, locale))}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-clock" /> {t.profit_unrealized}</div>
-          <div className={`metric-value ${totalNR >= 0 ? 'pos' : 'neg'}`}>{withPrice.length ? mask(fmt(totalNR, locale)) : '—'}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-arrow-up" /> {t.profit_bestAsset}</div>
-          <div className="metric-value" style={{ fontSize: 15 }}>
-            {best ? <>{best.symbol}<br /><span className="pos" style={{ fontSize: 13 }}>{fmtPct(best.pct)}</span></> : '—'}
-          </div>
-        </div>
-        <div className="metric">
-          <div className="metric-label"><i className="ti ti-arrow-down" /> {t.profit_worstAsset}</div>
-          <div className="metric-value" style={{ fontSize: 15 }}>
-            {worst ? <>{worst.symbol}<br /><span className={worst.pct >= 0 ? 'pos' : 'neg'} style={{ fontSize: 13 }}>{fmtPct(worst.pct)}</span></> : '—'}
-          </div>
-        </div>
+        <MetricCard label={t.profit_realized} value={mask(fmt(totalRealized, locale))} valueColor={totalRealized >= 0 ? 'pos' : 'neg'} />
+        <MetricCard
+          label={t.profit_unrealized}
+          value={withPrice.length ? mask(fmt(totalUnrealized, locale)) : '—'}
+          valueColor={withPrice.length ? (totalUnrealized >= 0 ? 'pos' : 'neg') : undefined}
+        />
+        <MetricCard
+          label={t.profit_bestAsset}
+          value={best ? best.symbol : '—'}
+          sub={best ? fmtPct(best.unrealizedPct) : undefined}
+          subColor={best ? (best.unrealizedPct >= 0 ? 'pos' : 'neg') : undefined}
+        />
+        <MetricCard
+          label={t.profit_worstAsset}
+          value={worst ? worst.symbol : '—'}
+          sub={worst ? fmtPct(worst.unrealizedPct) : undefined}
+          subColor={worst ? (worst.unrealizedPct >= 0 ? 'pos' : 'neg') : undefined}
+        />
       </div>
 
       <div className="chart-switcher">
-        {([['by-asset', 'ti-chart-bar', t.chart_byAsset], ['over-time', 'ti-chart-line', t.chart_overTime], ['value', 'ti-chart-area', t.chart_value]] as [ChartType, string, string][]).map(([ct, icon, label]) => (
+        {([['by-asset', t.chart_byAsset], ['over-time', t.chart_overTime], ['value', t.chart_value]] as [ChartType, string][]).map(([ct, label]) => (
           <button key={ct} className={`chart-btn${activeChart === ct ? ' active' : ''}`} onClick={() => onChartSwitch(ct)}>
-            <i className={`ti ${icon}`} /> {label}
+            {label}
           </button>
         ))}
       </div>
 
       <div className="chart-area" style={{ position: 'relative' }}>
         <canvas ref={chartRef} />
-        {!withPrice.length && noDataOverlay}
+        {noPriceData && noDataOverlay}
       </div>
 
       <div className="dist-section">
         <div className="sec-title">{t.profit_distribution}</div>
-        {!data.length ? (
+        {!openPositions.length ? (
           <div className="empty-state" style={{ padding: '1rem' }}>
             <span style={{ fontSize: 12 }}>{t.profit_emptyState}</span>
           </div>
         ) : (
-          data.map((d, i) => {
-            const pct = totalInv > 0 ? (d.inv / totalInv) * 100 : 0;
+          openPositions.map((p, i) => {
+            const pct = totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0;
             return (
-              <div className="bar-row" key={d.coinId}>
+              <div className="bar-row" key={p.coinId}>
                 <div className="bar-header">
-                  <span className="bar-name">{d.name} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>{d.symbol}</span></span>
-                  <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmt(d.inv, locale))}</span>
+                  <span className="bar-name">{p.name} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>{p.symbol}</span></span>
+                  <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmt(p.investedOpen, locale))}</span>
                 </div>
                 <div className="bar-track">
                   <div className="bar-fill" style={{ width: `${pct.toFixed(1)}%`, background: PALETTE[i % PALETTE.length] }} />
