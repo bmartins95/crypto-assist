@@ -70,6 +70,12 @@ export interface UIText {
   history_form_trade: string;
   history_form_validationRequired: string;
   history_form_calculatedAutomatically: string;
+  history_form_registering: string;
+  history_form_registered: string;
+  history_form_saving: string;
+  history_form_saved: string;
+  history_form_priceAuto: string;
+  history_form_priceManual: string;
   trade_form_from: string;
   trade_form_to: string;
   trade_form_price: string;
