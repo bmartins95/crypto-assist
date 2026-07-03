@@ -2,6 +2,11 @@
 
 import { useLocale } from '@/context/LocaleContext';
 
+interface Badge {
+  text: string;
+  variant: 'auto' | 'manual';
+}
+
 interface Props {
   id: string;
   value: string;
@@ -16,12 +21,13 @@ interface Props {
   min?: number;
   max?: number;
   hint?: string;
+  badge?: Badge;
 }
 
 export default function NumericField({
   id, value, onChange, label, placeholder,
   prefix, suffix, readOnly = false,
-  showStepper = false, step = 1, min, max, hint,
+  showStepper = false, step = 1, min, max, hint, badge,
 }: Props) {
   const { t } = useLocale();
 
@@ -35,7 +41,7 @@ export default function NumericField({
     onChange(String(n));
   };
 
-  const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf'].filter(Boolean).join(' ');
+  const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf', badge && 'has-badge'].filter(Boolean).join(' ');
 
   return (
     <div className="fld">
@@ -48,6 +54,7 @@ export default function NumericField({
           onChange={e => onChange(e.target.value)}
         />
         {suffix && <span className="affix suf">{suffix}</span>}
+        {badge && <span className={`atual ${badge.variant}`}>{badge.text}</span>}
         {showStepper && (
           <div className="steps">
             <button type="button" aria-label={t.common_increase} onClick={() => bump(1)}><i className="ti ti-chevron-up" /></button>
