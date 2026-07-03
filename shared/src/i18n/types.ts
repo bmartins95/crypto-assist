@@ -56,7 +56,8 @@ export interface UIText {
   history_form_addOp: string;
   history_form_editOp: string;
   history_form_date: string;
-  history_form_asset: string;
+  history_form_assetBought: string;
+  history_form_assetSold: string;
   history_form_type: string;
   history_form_qty: string;
   history_form_price: string;
@@ -69,14 +70,11 @@ export interface UIText {
   history_form_trade: string;
   history_form_validationRequired: string;
   history_form_calculatedAutomatically: string;
-  trade_form_title: string;
   trade_form_from: string;
   trade_form_to: string;
-  trade_form_qty: string;
   trade_form_price: string;
   trade_form_fee: string;
-  trade_form_save: string;
-  trade_form_cancel: string;
+  trade_form_totalHint: string;
   trade_form_sameAsset: string;
   settings_title: string;
   settings_language: string;
@@ -100,7 +98,6 @@ export interface UIText {
   profit_worstAsset: string;
   profit_distribution: string;
   trade_form_noAssets: string;
-  trade_form_toQty: string;
   common_loading: string;
   common_empty: string;
   common_error: string;
