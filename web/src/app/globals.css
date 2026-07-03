@@ -179,12 +179,18 @@ body {
 @keyframes btn-submit-spin { to { transform: rotate(360deg); } }
 .btn-submit .ck { width: 16px; height: 16px; flex-shrink: 0; }
 
-.atual {
+.nf .badge {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; min-height: 19px;
   background: var(--s-accent-dim); color: var(--s-accent); font-size: 10px; font-weight: 600;
-  padding: 2px 7px; border-radius: 5px; letter-spacing: .02em; pointer-events: none;
+  padding: 0 7px; border-radius: 5px; letter-spacing: .02em; pointer-events: none;
 }
-.atual.manual { background: var(--s-surface-hover); color: var(--s-text-dim); }
+.nf .badge.manual { background: var(--s-surface-hover); color: var(--s-text-dim); }
+.nf .badge.fetching { background: transparent; padding: 0; }
+.nf .mini-spin {
+  width: 12px; height: 12px; border: 2px solid var(--s-accent-dim); border-top-color: var(--s-accent);
+  border-radius: 50%; animation: btn-submit-spin .6s linear infinite;
+}
 .nf .inp.has-badge { padding-right: 56px; }
 
 .tbl { background: var(--s-surface); border: 1px solid var(--s-border); border-radius: var(--radius); overflow: hidden; }

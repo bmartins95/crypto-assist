@@ -3,8 +3,8 @@
 import { useLocale } from '@/context/LocaleContext';
 
 interface Badge {
-  text: string;
-  variant: 'auto' | 'manual';
+  content: React.ReactNode;
+  variant: 'fetching' | 'auto' | 'manual';
 }
 
 interface Props {
@@ -54,7 +54,7 @@ export default function NumericField({
           onChange={e => onChange(e.target.value)}
         />
         {suffix && <span className="affix suf">{suffix}</span>}
-        {badge && <span className={`atual ${badge.variant}`}>{badge.text}</span>}
+        {badge && <span className={`badge ${badge.variant}`}>{badge.content}</span>}
         {showStepper && (
           <div className="steps">
             <button type="button" aria-label={t.common_increase} onClick={() => bump(1)}><i className="ti ti-chevron-up" /></button>
