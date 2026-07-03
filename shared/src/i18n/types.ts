@@ -41,6 +41,7 @@ export interface UIText {
   profit_currentValue: string;
   profit_pnl: string;
   profit_realized: string;
+  history_subtitle: string;
   history_emptyState: string;
   history_col_date: string;
   history_col_asset: string;
@@ -66,6 +67,8 @@ export interface UIText {
   history_form_cancel: string;
   history_form_delete: string;
   history_form_trade: string;
+  history_form_validationRequired: string;
+  history_form_calculatedAutomatically: string;
   trade_form_title: string;
   trade_form_from: string;
   trade_form_to: string;
@@ -74,6 +77,7 @@ export interface UIText {
   trade_form_fee: string;
   trade_form_save: string;
   trade_form_cancel: string;
+  trade_form_sameAsset: string;
   settings_title: string;
   settings_language: string;
   nav_settings: string;
