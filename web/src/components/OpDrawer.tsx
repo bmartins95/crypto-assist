@@ -9,8 +9,8 @@ import NumericField from '@/components/NumericField';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (op: NewOp) => void;
-  onSubmitTrade: (sell: NewOp, buy: NewOp) => void;
+  onSubmit: (op: NewOp) => void | Promise<void>;
+  onSubmitTrade: (sell: NewOp, buy: NewOp) => void | Promise<void>;
   editingOp?: Op;
   assets: Asset[];
   prices: Prices;
@@ -18,6 +18,8 @@ interface Props {
 }
 
 interface CoinSelection { coinId: string; symbol: string; name: string }
+
+type Phase = 'idle' | 'loading' | 'done';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 
@@ -63,12 +65,23 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputR
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg className="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
+const DONE_DISPLAY_MS = 1300;
 
 export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
   const { t } = useLocale();
   const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
 
   const [date, setDate] = useState(today());
   const [platform, setPlatform] = useState('');
@@ -76,6 +89,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const [coinText, setCoinText] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [priceSource, setPriceSource] = useState<'auto' | 'manual' | null>(null);
   const [fee, setFee] = useState('');
 
   const [fromCoinId, setFromCoinId] = useState('');
@@ -94,7 +108,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const resetBuySell = () => {
     setDate(today()); setPlatform(''); setCoin(null); setCoinText('');
-    setQty(''); setUnitPrice(''); setFee('');
+    setQty(''); setUnitPrice(''); setPriceSource(null); setFee('');
   };
 
   const resetTrade = () => {
@@ -108,6 +122,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       priorOverflow.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setError(null);
+      setPhase('idle');
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -116,6 +131,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
         setCoinText(`${editingOp.name} (${editingOp.symbol})`);
         setQty(String(editingOp.qty));
         setUnitPrice(String(editingOp.price));
+        setPriceSource(null);
         setFee(String(editingOp.fee));
       } else {
         setOpType('buy');
@@ -129,14 +145,17 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     }
   }, [open, editingOp]);
 
+  const requestClose = () => { if (phase === 'idle') onClose(); };
+
   const handleTypeChange = (next: 'buy' | 'sell' | 'trade') => {
+    if (phase !== 'idle') return;
     if (opType === 'trade' && next !== 'trade') resetTrade();
     setOpType(next);
     setError(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') { onClose(); return; }
+    if (e.key === 'Escape') { requestClose(); return; }
     if (e.key !== 'Tab' || !drawerRef.current) return;
     const focusable = Array.from(drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
       .filter(el => !el.hasAttribute('disabled'));
@@ -155,8 +174,26 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
-  const handleSubmit = () => {
-    if (opType === 'trade') { handleTradeSubmit(); return; }
+  const handleCoinSelect = async (c: CoinSelection) => {
+    setCoin(c);
+    let p = prices[c.coinId];
+    if (!p) {
+      try {
+        const fetched = await fetchSinglePrice(c.coinId, apiKey);
+        if (fetched) { p = fetched; prices[c.coinId] = fetched; }
+      } catch { /* price stays unavailable; user enters it manually */ }
+    }
+    if (p) { setUnitPrice(p.toFixed(2)); setPriceSource('auto'); }
+  };
+
+  const finishAfterSave = () => {
+    setPhase('done');
+    setTimeout(() => { setPhase('idle'); onClose(); }, DONE_DISPLAY_MS);
+  };
+
+  const handleSubmit = async () => {
+    if (phase !== 'idle') return;
+    if (opType === 'trade') { await submitTrade(); return; }
     if (!coin || qtyNum <= 0 || priceNum <= 0) {
       setError(t.history_form_validationRequired);
       return;
@@ -167,8 +204,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
       platform: platform.trim(),
     };
-    onSubmit(op);
-    onClose();
+    setPhase('loading');
+    try {
+      await onSubmit(op);
+      finishAfterSave();
+    } catch {
+      setPhase('idle');
+    }
   };
 
   const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toC: CoinSelection | null, totalStr: string) => {
@@ -198,7 +240,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     syncTradeTotal(fromCoinId, fromQty, c, total);
   };
 
-  const handleTradeSubmit = () => {
+  const submitTrade = async () => {
     const fromQtyNum = parseFloat(fromQty) || 0;
     const toQtyNum = parseFloat(toQty) || 0;
     const totalNum = parseFloat(total) || 0;
@@ -222,24 +264,31 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
       total: totalNum + tradeFeeNum, platform: platform.trim(),
     };
-    onSubmitTrade(sellOp, buyOp);
-    onClose();
+    setPhase('loading');
+    try {
+      await onSubmitTrade(sellOp, buyOp);
+      finishAfterSave();
+    } catch {
+      setPhase('idle');
+    }
   };
 
-  if (!open) return null;
-
   const titleId = 'drawer-title';
+  const busy = phase !== 'idle';
+  const priceBadge = priceSource && !editingOp
+    ? { text: priceSource === 'auto' ? t.history_form_priceAuto : t.history_form_priceManual, variant: priceSource }
+    : undefined;
 
   return (
     <>
-      <div className={`drawer-backdrop${open ? ' open' : ''}`} onClick={onClose} />
-      <aside ref={drawerRef} className={`drawer${open ? ' open' : ''}`}
+      <div className={`drawer-backdrop${open ? ' open' : ''}`} onClick={requestClose} />
+      <aside ref={drawerRef} className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}
         role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={handleKeyDown}>
         <div className="drawer-head">
           <div className="drawer-title" id={titleId}>
             {editingOp ? t.history_form_editOp : t.history_form_addOp}
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label={t.history_form_cancel}>
+          <button type="button" className="icon-btn" onClick={requestClose} disabled={busy} aria-label={t.history_form_cancel}>
             <i className="ti ti-x" />
           </button>
         </div>
@@ -248,9 +297,9 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
           <div className="fld">
             <label htmlFor="drawer-type">{t.history_form_type}</label>
             <div className="seg-ctrl seg-tipo" id="drawer-type">
-              <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')}>{t.history_opType_buy}</button>
-              <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')}>{t.history_opType_sell}</button>
-              <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={!!editingOp}>{t.history_form_trade}</button>
+              <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy}>{t.history_opType_buy}</button>
+              <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy}>{t.history_opType_sell}</button>
+              <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={busy || !!editingOp}>{t.history_form_trade}</button>
             </div>
           </div>
 
@@ -269,13 +318,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
                 <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey}
-                  value={coinText} onChange={setCoinText} onSelect={setCoin} />
+                  value={coinText} onChange={setCoinText} onSelect={handleCoinSelect} />
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
                   value={qty} onChange={setQty} suffix={coin?.symbol} />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
-                  value={unitPrice} onChange={setUnitPrice} prefix="R$" />
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceSource('manual'); }} prefix="R$" badge={priceBadge} />
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
@@ -341,9 +390,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
         </div>
 
         <div className="drawer-foot">
-          <button type="button" className="btn" onClick={onClose}>{t.history_form_cancel}</button>
-          <button type="button" className="btn btn-accent" onClick={handleSubmit}>
-            {editingOp ? t.history_form_save : t.history_form_addOp}
+          <button type="button" className="btn" onClick={requestClose} disabled={busy}>{t.history_form_cancel}</button>
+          <button type="button" className={`btn-submit${phase === 'done' ? ' done' : ''}`} onClick={handleSubmit} disabled={busy}>
+            <span className="lbl">
+              {phase === 'idle' && (editingOp ? t.history_form_save : t.history_form_addOp)}
+              {phase === 'loading' && (<><span className="spinner" /><span>{editingOp ? t.history_form_saving : t.history_form_registering}</span></>)}
+              {phase === 'done' && (<><CheckIcon /><span>{editingOp ? t.history_form_saved : t.history_form_registered}</span></>)}
+            </span>
           </button>
         </div>
       </aside>

@@ -13,8 +13,8 @@ interface Props {
   assets: Asset[];
   prices: Prices;
   apiKey?: string;
-  onAddOp: (op: NewOp) => void;
-  onEditOp: (id: string, op: NewOp) => void;
+  onAddOp: (op: NewOp) => Promise<void>;
+  onEditOp: (id: string, op: NewOp) => Promise<void>;
   onRemoveOp: (id: string) => void;
 }
 
@@ -29,14 +29,13 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
   const openForEdit = (o: Op) => { setEditingOp(o); setDrawerOpen(true); };
   const closeDrawer = () => { setDrawerOpen(false); setEditingOp(undefined); };
 
-  const handleSubmit = (op: NewOp) => {
-    if (editingOp) onEditOp(editingOp.id, op);
-    else onAddOp(op);
-  };
+  const handleSubmit = (op: NewOp): Promise<void> => (
+    editingOp ? onEditOp(editingOp.id, op) : onAddOp(op)
+  );
 
-  const handleSubmitTrade = (sell: NewOp, buy: NewOp) => {
-    onAddOp(sell);
-    onAddOp(buy);
+  const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
+    await onAddOp(sell);
+    await onAddOp(buy);
   };
 
   return (

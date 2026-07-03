@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op, Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
@@ -68,7 +68,7 @@ describe('HistoryTab', () => {
     expect(screen.getByText('Binance')).toBeInTheDocument();
     const tag = document.querySelector('.tbl tbody .tag');
     expect(tag).toHaveTextContent('Compra');
-    expect(document.querySelectorAll('input').length).toBe(0);
+    expect(document.querySelector('.drawer')).not.toHaveClass('open');
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {
@@ -101,9 +101,10 @@ describe('HistoryTab', () => {
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '50' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'bitcoin' }));
     expect(onEditOp).not.toHaveBeenCalled();
+    await new Promise(r => setTimeout(r, 1350));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -113,7 +114,7 @@ describe('HistoryTab', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onAddOp={onAddOp} onEditOp={onEditOp} />);
     fireEvent.click(screen.getByTitle('Editar operação'));
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onEditOp).toHaveBeenCalledWith('op-1', expect.objectContaining({ qty: 3 }));
     expect(onAddOp).not.toHaveBeenCalled();
   });
@@ -131,8 +132,8 @@ describe('HistoryTab', () => {
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
     fireEvent.change(toQtyEl, { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
-    expect(onAddOp).toHaveBeenCalledTimes(2);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(2));
     expect(onAddOp).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'Sell', coinId: 'ethereum' }));
     expect(onAddOp).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'Buy', coinId: 'solana' }));
   });

@@ -4,7 +4,7 @@ import OpDrawer from './OpDrawer';
 import type { Op, Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
-import { searchCoins } from '@/lib/coingecko';
+import { searchCoins, fetchSinglePrice } from '@/lib/coingecko';
 
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
@@ -36,18 +36,22 @@ async function selectCoin(input: HTMLElement, result: { id: string; symbol: stri
   fireEvent.click(screen.getByText(result.name));
 }
 
+const waitForClose = () => new Promise(r => setTimeout(r, 1350));
+
 beforeEach(() => { localStorage.clear(); document.body.style.overflow = ''; });
 afterEach(() => { localStorage.clear(); document.body.style.overflow = ''; });
 
 describe('OpDrawer', () => {
-  it('does not render when closed', () => {
+  it('is hidden from the accessibility tree when closed (stays mounted for the slide animation)', () => {
     renderDrawer(<OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.querySelector('.drawer')).not.toHaveClass('open');
   });
 
   it('opens in Buy mode by default with focus on the first field', async () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(document.querySelector('.drawer')).toHaveClass('open');
     expect(screen.getByRole('button', { name: 'Compra' })).toHaveClass('active');
     await waitFor(() => expect(document.activeElement).toBe(document.getElementById('drawer-date')));
   });
@@ -62,12 +66,12 @@ describe('OpDrawer', () => {
   it('blocks submission and shows a validation message when required fields are missing', () => {
     const onSubmit = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
   });
 
-  it('submits a valid Buy with an auto-calculated total and closes', async () => {
+  it('submits a valid Buy with an auto-calculated total, then closes after the loading/done animation', async () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
@@ -78,11 +82,12 @@ describe('OpDrawer', () => {
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Taxa'), { target: { value: '5' } });
     expect((screen.getByLabelText('Total') as HTMLInputElement).value).toBe('205.00');
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'Buy', coinId: 'bitcoin', qty: 2, price: 100, fee: 5, total: 205,
       date: '2024-03-10', platform: 'Binance',
     }));
+    await waitForClose();
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -93,8 +98,55 @@ describe('OpDrawer', () => {
     await selectCoin(screen.getByLabelText('Moeda vendida'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 100 }));
+  });
+
+  it('returns to idle without closing when onSubmit rejects', async () => {
+    const onSubmit = vi.fn(() => Promise.reject(new Error('network error')));
+    const onClose = vi.fn();
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(document.querySelector('.drawer-foot .btn-submit')).not.toBeDisabled());
+    expect(document.querySelector('.btn-submit.done')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('returns to idle without closing when onSubmitTrade rejects', async () => {
+    const onSubmitTrade = vi.fn(() => Promise.reject(new Error('network error')));
+    const onClose = vi.fn();
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    fireEvent.change(toQtyEl, { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(document.querySelector('.drawer-foot .btn-submit')).not.toBeDisabled());
+    expect(document.querySelector('.btn-submit.done')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a loading spinner then a checkmark while saving, disabling Cancel and the type selector', async () => {
+    let resolveSubmit: () => void = () => {};
+    const onSubmit = vi.fn(() => new Promise<void>(resolve => { resolveSubmit = resolve; }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(document.querySelector('.btn-submit .spinner')).toBeInTheDocument();
+    expect(document.querySelector('.drawer-foot .btn')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Compra' })).toBeDisabled();
+    resolveSubmit();
+    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
   });
 
   it('swaps in the two-block Trade fieldset when switching type', () => {
@@ -105,7 +157,7 @@ describe('OpDrawer', () => {
     expect(document.getElementById('drawer-coin')).not.toBeInTheDocument();
   });
 
-  it('submits a valid Trade as one Sell and one Buy sharing the same date', async () => {
+  it('submits a valid Trade as one Sell and one Buy sharing the same date, then closes', async () => {
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
@@ -121,11 +173,12 @@ describe('OpDrawer', () => {
     fireEvent.change(toQtyEl, { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Taxa'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'Sell', coinId: 'ethereum', qty: 1, total: 500, date: '2024-03-10', platform: 'Kraken' }),
       expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5, fee: 2, total: 502, date: '2024-03-10', platform: 'Kraken' }),
     );
+    await waitForClose();
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -141,7 +194,7 @@ describe('OpDrawer', () => {
     await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
     fireEvent.change(toQtyEl, { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '100' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
     expect(screen.getByText('A moeda de origem e de destino não podem ser a mesma.')).toBeInTheDocument();
   });
@@ -151,7 +204,7 @@ describe('OpDrawer', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
   });
@@ -189,15 +242,16 @@ describe('OpDrawer', () => {
     expect(screen.getByRole('button', { name: 'Trade' })).toBeDisabled();
   });
 
-  it('submits updated fields via onSubmit when editing, not onSubmitTrade', () => {
+  it('submits updated fields via onSubmit when editing, not onSubmitTrade, then closes', async () => {
     const onSubmit = vi.fn();
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={onSubmitTrade} editingOp={editingOp} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ qty: 3, type: 'Sell', coinId: 'ethereum' }));
     expect(onSubmitTrade).not.toHaveBeenCalled();
+    await waitForClose();
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -206,7 +260,7 @@ describe('OpDrawer', () => {
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} editingOp={editingOp} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '999' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn:not(.btn-accent)')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn')!);
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
@@ -232,9 +286,42 @@ describe('OpDrawer', () => {
     const onSubmit = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '5' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn:not(.btn-accent)')!);
+    fireEvent.click(document.querySelector('.drawer-foot .btn')!);
     expect(onClose).toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('does not close on Escape or backdrop click while saving', async () => {
+    let resolveSubmit: () => void = () => {};
+    const onSubmit = vi.fn(() => new Promise<void>(resolve => { resolveSubmit = resolve; }));
+    const onClose = vi.fn();
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.click(document.querySelector('.drawer-backdrop')!);
+    expect(onClose).not.toHaveBeenCalled();
+    resolveSubmit();
+    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
+  });
+
+  it('auto-fills the unit price with an "auto" badge when a coin with a known price is selected', async () => {
+    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('50000.00'));
+    expect(document.querySelector('.atual')).toHaveClass('auto');
+  });
+
+  it('switches the price badge to "manual" when the auto-filled price is edited by hand', async () => {
+    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await waitFor(() => expect(document.querySelector('.atual')).toHaveClass('auto'));
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '51000' } });
+    expect(document.querySelector('.atual')).toHaveClass('manual');
   });
 
   it('traps Tab within the drawer, wrapping at both ends', () => {
