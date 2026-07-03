@@ -1,0 +1,496 @@
+'use client';
+
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Op, NewOp, Asset, Prices } from '@/lib/types';
+import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList, CoinSearchResult } from '@/lib/coingecko';
+import { useLocale } from '@/context/LocaleContext';
+import NumericField from '@/components/NumericField';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (op: NewOp) => void | Promise<void>;
+  onSubmitTrade: (sell: NewOp, buy: NewOp) => void | Promise<void>;
+  editingOp?: Op;
+  assets: Asset[];
+  prices: Prices;
+  apiKey?: string;
+}
+
+interface CoinSelection { coinId: string; symbol: string; name: string }
+
+type Phase = 'idle' | 'loading' | 'done';
+type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
+
+const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then(v => { clearTimeout(timer); resolve(v); }, e => { clearTimeout(timer); reject(e); });
+  });
+}
+
+// `restrictTo`, when provided, disables network search entirely — the field only
+// ever searches/shows that fixed list (used for "assets you already own" fields).
+function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
+  id: string; placeholder: string; apiKey: string;
+  onSelect: (c: CoinSelection) => void;
+  onClear: () => void;
+  value: string; onChange: (v: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  seed?: CoinSearchResult[];
+  restrictTo?: CoinSearchResult[];
+  emptyLabel?: string;
+}) {
+  const [results, setResults] = useState<CoinSearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointerDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setResults([]);
+        onChange('');
+        onClear();
+      }
+    };
+    document.addEventListener('mousedown', onDocPointerDown);
+    return () => document.removeEventListener('mousedown', onDocPointerDown);
+  }, [open]);
+
+  const runSearch = (q: string) => {
+    const seq = ++searchSeq.current;
+    const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
+    withTimeout(getCoinList(apiKey), 500)
+      .then(list => applyIfCurrent(filterCoinList(list, q)))
+      .catch(() => {
+        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+        fallbackTimer.current = setTimeout(async () => {
+          try { applyIfCurrent(await searchCoins(q, apiKey)); } catch { applyIfCurrent([]); }
+        }, 300);
+      });
+  };
+
+  const handleInput = (v: string) => {
+    onChange(v);
+    setOpen(true);
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    const q = v.trim();
+    if (restrictTo) { setResults(q ? filterCoinList(restrictTo, q) : restrictTo); return; }
+    if (q.length === 0) { setResults(seed ?? []); return; }
+    if (q.length < 2) { setResults([]); return; }
+    setResults([]);
+    runSearch(q);
+  };
+
+  const handleFocus = () => {
+    onChange('');
+    onClear();
+    setResults(restrictTo ?? seed ?? []);
+    setOpen(true);
+  };
+
+  const select = (c: CoinSearchResult) => {
+    onChange(c.name + ' (' + c.symbol.toUpperCase() + ')');
+    setResults([]);
+    setOpen(false);
+    onSelect({ coinId: c.id, symbol: c.symbol.toUpperCase(), name: c.name });
+  };
+
+  return (
+    <div className="search-wrap" ref={wrapRef}>
+      <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off"
+        value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
+      {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
+        <div className="search-dropdown">
+          {results.length === 0 && emptyLabel ? (
+            <div className="search-item" style={{ color: 'var(--text3)', cursor: 'default' }}>{emptyLabel}</div>
+          ) : results.map(c => (
+            <div key={c.id} className="search-item" onClick={() => select(c)}>
+              <span>{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
+              <span className="search-item-rank">{c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+const DONE_DISPLAY_MS = 1300;
+
+export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
+  const { t } = useLocale();
+  const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
+  const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
+
+  const [date, setDate] = useState(today());
+  const [platform, setPlatform] = useState('');
+  const [coin, setCoin] = useState<CoinSelection | null>(null);
+  const [coinText, setCoinText] = useState('');
+  const [qty, setQty] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
+  const [priceState, setPriceState] = useState<PriceState>('idle');
+  const [fee, setFee] = useState('');
+
+  const [fromCoinId, setFromCoinId] = useState('');
+  const [fromCoinText, setFromCoinText] = useState('');
+  const [fromQty, setFromQty] = useState('');
+  const [toCoin, setToCoin] = useState<CoinSelection | null>(null);
+  const [toCoinText, setToCoinText] = useState('');
+  const [toQty, setToQty] = useState('');
+  const [total, setTotal] = useState('');
+  const [tradeFee, setTradeFee] = useState('');
+  const [totalHint, setTotalHint] = useState('');
+
+  const drawerRef = useRef<HTMLElement>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+  const priorOverflow = useRef('');
+
+  const resetBuySell = () => {
+    setDate(today()); setPlatform(''); setCoin(null); setCoinText('');
+    setQty(''); setUnitPrice(''); setPriceState('idle'); setFee('');
+  };
+
+  const resetTrade = () => {
+    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setToCoin(null); setToCoinText('');
+    setToQty(''); setTotal(''); setTradeFee(''); setTotalHint('');
+  };
+
+  useEffect(() => {
+    if (open) {
+      previouslyFocused.current = document.activeElement as HTMLElement | null;
+      priorOverflow.current = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      setError(null);
+      setPhase('idle');
+      getCoinList(apiKey).catch(() => { /* falls back to per-query search */ });
+      if (editingOp) {
+        setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
+        setDate(editingOp.date);
+        setPlatform(editingOp.platform || '');
+        setCoin({ coinId: editingOp.coinId, symbol: editingOp.symbol, name: editingOp.name });
+        setCoinText(`${editingOp.name} (${editingOp.symbol})`);
+        setQty(String(editingOp.qty));
+        setUnitPrice(String(editingOp.price));
+        setPriceState('idle');
+        setFee(String(editingOp.fee));
+      } else {
+        setOpType('buy');
+        resetBuySell();
+        resetTrade();
+      }
+      requestAnimationFrame(() => firstFieldRef.current?.focus());
+    } else {
+      document.body.style.overflow = priorOverflow.current;
+      previouslyFocused.current?.focus();
+    }
+  }, [open, editingOp]);
+
+  // Re-fetches whenever the selected coin (or Buy/Sell type) changes; the cleanup's
+  // `cancelled` flag discards a stale response if the user picks another coin before
+  // this one's fetch resolves, which is what caused the price to freeze on the wrong asset.
+  useEffect(() => {
+    if (!coin || editingOp || (opType !== 'buy' && opType !== 'sell')) return;
+    let cancelled = false;
+    setPriceState('fetching');
+    (async () => {
+      let p = prices[coin.coinId];
+      if (!p) {
+        try { p = (await fetchSinglePrice(coin.coinId, apiKey)) ?? undefined; }
+        catch { p = undefined; }
+      }
+      if (cancelled) return;
+      if (p) {
+        prices[coin.coinId] = p;
+        setUnitPrice(p.toFixed(2));
+        setPriceState('auto');
+      } else {
+        setPriceState('idle');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coin, opType]);
+
+  const requestClose = () => { if (phase === 'idle') onClose(); };
+
+  const handleTypeChange = (next: 'buy' | 'sell' | 'trade') => {
+    if (phase !== 'idle') return;
+    if (opType === 'trade' && next !== 'trade') resetTrade();
+    setOpType(next);
+    setError(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { requestClose(); return; }
+    if (e.key !== 'Tab' || !drawerRef.current) return;
+    const focusable = Array.from(drawerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+      .filter(el => !el.hasAttribute('disabled'));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault(); first.focus();
+    }
+  };
+
+  const qtyNum = parseFloat(qty) || 0;
+  const priceNum = parseFloat(unitPrice) || 0;
+  const feeNum = parseFloat(fee) || 0;
+  const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
+
+  const finishAfterSave = () => {
+    setPhase('done');
+    setTimeout(() => { setPhase('idle'); onClose(); }, DONE_DISPLAY_MS);
+  };
+
+  const handleSubmit = async () => {
+    if (phase !== 'idle') return;
+    if (opType === 'trade') { await submitTrade(); return; }
+    if (!coin || qtyNum <= 0 || priceNum <= 0) {
+      setError(t.history_form_validationRequired);
+      return;
+    }
+    const op: NewOp = {
+      date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
+      type: opType === 'buy' ? 'Buy' : 'Sell',
+      qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
+      platform: platform.trim(),
+    };
+    setPhase('loading');
+    try {
+      await onSubmit(op);
+      finishAfterSave();
+    } catch {
+      setPhase('idle');
+    }
+  };
+
+  const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toC: CoinSelection | null, totalStr: string) => {
+    const fQty = parseFloat(fromQtyStr) || 0;
+    let amount = 0;
+    if (fromId && fQty && prices[fromId]) {
+      amount = fQty * prices[fromId];
+      setTotal(amount.toFixed(2));
+      setTotalHint('≈ atual');
+    } else {
+      amount = parseFloat(totalStr) || 0;
+      setTotalHint('');
+    }
+    if (amount > 0 && toC && prices[toC.coinId]) {
+      setToQty((amount / prices[toC.coinId]).toFixed(8).replace(/\.?0+$/, ''));
+    }
+  }, [prices]);
+
+  const handleFromCoinSelect = (c: CoinSelection) => {
+    setFromCoinId(c.coinId);
+    syncTradeTotal(c.coinId, fromQty, toCoin, total);
+  };
+
+  // Same stale-response guard as the Buy/Sell price effect above, for the Trade
+  // "receive" side's live price lookup.
+  useEffect(() => {
+    if (!toCoin || opType !== 'trade') return;
+    if (prices[toCoin.coinId]) { syncTradeTotal(fromCoinId, fromQty, toCoin, total); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const p = await fetchSinglePrice(toCoin.coinId, apiKey);
+        if (cancelled || !p) return;
+        prices[toCoin.coinId] = p;
+        syncTradeTotal(fromCoinId, fromQty, toCoin, total);
+      } catch { /* price stays unavailable; total sync falls back to manual entry */ }
+    })();
+    return () => { cancelled = true; };
+  }, [toCoin, opType]);
+
+  const submitTrade = async () => {
+    const fromQtyNum = parseFloat(fromQty) || 0;
+    const toQtyNum = parseFloat(toQty) || 0;
+    const totalNum = parseFloat(total) || 0;
+    const tradeFeeNum = parseFloat(tradeFee) || 0;
+    if (!fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || totalNum <= 0) {
+      setError(t.history_form_validationRequired);
+      return;
+    }
+    if (fromCoinId === toCoin.coinId) {
+      setError(t.trade_form_sameAsset);
+      return;
+    }
+    const fromAsset = assets.find(a => a.coinId === fromCoinId);
+    const sellOp: NewOp = {
+      date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
+      type: 'Sell', qty: fromQtyNum, price: totalNum / fromQtyNum, fee: 0, total: totalNum,
+      platform: platform.trim(),
+    };
+    const buyOp: NewOp = {
+      date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
+      type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
+      total: totalNum + tradeFeeNum, platform: platform.trim(),
+    };
+    setPhase('loading');
+    try {
+      await onSubmitTrade(sellOp, buyOp);
+      finishAfterSave();
+    } catch {
+      setPhase('idle');
+    }
+  };
+
+  const titleId = 'drawer-title';
+  const busy = phase !== 'idle';
+  const assetSeed: CoinSearchResult[] = assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }));
+  const priceBadge = editingOp || priceState === 'idle'
+    ? undefined
+    : priceState === 'fetching'
+      ? { variant: 'fetching' as const, content: <span className="mini-spin" /> }
+      : priceState === 'auto'
+        ? { variant: 'auto' as const, content: t.history_form_priceAuto }
+        : { variant: 'manual' as const, content: t.history_form_priceManual };
+
+  return (
+    <>
+      <div className={`drawer-backdrop${open ? ' open' : ''}`} onClick={requestClose} />
+      <aside ref={drawerRef} className={`drawer${open ? ' open' : ''}`} aria-hidden={!open}
+        role="dialog" aria-modal="true" aria-labelledby={titleId} onKeyDown={handleKeyDown}>
+        <div className="drawer-head">
+          <div className="drawer-title" id={titleId}>
+            {editingOp ? t.history_form_editOp : t.history_form_addOp}
+          </div>
+          <button type="button" className="icon-btn" onClick={requestClose} disabled={busy} aria-label={t.history_form_cancel}>
+            <i className="ti ti-x" />
+          </button>
+        </div>
+
+        <div className="drawer-body">
+          <div className="fld">
+            <label htmlFor="drawer-type">{t.history_form_type}</label>
+            <div className="seg-ctrl seg-tipo" id="drawer-type">
+              <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy}>{t.history_opType_buy}</button>
+              <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy}>{t.history_opType_sell}</button>
+              <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={busy || !!editingOp}>{t.history_form_trade}</button>
+            </div>
+          </div>
+
+          {opType !== 'trade' ? (
+            <>
+              <div className="drawer-grid">
+                <div className="fld">
+                  <label htmlFor="drawer-date">{t.history_form_date}</label>
+                  <input ref={firstFieldRef} id="drawer-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                <div className="fld">
+                  <label htmlFor="drawer-platform">{t.history_form_platform}</label>
+                  <input id="drawer-platform" type="text" placeholder="Binance, MetaMask..." value={platform} onChange={e => setPlatform(e.target.value)} />
+                </div>
+              </div>
+              <div className="fld">
+                <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
+                <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                  value={coinText} onChange={setCoinText} onSelect={setCoin}
+                  onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
+              </div>
+              <div className="drawer-grid">
+                <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
+                  value={qty} onChange={setQty} suffix={coin?.symbol} />
+                <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
+              </div>
+              <div className="drawer-grid">
+                <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
+                  value={fee} onChange={setFee} prefix="R$" />
+                <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
+                  value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="drawer-grid">
+                <div className="fld">
+                  <label htmlFor="drawer-tr-date">{t.history_form_date}</label>
+                  <input ref={firstFieldRef} id="drawer-tr-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                <div className="fld">
+                  <label htmlFor="drawer-tr-platform">{t.history_form_platform}</label>
+                  <input id="drawer-tr-platform" type="text" placeholder="Binance, MetaMask..." value={platform} onChange={e => setPlatform(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="trade-block out">
+                <div className="trade-hd"><span className="dot" />{t.trade_form_from}</div>
+                <div className="drawer-grid">
+                  <div className="fld">
+                    <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
+                    <CoinSearch id="drawer-tr-from" placeholder="ETH, BTC..." apiKey={apiKey}
+                      restrictTo={assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }))}
+                      emptyLabel={t.trade_form_noAssets}
+                      value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
+                      onClear={() => setFromCoinId('')} />
+                  </div>
+                  <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
+                    value={fromQty} suffix={assets.find(a => a.coinId === fromCoinId)?.symbol}
+                    onChange={v => { setFromQty(v); syncTradeTotal(fromCoinId, v, toCoin, total); }} />
+                </div>
+              </div>
+
+              <div className="trade-arrow"><span className="badge"><i className="ti ti-arrow-down" /></span></div>
+
+              <div className="trade-block in">
+                <div className="trade-hd"><span className="dot" />{t.trade_form_to}</div>
+                <div className="drawer-grid">
+                  <div className="fld">
+                    <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin}
+                      onClear={() => { setToCoin(null); setToQty(''); }} />
+                  </div>
+                  <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
+                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />
+                </div>
+              </div>
+
+              <div className="drawer-grid">
+                <NumericField id="drawer-tr-fee" label={t.trade_form_fee} placeholder="0.00"
+                  value={tradeFee} onChange={setTradeFee} prefix="R$" />
+                <NumericField id="drawer-tr-total" label={t.trade_form_price} placeholder="0.00" prefix="R$"
+                  value={total} onChange={setTotal} hint={totalHint || t.trade_form_totalHint} />
+              </div>
+            </>
+          )}
+
+          {error && <div className="fhint" style={{ color: 'var(--danger)' }}>{error}</div>}
+        </div>
+
+        <div className="drawer-foot">
+          <button type="button" className="btn" onClick={requestClose} disabled={busy}>{t.history_form_cancel}</button>
+          <button type="button" className={`btn-submit${phase === 'done' ? ' done' : ''}`} onClick={handleSubmit} disabled={busy}>
+            <span className="lbl">
+              {phase === 'idle' && (editingOp ? t.history_form_save : t.history_form_addOp)}
+              {phase === 'loading' && (<><span className="spinner" /><span>{editingOp ? t.history_form_saving : t.history_form_registering}</span></>)}
+              {phase === 'done' && (<><CheckIcon /><span>{editingOp ? t.history_form_saved : t.history_form_registered}</span></>)}
+            </span>
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
