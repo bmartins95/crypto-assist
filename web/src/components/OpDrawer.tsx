@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
-import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
+import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList, CoinSearchResult } from '@/lib/coingecko';
 import { useLocale } from '@/context/LocaleContext';
 import NumericField from '@/components/NumericField';
 
@@ -20,25 +20,38 @@ interface Props {
 interface CoinSelection { coinId: string; symbol: string; name: string }
 
 type Phase = 'idle' | 'loading' | 'done';
+type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 
-function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputRef }: {
+function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputRef, seed }: {
   id: string; placeholder: string; apiKey: string;
   onSelect: (c: CoinSelection) => void;
   value: string; onChange: (v: string) => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  seed?: CoinSearchResult[];
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleInput = (v: string) => {
     onChange(v);
-    if (timer.current) clearTimeout(timer.current);
-    if (v.trim().length < 2) { setResults([]); return; }
-    timer.current = setTimeout(async () => {
-      try { setResults(await searchCoins(v.trim(), apiKey)); } catch { setResults([]); }
-    }, 300);
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    const q = v.trim();
+    if (q.length < 2) { setResults([]); return; }
+    getCoinList(apiKey)
+      .then(list => setResults(filterCoinList(list, q)))
+      .catch(() => {
+        fallbackTimer.current = setTimeout(async () => {
+          try { setResults(await searchCoins(q, apiKey)); } catch { setResults([]); }
+        }, 300);
+      });
+  };
+
+  const handleFocus = () => {
+    if (value.trim().length < 2 && results.length === 0 && seed && seed.length > 0) {
+      setResults(seed);
+    }
   };
 
   const select = (c: CoinSearchResult) => {
@@ -50,7 +63,7 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputR
   return (
     <div className="search-wrap">
       <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off"
-        value={value} onChange={e => handleInput(e.target.value)} style={{ width: '100%' }} />
+        value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
       {results.length > 0 && (
         <div className="search-dropdown">
           {results.map(c => (
@@ -89,7 +102,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const [coinText, setCoinText] = useState('');
   const [qty, setQty] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
-  const [priceSource, setPriceSource] = useState<'auto' | 'manual' | null>(null);
+  const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
 
   const [fromCoinId, setFromCoinId] = useState('');
@@ -108,7 +121,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const resetBuySell = () => {
     setDate(today()); setPlatform(''); setCoin(null); setCoinText('');
-    setQty(''); setUnitPrice(''); setPriceSource(null); setFee('');
+    setQty(''); setUnitPrice(''); setPriceState('idle'); setFee('');
   };
 
   const resetTrade = () => {
@@ -123,6 +136,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       document.body.style.overflow = 'hidden';
       setError(null);
       setPhase('idle');
+      getCoinList(apiKey).catch(() => { /* falls back to per-query search */ });
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -131,7 +145,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
         setCoinText(`${editingOp.name} (${editingOp.symbol})`);
         setQty(String(editingOp.qty));
         setUnitPrice(String(editingOp.price));
-        setPriceSource(null);
+        setPriceState('idle');
         setFee(String(editingOp.fee));
       } else {
         setOpType('buy');
@@ -144,6 +158,31 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       previouslyFocused.current?.focus();
     }
   }, [open, editingOp]);
+
+  // Re-fetches whenever the selected coin (or Buy/Sell type) changes; the cleanup's
+  // `cancelled` flag discards a stale response if the user picks another coin before
+  // this one's fetch resolves, which is what caused the price to freeze on the wrong asset.
+  useEffect(() => {
+    if (!coin || editingOp || (opType !== 'buy' && opType !== 'sell')) return;
+    let cancelled = false;
+    setPriceState('fetching');
+    (async () => {
+      let p = prices[coin.coinId];
+      if (!p) {
+        try { p = (await fetchSinglePrice(coin.coinId, apiKey)) ?? undefined; }
+        catch { p = undefined; }
+      }
+      if (cancelled) return;
+      if (p) {
+        prices[coin.coinId] = p;
+        setUnitPrice(p.toFixed(2));
+        setPriceState('auto');
+      } else {
+        setPriceState('idle');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coin, opType]);
 
   const requestClose = () => { if (phase === 'idle') onClose(); };
 
@@ -173,18 +212,6 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const priceNum = parseFloat(unitPrice) || 0;
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
-
-  const handleCoinSelect = async (c: CoinSelection) => {
-    setCoin(c);
-    let p = prices[c.coinId];
-    if (!p) {
-      try {
-        const fetched = await fetchSinglePrice(c.coinId, apiKey);
-        if (fetched) { p = fetched; prices[c.coinId] = fetched; }
-      } catch { /* price stays unavailable; user enters it manually */ }
-    }
-    if (p) { setUnitPrice(p.toFixed(2)); setPriceSource('auto'); }
-  };
 
   const finishAfterSave = () => {
     setPhase('done');
@@ -229,16 +256,22 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     }
   }, [prices]);
 
-  const handleToCoinSelect = async (c: CoinSelection) => {
-    setToCoin(c);
-    if (!prices[c.coinId]) {
+  // Same stale-response guard as the Buy/Sell price effect above, for the Trade
+  // "receive" side's live price lookup.
+  useEffect(() => {
+    if (!toCoin || opType !== 'trade') return;
+    if (prices[toCoin.coinId]) { syncTradeTotal(fromCoinId, fromQty, toCoin, total); return; }
+    let cancelled = false;
+    (async () => {
       try {
-        const p = await fetchSinglePrice(c.coinId, apiKey);
-        if (p) prices[c.coinId] = p;
+        const p = await fetchSinglePrice(toCoin.coinId, apiKey);
+        if (cancelled || !p) return;
+        prices[toCoin.coinId] = p;
+        syncTradeTotal(fromCoinId, fromQty, toCoin, total);
       } catch { /* price stays unavailable; total sync falls back to manual entry */ }
-    }
-    syncTradeTotal(fromCoinId, fromQty, c, total);
-  };
+    })();
+    return () => { cancelled = true; };
+  }, [toCoin, opType]);
 
   const submitTrade = async () => {
     const fromQtyNum = parseFloat(fromQty) || 0;
@@ -275,9 +308,14 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const titleId = 'drawer-title';
   const busy = phase !== 'idle';
-  const priceBadge = priceSource && !editingOp
-    ? { text: priceSource === 'auto' ? t.history_form_priceAuto : t.history_form_priceManual, variant: priceSource }
-    : undefined;
+  const assetSeed: CoinSearchResult[] = assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }));
+  const priceBadge = editingOp || priceState === 'idle'
+    ? undefined
+    : priceState === 'fetching'
+      ? { variant: 'fetching' as const, content: <span className="mini-spin" /> }
+      : priceState === 'auto'
+        ? { variant: 'auto' as const, content: t.history_form_priceAuto }
+        : { variant: 'manual' as const, content: t.history_form_priceManual };
 
   return (
     <>
@@ -317,14 +355,14 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               </div>
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
-                <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey}
-                  value={coinText} onChange={setCoinText} onSelect={handleCoinSelect} />
+                <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                  value={coinText} onChange={setCoinText} onSelect={setCoin} />
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
                   value={qty} onChange={setQty} suffix={coin?.symbol} />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
-                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceSource('manual'); }} prefix="R$" badge={priceBadge} />
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
@@ -369,8 +407,8 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
-                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey}
-                      value={toCoinText} onChange={setToCoinText} onSelect={handleToCoinSelect} />
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} />
                   </div>
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
                     value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />

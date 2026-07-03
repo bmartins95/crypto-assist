@@ -9,6 +9,8 @@ import { searchCoins } from '@/lib/coingecko';
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
   fetchSinglePrice: vi.fn(async () => null),
+  getCoinList: vi.fn(() => Promise.reject(new Error('coin list unavailable in tests'))),
+  filterCoinList: vi.fn(() => []),
 }));
 
 async function selectCoin(input: HTMLElement, result: { id: string; symbol: string; name: string }) {

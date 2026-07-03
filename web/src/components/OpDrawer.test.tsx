@@ -4,11 +4,15 @@ import OpDrawer from './OpDrawer';
 import type { Op, Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
-import { searchCoins, fetchSinglePrice } from '@/lib/coingecko';
+import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList } from '@/lib/coingecko';
 
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
   fetchSinglePrice: vi.fn(async () => null),
+  // Rejects by default so CoinSearch falls back to the per-query searchCoins mock above,
+  // matching existing test behavior; individual tests override this to exercise the list path.
+  getCoinList: vi.fn(() => Promise.reject(new Error('coin list unavailable in tests'))),
+  filterCoinList: vi.fn(() => []),
 }));
 
 function renderDrawer(ui: React.ReactElement) {
@@ -39,7 +43,12 @@ async function selectCoin(input: HTMLElement, result: { id: string; symbol: stri
 const waitForClose = () => new Promise(r => setTimeout(r, 1350));
 
 beforeEach(() => { localStorage.clear(); document.body.style.overflow = ''; });
-afterEach(() => { localStorage.clear(); document.body.style.overflow = ''; });
+afterEach(() => {
+  localStorage.clear();
+  document.body.style.overflow = '';
+  vi.mocked(getCoinList).mockReset().mockImplementation(() => Promise.reject(new Error('coin list unavailable in tests')));
+  vi.mocked(filterCoinList).mockReset().mockReturnValue([]);
+});
 
 describe('OpDrawer', () => {
   it('is hidden from the accessibility tree when closed (stays mounted for the slide animation)', () => {
@@ -222,6 +231,40 @@ describe('OpDrawer', () => {
     expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10');
   });
 
+  it('fetches the destination price when not already cached, then syncs the trade total', async () => {
+    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(20);
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{ ethereum: 100 }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    await waitFor(() => expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10'));
+  });
+
+  it('leaves the trade total unsynced when the destination price fetch fails', async () => {
+    vi.mocked(fetchSinglePrice).mockRejectedValueOnce(new Error('network error'));
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{ ethereum: 100 }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    await new Promise(r => setTimeout(r, 50));
+    expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('');
+  });
+
+  it('leaves the unit price unset when the Buy/Sell price fetch fails', async () => {
+    vi.mocked(fetchSinglePrice).mockRejectedValueOnce(new Error('network error'));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await new Promise(r => setTimeout(r, 50));
+    expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('');
+    expect(document.querySelector('.badge')).not.toBeInTheDocument();
+  });
+
   it('discards Trade-only fields but keeps platform when switching away from Trade', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
@@ -307,21 +350,62 @@ describe('OpDrawer', () => {
     await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
   });
 
-  it('auto-fills the unit price with an "auto" badge when a coin with a known price is selected', async () => {
-    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
+  it('shows a spinner badge while fetching the price, then an "auto" badge once it resolves', async () => {
+    let resolvePrice: (v: number) => void = () => {};
+    vi.mocked(fetchSinglePrice).mockReturnValueOnce(new Promise(resolve => { resolvePrice = resolve; }));
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await waitFor(() => expect(document.querySelector('.badge.fetching .mini-spin')).toBeInTheDocument());
+    resolvePrice(50000);
     await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('50000.00'));
-    expect(document.querySelector('.atual')).toHaveClass('auto');
+    expect(document.querySelector('.badge')).toHaveClass('auto');
   });
 
   it('switches the price badge to "manual" when the auto-filled price is edited by hand', async () => {
     vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
-    await waitFor(() => expect(document.querySelector('.atual')).toHaveClass('auto'));
+    await waitFor(() => expect(document.querySelector('.badge')).toHaveClass('auto'));
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '51000' } });
-    expect(document.querySelector('.atual')).toHaveClass('manual');
+    expect(document.querySelector('.badge')).toHaveClass('manual');
+  });
+
+  it('does not overwrite the price with a stale response after switching to a different coin', async () => {
+    let resolveFirst: (v: number) => void = () => {};
+    vi.mocked(fetchSinglePrice)
+      .mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce(2000);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
+    await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('2000.00'));
+    resolveFirst(50000);
+    await new Promise(r => setTimeout(r, 50));
+    expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('2000.00');
+  });
+
+  it('shows the user\'s own holdings as instant suggestions when the coin field is focused and empty', () => {
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    vi.mocked(searchCoins).mockClear();
+    fireEvent.focus(screen.getByLabelText('Moeda comprada'));
+    expect(screen.getByText('Ethereum')).toBeInTheDocument();
+    expect(searchCoins).not.toHaveBeenCalled();
+  });
+
+  it('filters the cached coin list locally instead of hitting the network when the list is available', async () => {
+    vi.mocked(getCoinList).mockResolvedValue([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' }]);
+    vi.mocked(filterCoinList).mockReturnValueOnce([{ id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' }]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
+    await screen.findByText('Bitcoin');
+    expect(searchCoins).not.toHaveBeenCalled();
+  });
+
+  it('prefetches the coin list as soon as the drawer opens', () => {
+    vi.mocked(getCoinList).mockClear();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    expect(getCoinList).toHaveBeenCalled();
   });
 
   it('traps Tab within the drawer, wrapping at both ends', () => {
