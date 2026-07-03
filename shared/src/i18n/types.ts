@@ -104,6 +104,8 @@ export interface UIText {
   common_save: string;
   common_cancel: string;
   common_delete: string;
+  common_increase: string;
+  common_decrease: string;
   dashboard_subtitle: string;
   dashboard_error_load: string;
   dashboard_error_add_op: string;

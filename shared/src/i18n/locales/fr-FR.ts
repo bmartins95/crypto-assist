@@ -92,6 +92,8 @@ const frFR: UIText = {
   common_save: 'Enregistrer',
   common_cancel: 'Annuler',
   common_delete: 'Supprimer',
+  common_increase: 'Augmenter',
+  common_decrease: 'Diminuer',
   dashboard_subtitle: 'Prix en temps réel via CoinGecko · Valeurs en BRL',
   dashboard_error_load: 'Échec du chargement de vos données. Rechargez la page.',
   dashboard_error_add_op: "Échec de l'enregistrement de l'opération. Réessayez.",

@@ -92,6 +92,8 @@ const enUS: UIText = {
   common_save: 'Save',
   common_cancel: 'Cancel',
   common_delete: 'Delete',
+  common_increase: 'Increase',
+  common_decrease: 'Decrease',
   dashboard_subtitle: 'Real-time prices via CoinGecko · Values in BRL',
   dashboard_error_load: 'Failed to load your data. Reload the page.',
   dashboard_error_add_op: 'Failed to record the operation. Please try again.',

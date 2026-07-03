@@ -92,6 +92,8 @@ const ruRU: UIText = {
   common_save: 'Сохранить',
   common_cancel: 'Отмена',
   common_delete: 'Удалить',
+  common_increase: 'Увеличить',
+  common_decrease: 'Уменьшить',
   dashboard_subtitle: 'Цены в реальном времени через CoinGecko · Стоимость в BRL',
   dashboard_error_load: 'Ошибка загрузки данных. Перезагрузите страницу.',
   dashboard_error_add_op: 'Ошибка записи операции. Попробуйте снова.',
