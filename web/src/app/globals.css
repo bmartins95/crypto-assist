@@ -209,6 +209,38 @@ input:focus, select:focus {
   border-color: var(--s-accent); box-shadow: 0 0 0 2px var(--s-accent-dim);
 }
 
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+.nf { position: relative; display: flex; }
+.nf .inp {
+  background: var(--s-surface-2); border: 1px solid var(--s-border); color: var(--text);
+  font: inherit; font-size: 13.5px; padding: 10px 12px; border-radius: 9px; width: 100%;
+  outline: none; transition: border-color .15s;
+}
+.nf .inp::placeholder { color: var(--s-text-dim); }
+.nf .inp:focus { border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
+.nf .inp[readonly] { background: var(--s-surface); color: var(--s-text-dim); cursor: default; }
+
+.nf .affix {
+  position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
+  color: var(--s-text-dim); font-size: 13.5px; pointer-events: none;
+}
+.nf .affix.pre { left: 12px; }
+.nf .inp.has-pre { padding-left: 34px; }
+.nf .affix.suf { right: 12px; }
+.nf .inp.has-suf { padding-right: 44px; }
+
+.nf.has-step .inp { border-radius: 9px 0 0 9px; border-right: 0; }
+.nf .steps { display: flex; flex-direction: column; border: 1px solid var(--s-border); border-radius: 0 9px 9px 0; overflow: hidden; }
+.nf .steps button {
+  width: 30px; flex: 1; background: var(--s-surface-2); border: 0; color: var(--s-text-muted);
+  cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.nf .steps button:hover { background: var(--s-border); color: var(--text); }
+.nf .steps button:first-child { border-bottom: 1px solid var(--s-border); }
+
 .pill { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
 .pill-pos { background: var(--success-bg); color: var(--success); }
 .pill-neg { background: var(--danger-bg); color: var(--danger); }
@@ -330,8 +362,6 @@ input:focus, select:focus {
 .drawer-grid .fld input, .drawer-grid .fld select,
 .drawer-body > .fld input, .drawer-body > .fld select { width: 100%; }
 .drawer-body > .fld:first-child { padding-bottom: 22px; border-bottom: 1px solid var(--s-border-soft); }
-
-.drawer input[readonly] { background: var(--s-surface); color: var(--s-text-dim); cursor: default; }
 
 .seg-tipo { width: 100%; }
 .seg-tipo .seg-btn { flex: 1; justify-content: center; }
