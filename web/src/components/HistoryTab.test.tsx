@@ -6,11 +6,17 @@ import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { searchCoins } from '@/lib/coingecko';
 
+function realFilterCoinList(list: { id: string; symbol: string; name: string }[], query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return list.filter(c => c.symbol.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+}
+
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
   fetchSinglePrice: vi.fn(async () => null),
   getCoinList: vi.fn(() => Promise.reject(new Error('coin list unavailable in tests'))),
-  filterCoinList: vi.fn(() => []),
+  filterCoinList: vi.fn((list: { id: string; symbol: string; name: string }[], query: string) => realFilterCoinList(list, query)),
 }));
 
 async function selectCoin(input: HTMLElement, result: { id: string; symbol: string; name: string }) {
@@ -18,6 +24,11 @@ async function selectCoin(input: HTMLElement, result: { id: string; symbol: stri
   fireEvent.change(input, { target: { value: result.name.slice(0, 3) } });
   await screen.findByText(result.name);
   fireEvent.click(screen.getByText(result.name));
+}
+
+function selectFromAsset(input: HTMLElement, name: string) {
+  fireEvent.change(input, { target: { value: name.slice(0, 3) } });
+  fireEvent.click(screen.getByText(name));
 }
 
 const baseProps = {
@@ -128,7 +139,7 @@ describe('HistoryTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });

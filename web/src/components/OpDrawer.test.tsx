@@ -6,13 +6,21 @@ import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList } from '@/lib/coingecko';
 
+function realFilterCoinList(list: { id: string; symbol: string; name: string }[], query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return list.filter(c => c.symbol.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+}
+
 vi.mock('@/lib/coingecko', () => ({
   searchCoins: vi.fn(async () => []),
   fetchSinglePrice: vi.fn(async () => null),
   // Rejects by default so CoinSearch falls back to the per-query searchCoins mock above,
   // matching existing test behavior; individual tests override this to exercise the list path.
   getCoinList: vi.fn(() => Promise.reject(new Error('coin list unavailable in tests'))),
-  filterCoinList: vi.fn(() => []),
+  // Delegates to a real substring filter by default (needed for the "restrictTo" owned-assets
+  // fields, which call this synchronously); tests exercising the full-list path override it.
+  filterCoinList: vi.fn((list: { id: string; symbol: string; name: string }[], query: string) => realFilterCoinList(list, query)),
 }));
 
 function renderDrawer(ui: React.ReactElement) {
@@ -47,8 +55,13 @@ afterEach(() => {
   localStorage.clear();
   document.body.style.overflow = '';
   vi.mocked(getCoinList).mockReset().mockImplementation(() => Promise.reject(new Error('coin list unavailable in tests')));
-  vi.mocked(filterCoinList).mockReset().mockReturnValue([]);
+  vi.mocked(filterCoinList).mockReset().mockImplementation((list, query) => realFilterCoinList(list, query));
 });
+
+function selectFromAsset(input: HTMLElement, name: string) {
+  fireEvent.change(input, { target: { value: name.slice(0, 3) } });
+  fireEvent.click(screen.getByText(name));
+}
 
 describe('OpDrawer', () => {
   it('is hidden from the accessibility tree when closed (stays mounted for the slide animation)', () => {
@@ -131,7 +144,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
@@ -175,7 +188,7 @@ describe('OpDrawer', () => {
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2024-03-10' } });
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
@@ -197,7 +210,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
@@ -224,7 +237,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={prices} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
     expect((screen.getByLabelText(/^Total/) as HTMLInputElement).value).toBe('200.00');
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
@@ -237,7 +250,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{ ethereum: 100 }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
     await waitFor(() => expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10'));
@@ -249,7 +262,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{ ethereum: 100 }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
-    fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
+    selectFromAsset(fromAssetEl, 'Ethereum');
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
     await new Promise(r => setTimeout(r, 50));
@@ -274,6 +287,43 @@ describe('OpDrawer', () => {
     expect((screen.getByLabelText('Plataforma') as HTMLInputElement).value).toBe('Kraken');
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('');
+  });
+
+  it('uses the same dropdown styling as the other coin fields and only shows owned assets for "Você vende"', () => {
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl] = screen.getAllByLabelText('Ativo');
+    fireEvent.focus(fromAssetEl);
+    expect(fromAssetEl.closest('.search-wrap')).toBeInTheDocument();
+    expect(document.querySelector('.trade-block.out .search-dropdown')).toBeInTheDocument();
+    expect(screen.getByText('Ethereum')).toBeInTheDocument();
+    fireEvent.change(fromAssetEl, { target: { value: 'bitcoin' } });
+    expect(screen.queryByText('Bitcoin')).not.toBeInTheDocument();
+  });
+
+  it('closes the "Você vende" dropdown and clears its selection when clicking outside', () => {
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    expect((fromAssetEl as HTMLInputElement).value).toBe('Ethereum (ETH)');
+    fireEvent.focus(fromAssetEl);
+    fireEvent.mouseDown(document.body);
+    expect(document.querySelector('.trade-block.out .search-dropdown')).not.toBeInTheDocument();
+    expect((fromAssetEl as HTMLInputElement).value).toBe('');
+  });
+
+  it('clears and reopens the "Você vende" field when refocused after a selection', () => {
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    fireEvent.focus(fromAssetEl);
+    expect((fromAssetEl as HTMLInputElement).value).toBe('');
+    expect(document.querySelector('.trade-block.out .search-dropdown')).toBeInTheDocument();
   });
 
   it('pre-fills every field when opened with editingOp and disables the Trade option', () => {
@@ -406,6 +456,50 @@ describe('OpDrawer', () => {
     vi.mocked(getCoinList).mockClear();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     expect(getCoinList).toHaveBeenCalled();
+  });
+
+  it('can show coins beyond the user\'s own holdings once a broader search resolves', async () => {
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    vi.mocked(getCoinList).mockResolvedValue([
+      { id: 'ethereum', symbol: 'eth', name: 'Ethereum' },
+      { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' },
+    ]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
+    await screen.findByText('Bitcoin');
+  });
+
+  it('closes the dropdown and clears the unit price when clicking outside the coin field', async () => {
+    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).not.toBe(''));
+    fireEvent.focus(screen.getByLabelText('Moeda comprada'));
+    expect(document.querySelector('.search-dropdown')).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(document.querySelector('.search-dropdown')).not.toBeInTheDocument();
+    expect((screen.getByLabelText('Moeda comprada') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('');
+  });
+
+  it('clicking a result inside the dropdown does not trigger the outside-click clear', async () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    expect((screen.getByLabelText('Moeda comprada') as HTMLInputElement).value).toBe('Bitcoin (BTC)');
+  });
+
+  it('clears the confirmed selection and price, and reopens suggestions, when the coin field is refocused', async () => {
+    vi.mocked(fetchSinglePrice).mockResolvedValueOnce(50000);
+    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={{}} />);
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).not.toBe(''));
+    fireEvent.focus(screen.getByLabelText('Moeda comprada'));
+    expect((screen.getByLabelText('Moeda comprada') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('');
+    expect(document.querySelector('.badge')).not.toBeInTheDocument();
+    expect(screen.getByText('Ethereum')).toBeInTheDocument();
   });
 
   it('traps Tab within the drawer, wrapping at both ends', () => {

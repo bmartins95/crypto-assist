@@ -24,49 +24,93 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 
-function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputRef, seed }: {
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    p.then(v => { clearTimeout(timer); resolve(v); }, e => { clearTimeout(timer); reject(e); });
+  });
+}
+
+// `restrictTo`, when provided, disables network search entirely — the field only
+// ever searches/shows that fixed list (used for "assets you already own" fields).
+function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
   id: string; placeholder: string; apiKey: string;
   onSelect: (c: CoinSelection) => void;
+  onClear: () => void;
   value: string; onChange: (v: string) => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   seed?: CoinSearchResult[];
+  restrictTo?: CoinSearchResult[];
+  emptyLabel?: string;
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
 
-  const handleInput = (v: string) => {
-    onChange(v);
-    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-    const q = v.trim();
-    if (q.length < 2) { setResults([]); return; }
-    getCoinList(apiKey)
-      .then(list => setResults(filterCoinList(list, q)))
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointerDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setResults([]);
+        onChange('');
+        onClear();
+      }
+    };
+    document.addEventListener('mousedown', onDocPointerDown);
+    return () => document.removeEventListener('mousedown', onDocPointerDown);
+  }, [open]);
+
+  const runSearch = (q: string) => {
+    const seq = ++searchSeq.current;
+    const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
+    withTimeout(getCoinList(apiKey), 500)
+      .then(list => applyIfCurrent(filterCoinList(list, q)))
       .catch(() => {
+        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
         fallbackTimer.current = setTimeout(async () => {
-          try { setResults(await searchCoins(q, apiKey)); } catch { setResults([]); }
+          try { applyIfCurrent(await searchCoins(q, apiKey)); } catch { applyIfCurrent([]); }
         }, 300);
       });
   };
 
+  const handleInput = (v: string) => {
+    onChange(v);
+    setOpen(true);
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    const q = v.trim();
+    if (restrictTo) { setResults(q ? filterCoinList(restrictTo, q) : restrictTo); return; }
+    if (q.length === 0) { setResults(seed ?? []); return; }
+    if (q.length < 2) { setResults([]); return; }
+    setResults([]);
+    runSearch(q);
+  };
+
   const handleFocus = () => {
-    if (value.trim().length < 2 && results.length === 0 && seed && seed.length > 0) {
-      setResults(seed);
-    }
+    onChange('');
+    onClear();
+    setResults(restrictTo ?? seed ?? []);
+    setOpen(true);
   };
 
   const select = (c: CoinSearchResult) => {
     onChange(c.name + ' (' + c.symbol.toUpperCase() + ')');
     setResults([]);
+    setOpen(false);
     onSelect({ coinId: c.id, symbol: c.symbol.toUpperCase(), name: c.name });
   };
 
   return (
-    <div className="search-wrap">
+    <div className="search-wrap" ref={wrapRef}>
       <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off"
         value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
-      {results.length > 0 && (
+      {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
         <div className="search-dropdown">
-          {results.map(c => (
+          {results.length === 0 && emptyLabel ? (
+            <div className="search-item" style={{ color: 'var(--text3)', cursor: 'default' }}>{emptyLabel}</div>
+          ) : results.map(c => (
             <div key={c.id} className="search-item" onClick={() => select(c)}>
               <span>{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
               <span className="search-item-rank">{c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
@@ -106,6 +150,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const [fee, setFee] = useState('');
 
   const [fromCoinId, setFromCoinId] = useState('');
+  const [fromCoinText, setFromCoinText] = useState('');
   const [fromQty, setFromQty] = useState('');
   const [toCoin, setToCoin] = useState<CoinSelection | null>(null);
   const [toCoinText, setToCoinText] = useState('');
@@ -125,7 +170,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   };
 
   const resetTrade = () => {
-    setFromCoinId(''); setFromQty(''); setToCoin(null); setToCoinText('');
+    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setToCoin(null); setToCoinText('');
     setToQty(''); setTotal(''); setTradeFee(''); setTotalHint('');
   };
 
@@ -256,6 +301,11 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     }
   }, [prices]);
 
+  const handleFromCoinSelect = (c: CoinSelection) => {
+    setFromCoinId(c.coinId);
+    syncTradeTotal(c.coinId, fromQty, toCoin, total);
+  };
+
   // Same stale-response guard as the Buy/Sell price effect above, for the Trade
   // "receive" side's live price lookup.
   useEffect(() => {
@@ -356,7 +406,8 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
                 <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
-                  value={coinText} onChange={setCoinText} onSelect={setCoin} />
+                  value={coinText} onChange={setCoinText} onSelect={setCoin}
+                  onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
@@ -389,10 +440,11 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
-                    <select id="drawer-tr-from" className="settings-select" value={fromCoinId} onChange={e => { setFromCoinId(e.target.value); syncTradeTotal(e.target.value, fromQty, toCoin, total); }}>
-                      <option value="">{t.trade_form_noAssets}</option>
-                      {assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol}</option>)}
-                    </select>
+                    <CoinSearch id="drawer-tr-from" placeholder="ETH, BTC..." apiKey={apiKey}
+                      restrictTo={assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }))}
+                      emptyLabel={t.trade_form_noAssets}
+                      value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
+                      onClear={() => setFromCoinId('')} />
                   </div>
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
                     value={fromQty} suffix={assets.find(a => a.coinId === fromCoinId)?.symbol}
@@ -408,7 +460,8 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
-                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} />
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin}
+                      onClear={() => { setToCoin(null); setToQty(''); }} />
                   </div>
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
                     value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />
