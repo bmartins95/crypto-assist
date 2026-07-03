@@ -73,11 +73,11 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2024-03-10' } });
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Binance' } });
-    await selectCoin(screen.getByLabelText('Moeda'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Taxa (R$)'), { target: { value: '5' } });
-    expect((screen.getByLabelText('Total (R$)') as HTMLInputElement).value).toBe('205.00');
+    expect((screen.getByLabelText('Total (R$)') as HTMLInputElement).value).toMatch(/205,00/);
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'Buy', coinId: 'bitcoin', qty: 2, price: 100, fee: 5, total: 205,
@@ -90,7 +90,7 @@ describe('OpDrawer', () => {
     const onSubmit = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
-    await selectCoin(screen.getByLabelText('Moeda'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await selectCoin(screen.getByLabelText('Moeda vendida'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
@@ -99,10 +99,10 @@ describe('OpDrawer', () => {
 
   it('swaps in the two-block Trade fieldset when switching type', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     expect(document.querySelector('.trade-block.out')).toBeInTheDocument();
     expect(document.querySelector('.trade-block.in')).toBeInTheDocument();
-    expect(document.querySelector('.op-fields')).not.toBeInTheDocument();
+    expect(document.getElementById('drawer-coin')).not.toBeInTheDocument();
   });
 
   it('submits a valid Trade as one Sell and one Buy sharing the same date', async () => {
@@ -110,14 +110,15 @@ describe('OpDrawer', () => {
     const onClose = vi.fn();
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2024-03-10' } });
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
-    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Moeda');
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
-    fireEvent.change(screen.getByLabelText('Qtd. vendida'), { target: { value: '1' } });
+    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(screen.getByLabelText('Qtd. comprada'), { target: { value: '5' } });
+    fireEvent.change(toQtyEl, { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Taxa (R$)'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
@@ -132,12 +133,13 @@ describe('OpDrawer', () => {
     const onSubmitTrade = vi.fn();
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
-    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Moeda');
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
-    fireEvent.change(screen.getByLabelText('Qtd. vendida'), { target: { value: '1' } });
+    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
-    fireEvent.change(screen.getByLabelText('Qtd. comprada'), { target: { value: '1' } });
+    fireEvent.change(toQtyEl, { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
@@ -148,7 +150,7 @@ describe('OpDrawer', () => {
     const onSubmitTrade = vi.fn();
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
@@ -158,24 +160,24 @@ describe('OpDrawer', () => {
     const prices = { ethereum: 100, solana: 20 };
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} prices={prices} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
-    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Moeda');
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
-    fireEvent.change(screen.getByLabelText('Qtd. vendida'), { target: { value: '2' } });
+    fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
     expect((screen.getByLabelText(/^Total/) as HTMLInputElement).value).toBe('200.00');
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    expect((screen.getByLabelText('Qtd. comprada') as HTMLInputElement).value).toBe('10');
+    expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10');
   });
 
   it('discards Trade-only fields but keeps platform when switching away from Trade', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
-    fireEvent.change(screen.getByLabelText('Qtd. vendida'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
     expect((screen.getByLabelText('Plataforma') as HTMLInputElement).value).toBe('Kraken');
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
-    expect((screen.getByLabelText('Qtd. vendida') as HTMLInputElement).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('');
   });
 
   it('pre-fills every field when opened with editingOp and disables the Trade option', () => {
@@ -184,7 +186,7 @@ describe('OpDrawer', () => {
     expect(screen.getByDisplayValue('100')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Kraken')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
-    expect(screen.getByRole('button', { name: 'Trade entre ativos' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Trade' })).toBeDisabled();
   });
 
   it('submits updated fields via onSubmit when editing, not onSubmitTrade', () => {

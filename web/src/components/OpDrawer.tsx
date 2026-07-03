@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
+import { fmt } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -65,7 +66,7 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputR
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
   const [error, setError] = useState<string | null>(null);
 
@@ -172,17 +173,17 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toC: CoinSelection | null, totalStr: string) => {
     const fQty = parseFloat(fromQtyStr) || 0;
-    let t = 0;
+    let amount = 0;
     if (fromId && fQty && prices[fromId]) {
-      t = fQty * prices[fromId];
-      setTotal(t.toFixed(2));
+      amount = fQty * prices[fromId];
+      setTotal(amount.toFixed(2));
       setTotalHint('≈ atual');
     } else {
-      t = parseFloat(totalStr) || 0;
+      amount = parseFloat(totalStr) || 0;
       setTotalHint('');
     }
-    if (t > 0 && toC && prices[toC.coinId]) {
-      setToQty((t / prices[toC.coinId]).toFixed(8).replace(/\.?0+$/, ''));
+    if (amount > 0 && toC && prices[toC.coinId]) {
+      setToQty((amount / prices[toC.coinId]).toFixed(8).replace(/\.?0+$/, ''));
     }
   }, [prices]);
 
@@ -246,7 +247,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
         <div className="drawer-body">
           <div className="fld">
             <label htmlFor="drawer-type">{t.history_form_type}</label>
-            <div className="seg-ctrl" id="drawer-type">
+            <div className="seg-ctrl seg-tipo" id="drawer-type">
               <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')}>{t.history_opType_buy}</button>
               <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')}>{t.history_opType_sell}</button>
               <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={!!editingOp}>{t.history_form_trade}</button>
@@ -266,7 +267,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 </div>
               </div>
               <div className="fld">
-                <label htmlFor="drawer-coin">{t.history_form_asset}</label>
+                <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
                 <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey}
                   value={coinText} onChange={setCoinText} onSelect={setCoin} />
               </div>
@@ -287,7 +288,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 </div>
                 <div className="fld">
                   <label htmlFor="drawer-total">{t.history_form_total}</label>
-                  <input id="drawer-total" type="text" value={computedTotal ? computedTotal.toFixed(2) : ''} readOnly />
+                  <input id="drawer-total" type="text" value={fmt(computedTotal, locale)} readOnly />
                   <span className="fhint">{t.history_form_calculatedAutomatically}</span>
                 </div>
               </div>
@@ -309,14 +310,14 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="trade-hd"><span className="dot" />{t.trade_form_from}</div>
                 <div className="drawer-grid">
                   <div className="fld">
-                    <label htmlFor="drawer-tr-from">{t.history_form_asset}</label>
-                    <select id="drawer-tr-from" value={fromCoinId} onChange={e => { setFromCoinId(e.target.value); syncTradeTotal(e.target.value, fromQty, toCoin, total); }}>
+                    <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
+                    <select id="drawer-tr-from" className="settings-select" value={fromCoinId} onChange={e => { setFromCoinId(e.target.value); syncTradeTotal(e.target.value, fromQty, toCoin, total); }}>
                       <option value="">{t.trade_form_noAssets}</option>
                       {assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol}</option>)}
                     </select>
                   </div>
                   <div className="fld">
-                    <label htmlFor="drawer-tr-from-qty">{t.trade_form_qty}</label>
+                    <label htmlFor="drawer-tr-from-qty">{t.history_form_qty}</label>
                     <input id="drawer-tr-from-qty" type="number" placeholder="0" step="any" value={fromQty}
                       onChange={e => { setFromQty(e.target.value); syncTradeTotal(fromCoinId, e.target.value, toCoin, total); }} />
                   </div>
@@ -329,12 +330,12 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="trade-hd"><span className="dot" />{t.trade_form_to}</div>
                 <div className="drawer-grid">
                   <div className="fld">
-                    <label htmlFor="drawer-tr-to">{t.history_form_asset}</label>
+                    <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey}
                       value={toCoinText} onChange={setToCoinText} onSelect={handleToCoinSelect} />
                   </div>
                   <div className="fld">
-                    <label htmlFor="drawer-tr-to-qty">{t.trade_form_toQty}</label>
+                    <label htmlFor="drawer-tr-to-qty">{t.history_form_qty}</label>
                     <input id="drawer-tr-to-qty" type="number" placeholder="0" step="any" value={toQty} onChange={e => setToQty(e.target.value)} />
                   </div>
                 </div>
@@ -346,8 +347,9 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                   <input id="drawer-tr-fee" type="number" placeholder="0.00" step="any" value={tradeFee} onChange={e => setTradeFee(e.target.value)} />
                 </div>
                 <div className="fld">
-                  <label htmlFor="drawer-tr-total">{t.trade_form_price} <span className="fhint">{totalHint}</span></label>
+                  <label htmlFor="drawer-tr-total">{t.trade_form_price}</label>
                   <input id="drawer-tr-total" type="number" placeholder="0.00" step="any" value={total} onChange={e => setTotal(e.target.value)} />
+                  <span className="fhint">{totalHint || t.trade_form_totalHint}</span>
                 </div>
               </div>
             </>

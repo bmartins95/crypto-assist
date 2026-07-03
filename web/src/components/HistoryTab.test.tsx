@@ -66,10 +66,9 @@ describe('HistoryTab', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
     expect(screen.getByText('BTC')).toBeInTheDocument();
     expect(screen.getByText('Binance')).toBeInTheDocument();
-    const pill = document.querySelector('.op-list-row .pill');
-    expect(pill).toHaveTextContent('Compra');
-    expect(document.querySelector('.op-fields')).not.toBeInTheDocument();
-    expect(document.querySelector('.trade-fields')).not.toBeInTheDocument();
+    const tag = document.querySelector('.tbl tbody .tag');
+    expect(tag).toHaveTextContent('Compra');
+    expect(document.querySelectorAll('input').length).toBe(0);
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {
@@ -99,7 +98,7 @@ describe('HistoryTab', () => {
     const onEditOp = vi.fn();
     renderWithLocale(<HistoryTab {...baseProps} onAddOp={onAddOp} onEditOp={onEditOp} />);
     fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
-    await selectCoin(screen.getByLabelText('Moeda'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '50' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
@@ -124,12 +123,13 @@ describe('HistoryTab', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderWithLocale(<HistoryTab {...baseProps} assets={assets} onAddOp={onAddOp} />);
     fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Trade entre ativos' }));
-    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Moeda');
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.change(fromAssetEl, { target: { value: 'ethereum' } });
-    fireEvent.change(screen.getByLabelText('Qtd. vendida'), { target: { value: '1' } });
+    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(screen.getByLabelText('Qtd. comprada'), { target: { value: '5' } });
+    fireEvent.change(toQtyEl, { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onAddOp).toHaveBeenCalledTimes(2);
@@ -141,7 +141,7 @@ describe('HistoryTab', () => {
     localStorage.setItem(STORAGE_KEY, 'es-ES');
     const sellOp: Op = { ...existingOp, id: 'op-sell', type: 'Sell' };
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, sellOp]} />);
-    const pills = document.querySelectorAll('.op-list-row .pill');
+    const pills = document.querySelectorAll('.tbl tbody .tag');
     const texts = Array.from(pills).map(p => p.textContent);
     expect(texts).toContain('Compra');
     expect(texts).toContain('Venta');

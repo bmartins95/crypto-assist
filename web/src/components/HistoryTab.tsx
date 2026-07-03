@@ -50,27 +50,42 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
       {!ops.length ? (
         <div className="empty-state"><i className="ti ti-receipt" /><span>{t.history_emptyState}</span></div>
       ) : (
-        <div className="op-list-wrap">
-          <div className="op-list-row op-list-head">
-            <span>{t.history_col_date}</span><span>{t.history_col_asset}</span><span>{t.history_col_type}</span><span>{t.history_col_qty}</span>
-            <span>{t.history_col_price}</span><span>{t.history_col_total}</span><span>{t.history_col_fee}</span><span>{t.history_col_platform}</span><span />
-          </div>
-          {ops.map(o => (
-            <div className="op-list-row" key={o.id}>
-              <span style={{ color: 'var(--text2)' }}>{fmtDate(o.date, locale)}</span>
-              <span style={{ fontWeight: 500 }}>{o.symbol || '—'}</span>
-              <span><span className={`pill ${o.type === 'Buy' ? 'pill-pos' : 'pill-neg'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span></span>
-              <span>{mask(fmtQty(o.qty, locale))}</span>
-              <span>{mask(fmt(o.price, locale))}</span>
-              <span style={{ fontWeight: 500 }}>{mask(fmt(o.total, locale))}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.fee > 0 ? mask(fmt(o.fee, locale)) : '—'}</span>
-              <span style={{ color: 'var(--text2)' }}>{o.platform || '—'}</span>
-              <span className="op-actions">
-                <button className="icon-btn" onClick={() => openForEdit(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>
-                <button className="icon-btn" onClick={() => onRemoveOp(o.id)} title={t.history_form_delete} style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
-              </span>
-            </div>
-          ))}
+        <div className="tbl scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.history_col_date}</th>
+                <th>{t.history_col_asset}</th>
+                <th>{t.history_col_type}</th>
+                <th className="num">{t.history_col_qty}</th>
+                <th className="num">{t.history_col_price}</th>
+                <th className="num">{t.history_col_total}</th>
+                <th className="num">{t.history_col_fee}</th>
+                <th>{t.history_col_platform}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {ops.map(o => (
+                <tr key={o.id}>
+                  <td style={{ color: 'var(--s-text-dim)' }}>{fmtDate(o.date, locale)}</td>
+                  <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
+                  <td><span className={`tag ${o.type === 'Buy' ? 'buy' : 'sell'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span></td>
+                  <td className="num">{mask(fmtQty(o.qty, locale))}</td>
+                  <td className="num">{mask(fmt(o.price, locale))}</td>
+                  <td className="num" style={{ fontWeight: 600 }}>{mask(fmt(o.total, locale))}</td>
+                  <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmt(o.fee, locale)) : '—'}</td>
+                  <td style={{ color: 'var(--s-text-dim)' }}>{o.platform || '—'}</td>
+                  <td className="num">
+                    <span className="op-actions">
+                      <button className="icon-btn" onClick={() => openForEdit(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>
+                      <button className="icon-btn" onClick={() => onRemoveOp(o.id)} title={t.history_form_delete} style={{ color: 'var(--danger)' }}><i className="ti ti-trash" /></button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
