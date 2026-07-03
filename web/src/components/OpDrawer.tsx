@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
-import { fmt } from '@/lib/format';
 import { searchCoins, fetchSinglePrice, CoinSearchResult } from '@/lib/coingecko';
 import { useLocale } from '@/context/LocaleContext';
+import NumericField from '@/components/NumericField';
 
 interface Props {
   open: boolean;
@@ -66,7 +66,7 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, value, onChange, inputR
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
   const [error, setError] = useState<string | null>(null);
 
@@ -272,25 +272,16 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                   value={coinText} onChange={setCoinText} onSelect={setCoin} />
               </div>
               <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-qty">{t.history_form_qty}</label>
-                  <input id="drawer-qty" type="number" placeholder="0" step="any" value={qty} onChange={e => setQty(e.target.value)} />
-                </div>
-                <div className="fld">
-                  <label htmlFor="drawer-price">{t.history_form_price}</label>
-                  <input id="drawer-price" type="number" placeholder="0.00" step="any" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} />
-                </div>
+                <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
+                  value={qty} onChange={setQty} suffix={coin?.symbol} />
+                <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
+                  value={unitPrice} onChange={setUnitPrice} prefix="R$" />
               </div>
               <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-fee">{t.history_form_fee}</label>
-                  <input id="drawer-fee" type="number" placeholder="0.00" step="any" value={fee} onChange={e => setFee(e.target.value)} />
-                </div>
-                <div className="fld">
-                  <label htmlFor="drawer-total">{t.history_form_total}</label>
-                  <input id="drawer-total" type="text" value={fmt(computedTotal, locale)} readOnly />
-                  <span className="fhint">{t.history_form_calculatedAutomatically}</span>
-                </div>
+                <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
+                  value={fee} onChange={setFee} prefix="R$" />
+                <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
+                  value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
               </div>
             </>
           ) : (
@@ -316,11 +307,9 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                       {assets.map(a => <option key={a.coinId} value={a.coinId}>{a.symbol}</option>)}
                     </select>
                   </div>
-                  <div className="fld">
-                    <label htmlFor="drawer-tr-from-qty">{t.history_form_qty}</label>
-                    <input id="drawer-tr-from-qty" type="number" placeholder="0" step="any" value={fromQty}
-                      onChange={e => { setFromQty(e.target.value); syncTradeTotal(fromCoinId, e.target.value, toCoin, total); }} />
-                  </div>
+                  <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
+                    value={fromQty} suffix={assets.find(a => a.coinId === fromCoinId)?.symbol}
+                    onChange={v => { setFromQty(v); syncTradeTotal(fromCoinId, v, toCoin, total); }} />
                 </div>
               </div>
 
@@ -334,23 +323,16 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                     <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey}
                       value={toCoinText} onChange={setToCoinText} onSelect={handleToCoinSelect} />
                   </div>
-                  <div className="fld">
-                    <label htmlFor="drawer-tr-to-qty">{t.history_form_qty}</label>
-                    <input id="drawer-tr-to-qty" type="number" placeholder="0" step="any" value={toQty} onChange={e => setToQty(e.target.value)} />
-                  </div>
+                  <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
+                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />
                 </div>
               </div>
 
               <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-tr-fee">{t.trade_form_fee}</label>
-                  <input id="drawer-tr-fee" type="number" placeholder="0.00" step="any" value={tradeFee} onChange={e => setTradeFee(e.target.value)} />
-                </div>
-                <div className="fld">
-                  <label htmlFor="drawer-tr-total">{t.trade_form_price}</label>
-                  <input id="drawer-tr-total" type="number" placeholder="0.00" step="any" value={total} onChange={e => setTotal(e.target.value)} />
-                  <span className="fhint">{totalHint || t.trade_form_totalHint}</span>
-                </div>
+                <NumericField id="drawer-tr-fee" label={t.trade_form_fee} placeholder="0.00"
+                  value={tradeFee} onChange={setTradeFee} prefix="R$" />
+                <NumericField id="drawer-tr-total" label={t.trade_form_price} placeholder="0.00" prefix="R$"
+                  value={total} onChange={setTotal} hint={totalHint || t.trade_form_totalHint} />
               </div>
             </>
           )}

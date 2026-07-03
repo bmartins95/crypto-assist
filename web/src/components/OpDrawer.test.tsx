@@ -75,9 +75,9 @@ describe('OpDrawer', () => {
     fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Binance' } });
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('Taxa (R$)'), { target: { value: '5' } });
-    expect((screen.getByLabelText('Total (R$)') as HTMLInputElement).value).toMatch(/205,00/);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Taxa'), { target: { value: '5' } });
+    expect((screen.getByLabelText('Total') as HTMLInputElement).value).toBe('205.00');
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'Buy', coinId: 'bitcoin', qty: 2, price: 100, fee: 5, total: 205,
@@ -92,7 +92,7 @@ describe('OpDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
     await selectCoin(screen.getByLabelText('Moeda vendida'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 100 }));
   });
@@ -119,7 +119,7 @@ describe('OpDrawer', () => {
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
     fireEvent.change(toQtyEl, { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText('Taxa (R$)'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Taxa'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onSubmitTrade).toHaveBeenCalledWith(

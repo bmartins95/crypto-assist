@@ -100,7 +100,7 @@ describe('HistoryTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText('Preço unit. (R$)'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '50' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-accent')!);
     expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'bitcoin' }));
     expect(onEditOp).not.toHaveBeenCalled();
