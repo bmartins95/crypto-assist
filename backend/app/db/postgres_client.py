@@ -21,6 +21,13 @@ _CONNECT_TIMEOUT_S = 5
 _MAX_ATTEMPTS = 10
 _RETRY_DELAY_S = 2.0
 
+# Arbitrary, stable key for a Postgres advisory lock guarding schema/migration init.
+# Concurrent cold-start containers each run get_conn() against the same Aurora instance;
+# without this lock, two of them racing through "CREATE TABLE IF NOT EXISTS" at once can
+# both pass the existence check and then collide on the catalog insert, raising a
+# UniqueViolation that poisons the connection for every later query in that container.
+_INIT_LOCK_KEY = 8853301
+
 
 @lru_cache(maxsize=1)
 def _resolve_dsn() -> str:
@@ -72,12 +79,23 @@ def get_conn() -> psycopg.Connection:
     global _conn, _schema_ready, _migrations_ready
     if _conn is None or _conn.closed:
         _conn = _connect()
-    if not _schema_ready:
-        _ensure_schema(_conn)
-        _schema_ready = True
-    if not _migrations_ready:
-        _run_migrations(_conn)
-        _migrations_ready = True
+    if not _schema_ready or not _migrations_ready:
+        with _conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_lock(%s)", (_INIT_LOCK_KEY,))
+        try:
+            if not _schema_ready:
+                _ensure_schema(_conn)
+                _schema_ready = True
+            if not _migrations_ready:
+                _run_migrations(_conn)
+                _migrations_ready = True
+        finally:
+            # A failed schema/migration statement leaves the transaction aborted; roll back
+            # first so the unlock statement below can still run on this same connection.
+            _conn.rollback()
+            with _conn.cursor() as cur:
+                cur.execute("SELECT pg_advisory_unlock(%s)", (_INIT_LOCK_KEY,))
+            _conn.commit()
     return _conn
 
 
