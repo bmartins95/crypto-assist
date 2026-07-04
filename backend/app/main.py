@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
 from app.config import get_settings
+from app.db.postgres_client import get_conn
 from app.routes import ops, exit_prices, prices, export_data, import_data
 
 # In Lambda the runtime pre-installs a root handler, so logging.basicConfig() is a
@@ -36,6 +37,16 @@ app.include_router(import_data.router, prefix="/api/import")
 
 @app.get("/health")
 def health():
+    return {"ok": True}
+
+
+# Unauthenticated on purpose: the web app pings this from the login page so the
+# Aurora 0-ACU wake-up (~10-12s) overlaps the Cognito OAuth handshake instead of
+# blocking the first portfolio fetch. It touches no user data.
+@app.get("/health/db")
+def health_db():
+    with get_conn().cursor() as cur:
+        cur.execute("SELECT 1")
     return {"ok": True}
 
 

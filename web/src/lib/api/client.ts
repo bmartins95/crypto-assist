@@ -35,4 +35,8 @@ export const api = {
   exportBackup: () => request<BackupPayload>('/api/export'),
   importBackup: (backup: BackupPayload) => request<void>('/api/import', { method: 'POST', body: JSON.stringify(backup) }),
   clearOps: () => request<{ deleted: number }>('/api/ops', { method: 'DELETE' }),
+
+  // No auth header: /health/db exists so the login page can start the Aurora
+  // 0-ACU wake-up before the user has a session.
+  warmupDb: () => fetch(`${BACKEND_URL}/health/db`),
 };
