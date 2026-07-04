@@ -1,0 +1,86 @@
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.db import postgres_client
+
+
+def _make_conn() -> tuple[MagicMock, MagicMock]:
+    cur = MagicMock()
+    cur.__enter__ = MagicMock(return_value=cur)
+    cur.__exit__ = MagicMock(return_value=False)
+    conn = MagicMock()
+    conn.closed = False
+    conn.cursor.return_value = cur
+    return conn, cur
+
+
+@pytest.fixture(autouse=True)
+def reset_module_state(monkeypatch):
+    monkeypatch.setattr(postgres_client, "_conn", None)
+    monkeypatch.setattr(postgres_client, "_schema_ready", False)
+    monkeypatch.setattr(postgres_client, "_migrations_ready", False)
+
+
+def test_get_conn_wraps_init_in_advisory_lock(monkeypatch):
+    conn, cur = _make_conn()
+    monkeypatch.setattr(postgres_client, "_connect", lambda: conn)
+    ensure_schema = MagicMock()
+    run_migrations = MagicMock()
+    monkeypatch.setattr(postgres_client, "_ensure_schema", ensure_schema)
+    monkeypatch.setattr(postgres_client, "_run_migrations", run_migrations)
+
+    result = postgres_client.get_conn()
+
+    assert result is conn
+    executed = [c.args[0] for c in cur.execute.call_args_list if c.args]
+    assert any("pg_advisory_lock" in s for s in executed)
+    assert any("pg_advisory_unlock" in s for s in executed)
+    lock_idx = next(i for i, s in enumerate(executed) if "pg_advisory_lock" in s and "unlock" not in s)
+    unlock_idx = next(i for i, s in enumerate(executed) if "pg_advisory_unlock" in s)
+    assert lock_idx < unlock_idx
+    ensure_schema.assert_called_once_with(conn)
+    run_migrations.assert_called_once_with(conn)
+
+
+def test_get_conn_only_initializes_once_per_connection(monkeypatch):
+    conn, _ = _make_conn()
+    monkeypatch.setattr(postgres_client, "_connect", lambda: conn)
+    ensure_schema = MagicMock()
+    run_migrations = MagicMock()
+    monkeypatch.setattr(postgres_client, "_ensure_schema", ensure_schema)
+    monkeypatch.setattr(postgres_client, "_run_migrations", run_migrations)
+
+    postgres_client.get_conn()
+    postgres_client.get_conn()
+
+    ensure_schema.assert_called_once()
+    run_migrations.assert_called_once()
+
+
+def test_ensure_schema_executes_schema_sql_and_commits():
+    conn, cur = _make_conn()
+
+    postgres_client._ensure_schema(conn)
+
+    executed = [c.args[0] for c in cur.execute.call_args_list if c.args]
+    schema_sql = (
+        postgres_client.Path(__file__).parent.parent / "db" / "schema.sql"
+    ).read_text()
+    assert executed == [schema_sql]
+    conn.commit.assert_called_once()
+
+
+def test_get_conn_releases_lock_and_reraises_on_schema_failure(monkeypatch):
+    conn, cur = _make_conn()
+    monkeypatch.setattr(postgres_client, "_connect", lambda: conn)
+    monkeypatch.setattr(postgres_client, "_ensure_schema", MagicMock(side_effect=Exception("boom")))
+    monkeypatch.setattr(postgres_client, "_run_migrations", MagicMock())
+
+    with pytest.raises(Exception, match="boom"):
+        postgres_client.get_conn()
+
+    conn.rollback.assert_called_once()
+    executed = [c.args[0] for c in cur.execute.call_args_list if c.args]
+    assert any("pg_advisory_unlock" in s for s in executed)
+    assert postgres_client._schema_ready is False
