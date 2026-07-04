@@ -1,11 +1,21 @@
+import { useEffect } from 'react';
 import { buildAuthUrl } from '@/lib/cognito/client';
 import { useLocale } from '@/context/LocaleContext';
+import { api } from '@/lib/api/client';
 
 const searchParams = new URLSearchParams(window.location.search);
 const authError = searchParams.get('error');
 
 export default function AuthClient() {
   const { t } = useLocale();
+
+  useEffect(() => {
+    // Fire-and-forget: wakes the paused Aurora instance while the user goes
+    // through the OAuth handshake, so the wallet fetch after login is fast.
+    // A failure here changes nothing for the user — the wallet load retries
+    // the connection anyway — so there is no UI state to update.
+    api.warmupDb().catch(() => undefined);
+  }, []);
 
   const handleGoogle = async () => {
     window.location.href = await buildAuthUrl('Google');
