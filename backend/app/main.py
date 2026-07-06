@@ -2,6 +2,8 @@ import logging
 import os
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
@@ -33,6 +35,18 @@ app.include_router(exit_prices.router, prefix="/api/exit-prices")
 app.include_router(prices.router, prefix="/api/prices")
 app.include_router(export_data.router, prefix="/api/export")
 app.include_router(import_data.router, prefix="/api/import")
+
+
+# Log which fields failed (never their values — request bodies hold user
+# portfolio data) so 422s are diagnosable from CloudWatch instead of invisible.
+@app.exception_handler(RequestValidationError)
+async def log_validation_failure(request: Request, exc: RequestValidationError):
+    fields = [
+        {"loc": list(e.get("loc", ())), "msg": e.get("msg"), "type": e.get("type")}
+        for e in exc.errors()
+    ]
+    logger.warning("validation_failure path=%s errors=%s", request.url.path, fields)
+    return await request_validation_exception_handler(request, exc)
 
 
 @app.get("/health")

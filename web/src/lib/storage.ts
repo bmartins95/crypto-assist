@@ -14,8 +14,45 @@ export const storage = {
 // localStorage keys (see PLANO_BACKEND.md → "Migrating existing data").
 // On first authenticated load, the dashboard checks for this data and offers
 // to import it into the user's account.
+
+// cp_ops written before 2026-06-24 used Portuguese field names (data/tipo/qtd/
+// preco/taxa/plataforma) and Portuguese type values; both shapes must import.
+const LEGACY_TYPE_MAP: Record<string, NewOp['type']> = {
+  Compra: 'Buy',
+  Venda: 'Sell',
+  Buy: 'Buy',
+  Sell: 'Sell',
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
+function normalizeLegacyOp(raw: unknown): NewOp[] {
+  if (!isRecord(raw)) return [];
+  const type = LEGACY_TYPE_MAP[String(raw.type ?? raw.tipo)];
+  const date = raw.date ?? raw.data;
+  const qty = raw.qty ?? raw.qtd;
+  const price = raw.price ?? raw.preco;
+  const fee = raw.fee ?? raw.taxa ?? 0;
+  const total = raw.total;
+  const platform = raw.platform ?? raw.plataforma ?? '';
+  if (
+    !type || typeof date !== 'string' || typeof raw.coinId !== 'string' ||
+    typeof qty !== 'number' || typeof price !== 'number' ||
+    typeof fee !== 'number' || typeof total !== 'number' || typeof platform !== 'string'
+  ) return [];
+  return [{
+    date, coinId: raw.coinId, symbol: String(raw.symbol ?? ''), name: String(raw.name ?? ''),
+    type, qty, price, fee, total, platform,
+  }];
+}
+
 export function getLegacyOps(): NewOp[] {
-  try { return JSON.parse(localStorage.getItem('cp_ops') || '[]'); } catch { return []; }
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem('cp_ops') || '[]');
+    return Array.isArray(raw) ? raw.flatMap(normalizeLegacyOp) : [];
+  } catch { return []; }
 }
 
 export function getLegacyExitPrices(): ExitPrices {
