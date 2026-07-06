@@ -21,6 +21,10 @@ vi.mock('@/lib/api/client', () => ({
   },
 }));
 
+vi.mock('@/lib/coingecko', () => ({
+  getCoinList: vi.fn(async () => []),
+}));
+
 vi.mock('@/lib/storage', () => ({
   storage: {
     getAvatars: vi.fn(() => ({})),

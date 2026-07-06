@@ -24,13 +24,6 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms);
-    p.then(v => { clearTimeout(timer); resolve(v); }, e => { clearTimeout(timer); reject(e); });
-  });
-}
-
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
 function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
@@ -46,7 +39,6 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChang
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
 
   useEffect(() => {
@@ -63,23 +55,22 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChang
     return () => document.removeEventListener('mousedown', onDocPointerDown);
   }, [open]);
 
+  // Only falls back to the market-cap-ranked /search endpoint on a genuine fetch
+  // failure — racing the full list against a fixed timeout meant slow connections
+  // silently lost the well-known-coin ranking and saw a truncated result set instead.
   const runSearch = (q: string) => {
     const seq = ++searchSeq.current;
     const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
-    withTimeout(getCoinList(apiKey), 500)
+    getCoinList(apiKey)
       .then(list => applyIfCurrent(filterCoinList(list, q)))
-      .catch(() => {
-        if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-        fallbackTimer.current = setTimeout(async () => {
-          try { applyIfCurrent(await searchCoins(q, apiKey)); } catch { applyIfCurrent([]); }
-        }, 300);
+      .catch(async () => {
+        try { applyIfCurrent(await searchCoins(q, apiKey)); } catch { applyIfCurrent([]); }
       });
   };
 
   const handleInput = (v: string) => {
     onChange(v);
     setOpen(true);
-    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
     const q = v.trim();
     if (restrictTo) { setResults(q ? filterCoinList(restrictTo, q) : restrictTo); return; }
     if (q.length === 0) { setResults(seed ?? []); return; }

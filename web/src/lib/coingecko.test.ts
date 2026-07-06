@@ -8,6 +8,7 @@ describe('coingecko caching', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('caches search results per query and does not refetch for a repeated query', async () => {
@@ -40,6 +41,19 @@ describe('coingecko caching', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('refetches the coin list once the 1-hour cache entry expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const { getCoinList } = await import('./coingecko');
+    const mockFetch = vi.mocked(fetch);
+    mockFetch.mockResolvedValue({ json: async () => ([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' }]) } as Response);
+    await getCoinList('key');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(60 * 60 * 1000 + 1);
+    await getCoinList('key');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('allows retrying getCoinList after a failed fetch', async () => {
     const { getCoinList } = await import('./coingecko');
     const mockFetch = vi.mocked(fetch);
@@ -64,6 +78,19 @@ describe('coingecko caching', () => {
   it('filterCoinList returns nothing for an empty query', async () => {
     const { filterCoinList } = await import('./coingecko');
     expect(filterCoinList([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' }], '')).toEqual([]);
+  });
+
+  it('refetches search results once the 1-hour cache entry expires', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const { searchCoins } = await import('./coingecko');
+    const mockFetch = vi.mocked(fetch);
+    mockFetch.mockResolvedValue({ json: async () => ({ coins: [{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' }] }) } as Response);
+    await searchCoins('bit', 'key');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(60 * 60 * 1000 + 1);
+    await searchCoins('bit', 'key');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it('caches a fetched price briefly, avoiding a duplicate request for the same coin', async () => {

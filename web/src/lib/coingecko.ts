@@ -9,7 +9,33 @@ export interface CoinSearchResult {
   market_cap_rank?: number;
 }
 
-const searchCache = new Map<string, CoinSearchResult[]>();
+interface CacheEntry<V> {
+  value: V;
+  expiresAt: number;
+}
+
+// Shared by the coin-list, search-result, and price caches below so every entry
+// in this module expires on the same TTL mechanism instead of living forever
+// just because the browser tab stayed open.
+class TtlCache<V> {
+  private store = new Map<string, CacheEntry<V>>();
+  constructor(private ttlMs: number) {}
+
+  get(key: string): V | undefined {
+    const hit = this.store.get(key);
+    if (!hit) return undefined;
+    if (Date.now() > hit.expiresAt) { this.store.delete(key); return undefined; }
+    return hit.value;
+  }
+
+  set(key: string, value: V): void {
+    this.store.set(key, { value, expiresAt: Date.now() + this.ttlMs });
+  }
+}
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+const searchCache = new TtlCache<CoinSearchResult[]>(ONE_HOUR_MS);
 
 export async function searchCoins(query: string, apiKey: string): Promise<CoinSearchResult[]> {
   const key = query.trim().toLowerCase();
@@ -28,17 +54,24 @@ export interface CoinListEntry {
   name: string;
 }
 
+const COIN_LIST_KEY = 'all';
+const coinListCache = new TtlCache<CoinListEntry[]>(ONE_HOUR_MS);
 let coinListPromise: Promise<CoinListEntry[]> | null = null;
 
-// Lazily fetched once per browser session (first call wins); every caller shares
-// the same in-flight promise so opening the drawer repeatedly never re-fetches.
+// Resolved values are served from `coinListCache` for up to an hour; concurrent
+// callers during a fetch share the same in-flight promise so opening the drawer
+// repeatedly (or several search fields at once) never fires duplicate requests.
 export async function getCoinList(apiKey: string): Promise<CoinListEntry[]> {
+  const cached = coinListCache.get(COIN_LIST_KEY);
+  if (cached) return cached;
   if (!coinListPromise) {
     coinListPromise = (async () => {
       const query = apiKey ? `?x_cg_demo_api_key=${apiKey}` : '';
       const r = await fetch(`https://api.coingecko.com/api/v3/coins/list${query}`);
-      return r.json();
-    })().catch(err => { coinListPromise = null; throw err; });
+      const list: CoinListEntry[] = await r.json();
+      coinListCache.set(COIN_LIST_KEY, list);
+      return list;
+    })().finally(() => { coinListPromise = null; });
   }
   return coinListPromise;
 }
@@ -76,20 +109,14 @@ export async function fetchMarketPrices(ids: string, apiKey: string): Promise<Ma
   return d;
 }
 
-interface PriceCacheEntry {
-  price: number;
-  ts: number;
-}
-
-const priceCache = new Map<string, PriceCacheEntry>();
-const PRICE_TTL_MS = 60_000;
+const priceCache = new TtlCache<number>(60_000);
 
 export async function fetchSinglePrice(coinId: string, apiKey: string): Promise<number | null> {
   const cached = priceCache.get(coinId);
-  if (cached && Date.now() - cached.ts < PRICE_TTL_MS) return cached.price;
+  if (cached != null) return cached;
   const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}${cgKey(apiKey)}`);
   const d = await r.json();
   const price = d[0]?.current_price ?? null;
-  if (price != null) priceCache.set(coinId, { price, ts: Date.now() });
+  if (price != null) priceCache.set(coinId, price);
   return price;
 }
