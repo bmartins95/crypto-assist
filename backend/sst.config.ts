@@ -49,7 +49,7 @@ export default $config({
       url: { cors: false },
       timeout: "30 seconds",
       memory: "512 MB",
-      copyFiles: [{ from: "db/schema.sql" }],
+      copyFiles: [{ from: "db" }],
       vpc: {
         privateSubnets: vpcPrivateSubnets.value.apply(v => v.split(",")),
         securityGroups: lambdaSgId.value.apply(id => [id]),
