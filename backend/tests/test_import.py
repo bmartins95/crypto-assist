@@ -41,6 +41,30 @@ def test_import_accepts_ops_with_legacy_id_and_extra_fields(client_with_db):
     assert res.status_code == 204
 
 
+def test_import_accepts_fully_portuguese_legacy_field_names(client_with_db):
+    client, pg_conn = client_with_db
+    legacy_op = {
+        "data": "2026-06-15",
+        "coinId": "bitcoin",
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "tipo": "Compra",
+        "qtd": 0.5,
+        "preco": 100000.0,
+        "taxa": 0,
+        "total": 50000.0,
+        "plataforma": "Binance",
+    }
+    res = client.post(
+        "/api/import",
+        json={**_PAYLOAD_BASE, "ops": [legacy_op], "prices": {}, "pricesTime": "14:36"},
+    )
+    assert res.status_code == 204
+    cur = pg_conn.cursor.return_value
+    row = cur.executemany.call_args_list[0].args[1][0]
+    assert row == ("user-abc-123", "2026-06-15", "bitcoin", "BTC", "Bitcoin", "Buy", 0.5, 100000.0, 0, 50000.0, "Binance")
+
+
 def test_import_coerces_portuguese_type_values(client_with_db):
     client, pg_conn = client_with_db
     res = client.post(
