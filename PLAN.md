@@ -315,7 +315,7 @@ See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view. See `dash
 **Branch:** `feat/history-view-refactor`
 **Depends on:** item 6
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Redesign the History view (`/history`) to match the prototype: a content header with a primary "+ Register operation" button; a full-width operations table; and a right-side slide-over drawer that replaces the two always-visible forms. The drawer has three modes: Buy, Sell, Trade. Buy/Sell show a single-asset fieldset; Trade shows a two-block swap form (sell block + receive block). Focus trap, Escape-to-close, and body-scroll lock are required.
