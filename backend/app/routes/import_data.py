@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from app.dependencies import AuthContext, require_auth
 from app.db.postgres_client import get_conn
-from app.models import BackupPayload
+from app.models import ImportPayload
 
 router = APIRouter()
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT)
-def import_backup(payload: BackupPayload, auth: AuthContext = Depends(require_auth)):
+def import_backup(payload: ImportPayload, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     user_id = auth.user_id
     try:
