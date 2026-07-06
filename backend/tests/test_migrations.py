@@ -15,10 +15,14 @@ def _make_conn(applied: list[str]) -> tuple[MagicMock, MagicMock]:
     return conn, cur
 
 
-def test_noop_when_migrations_dir_missing(tmp_path):
+def test_noop_when_migrations_dir_missing_logs_warning(tmp_path, caplog):
+    import logging
+
     conn, _ = _make_conn([])
-    _run_migrations(conn, tmp_path / "nonexistent")
+    with caplog.at_level(logging.WARNING):
+        _run_migrations(conn, tmp_path / "nonexistent")
     conn.cursor.assert_not_called()
+    assert any("skipping all migrations" in r.message for r in caplog.records)
 
 
 def test_applies_pending_migration(tmp_path):

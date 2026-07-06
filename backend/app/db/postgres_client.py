@@ -112,6 +112,9 @@ def _run_migrations(conn: psycopg.Connection, migrations_dir: Path | None = None
     if migrations_dir is None:
         migrations_dir = Path(__file__).parent.parent.parent / "db" / "migrations"
     if not migrations_dir.exists():
+        # A deployed bundle missing this dir means migrations silently never run
+        # (this masked a stale ops_type_check constraint in every environment).
+        logger.warning("Migrations: directory %s not found — skipping all migrations", migrations_dir)
         return
 
     with conn.cursor() as cur:
