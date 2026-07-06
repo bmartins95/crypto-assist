@@ -38,6 +38,24 @@ like `../../shared/src` — always use the `@crypto-assist/shared` alias.
 Do not call Amplify directly in components — go through this wrapper so tests
 can mock a single module.
 
+## External APIs and CSP
+
+The browser calls `api.coingecko.com` directly (`src/lib/coingecko.ts`: coin-list search,
+fallback search, single-price lookups) until PLAN item 13 moves these behind the backend.
+Deployed environments enforce a CloudFront CSP (`aws-infra/stacks/app-stack.ts`) — every
+external host the browser fetches must be in `connect-src`. A CSP-blocked fetch throws like
+a network error and our catch handlers swallow it, so the symptom is a feature that silently
+degrades on deployed environments while working on `localhost` (the dev server has no CSP).
+Before debugging such a mismatch, check `curl -sSI <cloudfront-url> | grep -i content-security-policy`.
+
+`src/lib/coingecko.ts` caches through a shared `TtlCache`: the full coin list and per-query
+search results expire after 1 hour, single-coin prices after 60 s. `AppLayout` prefetches the
+coin list on mount so the History drawer's search is warm before first use.
+
+Backend errors: `request()` in `src/lib/api/client.ts` surfaces FastAPI's string `detail`
+(falling back to `error`, then a generic message) and attaches `status` to the thrown Error.
+Event handlers showing failures should include `err.message`, not just a localized headline.
+
 ## Dev server
 
 ```bash

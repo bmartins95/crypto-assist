@@ -61,11 +61,19 @@ NAT instance (`nat: "ec2"` in `aws-infra/stacks/platform.ts`). Without it every 
 
 `get_conn()` in `db/postgres_client.py`:
 - Returns a cached `psycopg.Connection` (one per Lambda container)
-- Runs `db/schema.sql` lazily on first call (idempotent `CREATE TABLE IF NOT EXISTS`)
+- Runs `db/schema.sql` lazily on first call (idempotent `CREATE TABLE IF NOT EXISTS`),
+  then applies pending `db/migrations/*.sql` in sorted order, tracked in `schema_migrations`
+- Schema + migration init is serialized across concurrent cold-start containers with a
+  Postgres advisory lock (`pg_advisory_lock`) — without it, two containers racing through
+  `CREATE TABLE IF NOT EXISTS` can collide and poison the connection
 - Retries connection with `connect_timeout=5` up to 10 times with 2s delay — absorbs Aurora
   Serverless v2 wake-up when scaled to 0 ACU (~15-20s)
 - **Do NOT call DB code at module import time** — Lambda's cold-start init phase has a hard 10s
   limit; a sleeping Aurora will block it and cause init to time out before any request is served
+
+**Important:** `CREATE TABLE IF NOT EXISTS` never alters an existing table — constraint and
+column changes only reach deployed databases through migration files. Migrations only run if
+`db/migrations/` is inside the Lambda bundle (see the `copyFiles` gotcha below).
 
 ## Known Lambda / Mangum gotchas
 
@@ -80,6 +88,18 @@ NAT instance (`nat: "ec2"` in `aws-infra/stacks/platform.ts`). Without it every 
 
 - **No Secrets Manager at runtime.** The Lambda VPC has no NAT/SM endpoint. DB credentials are
   injected as `DB_DSN` at SST deploy time via `$util.all([dbHost, dbPort, dbSecret])`.
+
+- **The Lambda bundle only contains what `copyFiles` in `sst.config.ts` lists.** It must copy
+  the whole `db/` directory, not just `db/schema.sql`. Incident 2026-07-06: `copyFiles` shipped
+  only the schema file for weeks, `_run_migrations` silently skipped the missing directory, and
+  no migration ever ran in any deployed environment — surfacing as a 500 on `/api/import` when
+  coerced `'Buy'` rows hit a stale `ops_type_check ('Compra','Venda')` constraint. The skip now
+  logs a WARNING; if CloudWatch shows `Migrations: directory ... not found`, check `copyFiles`.
+
+- **FastAPI reports errors as `detail`, not `error`.** The web client (`web/src/lib/api/client.ts`)
+  extracts string `detail` from failed responses. When raising `HTTPException`, put the
+  actionable message in `detail` — it is the only diagnostic that reaches the UI, and `except`
+  blocks that convert exceptions to HTTP errors without logging leave nothing in CloudWatch.
 
 ## Running locally
 
