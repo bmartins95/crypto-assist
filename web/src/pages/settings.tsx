@@ -41,7 +41,10 @@ export default function SettingsPage(): React.ReactElement {
     if (!file) return;
     importData(file, reload)
       .then(() => { e.target.value = ''; alert(t.settings_clear_wallet_success); })
-      .catch(() => alert(t.dashboard_error_import));
+      .catch((err: unknown) => {
+        const detail = err instanceof Error && err.message ? `\n${err.message}` : '';
+        alert(t.dashboard_error_import + detail);
+      });
   }
 
   function handleClearWallet(): void {

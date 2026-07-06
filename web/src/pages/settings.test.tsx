@@ -157,15 +157,16 @@ describe('SettingsPage', () => {
       expect(clickSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('Import failure shows an alert', async () => {
+    it('Import failure shows an alert including the error detail', async () => {
       const { importData } = await import('@/lib/dataHandlers');
-      vi.mocked(importData).mockRejectedValueOnce(new Error('invalid-format'));
+      vi.mocked(importData).mockRejectedValueOnce(new Error('violates check constraint'));
       const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
       renderSettings();
       const file = new File(['nonsense'], 'backup.json', { type: 'application/json' });
       const input = screen.getByLabelText('Importar') as HTMLInputElement;
       fireEvent.change(input, { target: { files: [file] } });
       await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(1));
+      expect(alertSpy.mock.calls[0][0]).toContain('violates check constraint');
     });
 
     it('Clear Wallet failure shows an alert', async () => {

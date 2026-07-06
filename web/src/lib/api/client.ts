@@ -13,8 +13,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = { ...(await authHeader()), ...(init?.body ? { 'Content-Type': 'application/json' } : {}) };
   const res = await fetch(`${BACKEND_URL}${path}`, { ...init, headers: { ...headers, ...init?.headers } });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error || `Error ${res.status} calling ${path}`), { status: res.status });
+    const body: Record<string, unknown> = await res.json().catch(() => ({}));
+    // FastAPI reports errors as `detail`; `error` kept for non-FastAPI responses.
+    const raw = body.detail ?? body.error;
+    const message = typeof raw === 'string' ? raw : `Error ${res.status} calling ${path}`;
+    throw Object.assign(new Error(message), { status: res.status });
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
