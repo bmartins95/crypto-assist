@@ -1,10 +1,21 @@
 from typing import Literal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 OpType = Literal["Buy", "Sell"]
 
 _LEGACY_TYPE_MAP = {"Compra": "Buy", "Venda": "Sell"}
+
+# Backups written before the app's fields were themselves translated to English
+# used Portuguese key names, not just Portuguese type values.
+_LEGACY_FIELD_MAP = {
+    "data": "date",
+    "tipo": "type",
+    "qtd": "qty",
+    "preco": "price",
+    "taxa": "fee",
+    "plataforma": "platform",
+}
 
 
 class NewOp(BaseModel):
@@ -41,10 +52,22 @@ class BackupPayload(BaseModel):
     exitPrices: dict[str, float] = {}
 
 
-# Import ops differ from NewOp in two ways old backups require: no id (the
-# insert never uses one — the DB assigns it) and Compra/Venda type coercion,
-# which stays off NewOp so the ops CRUD API keeps rejecting Portuguese values.
+# Import ops differ from NewOp in three ways old backups require: no id (the
+# insert never uses one — the DB assigns it), Portuguese field names from
+# before the schema itself was translated, and Compra/Venda type coercion.
+# All of this stays off NewOp so the ops CRUD API keeps rejecting legacy shapes.
 class ImportOp(NewOp):
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_legacy_fields(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        remapped = dict(data)
+        for legacy_key, new_key in _LEGACY_FIELD_MAP.items():
+            if new_key not in remapped and legacy_key in remapped:
+                remapped[new_key] = remapped[legacy_key]
+        return remapped
+
     @field_validator("type", mode="before")
     @classmethod
     def coerce_legacy_type(cls, v: object) -> object:
