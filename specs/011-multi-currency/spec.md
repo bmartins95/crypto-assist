@@ -8,6 +8,14 @@
 
 **Input**: User description: "Multi-currency display (PLAN.md item 10). Store crypto prices in USD as the universal reference instead of BRL, fetch exchange rates once per session, and convert at render time. Users pick their display currency (BRL, USD, EUR, GBP, JPY) in the Settings page (web) and Settings screen (mobile), wiring the currency selector placeholder left by item 5; switching currency updates all displayed monetary values immediately without reload. New ops record the currency they were entered in (default BRL for existing ops)."
 
+## Clarifications
+
+### Session 2026-07-07
+
+- Q: What does an op's stored currency mean for portfolio math? → A: Amounts are entered and stored in the user's display currency; calculations convert each op's amounts to the common USD reference (current rates) before aggregating.
+- Q: Which upstream source provides fiat exchange rates? → A: CoinGecko (existing key/client); rates derived from a reference asset priced in usd, brl, eur, gbp, jpy.
+- Q: How is the stored crypto price reference migrated from BRL to USD? → A: Single-step column rename is acceptable because the price cache is disposable, short-lived data.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Switch display currency (Priority: P1)
@@ -91,7 +99,8 @@ The mobile Settings screen's currency row (placeholder from item 5) is wired to 
 - **FR-005**: Changing the display currency MUST update all displayed monetary values immediately, without page reload (web) or app restart (mobile).
 - **FR-006**: The display currency preference MUST persist per device across sessions; the default is BRL.
 - **FR-007**: All monetary formatting MUST use the correct symbol, grouping and decimal rules for the selected currency and active locale.
-- **FR-008**: New operations MUST record the currency in effect when they were created; operations without a recorded currency are treated as BRL.
+- **FR-008**: New operations MUST record the currency in effect when they were created, and their monetary amounts are denominated in that currency; operations without a recorded currency are treated as BRL.
+- **FR-011**: Portfolio calculations (invested totals, P/L, allocation) MUST convert each operation's amounts from its recorded currency to the common USD reference before aggregating, so mixed-currency operations produce correct totals in any display currency.
 - **FR-009**: When exchange rates cannot be fetched and no cache exists, the app MUST surface a visible status message and MUST NOT display incorrectly converted values.
 - **FR-010**: The hide-balances feature MUST continue to mask values regardless of selected currency.
 
@@ -115,7 +124,8 @@ The mobile Settings screen's currency row (placeholder from item 5) is wired to 
 
 - Historical operations were entered in BRL; their stored amounts are not retroactively converted — the recorded currency simply defaults to BRL.
 - Conversion is a display-time concern using the current exchange rate; the feature does not compute historical FX-accurate cost basis (that would require historical rates, out of scope).
-- Portfolio calculations (positions, P/L) operate on the USD reference prices and op amounts as stored; the conversion to display currency happens at render time.
+- Portfolio calculations operate in the USD reference: crypto prices are already USD, and op amounts are converted from their recorded currency to USD using current rates; the final conversion to the display currency happens at render time.
+- Exchange rates are derived from the existing crypto-price provider (a reference asset priced in usd, brl, eur, gbp, jpy) — no new external provider or API key.
 - The existing hourly-style caching pattern used for crypto prices is acceptable for exchange rates.
 - Migrating the stored crypto price reference from BRL to USD is acceptable because cached prices expire quickly and are refetched; no long-lived data depends on the old BRL values.
 - Mobile uses the same five currencies and the same default as web.
