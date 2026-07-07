@@ -4,6 +4,7 @@ import { LocaleProvider } from '@/context/LocaleContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+import { PriceRefreshProvider } from '@/context/PriceRefreshContext';
 
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
@@ -33,7 +34,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider><CurrencyProvider>{children}</CurrencyProvider></BalanceProvider>
+        <BalanceProvider><CurrencyProvider><PriceRefreshProvider>{children}</PriceRefreshProvider></CurrencyProvider></BalanceProvider>
       </LocaleProvider>
     </ThemeProvider>
   );
@@ -95,11 +96,19 @@ describe('SettingsPage', () => {
     expect(sysBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('price-refresh select remains a disabled placeholder', () => {
+  it('price-refresh select has a label, is enabled, and defaults to Manual', () => {
     renderSettings();
-    const allSelects = screen.getAllByRole('combobox') as HTMLSelectElement[];
-    const disabled = allSelects.filter(s => s.disabled);
-    expect(disabled.length).toBe(1);
+    const select = screen.getByLabelText(/atualizar preços/i) as HTMLSelectElement;
+    expect(select.disabled).toBe(false);
+    expect(select.value).toBe('null');
+  });
+
+  it('changing the price-refresh select persists the interval to localStorage', () => {
+    renderSettings();
+    const select = screen.getByLabelText(/atualizar preços/i) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: '30000' } });
+    expect(select.value).toBe('30000');
+    expect(localStorage.getItem('price_refresh_interval')).toBe('30000');
   });
 
   describe('US1 — Display currency', () => {

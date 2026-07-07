@@ -137,7 +137,6 @@ export interface UIText {
   settings_theme_dark: string;
   settings_theme_system: string;
   settings_hide_balances: string;
-  settings_refresh_placeholder: string;
   settings_clear_wallet: string;
   settings_clear_wallet_confirm: string;
   settings_clear_wallet_success: string;
@@ -155,6 +154,10 @@ export interface UIText {
   currency_rates_unavailable: string;
   settings_refresh_label: string;
   settings_refresh_hint: string;
+  settings_refresh_option_manual: string;
+  settings_refresh_option_30s: string;
+  settings_refresh_option_1m: string;
+  settings_refresh_option_5m: string;
   settings_export_label: string;
   settings_export_hint: string;
   settings_import_label: string;

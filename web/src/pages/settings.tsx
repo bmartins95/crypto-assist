@@ -5,6 +5,7 @@ import { useLocale } from '@/context/LocaleContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBalance } from '@/context/BalanceContext';
 import { CURRENCIES, useCurrency } from '@/context/CurrencyContext';
+import { usePriceRefresh } from '@/context/PriceRefreshContext';
 import { exportData, importData } from '@/lib/dataHandlers';
 import { api } from '@/lib/api/client';
 import { usePortfolio } from '@/components/AppLayout';
@@ -30,13 +31,23 @@ const CURRENCY_LABELS: Record<Currency, string> = {
   JPY: 'JPY (¥)',
 };
 
+const REFRESH_INTERVALS: (number | null)[] = [null, 30000, 60000, 300000];
+
 export default function SettingsPage(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const { hidden, toggleHidden } = useBalance();
   const { currency, setCurrency, ratesStatus } = useCurrency();
+  const { interval, setInterval: setRefreshInterval } = usePriceRefresh();
   const { reload } = usePortfolio();
   const importRef = React.useRef<HTMLInputElement>(null);
+
+  function refreshIntervalLabel(value: number | null): string {
+    if (value === 30000) return t.settings_refresh_option_30s;
+    if (value === 60000) return t.settings_refresh_option_1m;
+    if (value === 300000) return t.settings_refresh_option_5m;
+    return t.settings_refresh_option_manual;
+  }
 
   function handleExport(): void {
     exportData().catch(() => alert(t.dashboard_error_export));
@@ -145,11 +156,18 @@ export default function SettingsPage(): React.ReactElement {
           </div>
           <div className="settings-row">
             <div>
-              <div className="settings-row-label">{t.settings_refresh_label}</div>
+              <label htmlFor="refresh-interval-select" className="settings-row-label">{t.settings_refresh_label}</label>
               <div className="settings-row-hint">{t.settings_refresh_hint}</div>
             </div>
-            <select disabled className="settings-select settings-select--disabled">
-              <option>Manual</option>
+            <select
+              id="refresh-interval-select"
+              className="settings-select"
+              value={String(interval)}
+              onChange={e => setRefreshInterval(e.target.value === 'null' ? null : Number(e.target.value))}
+            >
+              {REFRESH_INTERVALS.map(value => (
+                <option key={String(value)} value={String(value)}>{refreshIntervalLabel(value)}</option>
+              ))}
             </select>
           </div>
           <div className="settings-row">

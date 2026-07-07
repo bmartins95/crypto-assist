@@ -9,6 +9,7 @@ import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { usePriceRefresh } from '@/context/PriceRefreshContext';
 
 interface AssetProfit extends Asset {
   currentPrice: number;
@@ -21,6 +22,7 @@ export default function ProfitScreen() {
   const { t } = useLocale();
   const { hidden } = useBalance();
   const { rates, fmtMoney } = useCurrency();
+  const { interval } = usePriceRefresh();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const [rows, setRows] = useState<AssetProfit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,12 @@ export default function ProfitScreen() {
   }, [rates]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (interval === null) return;
+    const id = setInterval(load, interval);
+    return () => clearInterval(id);
+  }, [interval, load]);
 
   if (loading || !rates) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;

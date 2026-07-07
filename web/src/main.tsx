@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { BalanceProvider } from './context/BalanceContext';
 import { CurrencyProvider } from './context/CurrencyContext';
+import { PriceRefreshProvider } from './context/PriceRefreshContext';
 import './app/globals.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')!).render(
       <LocaleProvider>
         <BalanceProvider>
           <CurrencyProvider>
-            <RouterProvider router={router} />
+            <PriceRefreshProvider>
+              <RouterProvider router={router} />
+            </PriceRefreshProvider>
           </CurrencyProvider>
         </BalanceProvider>
       </LocaleProvider>

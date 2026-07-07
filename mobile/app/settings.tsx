@@ -9,6 +9,7 @@ import { useLocale } from '@/context/LocaleContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBalance } from '@/context/BalanceContext';
 import { CURRENCIES, useCurrency } from '@/context/CurrencyContext';
+import { usePriceRefresh } from '@/context/PriceRefreshContext';
 import { api } from '@/lib/api/client';
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -34,11 +35,21 @@ const CURRENCY_LABELS: Record<Currency, string> = {
   JPY: 'JPY (¥)',
 };
 
+const REFRESH_INTERVALS: (number | null)[] = [null, 30000, 60000, 300000];
+
 export default function SettingsScreen(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const { hidden, toggleHidden } = useBalance();
   const { currency, setCurrency, ratesStatus } = useCurrency();
+  const { interval, setInterval: setRefreshInterval } = usePriceRefresh();
+
+  const refreshIntervalLabel = (value: number | null): string => {
+    if (value === 30000) return t.settings_refresh_option_30s;
+    if (value === 60000) return t.settings_refresh_option_1m;
+    if (value === 300000) return t.settings_refresh_option_5m;
+    return t.settings_refresh_option_manual;
+  };
 
   const themeLabel = (m: ThemeMode): string => {
     if (m === 'light') return t.settings_theme_light;
@@ -129,10 +140,20 @@ export default function SettingsScreen(): React.ReactElement {
             {currency === c && <Text style={styles.checkmark}>✓</Text>}
           </TouchableOpacity>
         ))}
-        <View style={[styles.row, styles.rowLast, styles.rowDisabled]}>
-          <Text style={styles.rowLabel}>Intervalo de atualização</Text>
-          <Text style={styles.rowHint}>{t.settings_refresh_placeholder}</Text>
-        </View>
+        <Text style={styles.groupSubheader}>{t.settings_refresh_label}</Text>
+        {REFRESH_INTERVALS.map((value, idx, arr) => (
+          <TouchableOpacity
+            key={String(value)}
+            style={[styles.row, idx === arr.length - 1 && styles.rowLast]}
+            onPress={() => setRefreshInterval(value)}
+            accessibilityLabel={refreshIntervalLabel(value)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: interval === value }}
+          >
+            <Text style={styles.rowLabel}>{refreshIntervalLabel(value)}</Text>
+            {interval === value && <Text style={styles.checkmark}>✓</Text>}
+          </TouchableOpacity>
+        ))}
       </View>
 
       <Text style={styles.sectionHeader}>{t.settings_appearance_privacy}</Text>
@@ -231,12 +252,6 @@ const styles = StyleSheet.create({
   },
   rowNoBottomBorder: {
     borderBottomWidth: 0,
-  },
-  rowDisabled: {
-    opacity: 0.5,
-  },
-  rowDisabledText: {
-    color: '#9ca3af',
   },
   rowLabel: {
     fontSize: 16,
