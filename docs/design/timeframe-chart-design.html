@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item 12 — Timeframe selector + chart</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0b;--surface:#161618;--surface-2:#1d1d20;--surface-hover:#222226;
+    --border:#27272a;--border-soft:#1f1f22;--text:#fafafa;--text-muted:#a1a1aa;--text-dim:#71717a;
+    --accent:#2dd4bf;--accent-dim:rgba(45,212,191,.12);--green:#34d399;--red:#f87171;--radius-sm:9px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0e0e10;color:var(--text);padding:26px 20px 60px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto}
+  .intro{margin-bottom:18px}
+  .intro h1{font-size:15px;font-weight:600}
+  .intro p{font-size:12.5px;color:var(--text-dim);margin-top:3px}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+  .panel-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+  .p-title{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
+  /* timeframe selector */
+  .tf{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:2px;gap:1px}
+  .tf button{background:transparent;border:0;color:var(--text-dim);font:inherit;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;transition:.13s;letter-spacing:.02em}
+  .tf button:hover{color:var(--text)}
+  .tf button.on{background:var(--surface-hover);color:var(--text)}
+
+  .chart-wrap{position:relative}
+  svg#chart{width:100%;height:auto;display:block}
+  .grid-line{stroke:var(--border-soft);stroke-width:1}
+  .zero-line{stroke:var(--border);stroke-width:1;stroke-dasharray:3 4}
+  .axis-txt{fill:var(--text-dim);font-size:11px;font-family:inherit}
+  .line{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+  .dot-end{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+  /* hover */
+  .cross{stroke:var(--border);stroke-width:1}
+  .dot-hover{fill:var(--accent);stroke:var(--surface);stroke-width:2.5}
+  .hitbox{fill:transparent;cursor:crosshair}
+  .tooltip{position:absolute;pointer-events:none;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;opacity:0;transition:opacity .12s;transform:translate(-50%,-100%);white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.5);z-index:5}
+  .tooltip .d{color:var(--text-dim);font-size:11px;margin-bottom:2px}
+  .tooltip .v{font-weight:600;font-variant-numeric:tabular-nums}
+  /* loading overlay */
+  .loading{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(22,22,24,.55);backdrop-filter:blur(1px);border-radius:8px}
+  .loading.show{display:flex}
+  .spin{width:26px;height:26px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* empty */
+  .empty{display:none;align-items:center;justify-content:center;height:280px;color:var(--text-dim);font-size:13px}
+
+  .hint{font-size:12px;color:var(--text-dim);margin-top:14px;line-height:1.6;background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;padding:13px 16px}
+  .hint b{color:var(--text-muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Item 12 — seletor de período + gráfico no tempo</h1>
+    <p>Troque o período (reflow com loading) e passe o mouse pelo gráfico pra ver o crosshair + tooltip.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd">
+      <span class="p-title">Lucro no tempo</span>
+      <div class="tf" id="tf">
+        <button data-tf="1d">1D</button>
+        <button data-tf="1s">1S</button>
+        <button class="on" data-tf="1m">1M</button>
+        <button data-tf="1a">1A</button>
+        <button data-tf="all">Tudo</button>
+      </div>
+    </div>
+    <div class="chart-wrap" id="cw">
+      <svg id="chart" viewBox="0 0 900 320" preserveAspectRatio="none"></svg>
+      <div class="tooltip" id="tip"></div>
+      <div class="loading" id="load"><span class="spin"></span></div>
+      <div class="empty" id="empty">Sem dados no período</div>
+    </div>
+  </div>
+
+  <div class="hint">
+    O <b>mesmo seletor</b> controla os dois gráficos de tempo (<b>Lucro no tempo</b> e <b>Valor da carteira</b>) e fica escondido em <b>Por ativo</b>. A escolha persiste (<b>localStorage</b>) e o padrão é <b>1M</b>.
+  </div>
+</div>
+
+<script>
+  const DATA={
+    '1d':[{d:'09h',v:2.1},{d:'11h',v:3.0},{d:'13h',v:3.4},{d:'15h',v:2.6},{d:'17h',v:1.5},{d:'18h',v:0.97}],
+    '1s':[{d:'01/07',v:19.2},{d:'02/07',v:17.0},{d:'03/07',v:12.4},{d:'04/07',v:8.1},{d:'05/07',v:5.2},{d:'06/07',v:3.0},{d:'07/07',v:0.97}],
+    '1m':[{d:'15/06',v:-3.2},{d:'19/06',v:4.5},{d:'23/06',v:11},{d:'27/06',v:16.8},{d:'01/07',v:19.5},{d:'04/07',v:12},{d:'07/07',v:0.97}],
+    '1a':[{d:'ago',v:-40},{d:'out',v:12},{d:'dez',v:60},{d:'fev',v:35},{d:'abr',v:80},{d:'jun',v:19},{d:'jul',v:0.97}],
+    'all':[{d:'15/06',v:-3.2},{d:'22/06',v:9},{d:'29/06',v:18},{d:'06/07',v:6},{d:'07/07',v:0.97}],
+  };
+  const W=900,H=320,padL=62,padR=18,padT=18,padB=32;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const svg=document.getElementById('chart'), tip=document.getElementById('tip');
+  let cur='1m', geom=null;
+
+  const fmt=v=>(v<0?'-':'')+'US$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  function smooth(pts){
+    if(pts.length<2) return '';
+    let d=`M ${pts[0][0]} ${pts[0][1]}`;
+    for(let i=0;i<pts.length-1;i++){
+      const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+      const c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6;
+      const c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;
+      d+=` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2[0]} ${p2[1]}`;
+    }
+    return d;
+  }
+
+  function render(tf){
+    const data=DATA[tf];
+    const empty=document.getElementById('empty');
+    if(!data||data.length<2){svg.style.display='none';empty.style.display='flex';return;}
+    svg.style.display='block';empty.style.display='none';
+    const vals=data.map(p=>p.v);
+    let vmin=Math.min(...vals,0), vmax=Math.max(...vals,0);
+    const pad=(vmax-vmin)*0.12||1; vmin-=pad; vmax+=pad;
+    const n=data.length;
+    const X=i=>padL+i/(n-1)*plotW;
+    const Y=v=>padT+(1-(v-vmin)/(vmax-vmin))*plotH;
+    const pts=data.map((p,i)=>[X(i),Y(p.v)]);
+    geom={data,X,Y,pts,vmin,vmax,n};
+
+    // gridlines + y labels (4 ticks)
+    let g='';
+    for(let k=0;k<=4;k++){
+      const v=vmin+(vmax-vmin)*k/4, y=Y(v);
+      g+=`<line class="grid-line" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/>`;
+      g+=`<text class="axis-txt" x="${padL-8}" y="${y+4}" text-anchor="end">${fmt(v).replace(',00','')}</text>`;
+    }
+    // zero line
+    if(vmin<0&&vmax>0){const zy=Y(0);g+=`<line class="zero-line" x1="${padL}" y1="${zy}" x2="${W-padR}" y2="${zy}"/>`;}
+    // x labels
+    data.forEach((p,i)=>{ if(i===0||i===n-1||i===Math.floor((n-1)/2)) g+=`<text class="axis-txt" x="${X(i)}" y="${H-10}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${p.d}</text>`; });
+    // area + line
+    const bottom=padT+plotH;
+    const area=smooth(pts)+` L ${pts[n-1][0]} ${bottom} L ${pts[0][0]} ${bottom} Z`;
+    g+=`<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#2dd4bf" stop-opacity=".22"/>
+        <stop offset="1" stop-color="#2dd4bf" stop-opacity="0"/></linearGradient></defs>`;
+    g+=`<path d="${area}" fill="url(#ag)"/>`;
+    g+=`<path class="line" d="${smooth(pts)}"/>`;
+    g+=`<circle class="dot-end" cx="${pts[n-1][0]}" cy="${pts[n-1][1]}" r="4"/>`;
+    // hover layer
+    g+=`<g id="hover" style="opacity:0"><line class="cross" id="cx" y1="${padT}" y2="${bottom}"/><circle class="dot-hover" id="hd" r="4.5"/></g>`;
+    g+=`<rect class="hitbox" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}"/>`;
+    svg.innerHTML=g;
+    bindHover();
+  }
+
+  function bindHover(){
+    const hover=svg.querySelector('#hover'),cx=svg.querySelector('#cx'),hd=svg.querySelector('#hd');
+    const hit=svg.querySelector('.hitbox');
+    const rectPx=()=>svg.getBoundingClientRect();
+    hit.addEventListener('mousemove',e=>{
+      const r=rectPx(); const sx=(e.clientX-r.left)/r.width*W;   // to viewBox x
+      // nearest index
+      let idx=Math.round((sx-padL)/plotW*(geom.n-1)); idx=Math.max(0,Math.min(geom.n-1,idx));
+      const px=geom.pts[idx][0],py=geom.pts[idx][1];
+      hover.style.opacity=1; cx.setAttribute('x1',px);cx.setAttribute('x2',px);hd.setAttribute('cx',px);hd.setAttribute('cy',py);
+      // tooltip in CSS px
+      const cw=document.getElementById('cw').getBoundingClientRect();
+      const scale=cw.width/W;
+      tip.style.left=(px*scale)+'px'; tip.style.top=(py*scale-12)+'px'; tip.style.opacity=1;
+      tip.innerHTML=`<div class="d">${geom.data[idx].d}</div><div class="v">${fmt(geom.data[idx].v)}</div>`;
+    });
+    hit.addEventListener('mouseleave',()=>{hover.style.opacity=0;tip.style.opacity=0;});
+  }
+
+  render(cur);
+  document.getElementById('tf').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b||b.dataset.tf===cur) return;
+    document.querySelectorAll('#tf button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); cur=b.dataset.tf;
+    const load=document.getElementById('load'); load.classList.add('show'); tip.style.opacity=0;
+    setTimeout(()=>{ render(cur); load.classList.remove('show'); },650);
+  });
+</script>
+</body>
+</html>
