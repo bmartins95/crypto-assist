@@ -24,7 +24,8 @@ app/
   routes/
     ops.py          # CRUD /api/ops
     exit_prices.py  # /api/exit-prices
-    prices.py       # /api/prices (CoinGecko + 5-min cache in DB)
+    prices.py       # /api/prices (CoinGecko, USD reference, 5-min cache in DB)
+    exchange_rates.py  # /api/exchange-rates (CoinGecko-derived fiat rates, 1h cache in DB)
     export_data.py  # GET /api/export
     import_data.py  # POST /api/import
 tests/
