@@ -33,7 +33,7 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 - [X] T009 [US2] Implement GET /api/exchange-rates per contracts/exchange-rates.md in backend/app/routes/exchange_rates.py
 - [X] T010 [US2] Register the exchange_rates router in backend/app/main.py
 - [X] T011 [P] [US2] Tests: fresh fetch, cache hit (no upstream call), stale fallback on 429/error, 502 when no cache, 401 unauthenticated in backend/tests/test_exchange_rates.py
-- [X] - [X] T012 [P] [US2] Add `getExchangeRates()` to web/src/lib/api/client.ts
+- [X] T012 [P] [US2] Add `getExchangeRates()` to web/src/lib/api/client.ts
 
 **Checkpoint**: endpoint verifiable with curl per quickstart step 1.
 
@@ -43,13 +43,13 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 **Independent Test**: quickstart steps 2–4.
 
-- [X] - [X] T013 [US1] Add `convertOpsToUsd(ops, rates)` in shared/src/portfolio.ts (+ export in shared/src/index.ts)
-- [X] - [X] T014 [P] [US1] Tests for convertOpsToUsd (BRL default, mixed currencies, USD passthrough) in web/src/lib/portfolio.test.ts
-- [X] - [X] T015 [US1] Create CurrencyContext (currency + setCurrency + rates + ratesStatus, localStorage persistence, one fetch per session, last-good-rates fallback) in web/src/context/CurrencyContext.tsx
-- [X] - [X] T016 [P] [US1] CurrencyContext tests (default BRL, persistence, fetch failure→stale, no cache→unavailable) in web/src/context/CurrencyContext.test.tsx
-- [X] - [X] T017 [US1] Wrap the app with CurrencyProvider in web/src/main.tsx
-- [X] - [X] T018 [P] [US1] Add currency + rates-status UI strings to shared/src/i18n/types.ts and all 10 shared/src/i18n/locales/*.ts
-- [X] - [X] T019 [US1] Wire the currency selector (replace disabled placeholder, label + a11y) in web/src/pages/settings.tsx
+- [X] T013 [US1] Add `convertOpsToUsd(ops, rates)` in shared/src/portfolio.ts (+ export in shared/src/index.ts)
+- [X] T014 [P] [US1] Tests for convertOpsToUsd (BRL default, mixed currencies, USD passthrough) in web/src/lib/portfolio.test.ts
+- [X] T015 [US1] Create CurrencyContext (currency + setCurrency + rates + ratesStatus, localStorage persistence, one fetch per session, last-good-rates fallback) in web/src/context/CurrencyContext.tsx
+- [X] T016 [P] [US1] CurrencyContext tests (default BRL, persistence, fetch failure→stale, no cache→unavailable) in web/src/context/CurrencyContext.test.tsx
+- [X] T017 [US1] Wrap the app with CurrencyProvider in web/src/main.tsx
+- [X] T018 [P] [US1] Add currency + rates-status UI strings to shared/src/i18n/types.ts and all 10 shared/src/i18n/locales/*.ts
+- [X] T019 [US1] Wire the currency selector (replace disabled placeholder, label + a11y) in web/src/pages/settings.tsx
 - [X] T020 [US1] Convert USD values to display currency at fmt() boundary (metrics, table, exit-price semantics per research R6) in web/src/components/WalletTab.tsx
 - [X] T021 [US1] Same conversion for profit metrics, charts and allocation in web/src/components/ProfitTab.tsx
 - [X] T022 [P] [US1] Update settings tests for the working selector in web/src/pages/settings.test.tsx
