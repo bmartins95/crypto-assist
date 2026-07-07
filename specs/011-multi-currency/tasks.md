@@ -88,8 +88,8 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 ## Phase 7: Polish
 
-- [ ] T035 Run backend coverage (pytest --cov=app) and web coverage (npm run coverage); ensure ≥90% on changed modules; fix gaps
-- [ ] T036 Execute quickstart.md verification steps 1–6 end-to-end and fix anything broken
+- [X] T035 Run backend coverage (pytest --cov=app) and web coverage (npm run coverage); ensure ≥90% on changed modules; fix gaps
+- [X] T036 Execute quickstart.md verification steps 1–6 end-to-end and fix anything broken
 
 ## Dependencies
 
