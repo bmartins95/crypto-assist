@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset } from './portfolio';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
 import type { Op } from './types';
 
 function op(overrides: Partial<Op>): Op {
@@ -148,5 +148,49 @@ describe('computeProfitByAsset', () => {
 
   it('ignores operations without a coinId', () => {
     expect(computeProfitByAsset([op({ coinId: '' })], {})).toHaveLength(0);
+  });
+});
+
+describe('convertOpsToUsd', () => {
+  const rates = { BRL: 5, USD: 1, EUR: 0.9, GBP: 0.8, JPY: 150 };
+
+  it('treats ops without a currency as BRL', () => {
+    const [converted] = convertOpsToUsd([op({ price: 100, fee: 5, total: 105 })], rates);
+    expect(converted.price).toBe(20);
+    expect(converted.fee).toBe(1);
+    expect(converted.total).toBe(21);
+    expect(converted.currency).toBe('USD');
+  });
+
+  it('passes USD ops through unchanged', () => {
+    const [converted] = convertOpsToUsd([op({ price: 100, fee: 5, total: 105, currency: 'USD' })], rates);
+    expect(converted.price).toBe(100);
+    expect(converted.fee).toBe(5);
+    expect(converted.total).toBe(105);
+  });
+
+  it('converts mixed-currency ops so totals aggregate consistently', () => {
+    const ops = [
+      op({ id: 'a', qty: 1, price: 500, total: 500, currency: 'BRL' }),
+      op({ id: 'b', qty: 1, price: 100, total: 100, currency: 'USD' }),
+      op({ id: 'c', qty: 1, price: 15000, total: 15000, currency: 'JPY' }),
+    ];
+    const converted = convertOpsToUsd(ops, rates);
+    expect(converted.map(o => o.price)).toEqual([100, 100, 100]);
+    const [position] = computePositions(converted);
+    expect(position.qty).toBe(3);
+    expect(position.avgPrice).toBe(100);
+  });
+
+  it('does not mutate quantity, dates or the input array', () => {
+    const source = [op({ qty: 2.5, price: 50, currency: 'BRL' })];
+    const converted = convertOpsToUsd(source, rates);
+    expect(converted[0].qty).toBe(2.5);
+    expect(converted[0].date).toBe('2024-01-01');
+    expect(source[0].price).toBe(50);
+  });
+
+  it('throws on a missing rate instead of producing silent garbage', () => {
+    expect(() => convertOpsToUsd([op({ currency: 'EUR' })], { ...rates, EUR: 0 })).toThrow(/EUR/);
   });
 });

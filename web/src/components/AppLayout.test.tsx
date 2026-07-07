@@ -4,11 +4,17 @@ import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
 import { createAppRouter } from '@/router';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 import { ThemeProvider } from '@/context/ThemeContext';
 
 vi.mock('@/lib/api/client', () => ({
   api: {
     getOps: vi.fn(async () => []),
+    getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
     getExitPrices: vi.fn(async () => ({})),
     getPrices: vi.fn(async () => ({})),
     createOp: vi.fn(async () => ({})),
@@ -78,9 +84,9 @@ async function renderAt(path: string) {
   render(
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider>
+        <BalanceProvider><CurrencyProvider>
           <RouterProvider router={testRouter} />
-        </BalanceProvider>
+        </CurrencyProvider></BalanceProvider>
       </LocaleProvider>
     </ThemeProvider>
   );
@@ -89,7 +95,7 @@ async function renderAt(path: string) {
 
 describe('AppLayout', () => {
   beforeEach(async () => {
-    localStorage.clear();
+    localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
     vi.clearAllMocks();
     vi.stubGlobal('alert', vi.fn());
     vi.stubGlobal('confirm', vi.fn(() => false));

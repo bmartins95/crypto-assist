@@ -152,7 +152,8 @@ export interface UIText {
   settings_danger_desc: string;
   settings_currency_label: string;
   settings_currency_hint: string;
-  settings_currency_value: string;
+  currency_rates_stale: string;
+  currency_rates_unavailable: string;
   settings_refresh_label: string;
   settings_refresh_hint: string;
   settings_export_label: string;

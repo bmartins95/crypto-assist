@@ -3,10 +3,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 import SettingsPage from './settings';
 
 vi.mock('@/lib/api/client', () => ({
   api: {
+    getExchangeRates: vi.fn().mockResolvedValue({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' }),
     exportBackup: vi.fn().mockResolvedValue({ version: 1, exportedAt: '', ops: [], exitPrices: {} }),
     clearOps: vi.fn().mockResolvedValue({ deleted: 0 }),
     importBackup: vi.fn().mockResolvedValue(undefined),
@@ -27,7 +33,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider>{children}</BalanceProvider>
+        <BalanceProvider><CurrencyProvider>{children}</CurrencyProvider></BalanceProvider>
       </LocaleProvider>
     </ThemeProvider>
   );
@@ -39,12 +45,12 @@ function renderSettings() {
 
 describe('SettingsPage', () => {
   beforeEach(() => {
-    localStorage.clear();
+    localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
     document.documentElement.removeAttribute('data-theme');
     vi.clearAllMocks();
   });
   afterEach(() => {
-    localStorage.clear();
+    localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
     document.documentElement.removeAttribute('data-theme');
   });
 
@@ -89,11 +95,36 @@ describe('SettingsPage', () => {
     expect(sysBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('currency and price-refresh selects are disabled placeholders', () => {
+  it('price-refresh select remains a disabled placeholder', () => {
     renderSettings();
     const allSelects = screen.getAllByRole('combobox') as HTMLSelectElement[];
     const disabled = allSelects.filter(s => s.disabled);
-    expect(disabled.length).toBeGreaterThanOrEqual(2);
+    expect(disabled.length).toBe(1);
+  });
+
+  describe('US1 — Display currency', () => {
+    it('currency select has a label, is enabled, and defaults to BRL', () => {
+      renderSettings();
+      const select = screen.getByLabelText(/moeda/i) as HTMLSelectElement;
+      expect(select.disabled).toBe(false);
+      expect(select.value).toBe('BRL');
+      expect(Array.from(select.options).map(o => o.value)).toEqual(['BRL', 'USD', 'EUR', 'GBP', 'JPY']);
+    });
+
+    it('changing the currency persists to localStorage', () => {
+      renderSettings();
+      const select = screen.getByLabelText(/moeda/i) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'USD' } });
+      expect(localStorage.getItem('crypto-assist:currency')).toBe('USD');
+      expect(select.value).toBe('USD');
+    });
+
+    it('restores the stored currency on load', () => {
+      localStorage.setItem('crypto-assist:currency', 'JPY');
+      renderSettings();
+      const select = screen.getByLabelText(/moeda/i) as HTMLSelectElement;
+      expect(select.value).toBe('JPY');
+    });
   });
 
   describe('US2 — Hide balances', () => {

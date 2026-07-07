@@ -1,5 +1,5 @@
 import { getValidSession } from '@/lib/cognito/client';
-import type { Op, NewOp, ExitPrices, MarketPrices, BackupPayload } from '@/lib/types';
+import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
@@ -34,6 +34,8 @@ export const api = {
     request<void>('/api/exit-prices', { method: 'PUT', body: JSON.stringify({ coinId, exitPrice }) }),
 
   getPrices: (ids: string[]) => request<MarketPrices>(`/api/prices?ids=${ids.join(',')}`),
+
+  getExchangeRates: () => request<ExchangeRatesPayload>('/api/exchange-rates'),
 
   exportBackup: () => request<BackupPayload>('/api/export'),
   importBackup: (backup: BackupPayload) => request<void>('/api/import', { method: 'POST', body: JSON.stringify(backup) }),

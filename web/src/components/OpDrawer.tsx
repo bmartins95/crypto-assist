@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
 import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList, CoinSearchResult } from '@/lib/coingecko';
 import { useLocale } from '@/context/LocaleContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
 
 interface Props {
@@ -127,6 +128,9 @@ const DONE_DISPLAY_MS = 1300;
 
 export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
   const { t } = useLocale();
+  const { currency, rates } = useCurrency();
+  // Monetary inputs are denominated in the display currency; market prices are USD.
+  const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
   const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -209,9 +213,9 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
         catch { p = undefined; }
       }
       if (cancelled) return;
-      if (p) {
+      if (p && rates) {
         prices[coin.coinId] = p;
-        setUnitPrice(p.toFixed(2));
+        setUnitPrice(toDisplay(p).toFixed(2));
         setPriceState('auto');
       } else {
         setPriceState('idle');
@@ -266,6 +270,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       type: opType === 'buy' ? 'Buy' : 'Sell',
       qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
       platform: platform.trim(),
+      currency: editingOp?.currency ?? currency,
     };
     setPhase('loading');
     try {
@@ -279,18 +284,18 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toC: CoinSelection | null, totalStr: string) => {
     const fQty = parseFloat(fromQtyStr) || 0;
     let amount = 0;
-    if (fromId && fQty && prices[fromId]) {
-      amount = fQty * prices[fromId];
+    if (fromId && fQty && prices[fromId] && rates) {
+      amount = fQty * toDisplay(prices[fromId]);
       setTotal(amount.toFixed(2));
       setTotalHint('≈ atual');
     } else {
       amount = parseFloat(totalStr) || 0;
       setTotalHint('');
     }
-    if (amount > 0 && toC && prices[toC.coinId]) {
-      setToQty((amount / prices[toC.coinId]).toFixed(8).replace(/\.?0+$/, ''));
+    if (amount > 0 && toC && prices[toC.coinId] && rates) {
+      setToQty((amount / toDisplay(prices[toC.coinId])).toFixed(8).replace(/\.?0+$/, ''));
     }
-  }, [prices]);
+  }, [prices, rates, currency]);
 
   const handleFromCoinSelect = (c: CoinSelection) => {
     setFromCoinId(c.coinId);
@@ -332,11 +337,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
       type: 'Sell', qty: fromQtyNum, price: totalNum / fromQtyNum, fee: 0, total: totalNum,
       platform: platform.trim(),
+      currency,
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
       type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
       total: totalNum + tradeFeeNum, platform: platform.trim(),
+      currency,
     };
     setPhase('loading');
     try {

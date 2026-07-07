@@ -4,12 +4,14 @@ import { Op, NewOp, Prices, AvatarCache, GroupMode, ChartType, BackupPayload, As
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
 import { getCoinList } from '@/lib/coingecko';
-import { collectAssets } from '@/lib/portfolio';
+import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
 import { useLocale } from '@/context/LocaleContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface PortfolioContextValue {
   ops: Op[];
+  usdOps: Op[];
   assets: Asset[];
   prices: Prices;
   avatarCache: AvatarCache;
@@ -36,6 +38,7 @@ export function usePortfolio(): PortfolioContextValue {
 
 export default function AppLayout() {
   const { locale, t } = useLocale();
+  const { rates } = useCurrency();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar:collapsed') === '1');
   const [ops, setOps] = useState<Op[]>([]);
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
@@ -53,7 +56,10 @@ export default function AppLayout() {
     });
   }, []);
 
-  const assets = useMemo(() => collectAssets(ops, exitPrices), [ops, exitPrices]);
+  // Without rates no op amount can be normalized to USD; empty positions plus the
+  // rates-status message beat rendering numbers in mixed currencies (FR-009).
+  const usdOps = useMemo(() => (rates ? convertOpsToUsd(ops, rates) : []), [ops, rates]);
+  const assets = useMemo(() => collectAssets(usdOps, exitPrices), [usdOps, exitPrices]);
 
   const reload = useCallback(async () => {
     const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
@@ -182,10 +188,10 @@ export default function AppLayout() {
   }, [loading, assets, fetchPrices]);
 
   const portfolio = useMemo<PortfolioContextValue>(() => ({
-    ops, assets, prices, avatarCache, statusMsg,
+    ops, usdOps, assets, prices, avatarCache, statusMsg,
     groupMode, setGroupMode, activeChart, setActiveChart,
     fetchPrices, addOp, editOp, removeOp, setExitPrice, reload,
-  }), [ops, assets, prices, avatarCache, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, setExitPrice, reload]);
+  }), [ops, usdOps, assets, prices, avatarCache, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, setExitPrice, reload]);
 
   return (
     <div className={collapsed ? 'layout collapsed' : 'layout'}>

@@ -102,7 +102,7 @@ export interface MarketCoin {
 }
 
 export async function fetchMarketPrices(ids: string, apiKey: string): Promise<MarketCoin[]> {
-  const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${ids}${cgKey(apiKey)}`);
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}${cgKey(apiKey)}`);
   if (!r.ok) throw Object.assign(new Error('http_error'), { status: r.status });
   const d = await r.json();
   if (!Array.isArray(d)) throw new Error('invalid_response');
@@ -114,7 +114,7 @@ const priceCache = new TtlCache<number>(60_000);
 export async function fetchSinglePrice(coinId: string, apiKey: string): Promise<number | null> {
   const cached = priceCache.get(coinId);
   if (cached != null) return cached;
-  const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids=${coinId}${cgKey(apiKey)}`);
+  const r = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coinId}${cgKey(apiKey)}`);
   const d = await r.json();
   const price = d[0]?.current_price ?? null;
   if (price != null) priceCache.set(coinId, price);

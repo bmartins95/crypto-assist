@@ -4,6 +4,11 @@ import OpDrawer from './OpDrawer';
 import type { Op, Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList } from '@/lib/coingecko';
 
 function realFilterCoinList(list: { id: string; symbol: string; name: string }[], query: string) {
@@ -24,7 +29,7 @@ vi.mock('@/lib/coingecko', () => ({
 }));
 
 function renderDrawer(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
 const editingOp: Op = {
@@ -50,9 +55,9 @@ async function selectCoin(input: HTMLElement, result: { id: string; symbol: stri
 
 const waitForClose = () => new Promise(r => setTimeout(r, 1350));
 
-beforeEach(() => { localStorage.clear(); document.body.style.overflow = ''; });
+beforeEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); document.body.style.overflow = ''; });
 afterEach(() => {
-  localStorage.clear();
+  localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
   document.body.style.overflow = '';
   vi.mocked(getCoinList).mockReset().mockImplementation(() => Promise.reject(new Error('coin list unavailable in tests')));
   vi.mocked(filterCoinList).mockReset().mockImplementation((list, query) => realFilterCoinList(list, query));
@@ -521,7 +526,7 @@ describe('OpDrawer', () => {
     document.body.style.overflow = 'auto';
     const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     expect(document.body.style.overflow).toBe('hidden');
-    rerender(<LocaleProvider><BalanceProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} /></BalanceProvider></LocaleProvider>);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
     expect(document.body.style.overflow).toBe('auto');
   });
 
@@ -530,7 +535,7 @@ describe('OpDrawer', () => {
     document.body.appendChild(trigger);
     trigger.focus();
     const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
-    rerender(<LocaleProvider><BalanceProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} /></BalanceProvider></LocaleProvider>);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
     expect(document.activeElement).toBe(trigger);
     document.body.removeChild(trigger);
   });

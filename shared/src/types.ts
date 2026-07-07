@@ -3,6 +3,12 @@ export type Currency = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 // Units of each currency per 1 USD; USD is always 1.
 export type ExchangeRates = Record<Currency, number>;
 
+// Response shape of GET /api/exchange-rates.
+export interface ExchangeRatesPayload {
+  rates: ExchangeRates;
+  updatedAt: string;
+}
+
 // Fields needed to create an operation — the backend assigns the `id`.
 export interface NewOp {
   date: string;

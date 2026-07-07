@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import WalletTab from './WalletTab';
 import type { Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 
 const baseProps = {
   ops: [],
@@ -18,7 +23,7 @@ const baseProps = {
 const asset: Asset = { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', qty: 2, avgPrice: 100, exitPrice: 0 };
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
 const assetWithAvatar: Asset = { coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 1, avgPrice: 50, exitPrice: 0 };
@@ -99,7 +104,7 @@ describe('WalletTab', () => {
       localStorage.setItem('crypto-assist:balance-hidden', 'true');
       renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="asset" />);
       expect(document.querySelector('.metric-value')?.textContent).toBe('••••••');
-      localStorage.clear();
+      localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
     });
   });
 
@@ -137,5 +142,29 @@ describe('WalletTab', () => {
       renderWithLocale(<WalletTab {...baseProps} assets={[asset]} avatarCache={{}} groupMode="asset" />);
       expect(screen.getByText('BTC')).toBeInTheDocument();
     });
+  });
+});
+
+describe('WalletTab — display currency', () => {
+  const nonIdentityRates = { BRL: 5, USD: 1, EUR: 0.9, GBP: 0.8, JPY: 150 };
+
+  it('renders USD reference values converted to the selected display currency', () => {
+    localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify(nonIdentityRates));
+    localStorage.setItem('crypto-assist:currency', 'BRL');
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="asset" />);
+    // invested 200 USD * 5 = 1.000,00 BRL; current 300 USD * 5 = 1.500,00 BRL
+    expect(screen.getAllByText(/1\.000,00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1\.500,00/).length).toBeGreaterThan(0);
+  });
+
+  it('shows the rates warning when rates are stale and keeps values masked when hidden', () => {
+    localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify(nonIdentityRates));
+    localStorage.setItem('crypto-assist:currency', 'USD');
+    localStorage.setItem('crypto-assist:balance-hidden', 'true');
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="asset" />);
+    // Provider starts from persisted rates (status: stale) before any fetch resolves.
+    expect(screen.getByText(/Cotações desatualizadas/)).toBeInTheDocument();
+    expect(screen.getAllByText('••••••').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/200\.00|200,00/).length).toBe(0);
   });
 });

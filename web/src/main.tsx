@@ -5,6 +5,7 @@ import { router } from './router';
 import { ThemeProvider } from './context/ThemeContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { BalanceProvider } from './context/BalanceContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import './app/globals.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <LocaleProvider>
         <BalanceProvider>
-          <RouterProvider router={router} />
+          <CurrencyProvider>
+            <RouterProvider router={router} />
+          </CurrencyProvider>
         </BalanceProvider>
       </LocaleProvider>
     </ThemeProvider>
