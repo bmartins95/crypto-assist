@@ -349,7 +349,7 @@ See `docs/design/dashboard-collapsible-sidebar.html` → "Histórico" view and d
 **Branch:** `feat/multi-currency`
 **Depends on:** items 4, 5
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 `price_cache` table has `price_brl`. CoinGecko is called with `vs_currency=brl`. `fmt()` always formats as R$. The entire stack assumes BRL.
