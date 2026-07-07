@@ -11,12 +11,14 @@ import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { usePriceRefresh } from '@/context/PriceRefreshContext';
 
 export default function WalletScreen() {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { rates, fmtMoney } = useCurrency();
+  const { interval } = usePriceRefresh();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -45,6 +47,12 @@ export default function WalletScreen() {
   }, [rates]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (interval === null) return;
+    const id = setInterval(load, interval);
+    return () => clearInterval(id);
+  }, [interval, load]);
 
   if (loading || !rates) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
