@@ -199,7 +199,7 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
 
   return (
     <div id="tab-carteira" className="section active">
-      <ContentHeader title={t.nav_wallet} subtitle={t.wallet_subtitle}>
+      <ContentHeader title={t.nav_wallet} subtitle={`${t.wallet_subtitle} · ${currency}`}>
         {ratesMsg && <span className="ts neg">{ratesMsg}</span>}
         <span className="ts">{statusMsg}</span>
         <button className="btn" onClick={onFetchPrices}>

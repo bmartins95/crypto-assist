@@ -165,4 +165,11 @@ describe('HistoryTab', () => {
     expect(texts).toContain('Compra');
     expect(texts).toContain('Venta');
   });
+
+  it('reflects the selected currency in the subtitle instead of a hardcoded value', () => {
+    localStorage.setItem('crypto-assist:currency', 'GBP');
+    renderWithLocale(<HistoryTab {...baseProps} />);
+    expect(screen.getByText(/· GBP/)).toBeInTheDocument();
+    expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
+  });
 });

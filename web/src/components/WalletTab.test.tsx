@@ -157,6 +157,14 @@ describe('WalletTab — display currency', () => {
     expect(screen.getAllByText(/1\.500,00/).length).toBeGreaterThan(0);
   });
 
+  it('reflects the selected currency in the subtitle instead of a hardcoded value', () => {
+    localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify(nonIdentityRates));
+    localStorage.setItem('crypto-assist:currency', 'JPY');
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} groupMode="asset" />);
+    expect(screen.getByText(/· JPY/)).toBeInTheDocument();
+    expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
+  });
+
   it('shows the rates warning when rates are stale and keeps values masked when hidden', () => {
     localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify(nonIdentityRates));
     localStorage.setItem('crypto-assist:currency', 'USD');

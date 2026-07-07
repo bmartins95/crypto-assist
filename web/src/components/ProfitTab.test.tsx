@@ -204,4 +204,11 @@ describe('ProfitTab', () => {
     renderProfitTab([]);
     expect(screen.getAllByText('Registre operações e atualize os preços').length).toBeGreaterThan(0);
   });
+
+  it('reflects the selected currency in the subtitle instead of a hardcoded value', () => {
+    localStorage.setItem('crypto-assist:currency', 'EUR');
+    renderProfitTab([]);
+    expect(screen.getByText(/· EUR/)).toBeInTheDocument();
+    expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
+  });
 });

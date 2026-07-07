@@ -25,7 +25,7 @@ interface Props {
 export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
-  const { ratesStatus, fmtMoney } = useCurrency();
+  const { currency, ratesStatus, fmtMoney } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
     : ratesStatus === 'stale' ? t.currency_rates_stale : '';
@@ -121,7 +121,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
 
   return (
     <div id="tab-lucro" className="section active">
-      <ContentHeader title={t.nav_profit} subtitle={t.profit_subtitle}>
+      <ContentHeader title={t.nav_profit} subtitle={`${t.profit_subtitle} · ${currency}`}>
         {ratesMsg && <span className="ts neg">{ratesMsg}</span>}
         <span className="ts">{statusMsg}</span>
         <button className="btn" onClick={onFetchPrices}>

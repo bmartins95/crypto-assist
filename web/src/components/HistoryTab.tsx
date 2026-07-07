@@ -22,7 +22,7 @@ interface Props {
 export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
-  const { fmtFromCurrency } = useCurrency();
+  const { currency, fmtFromCurrency } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -43,7 +43,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
 
   return (
     <div id="tab-historico" className="section active">
-      <ContentHeader title={t.nav_history} subtitle={t.history_subtitle}>
+      <ContentHeader title={t.nav_history} subtitle={`${t.history_subtitle} · ${currency}`}>
         <button type="button" className="btn btn-accent" onClick={openForNew}>
           <i className="ti ti-plus" /> {t.history_form_addOp}
         </button>
