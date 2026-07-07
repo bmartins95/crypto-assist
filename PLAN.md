@@ -411,30 +411,43 @@ Manual (default), 30 s, 1 min, 5 min.
 
 ---
 
-## Item 12 — Fix historical charts
+## Item 12 — Fix historical charts + timeframe selector
 **Branch:** `feat/historical-prices`
 **Depends on:** item 10 (prices now stored in USD; historical prices should also be USD)
 
 - [ ] Done
 
+### Design reference
+`docs/design/timeframe-chart-design.html` — visual source of truth for the timeframe selector and chart (placement, styling, loading/hover/empty states). `docs/design/item-12-design-notes.md` — accompanying design notes.
+
 ### Current state
-`computeTimeline(ops, prices)` in `shared/src/portfolio.ts` walks operations in date order but applies **current** prices to every point. The "Lucro no tempo" and "Valor da carteira" charts show what past portfolio compositions are worth **today**, not what they were worth at the time of each operation.
+`computeTimeline(ops, prices)` in `shared/src/portfolio.ts` walks operations in date order but applies **current** prices to every point. The "Lucro no tempo" and "Valor da carteira" charts show what past portfolio compositions are worth **today**, not what they were worth at the time of each operation. There is also no way to zoom into a shorter window — the charts always render the full operation history.
+
+### Goal
+Two related fixes, same branch:
+1. Charts must use the price that was actually in effect on each date, not today's price.
+2. Users can pick a timeframe (1D / 1W / 1M / 1Y / All) and see how the value of their **current** holdings moved over that window, using real daily price history — not just a point per operation. The chart reflects actual portfolio composition changes within the window (it walks real ops), never a hypothetical "what if I always held today's exact holdings."
 
 ### Database migration
 New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24,8), PRIMARY KEY (coin_id, date))`.
 
 ### Files to create
 - `backend/app/routes/price_history.py` — GET `/api/prices/history?ids=bitcoin,ethereum&from=2024-01-01&to=2024-12-31`. For each coin, checks `price_history` for the date range; fetches missing dates from CoinGecko `/coins/{id}/market_chart?vs_currency=usd&days=N&interval=daily`; stores results; returns `Record<coinId, Record<date, number>>` (date in `YYYY-MM-DD` format).
+- `web/src/components/TimeframeSelector.tsx` — segmented control with options `1d` / `1w` / `1m` / `1y` / `all`. Labels come from i18n. Controlled component: `value`, `onChange`.
 
 ### Files to modify
-- `shared/src/portfolio.ts` — change `computeTimeline` signature to `computeTimeline(ops: Op[], historicalPrices: Record<string, Record<string, number>>): TimelinePoint[]`. For each op date, look up `historicalPrices[coinId][date]`; if missing, use the nearest available date (linear scan backwards up to 7 days, then fallback to 0).
-- `web/src/components/ProfitTab.tsx` — before rendering `over-time` or `value` charts, call `api.getPriceHistory(coinIds, fromDate, toDate)`; show a loading spinner while fetching. Pass `historicalPrices` to `computeTimeline` instead of current `prices`.
+- `shared/src/portfolio.ts` — change `computeTimeline` signature to `computeTimeline(ops: Op[], historicalPrices: Record<string, Record<string, number>>, from?: string, to?: string): TimelinePoint[]`. For each day in range, look up `historicalPrices[coinId][date]`; if missing, use the nearest available date (linear scan backwards up to 7 days, then fallback to 0). When `from`/`to` are given, only emit points inside that window, still built from the real op history (no synthetic backfill of assets the user didn't hold yet).
+- `web/src/components/ProfitTab.tsx` — add timeframe state (`localStorage` key `profit_timeframe`, default `1m`). Render `<TimeframeSelector>` above the `over-time` and `value` charts (shared by both, per the plan decision). On timeframe change, compute `from`/`to` from the selection and call `api.getPriceHistory(coinIds, from, to)`; show a loading spinner while fetching. Pass `historicalPrices` and the range to `computeTimeline` instead of current `prices`.
 - `web/src/lib/api/client.ts` — add `getPriceHistory(ids: string[], from: string, to: string)`.
+- `shared/src/i18n/types.ts` — add `timeframe_1d`, `timeframe_1w`, `timeframe_1m`, `timeframe_1y`, `timeframe_all`. Add translations to all locale files.
 
 ### Done when
-- "Lucro no tempo" chart shows the P&L as it was on each operation date, not today's prices.
-- "Valor da carteira" chart shows invested vs portfolio value using prices from each operation's date.
+- "Lucro no tempo" chart shows the P&L as it was on each date in the selected window, not today's prices.
+- "Valor da carteira" chart shows invested vs portfolio value using prices from each date in the selected window.
+- Switching the timeframe selector (1D/1W/1M/1Y/All) reflows both charts to the new window without a page reload.
+- The charted range never shows an asset before the user actually acquired it (verified by a test with an asset first bought mid-window).
 - `pytest` covers the new endpoint (cache hit, cache miss, partial miss).
+- `npm test` covers `computeTimeline` with a `from`/`to` window and `TimeframeSelector` option switching.
 
 ---
 
