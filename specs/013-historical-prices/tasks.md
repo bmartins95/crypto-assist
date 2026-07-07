@@ -102,7 +102,7 @@ Item 12 satisfied.
 ## Phase 4: Polish & Cross-Cutting Concerns
 
 - [ ] T018 Run `cd backend && pytest --cov=app --cov-report=term-missing` and confirm `app/routes/price_history.py` is ≥90% covered
-- [ ] T019 Run `cd web && npm test` and confirm all updated/new suites pass
+- [ ] T019 Run `cd web && npm run coverage` and confirm all updated/new suites pass with ≥90% coverage on `shared/src/portfolio.ts`, `web/src/components/TimeframeSelector.tsx`, and `web/src/components/ProfitTab.tsx`; paste the summary into the PR description per `CLAUDE.md`
 - [ ] T020 Walk the `quickstart.md` manual verification checklist against a local dev environment (SC-001 through SC-004)
 - [ ] T021 Tick Item 12's checkbox in `PLAN.md` (separate `chore:` commit per repo workflow — not bundled into this feature's PR)
 
