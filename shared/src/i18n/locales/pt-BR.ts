@@ -125,7 +125,6 @@ const ptBR: UIText = {
   settings_theme_dark: 'Escuro',
   settings_theme_system: 'Sistema',
   settings_hide_balances: 'Ocultar saldos',
-  settings_currency_placeholder: 'Disponível em breve',
   settings_refresh_placeholder: 'Disponível em breve',
   settings_clear_wallet: 'Limpar carteira',
   settings_clear_wallet_confirm: 'Tem certeza? Todas as operações serão removidas permanentemente.',

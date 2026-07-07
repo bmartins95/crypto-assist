@@ -137,7 +137,6 @@ export interface UIText {
   settings_theme_dark: string;
   settings_theme_system: string;
   settings_hide_balances: string;
-  settings_currency_placeholder: string;
   settings_refresh_placeholder: string;
   settings_clear_wallet: string;
   settings_clear_wallet_confirm: string;

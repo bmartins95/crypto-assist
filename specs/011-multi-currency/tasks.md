@@ -77,12 +77,12 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 **Independent Test**: quickstart-equivalent on Expo per spec US4.
 
-- [ ] T029 [US4] Create AsyncStorage-backed CurrencyContext in mobile/src/context/CurrencyContext.tsx
-- [ ] T030 [P] [US4] Add `getExchangeRates()` to mobile/src/lib/api/client.ts
-- [ ] T031 [US4] Wrap navigator root with CurrencyProvider in mobile/app/_layout.tsx
-- [ ] T032 [US4] Wire the currency row picker (replace placeholder) in mobile/app/settings.tsx
-- [ ] T033 [US4] Convert values via context + convertOpsToUsd in mobile/app/(tabs)/wallet.tsx, mobile/app/(tabs)/profit.tsx, mobile/app/(tabs)/history.tsx (set op currency on create)
-- [ ] T034 [US4] Verify mobile type contract + build (npx tsc / expo export) before PR
+- [X] T029 [US4] Create AsyncStorage-backed CurrencyContext in mobile/src/context/CurrencyContext.tsx
+- [X] T030 [P] [US4] Add `getExchangeRates()` to mobile/src/lib/api/client.ts
+- [X] T031 [US4] Wrap navigator root with CurrencyProvider in mobile/app/_layout.tsx
+- [X] T032 [US4] Wire the currency row picker (replace placeholder) in mobile/app/settings.tsx
+- [X] T033 [US4] Convert values via context + convertOpsToUsd in mobile/app/(tabs)/wallet.tsx, mobile/app/(tabs)/profit.tsx, mobile/app/(tabs)/history.tsx (set op currency on create)
+- [X] T034 [US4] Verify mobile type contract + build (npx tsc / expo export) before PR
 
 **Checkpoint**: constitution Principle I satisfied (mobile builds, screens render).
 

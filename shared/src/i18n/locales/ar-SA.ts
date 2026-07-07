@@ -125,7 +125,6 @@ const arSA: UIText = {
   settings_theme_dark: 'داكن',
   settings_theme_system: 'النظام',
   settings_hide_balances: 'إخفاء الأرصدة',
-  settings_currency_placeholder: 'قريباً',
   settings_refresh_placeholder: 'قريباً',
   settings_clear_wallet: 'مسح المحفظة',
   settings_clear_wallet_confirm: 'هل أنت متأكد؟ سيتم حذف جميع العمليات نهائياً.',

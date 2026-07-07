@@ -125,7 +125,6 @@ const enUS: UIText = {
   settings_theme_dark: 'Dark',
   settings_theme_system: 'System',
   settings_hide_balances: 'Hide balances',
-  settings_currency_placeholder: 'Coming soon',
   settings_refresh_placeholder: 'Coming soon',
   settings_clear_wallet: 'Clear wallet',
   settings_clear_wallet_confirm: 'Are you sure? All operations will be permanently deleted.',

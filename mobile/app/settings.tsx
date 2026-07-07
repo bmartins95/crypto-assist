@@ -2,12 +2,13 @@ import { View, Text, Switch, TouchableOpacity, StyleSheet, ScrollView, Alert } f
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import type { Locale } from '@crypto-assist/shared';
+import type { Locale, Currency } from '@crypto-assist/shared';
 import type { ThemeMode } from '@crypto-assist/shared';
 import { LOCALES } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBalance } from '@/context/BalanceContext';
+import { CURRENCIES, useCurrency } from '@/context/CurrencyContext';
 import { api } from '@/lib/api/client';
 
 const LOCALE_LABELS: Record<Locale, string> = {
@@ -25,10 +26,19 @@ const LOCALE_LABELS: Record<Locale, string> = {
 
 const THEME_MODES: ThemeMode[] = ['system', 'light', 'dark'];
 
+const CURRENCY_LABELS: Record<Currency, string> = {
+  BRL: 'BRL (R$)',
+  USD: 'USD ($)',
+  EUR: 'EUR (€)',
+  GBP: 'GBP (£)',
+  JPY: 'JPY (¥)',
+};
+
 export default function SettingsScreen(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const { hidden, toggleHidden } = useBalance();
+  const { currency, setCurrency, ratesStatus } = useCurrency();
 
   const themeLabel = (m: ThemeMode): string => {
     if (m === 'light') return t.settings_theme_light;
@@ -100,10 +110,25 @@ export default function SettingsScreen(): React.ReactElement {
             {locale === code && <Text style={styles.checkmark}>✓</Text>}
           </TouchableOpacity>
         ))}
-        <View style={[styles.row, styles.rowDisabled]}>
-          <Text style={styles.rowLabel}>Moeda</Text>
-          <Text style={styles.rowHint}>{t.settings_currency_placeholder}</Text>
-        </View>
+        <Text style={styles.groupSubheader}>{t.settings_currency_label}</Text>
+        {ratesStatus !== 'fresh' && (
+          <Text style={[styles.rowHint, styles.currencyStatusHint]}>
+            {ratesStatus === 'unavailable' ? t.currency_rates_unavailable : t.currency_rates_stale}
+          </Text>
+        )}
+        {CURRENCIES.map((c, idx, arr) => (
+          <TouchableOpacity
+            key={c}
+            style={[styles.row, idx === arr.length - 1 && styles.rowNoBottomBorder]}
+            onPress={() => setCurrency(c)}
+            accessibilityLabel={CURRENCY_LABELS[c]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: currency === c }}
+          >
+            <Text style={styles.rowLabel}>{CURRENCY_LABELS[c]}</Text>
+            {currency === c && <Text style={styles.checkmark}>✓</Text>}
+          </TouchableOpacity>
+        ))}
         <View style={[styles.row, styles.rowLast, styles.rowDisabled]}>
           <Text style={styles.rowLabel}>Intervalo de atualização</Text>
           <Text style={styles.rowHint}>{t.settings_refresh_placeholder}</Text>
@@ -221,6 +246,11 @@ const styles = StyleSheet.create({
   rowHint: {
     fontSize: 13,
     color: '#9ca3af',
+  },
+  currencyStatusHint: {
+    color: '#dc2626',
+    paddingHorizontal: 16,
+    paddingBottom: 6,
   },
   rowDanger: {
     color: '#dc2626',

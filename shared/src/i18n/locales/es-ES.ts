@@ -125,7 +125,6 @@ const esES: UIText = {
   settings_theme_dark: 'Oscuro',
   settings_theme_system: 'Sistema',
   settings_hide_balances: 'Ocultar saldos',
-  settings_currency_placeholder: 'Próximamente',
   settings_refresh_placeholder: 'Próximamente',
   settings_clear_wallet: 'Vaciar cartera',
   settings_clear_wallet_confirm: '¿Estás seguro? Todas las operaciones se eliminarán permanentemente.',

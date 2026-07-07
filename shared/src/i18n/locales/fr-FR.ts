@@ -125,7 +125,6 @@ const frFR: UIText = {
   settings_theme_dark: 'Sombre',
   settings_theme_system: 'Système',
   settings_hide_balances: 'Masquer les soldes',
-  settings_currency_placeholder: 'Bientôt disponible',
   settings_refresh_placeholder: 'Bientôt disponible',
   settings_clear_wallet: 'Vider le portefeuille',
   settings_clear_wallet_confirm: 'Êtes-vous sûr ? Toutes les opérations seront supprimées définitivement.',

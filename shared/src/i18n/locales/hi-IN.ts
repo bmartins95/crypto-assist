@@ -125,7 +125,6 @@ const hiIN: UIText = {
   settings_theme_dark: 'गहरा',
   settings_theme_system: 'सिस्टम',
   settings_hide_balances: 'बैलेंस छुपाएं',
-  settings_currency_placeholder: 'जल्द आ रहा है',
   settings_refresh_placeholder: 'जल्द आ रहा है',
   settings_clear_wallet: 'वॉलेट साफ करें',
   settings_clear_wallet_confirm: 'क्या आप सुनिश्चित हैं? सभी ऑपरेशन स्थायी रूप से हटा दिए जाएंगे।',

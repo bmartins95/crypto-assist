@@ -125,7 +125,6 @@ const jaJP: UIText = {
   settings_theme_dark: 'ダーク',
   settings_theme_system: 'システム',
   settings_hide_balances: '残高を隠す',
-  settings_currency_placeholder: '近日公開',
   settings_refresh_placeholder: '近日公開',
   settings_clear_wallet: 'ウォレットを空にする',
   settings_clear_wallet_confirm: '本当によろしいですか？すべての操作記録が完全に削除されます。',

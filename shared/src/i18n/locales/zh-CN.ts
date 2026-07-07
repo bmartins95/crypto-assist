@@ -125,7 +125,6 @@ const zhCN: UIText = {
   settings_theme_dark: '深色',
   settings_theme_system: '跟随系统',
   settings_hide_balances: '隐藏余额',
-  settings_currency_placeholder: '即将推出',
   settings_refresh_placeholder: '即将推出',
   settings_clear_wallet: '清空钱包',
   settings_clear_wallet_confirm: '确定吗？所有操作记录将被永久删除。',

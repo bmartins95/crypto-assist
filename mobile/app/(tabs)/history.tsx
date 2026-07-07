@@ -4,15 +4,18 @@ import {
   RefreshControl, Alert, TouchableOpacity,
 } from 'react-native';
 import { api } from '@/lib/api/client';
-import { fmt, fmtQty, fmtDate } from '@crypto-assist/shared';
+import { fmtQty, fmtDate } from '@crypto-assist/shared';
 import type { Op } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 export default function HistoryScreen() {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
+  const { fmtFromCurrency } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
+  const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [ops, setOps] = useState<Op[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,8 +77,8 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.rowDetails}>
               <Text style={styles.detail}>{fmtDate(o.date, locale)}</Text>
-              <Text style={styles.detail}>{mask(fmtQty(o.qty, locale))} × {mask(fmt(o.price, locale))}</Text>
-              <Text style={styles.total}>{mask(fmt(o.total, locale))}</Text>
+              <Text style={styles.detail}>{mask(fmtQty(o.qty, locale))} × {mask(fmtOp(o.price, o))}</Text>
+              <Text style={styles.total}>{mask(fmtOp(o.total, o))}</Text>
             </View>
             {o.platform ? <Text style={styles.platform}>{o.platform}</Text> : null}
           </View>

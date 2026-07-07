@@ -125,7 +125,6 @@ const deDE: UIText = {
   settings_theme_dark: 'Dunkel',
   settings_theme_system: 'System',
   settings_hide_balances: 'Guthaben verbergen',
-  settings_currency_placeholder: 'Demnächst verfügbar',
   settings_refresh_placeholder: 'Demnächst verfügbar',
   settings_clear_wallet: 'Wallet leeren',
   settings_clear_wallet_confirm: 'Sind Sie sicher? Alle Operationen werden dauerhaft gelöscht.',

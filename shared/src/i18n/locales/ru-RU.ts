@@ -125,7 +125,6 @@ const ruRU: UIText = {
   settings_theme_dark: 'Тёмная',
   settings_theme_system: 'Системная',
   settings_hide_balances: 'Скрыть балансы',
-  settings_currency_placeholder: 'Скоро появится',
   settings_refresh_placeholder: 'Скоро появится',
   settings_clear_wallet: 'Очистить кошелёк',
   settings_clear_wallet_confirm: 'Вы уверены? Все операции будут удалены безвозвратно.',
