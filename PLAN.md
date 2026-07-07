@@ -387,7 +387,7 @@ Store prices in USD (universal crypto reference). Fetch an exchange rate once pe
 **Branch:** `feat/price-auto-refresh`
 **Depends on:** item 10
 
-- [ ] Done
+- [x] Done
 
 ### Goal
 Users can configure how often prices refresh automatically. The interval is stored per-device and survives page reload. The currently selected interval is shown in the Settings page/screen "Moeda e preços" card (wired, replacing the placeholder left in Item 5).
