@@ -4,6 +4,8 @@ from pydantic import BaseModel, field_validator, model_validator
 
 OpType = Literal["Buy", "Sell"]
 
+CurrencyCode = Literal["BRL", "USD", "EUR", "GBP", "JPY"]
+
 _LEGACY_TYPE_MAP = {"Compra": "Buy", "Venda": "Sell"}
 
 # Backups written before the app's fields were themselves translated to English
@@ -29,6 +31,7 @@ class NewOp(BaseModel):
     fee: float = 0.0
     total: float
     platform: str = ""
+    currency: CurrencyCode = "BRL"
 
 
 class Op(NewOp):
@@ -83,3 +86,8 @@ class ImportPayload(BaseModel):
 
 class DeleteAllOpsResponse(BaseModel):
     deleted: int
+
+
+class ExchangeRatesResponse(BaseModel):
+    rates: dict[CurrencyCode, float]
+    updatedAt: str

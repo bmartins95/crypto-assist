@@ -1,3 +1,8 @@
+export type Currency = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'JPY';
+
+// Units of each currency per 1 USD; USD is always 1.
+export type ExchangeRates = Record<Currency, number>;
+
 // Fields needed to create an operation — the backend assigns the `id`.
 export interface NewOp {
   date: string;
@@ -10,6 +15,8 @@ export interface NewOp {
   fee: number;
   total: number;
   platform: string;
+  // Denomination of price/fee/total; absent means BRL (pre-multi-currency ops).
+  currency?: Currency;
 }
 
 // An operation as stored/returned by the backend (always has an id).

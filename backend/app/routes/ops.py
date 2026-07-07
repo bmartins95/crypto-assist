@@ -5,7 +5,7 @@ from app.models import Op, NewOp, DeleteAllOpsResponse
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency"
 
 
 def _row_to_op(row: dict) -> Op:
@@ -21,6 +21,7 @@ def _row_to_op(row: dict) -> Op:
         fee=float(row["fee"]),
         total=float(row["total"]),
         platform=row["platform"],
+        currency=row["currency"],
     )
 
 
@@ -44,11 +45,11 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platform),
+                 op.qty, op.price, op.fee, op.total, op.platform, op.currency),
             )
             row = cur.fetchone()
         conn.commit()
@@ -65,11 +66,11 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
         with conn.cursor() as cur:
             cur.execute(
                 f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"  # nosec B608
-                f" qty=%s, price=%s, fee=%s, total=%s, platform=%s"
+                f" qty=%s, price=%s, fee=%s, total=%s, platform=%s, currency=%s"
                 f" WHERE id=%s AND user_id=%s"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platform,
+                 op.qty, op.price, op.fee, op.total, op.platform, op.currency,
                  op_id, auth.user_id),
             )
             row = cur.fetchone()

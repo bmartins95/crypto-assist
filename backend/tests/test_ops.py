@@ -41,6 +41,7 @@ _DB_ROW = {
     "fee": "5",
     "total": "2505",
     "platform": "Binance",
+    "currency": "BRL",
 }
 
 _API_OP = {
@@ -55,6 +56,7 @@ _API_OP = {
     "fee": 5.0,
     "total": 2505.0,
     "platform": "Binance",
+    "currency": "BRL",
 }
 
 _NEW_OP_BODY = {
@@ -108,6 +110,32 @@ def test_create_op_portuguese_sell_rejected(client_with_db):
     body = {**_NEW_OP_BODY, "type": "Venda"}
     res = client.post("/api/ops", json=body)
     assert res.status_code == 422
+
+
+@pytest.mark.pgdata({**_DB_ROW, "currency": "USD"})
+def test_create_op_records_entry_currency(client_with_db):
+    client, conn = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "currency": "USD"})
+    assert res.status_code == 201
+    assert res.json()["currency"] == "USD"
+    insert_params = conn.cursor.return_value.execute.call_args[0][1]
+    assert insert_params[-1] == "USD"
+
+
+@pytest.mark.pgdata({})
+def test_create_op_invalid_currency_rejected(client_with_db):
+    client, _ = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "currency": "XYZ"})
+    assert res.status_code == 422
+
+
+@pytest.mark.pgdata(_DB_ROW)
+def test_create_op_defaults_to_brl_when_currency_omitted(client_with_db):
+    client, _ = client_with_db
+    body = {k: v for k, v in _NEW_OP_BODY.items() if k != "currency"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 201
+    assert res.json()["currency"] == "BRL"
 
 
 @pytest.mark.pgdata(_DB_ROW)

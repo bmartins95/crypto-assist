@@ -8,14 +8,14 @@ from tests.conftest import make_pg_stub, _DB_PATCH_TARGETS
 
 _CACHED_ROW = {
     "coin_id": "bitcoin",
-    "price_brl": "250000",
+    "price_usd": "250000",
     "image_url": None,
     "updated_at": "2099-01-01T00:00:00+00:00",
 }
 
 _STALE_ROW = {
     "coin_id": "bitcoin",
-    "price_brl": "200000",
+    "price_usd": "200000",
     "image_url": None,
     "updated_at": "2000-01-01T00:00:00+00:00",
 }

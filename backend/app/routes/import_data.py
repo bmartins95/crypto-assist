@@ -16,11 +16,11 @@ def import_backup(payload: ImportPayload, auth: AuthContext = Depends(require_au
 
             if payload.ops:
                 cur.executemany(
-                    "INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform)"
-                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     [
                         (user_id, op.date, op.coinId, op.symbol, op.name, op.type,
-                         op.qty, op.price, op.fee, op.total, op.platform)
+                         op.qty, op.price, op.fee, op.total, op.platform, op.currency)
                         for op in payload.ops
                     ],
                 )

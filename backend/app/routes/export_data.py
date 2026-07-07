@@ -6,7 +6,7 @@ from app.models import BackupPayload, Op
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency"
 
 
 @router.get("", response_model=BackupPayload)
@@ -41,6 +41,7 @@ def export_backup(auth: AuthContext = Depends(require_auth)):
             fee=float(r["fee"]),
             total=float(r["total"]),
             platform=r["platform"],
+            currency=r["currency"],
         )
         for r in ops_rows
     ]

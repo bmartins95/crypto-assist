@@ -13,14 +13,14 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 **Purpose**: USD reference prices, shared currency types, and the schema every story builds on.
 
-- [ ] T001 Add `Currency`, `ExchangeRates` types and optional `NewOp.currency` in shared/src/types.ts
-- [ ] T002 Export new symbols from shared/src/index.ts
-- [ ] T003 [P] Remove hardcoded 2-decimal override in `fmt()` so Intl applies per-currency decimals in shared/src/format.ts
-- [ ] T004 [P] Add JPY (0-decimal) and BRL-unchanged formatting tests in web/src/lib/format.test.ts
-- [ ] T005 Create migration backend/db/migrations/005_usd_prices_and_currency.sql (rename price_brl→price_usd + force-expire cache, create exchange_rates, add ops.currency) and update backend/db/schema.sql — **PAUSE: present SQL for user approval before committing (DB change)**
-- [ ] T006 Add `currency` field to NewOp/Op models and `ExchangeRatesResponse` in backend/app/models.py
-- [ ] T007 Switch CoinGecko call to vs_currency=usd and all price_brl references to price_usd in backend/app/routes/prices.py
-- [ ] T008 [P] Update cached/fetched price assertions to price_usd in backend/tests/test_prices.py
+- [X] T001 Add `Currency`, `ExchangeRates` types and optional `NewOp.currency` in shared/src/types.ts
+- [X] T002 Export new symbols from shared/src/index.ts
+- [X] T003 [P] Remove hardcoded 2-decimal override in `fmt()` so Intl applies per-currency decimals in shared/src/format.ts
+- [X] T004 [P] Add JPY (0-decimal) and BRL-unchanged formatting tests in web/src/lib/format.test.ts
+- [X] T005 Create migration backend/db/migrations/005_usd_prices_and_currency.sql (rename price_brl→price_usd + force-expire cache, create exchange_rates, add ops.currency) and update backend/db/schema.sql — **PAUSE: present SQL for user approval before committing (DB change)**
+- [X] T006 Add `currency` field to NewOp/Op models and `ExchangeRatesResponse` in backend/app/models.py
+- [X] T007 Switch CoinGecko call to vs_currency=usd and all price_brl references to price_usd in backend/app/routes/prices.py
+- [X] T008 [P] Update cached/fetched price assertions to price_usd in backend/tests/test_prices.py
 
 **Checkpoint**: `pytest` green with USD price cache; shared types compile in web and mobile.
 
@@ -30,9 +30,9 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 **Independent Test**: two requests within an hour → one upstream call; rates match contract shape; 401 without token.
 
-- [ ] T009 [US2] Implement GET /api/exchange-rates per contracts/exchange-rates.md in backend/app/routes/exchange_rates.py
-- [ ] T010 [US2] Register the exchange_rates router in backend/app/main.py
-- [ ] T011 [P] [US2] Tests: fresh fetch, cache hit (no upstream call), stale fallback on 429/error, 502 when no cache, 401 unauthenticated in backend/tests/test_exchange_rates.py
+- [X] T009 [US2] Implement GET /api/exchange-rates per contracts/exchange-rates.md in backend/app/routes/exchange_rates.py
+- [X] T010 [US2] Register the exchange_rates router in backend/app/main.py
+- [X] T011 [P] [US2] Tests: fresh fetch, cache hit (no upstream call), stale fallback on 429/error, 502 when no cache, 401 unauthenticated in backend/tests/test_exchange_rates.py
 - [ ] T012 [P] [US2] Add `getExchangeRates()` to web/src/lib/api/client.ts
 
 **Checkpoint**: endpoint verifiable with curl per quickstart step 1.
@@ -63,9 +63,9 @@ No setup tasks — the monorepo, toolchains and test suites already exist; no ne
 
 **Independent Test**: quickstart step 5.
 
-- [ ] T024 [US3] Persist/return `currency` in ops CRUD (INSERT/UPDATE/SELECT) in backend/app/routes/ops.py
-- [ ] T025 [US3] Include `currency` in export rows in backend/app/routes/export_data.py (import path covered by model default)
-- [ ] T026 [P] [US3] Tests: currency roundtrip, invalid currency 422, legacy default BRL, export/import currency in backend/tests/test_ops.py and backend/tests (import/export suites)
+- [X] T024 [US3] Persist/return `currency` in ops CRUD (INSERT/UPDATE/SELECT) in backend/app/routes/ops.py
+- [X] T025 [US3] Include `currency` in export rows in backend/app/routes/export_data.py (import path covered by model default)
+- [X] T026 [P] [US3] Tests: currency roundtrip, invalid currency 422, legacy default BRL, export/import currency in backend/tests/test_ops.py and backend/tests (import/export suites)
 - [ ] T027 [US3] Set `currency` from display currency on create/edit in web OpDrawer and convert history rows/summary in web/src/components/HistoryTab.tsx (and web/src/components/OpDrawer.tsx)
 - [ ] T028 [P] [US3] Update drawer/history tests for currency capture and converted display in web/src/components/HistoryTab.test.tsx and web/src/components/OpDrawer.test.tsx
 
