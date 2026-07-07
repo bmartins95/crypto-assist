@@ -1,9 +1,10 @@
 import React from 'react';
-import type { Locale, ThemeMode } from '@crypto-assist/shared';
+import type { Currency, Locale, ThemeMode } from '@crypto-assist/shared';
 import { LOCALES } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useBalance } from '@/context/BalanceContext';
+import { CURRENCIES, useCurrency } from '@/context/CurrencyContext';
 import { exportData, importData } from '@/lib/dataHandlers';
 import { api } from '@/lib/api/client';
 import { usePortfolio } from '@/components/AppLayout';
@@ -21,10 +22,19 @@ const LOCALE_LABELS: Record<Locale, string> = {
   'ru-RU': 'Русский',
 };
 
+const CURRENCY_LABELS: Record<Currency, string> = {
+  BRL: 'BRL (R$)',
+  USD: 'USD ($)',
+  EUR: 'EUR (€)',
+  GBP: 'GBP (£)',
+  JPY: 'JPY (¥)',
+};
+
 export default function SettingsPage(): React.ReactElement {
   const { locale, t, setLocale } = useLocale();
   const { theme, setTheme } = useTheme();
   const { hidden, toggleHidden } = useBalance();
+  const { currency, setCurrency, ratesStatus } = useCurrency();
   const { reload } = usePortfolio();
   const importRef = React.useRef<HTMLInputElement>(null);
 
@@ -115,11 +125,22 @@ export default function SettingsPage(): React.ReactElement {
         <div className="settings-card-body">
           <div className="settings-row">
             <div>
-              <div className="settings-row-label">{t.settings_currency_label}</div>
-              <div className="settings-row-hint">{t.settings_currency_hint}</div>
+              <label htmlFor="currency-select" className="settings-row-label">{t.settings_currency_label}</label>
+              <div className="settings-row-hint">
+                {ratesStatus === 'unavailable' ? t.currency_rates_unavailable
+                  : ratesStatus === 'stale' ? t.currency_rates_stale
+                  : t.settings_currency_hint}
+              </div>
             </div>
-            <select disabled className="settings-select settings-select--disabled">
-              <option>{t.settings_currency_value}</option>
+            <select
+              id="currency-select"
+              className="settings-select"
+              value={currency}
+              onChange={e => setCurrency(e.target.value as Currency)}
+            >
+              {CURRENCIES.map(c => (
+                <option key={c} value={c}>{CURRENCY_LABELS[c]}</option>
+              ))}
             </select>
           </div>
           <div className="settings-row">

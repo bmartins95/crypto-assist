@@ -1,11 +1,12 @@
 'use client';
 
 import { Asset, AssetWithPlatform, GroupMode, Prices } from '@/lib/types';
-import { fmt, fmtPct, fmtQty } from '@/lib/format';
+import { fmtPct, fmtQty } from '@/lib/format';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op } from '@/lib/types';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
 
@@ -33,7 +34,11 @@ function CoinBadge({ coinId, symbol, avatarCache }: { coinId: string; symbol: st
 export default function WalletTab({ ops, assets, prices, avatarCache, groupMode, onGroupMode, statusMsg, onFetchPrices, onExitPriceChange }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
+  const { currency, rates, ratesStatus, fmtMoney } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
+  const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
+  const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
+    : ratesStatus === 'stale' ? t.currency_rates_stale : '';
   let totalInv = 0, totalAtual = 0;
   let content: React.ReactNode;
 
@@ -72,9 +77,9 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
             <tr key={plat || '__none__'}>
               <td style={{ fontWeight: 500 }}>{plat || t.wallet_noPlatform}</td>
               <td style={{ color: 'var(--s-text-dim)', fontSize: 12 }}>{symbols}</td>
-              <td className="num">{mask(fmt(inv, locale))}</td>
-              <td className="num">{hasPrice ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
-              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{hasPrice ? mask(fmt(lucro, locale)) : '—'}</td>
+              <td className="num">{mask(fmtMoney(inv))}</td>
+              <td className="num">{hasPrice ? mask(fmtMoney(atual)) : <span className="muted">—</span>}</td>
+              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{hasPrice ? mask(fmtMoney(lucro)) : '—'}</td>
               <td className="num">{hasPrice ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
             </tr>
           ))}</tbody>
@@ -118,10 +123,10 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                           <CoinBadge coinId={p.coinId} symbol={p.symbol} avatarCache={avatarCache} />
                           <div><div className="nm">{p.name}</div><div className="tk">{p.symbol} · {mask(fmtQty(p.qty, locale))}</div></div>
                         </div></td>
-                        <td className="num" style={{ fontWeight: 500 }}>{price ? mask(fmt(price, locale)) : <span className="muted">—</span>}</td>
-                        <td className="num">{mask(fmt(inv, locale))}</td>
-                        <td className="num">{price ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
-                        <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{price ? mask(fmt(lucro, locale)) : '—'}</td>
+                        <td className="num" style={{ fontWeight: 500 }}>{price ? mask(fmtMoney(price)) : <span className="muted">—</span>}</td>
+                        <td className="num">{mask(fmtMoney(inv))}</td>
+                        <td className="num">{price ? mask(fmtMoney(atual)) : <span className="muted">—</span>}</td>
+                        <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{price ? mask(fmtMoney(lucro)) : '—'}</td>
                         <td className="num">{price ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
                       </tr>
                     );
@@ -140,8 +145,10 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
       const inv = a.qty * a.avgPrice, atual = a.qty * p, lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
       totalInv += inv; totalAtual += atual;
       const hasMeta = a.exitPrice > 0;
-      const lMeta = hasMeta ? a.qty * a.exitPrice - inv : null;
-      const pMeta = hasMeta && inv > 0 ? ((lMeta! / inv) * 100) : null;
+      // Exit targets are typed by the user in the display currency, so the
+      // comparison base is the invested amount converted to display space.
+      const lMeta = hasMeta ? a.qty * a.exitPrice - toDisplay(inv) : null;
+      const pMeta = hasMeta && toDisplay(inv) > 0 ? ((lMeta! / toDisplay(inv)) * 100) : null;
       return { a, p, inv, atual, lucro, pct, lMeta, pMeta };
     });
     content = (
@@ -162,10 +169,10 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                 <CoinBadge coinId={a.coinId} symbol={a.symbol} avatarCache={avatarCache} />
                 <div><div className="nm">{a.name}</div><div className="tk">{a.symbol} · {mask(fmtQty(a.qty, locale))}</div></div>
               </div></td>
-              <td className="num" style={{ fontWeight: 500 }}>{p ? mask(fmt(p, locale)) : <span className="muted">—</span>}</td>
-              <td className="num">{mask(fmt(inv, locale))}</td>
-              <td className="num">{p ? mask(fmt(atual, locale)) : <span className="muted">—</span>}</td>
-              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{p ? mask(fmt(lucro, locale)) : '—'}</td>
+              <td className="num" style={{ fontWeight: 500 }}>{p ? mask(fmtMoney(p)) : <span className="muted">—</span>}</td>
+              <td className="num">{mask(fmtMoney(inv))}</td>
+              <td className="num">{p ? mask(fmtMoney(atual)) : <span className="muted">—</span>}</td>
+              <td className={`num ${lucro >= 0 ? 'pos' : 'neg'}`} style={{ fontWeight: 500 }}>{p ? mask(fmtMoney(lucro)) : '—'}</td>
               <td className="num">{p ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -192,7 +199,8 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
 
   return (
     <div id="tab-carteira" className="section active">
-      <ContentHeader title={t.nav_wallet} subtitle={t.wallet_subtitle}>
+      <ContentHeader title={t.nav_wallet} subtitle={`${t.wallet_subtitle} · ${currency}`}>
+        {ratesMsg && <span className="ts neg">{ratesMsg}</span>}
         <span className="ts">{statusMsg}</span>
         <button className="btn" onClick={onFetchPrices}>
           <i className="ti ti-refresh" /> {t.wallet_updatePrices}
@@ -201,11 +209,11 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
 
       {assets.length > 0 && (
         <div className="metrics">
-          <MetricCard label={t.profit_invested} value={mask(fmt(inv, locale))} />
-          <MetricCard label={t.profit_currentValue} value={hasPrices ? mask(fmt(atual, locale)) : '—'} />
+          <MetricCard label={t.profit_invested} value={mask(fmtMoney(inv))} />
+          <MetricCard label={t.profit_currentValue} value={hasPrices ? mask(fmtMoney(atual)) : '—'} />
           <MetricCard
             label={t.profit_pnl}
-            value={hasPrices ? mask(fmt(l, locale)) : '—'}
+            value={hasPrices ? mask(fmtMoney(l)) : '—'}
             valueColor={hasPrices ? (l >= 0 ? 'pos' : 'neg') : undefined}
           />
           <MetricCard

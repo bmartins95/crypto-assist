@@ -73,3 +73,17 @@ describe('fmtQty with locale', () => {
     expect(fmtQty(1.5, 'ja-JP')).toBe('1.50');
   });
 });
+describe('fmt per-currency decimal rules', () => {
+  it('formats JPY with zero decimal places', () => {
+    expect(fmt(157320, 'ja-JP', 'JPY').replace(/ /g, ' ')).toBe('￥157,320');
+  });
+
+  it('rounds JPY fractions instead of showing decimals', () => {
+    expect(fmt(99.6, 'en-US', 'JPY').replace(/ /g, ' ')).toBe('¥100');
+  });
+
+  it('formats EUR and GBP with two decimals', () => {
+    expect(fmt(1234.5, 'de-DE', 'EUR').replace(/ /g, ' ')).toBe('1.234,50 €');
+    expect(fmt(1234.5, 'en-US', 'GBP').replace(/ /g, ' ')).toBe('£1,234.50');
+  });
+});

@@ -17,7 +17,7 @@ _COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')
 def _fetch_from_coingecko(ids: list[str]) -> list[dict]:
     api_key = get_settings().coingecko_api_key
     key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
-    url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=brl&ids={','.join(ids)}{key_param}"
+    url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={','.join(ids)}{key_param}"
 
     with httpx.Client(timeout=10) as client:
         r = client.get(url)
@@ -56,7 +56,7 @@ def get_prices(
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT coin_id, price_brl, image_url, updated_at FROM price_cache"
+                "SELECT coin_id, price_usd, image_url, updated_at FROM price_cache"
                 " WHERE coin_id = ANY(%s)",
                 (coin_ids,),
             )
@@ -74,7 +74,7 @@ def get_prices(
 
     stale_ids = [cid for cid in coin_ids if cid not in fresh]
     result: dict[str, PriceInfo] = {
-        cid: PriceInfo(price=float(row["price_brl"]), image=row.get("image_url"))
+        cid: PriceInfo(price=float(row["price_usd"]), image=row.get("image_url"))
         for cid, row in fresh.items()
     }
 
@@ -85,9 +85,9 @@ def get_prices(
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 with conn.cursor() as cur:
                     cur.executemany(
-                        "INSERT INTO price_cache (coin_id, price_brl, image_url, updated_at)"
+                        "INSERT INTO price_cache (coin_id, price_usd, image_url, updated_at)"
                         " VALUES (%s, %s, %s, %s)"
-                        " ON CONFLICT (coin_id) DO UPDATE SET price_brl = EXCLUDED.price_brl,"
+                        " ON CONFLICT (coin_id) DO UPDATE SET price_usd = EXCLUDED.price_usd,"
                         " image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at",
                         [(c["id"], c["price"], c.get("image"), now_iso) for c in fetched],
                     )
@@ -98,14 +98,14 @@ def get_prices(
             # On CoinGecko failure, fall back to stale cache rather than erroring
             for row in cached:
                 if row["coin_id"] in stale_ids and row["coin_id"] not in result:
-                    result[row["coin_id"]] = PriceInfo(price=float(row["price_brl"]), image=row.get("image_url"))
+                    result[row["coin_id"]] = PriceInfo(price=float(row["price_usd"]), image=row.get("image_url"))
             if not result:
                 raise
         except Exception as e:
             conn.rollback()
             for row in cached:
                 if row["coin_id"] in stale_ids and row["coin_id"] not in result:
-                    result[row["coin_id"]] = PriceInfo(price=float(row["price_brl"]), image=row.get("image_url"))
+                    result[row["coin_id"]] = PriceInfo(price=float(row["price_usd"]), image=row.get("image_url"))
             if not result:
                 raise HTTPException(status_code=502, detail=str(e))
 

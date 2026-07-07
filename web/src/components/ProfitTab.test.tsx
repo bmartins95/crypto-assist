@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ProfitTab from './ProfitTab';
 import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 
 // jsdom has no real canvas backend; chart.js itself isn't what we're
 // testing here, so replace it with a stub constructor that records the
@@ -39,7 +44,7 @@ function op(overrides: Partial<Op>): Op {
 }
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
 function renderProfitTab(ops: Op[], prices: Record<string, number> = {}, activeChart: 'by-asset' | 'over-time' | 'value' = 'by-asset') {
@@ -176,9 +181,9 @@ describe('ProfitTab', () => {
     const { rerender } = renderProfitTab([op({ type: 'Buy', qty: 1, price: 100 })], { bitcoin: 150 }, 'by-asset');
     const destroysBefore = chartMock.destroyCalls;
     rerender(
-      <LocaleProvider><BalanceProvider>
+      <LocaleProvider><BalanceProvider><CurrencyProvider>
         <ProfitTab ops={[op({ type: 'Buy', qty: 1, price: 100 })]} prices={{ bitcoin: 150 }} activeChart="over-time" onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
-      </BalanceProvider></LocaleProvider>
+      </CurrencyProvider></BalanceProvider></LocaleProvider>
     );
     expect(chartMock.destroyCalls).toBeGreaterThan(destroysBefore);
   });
@@ -198,5 +203,12 @@ describe('ProfitTab', () => {
   it('shows the empty distribution message when there is no investment', () => {
     renderProfitTab([]);
     expect(screen.getAllByText('Registre operações e atualize os preços').length).toBeGreaterThan(0);
+  });
+
+  it('reflects the selected currency in the subtitle instead of a hardcoded value', () => {
+    localStorage.setItem('crypto-assist:currency', 'EUR');
+    renderProfitTab([]);
+    expect(screen.getByText(/· EUR/)).toBeInTheDocument();
+    expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
   });
 });

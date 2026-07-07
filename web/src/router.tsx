@@ -75,7 +75,7 @@ function WalletRoute() {
   return (
     <div className="app">
       <WalletTab
-        ops={p.ops} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
+        ops={p.usdOps} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
         groupMode={p.groupMode} onGroupMode={p.setGroupMode}
         statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
         onExitPriceChange={p.setExitPrice}
@@ -89,7 +89,7 @@ function ProfitRoute() {
   return (
     <div className="app">
       <ProfitTab
-        ops={p.ops} prices={p.prices}
+        ops={p.usdOps} prices={p.prices}
         activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
         statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
       />

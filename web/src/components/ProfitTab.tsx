@@ -3,10 +3,11 @@
 import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { ChartType, Op, Prices } from '@/lib/types';
-import { fmt, fmtPct, fmtDate } from '@/lib/format';
+import { fmtPct, fmtDate } from '@/lib/format';
 import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
 
@@ -24,7 +25,10 @@ interface Props {
 export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
+  const { currency, ratesStatus, fmtMoney } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
+  const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
+    : ratesStatus === 'stale' ? t.currency_rates_stale : '';
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
@@ -62,9 +66,9 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw as number, locale) }, padding: 10 } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw as number) }, padding: 10 } },
           scales: {
-            y: { ticks: { callback: v => fmt(v as number, locale), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+            y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 12 } } },
           },
         },
@@ -78,9 +82,9 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.raw as number, locale) }, padding: 10 } },
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw as number) }, padding: 10 } },
           scales: {
-            y: { ticks: { callback: v => fmt(v as number, locale), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+            y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -97,9 +101,9 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmt(c.raw as number, locale) }, padding: 10 } },
+          plugins: { legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw as number) }, padding: 10 } },
           scales: {
-            y: { ticks: { callback: v => fmt(v as number, locale), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+            y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -117,7 +121,8 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
 
   return (
     <div id="tab-lucro" className="section active">
-      <ContentHeader title={t.nav_profit} subtitle={t.profit_subtitle}>
+      <ContentHeader title={t.nav_profit} subtitle={`${t.profit_subtitle} · ${currency}`}>
+        {ratesMsg && <span className="ts neg">{ratesMsg}</span>}
         <span className="ts">{statusMsg}</span>
         <button className="btn" onClick={onFetchPrices}>
           <i className="ti ti-refresh" /> {t.wallet_updatePrices}
@@ -125,11 +130,11 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
       </ContentHeader>
 
       <div className="metrics" style={{ marginBottom: '1rem' }}>
-        <MetricCard icon="ti ti-check" label={t.profit_realized} value={mask(fmt(totalRealized, locale))} valueColor={totalRealized >= 0 ? 'pos' : 'neg'} />
+        <MetricCard icon="ti ti-check" label={t.profit_realized} value={mask(fmtMoney(totalRealized))} valueColor={totalRealized >= 0 ? 'pos' : 'neg'} />
         <MetricCard
           icon="ti ti-clock"
           label={t.profit_unrealized}
-          value={withPrice.length ? mask(fmt(totalUnrealized, locale)) : '—'}
+          value={withPrice.length ? mask(fmtMoney(totalUnrealized)) : '—'}
           valueColor={withPrice.length ? (totalUnrealized >= 0 ? 'pos' : 'neg') : undefined}
         />
         <MetricCard
@@ -177,7 +182,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
               <div className="bar-row" key={p.coinId}>
                 <div className="bar-header">
                   <span className="bar-name">{p.name} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>{p.symbol}</span></span>
-                  <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmt(p.investedOpen, locale))}</span>
+                  <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmtMoney(p.investedOpen))}</span>
                 </div>
                 <div className="bar-track">
                   <div className="bar-fill" style={{ width: `${pct.toFixed(1)}%`, background: PALETTE[i % PALETTE.length] }} />

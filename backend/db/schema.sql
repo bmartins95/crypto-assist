@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS ops (
     fee         numeric(30,10) NOT NULL DEFAULT 0,
     total       numeric(30,10) NOT NULL,
     platform    text        NOT NULL DEFAULT '',
+    currency    varchar(8)  NOT NULL DEFAULT 'BRL' CHECK (currency IN ('BRL', 'USD', 'EUR', 'GBP', 'JPY')),
     created_at  timestamptz DEFAULT now()
 );
 
@@ -30,7 +31,13 @@ CREATE TABLE IF NOT EXISTS exit_prices (
 
 CREATE TABLE IF NOT EXISTS price_cache (
     coin_id     text           PRIMARY KEY,
-    price_brl   numeric(30,10) NOT NULL,
+    price_usd   numeric(30,10) NOT NULL,
     image_url   text,
     updated_at  timestamptz    DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    currency_code varchar(8)     PRIMARY KEY,
+    rate_vs_usd   numeric(18,8)  NOT NULL,
+    updated_at    timestamptz    NOT NULL
 );

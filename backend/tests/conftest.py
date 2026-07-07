@@ -24,6 +24,7 @@ _DB_PATCH_TARGETS = [
     "app.routes.export_data.get_conn",
     "app.routes.import_data.get_conn",
     "app.routes.prices.get_conn",
+    "app.routes.exchange_rates.get_conn",
 ]
 
 

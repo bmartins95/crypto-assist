@@ -4,6 +4,11 @@ import HistoryTab from './HistoryTab';
 import type { Op, Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
+
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
 import { searchCoins } from '@/lib/coingecko';
 
 function realFilterCoinList(list: { id: string; symbol: string; name: string }[], query: string) {
@@ -57,11 +62,11 @@ const existingOp: Op = {
 const STORAGE_KEY = 'crypto-assist:locale';
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider>{ui}</BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
-beforeEach(() => localStorage.clear());
-afterEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); });
+afterEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); });
 
 describe('HistoryTab', () => {
   it('shows the content header and register-operation button', () => {
@@ -159,5 +164,12 @@ describe('HistoryTab', () => {
     const texts = Array.from(pills).map(p => p.textContent);
     expect(texts).toContain('Compra');
     expect(texts).toContain('Venta');
+  });
+
+  it('reflects the selected currency in the subtitle instead of a hardcoded value', () => {
+    localStorage.setItem('crypto-assist:currency', 'GBP');
+    renderWithLocale(<HistoryTab {...baseProps} />);
+    expect(screen.getByText(/· GBP/)).toBeInTheDocument();
+    expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
   });
 });

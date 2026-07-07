@@ -1,4 +1,13 @@
-import type { Op, Asset, AssetWithPlatform, Prices, ExitPrices } from './types';
+import type { Op, Asset, AssetWithPlatform, Currency, ExchangeRates, Prices, ExitPrices } from './types';
+
+export function convertOpsToUsd(ops: Op[], rates: ExchangeRates): Op[] {
+  return ops.map(o => {
+    const from: Currency = o.currency ?? 'BRL';
+    const rate = rates[from];
+    if (!(rate > 0)) throw new Error(`Missing exchange rate for ${from}`);
+    return { ...o, price: o.price / rate, fee: o.fee / rate, total: o.total / rate, currency: 'USD' };
+  });
+}
 
 export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; buyQty: number; buyTotal: number; sellQty: number }> = {};

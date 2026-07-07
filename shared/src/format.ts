@@ -1,7 +1,8 @@
 import type { Locale } from './i18n/types';
 
+// No explicit fraction digits: Intl applies each currency's own rules (JPY → 0, BRL/USD/EUR/GBP → 2).
 export const fmt = (v: number, locale: Locale = 'pt-BR', currency = 'BRL'): string =>
-  new Intl.NumberFormat(locale, { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+  new Intl.NumberFormat(locale, { style: 'currency', currency }).format(v);
 
 export const fmtPct = (v: number): string =>
   (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%';

@@ -62,7 +62,19 @@ def test_import_accepts_fully_portuguese_legacy_field_names(client_with_db):
     assert res.status_code == 204
     cur = pg_conn.cursor.return_value
     row = cur.executemany.call_args_list[0].args[1][0]
-    assert row == ("user-abc-123", "2026-06-15", "bitcoin", "BTC", "Bitcoin", "Buy", 0.5, 100000.0, 0, 50000.0, "Binance")
+    assert row == ("user-abc-123", "2026-06-15", "bitcoin", "BTC", "Bitcoin", "Buy", 0.5, 100000.0, 0, 50000.0, "Binance", "BRL")
+
+
+def test_import_preserves_op_currency(client_with_db):
+    client, pg_conn = client_with_db
+    res = client.post(
+        "/api/import",
+        json={**_PAYLOAD_BASE, "ops": [_op(currency="USD"), _op()]},
+    )
+    assert res.status_code == 204
+    cur = pg_conn.cursor.return_value
+    rows = cur.executemany.call_args_list[0].args[1]
+    assert [r[-1] for r in rows] == ["USD", "BRL"]
 
 
 def test_import_coerces_portuguese_type_values(client_with_db):

@@ -6,6 +6,7 @@ import { LocaleProvider } from '@/context/LocaleContext';
 import { useLocale } from '@/context/LocaleContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BalanceProvider } from '@/context/BalanceContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
 
 function RootLayoutNav() {
   const { session, loading } = useAuth();
@@ -40,7 +41,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <LocaleProvider>
           <BalanceProvider>
-            <RootLayoutNav />
+            <CurrencyProvider>
+              <RootLayoutNav />
+            </CurrencyProvider>
           </BalanceProvider>
         </LocaleProvider>
       </ThemeProvider>

@@ -6,15 +6,17 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api/client';
-import { collectAssets, fmt, fmtPct, fmtQty } from '@crypto-assist/shared';
+import { collectAssets, convertOpsToUsd, fmtPct, fmtQty } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 export default function WalletScreen() {
   const { signOut } = useAuth();
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
+  const { rates, fmtMoney } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -23,8 +25,10 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    if (!rates) return;
     try {
-      const [ops, exitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+      const [rawOps, exitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+      const ops = convertOpsToUsd(rawOps, rates);
       const builtAssets = collectAssets(ops, exitPrices as ExitPrices);
       setAssets(builtAssets);
       if (builtAssets.length > 0) {
@@ -38,11 +42,11 @@ export default function WalletScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [rates]);
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) {
+  if (loading || !rates) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
 
@@ -56,9 +60,9 @@ export default function WalletScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerLabel}>{t.profit_currentValue}</Text>
-          <Text style={styles.headerValue}>{mask(fmt(totalValue, locale))}</Text>
+          <Text style={styles.headerValue}>{mask(fmtMoney(totalValue))}</Text>
           <Text style={[styles.headerPnl, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-            {mask(fmt(totalPnl, locale))} ({fmtPct(totalPct)})
+            {mask(fmtMoney(totalPnl))} ({fmtPct(totalPct)})
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -88,11 +92,11 @@ export default function WalletScreen() {
                 <Text style={styles.qty}>{mask(fmtQty(a.qty, locale))}</Text>
               </View>
               <View style={styles.rowRight}>
-                <Text style={styles.value}>{mask(fmt(value, locale))}</Text>
+                <Text style={styles.value}>{mask(fmtMoney(value))}</Text>
                 <Text style={[styles.pnl, { color: pnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-                  {mask(fmt(pnl, locale))} ({fmtPct(pct)})
+                  {mask(fmtMoney(pnl))} ({fmtPct(pct)})
                 </Text>
-                <Text style={styles.avgPrice}>{t.wallet_col_avgPrice}: {mask(fmt(a.avgPrice, locale))}</Text>
+                <Text style={styles.avgPrice}>{t.wallet_col_avgPrice}: {mask(fmtMoney(a.avgPrice))}</Text>
               </View>
             </View>
           );

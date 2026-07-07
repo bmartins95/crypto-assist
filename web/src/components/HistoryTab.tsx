@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
-import { fmt, fmtQty, fmtDate } from '@/lib/format';
+import { fmtQty, fmtDate } from '@/lib/format';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
 
@@ -21,7 +22,9 @@ interface Props {
 export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
+  const { currency, fmtFromCurrency } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
+  const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
 
@@ -40,7 +43,7 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
 
   return (
     <div id="tab-historico" className="section active">
-      <ContentHeader title={t.nav_history} subtitle={t.history_subtitle}>
+      <ContentHeader title={t.nav_history} subtitle={`${t.history_subtitle} · ${currency}`}>
         <button type="button" className="btn btn-accent" onClick={openForNew}>
           <i className="ti ti-plus" /> {t.history_form_addOp}
         </button>
@@ -71,9 +74,9 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
                   <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
                   <td><span className={`tag ${o.type === 'Buy' ? 'buy' : 'sell'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span></td>
                   <td className="num">{mask(fmtQty(o.qty, locale))}</td>
-                  <td className="num">{mask(fmt(o.price, locale))}</td>
-                  <td className="num" style={{ fontWeight: 600 }}>{mask(fmt(o.total, locale))}</td>
-                  <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmt(o.fee, locale)) : '—'}</td>
+                  <td className="num">{mask(fmtOp(o.price, o))}</td>
+                  <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>
+                  <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmtOp(o.fee, o)) : '—'}</td>
                   <td style={{ color: 'var(--s-text-dim)' }}>{o.platform || '—'}</td>
                   <td className="num">
                     <span className="op-actions">

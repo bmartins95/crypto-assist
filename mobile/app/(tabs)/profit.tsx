@@ -4,10 +4,11 @@ import {
   RefreshControl, Alert,
 } from 'react-native';
 import { api } from '@/lib/api/client';
-import { collectAssets, fmt, fmtPct } from '@crypto-assist/shared';
+import { collectAssets, convertOpsToUsd, fmtPct } from '@crypto-assist/shared';
 import type { Asset, ExitPrices, MarketPrices } from '@crypto-assist/shared';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 interface AssetProfit extends Asset {
   currentPrice: number;
@@ -17,16 +18,19 @@ interface AssetProfit extends Asset {
 }
 
 export default function ProfitScreen() {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const { hidden } = useBalance();
+  const { rates, fmtMoney } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const [rows, setRows] = useState<AssetProfit[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    if (!rates) return;
     try {
-      const [ops, exitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+      const [rawOps, exitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+      const ops = convertOpsToUsd(rawOps, rates);
       const assets = collectAssets(ops, exitPrices as ExitPrices);
       let prices: MarketPrices = {};
       if (assets.length > 0) {
@@ -48,11 +52,11 @@ export default function ProfitScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [rates]);
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) {
+  if (loading || !rates) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   }
 
@@ -65,7 +69,7 @@ export default function ProfitScreen() {
       <View style={styles.header}>
         <Text style={styles.headerLabel}>{t.profit_pnl}</Text>
         <Text style={[styles.headerValue, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
-          {mask(fmt(totalPnl, locale))}
+          {mask(fmtMoney(totalPnl))}
         </Text>
         <Text style={[styles.headerPct, { color: totalPnl >= 0 ? '#16a34a' : '#dc2626' }]}>
           {fmtPct(totalPct)}
@@ -81,12 +85,12 @@ export default function ProfitScreen() {
             <View style={styles.rowLeft}>
               <Text style={styles.symbol}>{r.symbol}</Text>
               <Text style={styles.name}>{r.name}</Text>
-              <Text style={styles.detail}>{t.wallet_col_avgPrice}: {mask(fmt(r.avgPrice, locale))}</Text>
-              {r.exitPrice > 0 && <Text style={styles.detail}>{t.wallet_col_exitPrice}: {mask(fmt(r.exitPrice, locale))}</Text>}
+              <Text style={styles.detail}>{t.wallet_col_avgPrice}: {mask(fmtMoney(r.avgPrice))}</Text>
+              {r.exitPrice > 0 && <Text style={styles.detail}>{t.wallet_col_exitPrice}: {mask(fmtMoney(r.exitPrice))}</Text>}
             </View>
             <View style={styles.rowRight}>
               <Text style={[styles.pnl, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
-                {mask(fmt(r.pnlValue, locale))}
+                {mask(fmtMoney(r.pnlValue))}
               </Text>
               <Text style={[styles.pct, { color: r.pnlValue >= 0 ? '#16a34a' : '#dc2626' }]}>
                 {fmtPct(r.pnlPct)}
