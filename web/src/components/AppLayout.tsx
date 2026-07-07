@@ -8,6 +8,7 @@ import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { usePriceRefresh } from '@/context/PriceRefreshContext';
 
 interface PortfolioContextValue {
   ops: Op[];
@@ -39,6 +40,7 @@ export function usePortfolio(): PortfolioContextValue {
 export default function AppLayout() {
   const { locale, t } = useLocale();
   const { rates } = useCurrency();
+  const { interval } = usePriceRefresh();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar:collapsed') === '1');
   const [ops, setOps] = useState<Op[]>([]);
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
@@ -186,6 +188,17 @@ export default function AppLayout() {
       fetchPrices();
     }
   }, [loading, assets, fetchPrices]);
+
+  // fetchPrices' identity changes every time prices/avatarCache update; reading it through
+  // a ref keeps this effect's own dependency to just `interval`, so scheduling isn't reset each tick.
+  const fetchPricesRef = useRef(fetchPrices);
+  useEffect(() => { fetchPricesRef.current = fetchPrices; }, [fetchPrices]);
+
+  useEffect(() => {
+    if (interval === null) return;
+    const id = window.setInterval(() => fetchPricesRef.current(), interval);
+    return () => window.clearInterval(id);
+  }, [interval]);
 
   const portfolio = useMemo<PortfolioContextValue>(() => ({
     ops, usdOps, assets, prices, avatarCache, statusMsg,

@@ -5,6 +5,7 @@ import { createAppRouter } from '@/router';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+import { PriceRefreshProvider } from '@/context/PriceRefreshContext';
 
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
@@ -84,9 +85,9 @@ async function renderAt(path: string) {
   render(
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider><CurrencyProvider>
+        <BalanceProvider><CurrencyProvider><PriceRefreshProvider>
           <RouterProvider router={testRouter} />
-        </CurrencyProvider></BalanceProvider>
+        </PriceRefreshProvider></CurrencyProvider></BalanceProvider>
       </LocaleProvider>
     </ThemeProvider>
   );
@@ -233,6 +234,89 @@ describe('AppLayout', () => {
   it('redirects the root URL to /wallet', async () => {
     await renderAt('/');
     await waitFor(() => expect(screen.getByTestId('wallet-view')).toBeTruthy());
+  });
+
+  describe('price auto-refresh', () => {
+    const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platform: 'Binance' };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ['30000', 30000],
+      ['60000', 60000],
+      ['300000', 300000],
+    ])('refreshes prices automatically every %sms when that interval is configured', async (stored, ms) => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([oneOp]);
+      localStorage.setItem('price_refresh_interval', stored);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      await renderAt('/wallet');
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
+      await vi.advanceTimersByTimeAsync(ms);
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(2));
+    });
+
+    it('keeps retrying on the next tick after a failed automatic fetch (FR-009)', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([oneOp]);
+      localStorage.setItem('price_refresh_interval', '30000');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      await renderAt('/wallet');
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
+
+      vi.mocked(api.getPrices).mockRejectedValueOnce(new Error('network error'));
+      await vi.advanceTimersByTimeAsync(30000);
+      await waitFor(() => expect(screen.getByTestId('status-msg').textContent).toBeTruthy());
+      expect(api.getPrices).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(30000);
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(3));
+    });
+
+    it('reschedules cleanly when the interval changes mid-session, with no leftover fetch at the old cadence (FR-005)', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([oneOp]);
+      localStorage.setItem('price_refresh_interval', '30000');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const testRouter = await renderAt('/wallet');
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
+
+      await testRouter.navigate({ to: '/settings' });
+      const select = (await screen.findByLabelText(/atualizar preços/i)) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: '60000' } });
+
+      await vi.advanceTimersByTimeAsync(30000);
+      expect(api.getPrices).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(30000);
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(2));
+    });
+
+    it('stops automatic refresh when switched back to Manual, without affecting the manual refresh button (FR-004)', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([oneOp]);
+      localStorage.setItem('price_refresh_interval', '30000');
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const testRouter = await renderAt('/wallet');
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
+
+      await testRouter.navigate({ to: '/settings' });
+      const select = (await screen.findByLabelText(/atualizar preços/i)) as HTMLSelectElement;
+      fireEvent.change(select, { target: { value: 'null' } });
+
+      await vi.advanceTimersByTimeAsync(60000);
+      expect(api.getPrices).toHaveBeenCalledTimes(1);
+
+      await testRouter.navigate({ to: '/wallet' });
+      fireEvent.click(screen.getByText('fetch-prices'));
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(2));
+    });
   });
 
   describe('portfolio handlers', () => {
