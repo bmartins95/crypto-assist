@@ -1,13 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ProfitTab from './ProfitTab';
 import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+import { api } from '@/lib/api/client';
+
+vi.mock('@/lib/api/client', () => ({
+  api: {
+    getPriceHistory: vi.fn(async () => ({})),
+    getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+  },
+}));
 
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.useRealTimers();
+  localStorage.removeItem('profit_timeframe');
 });
 
 // jsdom has no real canvas backend; chart.js itself isn't what we're
@@ -175,6 +189,69 @@ describe('ProfitTab', () => {
     expect(config.data.datasets).toHaveLength(2);
     expect(config.options.plugins.tooltip.callbacks.label({ raw: 150, dataset: { label: 'X' } })).toContain('150');
     expect(config.options.scales.y.ticks.callback(150)).toContain('150');
+  });
+
+  it('fetches historical prices for the selected timeframe range and prices the chart from them, not the live current price', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 120 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 999999 }, 'over-time');
+
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith(['bitcoin'], '2024-01-01', '2024-01-02'));
+    await waitFor(() => {
+      const config = lastChartConfig();
+      expect(config.data.datasets[0].data).toEqual([0, 20]);
+    });
+  });
+
+  it('shows a visible error message when fetching historical prices fails', async () => {
+    vi.mocked(api.getPriceHistory).mockRejectedValueOnce(new Error('network down'));
+    const ops = [op({ type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, {}, 'over-time');
+    await waitFor(() => expect(screen.getByText('Ocorreu um erro. Tente novamente.')).toBeInTheDocument());
+  });
+
+  it('shows the timeframe selector only for the two time-based chart modes', () => {
+    renderProfitTab([op({})], {}, 'by-asset');
+    expect(document.querySelector('.tf')).not.toBeInTheDocument();
+  });
+
+  it('shows the timeframe selector for the over-time and value chart modes', () => {
+    renderProfitTab([op({})], {}, 'over-time');
+    expect(document.querySelector('.tf')).toBeInTheDocument();
+  });
+
+  it('defaults to the 1m timeframe when nothing is persisted', () => {
+    renderProfitTab([op({})], {}, 'over-time');
+    expect(screen.getByText('1M')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('reads a persisted timeframe from localStorage on mount', () => {
+    localStorage.setItem('profit_timeframe', '1y');
+    renderProfitTab([op({})], {}, 'over-time');
+    expect(screen.getByText('1A')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('narrows the fetched range when a timeframe option is selected and persists the choice', async () => {
+    vi.setSystemTime(new Date('2024-02-01T00:00:00Z'));
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 100 }, 'over-time');
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalled());
+    vi.mocked(api.getPriceHistory).mockClear();
+
+    fireEvent.click(screen.getByText('1D'));
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalledWith(['bitcoin'], '2024-01-31', '2024-02-01'));
+    expect(localStorage.getItem('profit_timeframe')).toBe('1d');
+  });
+
+  it('shows the empty-timeframe message when the selected window yields fewer than 2 points', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
+    await waitFor(() => expect(api.getPriceHistory).toHaveBeenCalled());
+    expect(screen.getByText('Sem dados no período')).toBeInTheDocument();
   });
 
   it('destroys the previous chart instance before creating a new one on re-render', () => {

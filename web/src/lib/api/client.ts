@@ -35,6 +35,9 @@ export const api = {
 
   getPrices: (ids: string[]) => request<MarketPrices>(`/api/prices?ids=${ids.join(',')}`),
 
+  getPriceHistory: (ids: string[], from: string, to: string) =>
+    request<Record<string, Record<string, number>>>(`/api/prices/history?ids=${ids.join(',')}&from=${from}&to=${to}`),
+
   getExchangeRates: () => request<ExchangeRatesPayload>('/api/exchange-rates'),
 
   exportBackup: () => request<BackupPayload>('/api/export'),

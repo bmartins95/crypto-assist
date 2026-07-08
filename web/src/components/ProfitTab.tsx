@@ -1,15 +1,46 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import { ChartType, Op, Prices } from '@/lib/types';
 import { fmtPct, fmtDate } from '@/lib/format';
 import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
+import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
+import TimeframeSelector, { Timeframe } from '@/components/TimeframeSelector';
+
+const TIMEFRAME_STORAGE_KEY = 'profit_timeframe';
+const VALID_TIMEFRAMES: Timeframe[] = ['1d', '1w', '1m', '1y', 'all'];
+const TIMEFRAME_DAYS_BACK: Record<Exclude<Timeframe, 'all'>, number> = { '1d': 1, '1w': 7, '1m': 30, '1y': 365 };
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysISO(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function earliestOpDate(ops: Op[]): string {
+  return ops.reduce((min, o) => (o.date && o.date < min ? o.date : min), ops[0]?.date ?? todayISO());
+}
+
+function readStoredTimeframe(): Timeframe {
+  const stored = localStorage.getItem(TIMEFRAME_STORAGE_KEY);
+  return (VALID_TIMEFRAMES as string[]).includes(stored ?? '') ? (stored as Timeframe) : '1m';
+}
+
+function rangeForTimeframe(timeframe: Timeframe, ops: Op[]): { from: string; to: string } {
+  const to = todayISO();
+  if (timeframe === 'all') return { from: earliestOpDate(ops), to };
+  return { from: addDaysISO(to, -TIMEFRAME_DAYS_BACK[timeframe]), to };
+}
 
 const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#888780','#0F6E56'];
 
@@ -32,6 +63,34 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
+  const [historicalPrices, setHistoricalPrices] = useState<Record<string, Record<string, number>>>({});
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [timeframe, setTimeframeState] = useState<Timeframe>(() => readStoredTimeframe());
+  const isTimeBased = activeChart === 'over-time' || activeChart === 'value';
+  const { from: rangeFrom, to: rangeTo } = rangeForTimeframe(timeframe, ops);
+  const coinIds = Array.from(new Set(ops.map(o => o.coinId).filter(Boolean)));
+
+  function setTimeframe(next: Timeframe): void {
+    localStorage.setItem(TIMEFRAME_STORAGE_KEY, next);
+    setTimeframeState(next);
+  }
+
+  useEffect(() => {
+    if (!isTimeBased || !coinIds.length) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+    api.getPriceHistory(coinIds, rangeFrom, rangeTo)
+      .then(data => { if (!cancelled) setHistoricalPrices(data); })
+      .catch(() => { if (!cancelled) { setHistoricalPrices({}); setHistoryError(t.common_error); } })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    return () => { cancelled = true; };
+  }, [isTimeBased, coinIds.join(','), rangeFrom, rangeTo, t]);
+
+  const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo) : [];
+  const timeframeEmpty = isTimeBased && timeline.length < 2;
+
   const profitByAsset = computeProfitByAsset(ops, prices);
   const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
   const withPrice = profitByAsset.filter(p => p.hasPrice);
@@ -49,8 +108,6 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
 
     const ctx = chartRef.current.getContext('2d');
     if (!ctx) return;
-
-    const timeline = (activeChart === 'over-time' || activeChart === 'value') ? computeTimeline(ops, prices) : [];
 
     if (activeChart === 'by-asset' && profitByAsset.length) {
       chartInstance.current = new Chart(ctx, {
@@ -73,7 +130,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
           },
         },
       });
-    } else if (activeChart === 'over-time' && timeline.length && !noPriceData) {
+    } else if (activeChart === 'over-time' && !timeframeEmpty && !noPriceData) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -89,7 +146,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
           },
         },
       });
-    } else if (activeChart === 'value' && timeline.length && !noPriceData) {
+    } else if (activeChart === 'value' && !timeframeEmpty && !noPriceData) {
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -111,7 +168,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-  }, [ops, prices, activeChart, locale, t, profitByAsset, noPriceData]);
+  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
@@ -162,10 +219,32 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
       </div>
 
       <div className="chart-area">
-        <div className="sec-title">{{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div className="sec-title" style={{ marginBottom: 0 }}>
+            {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
+            {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+          </div>
+          {isTimeBased && (
+            <TimeframeSelector
+              value={timeframe}
+              onChange={setTimeframe}
+              labels={{ '1d': t.timeframe_1d, '1w': t.timeframe_1w, '1m': t.timeframe_1m, '1y': t.timeframe_1y, all: t.timeframe_all }}
+            />
+          )}
+        </div>
         <div className="chart-canvas-wrap">
           <canvas ref={chartRef} />
           {noPriceData && noDataOverlay}
+          {!noPriceData && timeframeEmpty && (
+            <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
+              <span style={{ fontSize: 13 }}>{t.profit_emptyTimeframe}</span>
+            </div>
+          )}
+          {isTimeBased && historyLoading && (
+            <div className="chart-loading">
+              <div className="spin" />
+            </div>
+          )}
         </div>
       </div>
 

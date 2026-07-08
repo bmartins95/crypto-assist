@@ -41,3 +41,10 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
     rate_vs_usd   numeric(18,8)  NOT NULL,
     updated_at    timestamptz    NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS price_history (
+    coin_id     text           NOT NULL,
+    date        date           NOT NULL,
+    price_usd   numeric(30,10) NOT NULL,
+    PRIMARY KEY (coin_id, date)
+);

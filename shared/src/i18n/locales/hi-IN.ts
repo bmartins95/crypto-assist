@@ -152,6 +152,12 @@ const hiIN: UIText = {
   settings_import_hint: 'बैकअप फ़ाइल से पुनर्स्थापित करें।',
   settings_clear_hint: 'सभी ऑपरेशन और संपत्तियां हटाता है।',
   settings_clear_data: 'डेटा साफ़ करें',
+  timeframe_1d: '1दि',
+  timeframe_1w: '1सप्ताह',
+  timeframe_1m: '1माह',
+  timeframe_1y: '1वर्ष',
+  timeframe_all: 'सभी',
+  profit_emptyTimeframe: 'इस अवधि में कोई डेटा नहीं',
 };
 
 export default hiIN;

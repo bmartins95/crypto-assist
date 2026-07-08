@@ -152,6 +152,12 @@ const deDE: UIText = {
   settings_import_hint: 'Stellt aus einer Sicherungsdatei wieder her.',
   settings_clear_hint: 'Entfernt alle Operationen und Vermögenswerte.',
   settings_clear_data: 'Daten löschen',
+  timeframe_1d: '1T',
+  timeframe_1w: '1W',
+  timeframe_1m: '1M',
+  timeframe_1y: '1J',
+  timeframe_all: 'Alle',
+  profit_emptyTimeframe: 'Keine Daten in diesem Zeitraum',
 };
 
 export default deDE;

@@ -152,6 +152,12 @@ const jaJP: UIText = {
   settings_import_hint: 'バックアップファイルから復元します。',
   settings_clear_hint: 'すべての操作と資産を削除します。',
   settings_clear_data: 'データを消去',
+  timeframe_1d: '1日',
+  timeframe_1w: '1週',
+  timeframe_1m: '1ヶ月',
+  timeframe_1y: '1年',
+  timeframe_all: '全期間',
+  profit_emptyTimeframe: 'この期間のデータがありません',
 };
 
 export default jaJP;

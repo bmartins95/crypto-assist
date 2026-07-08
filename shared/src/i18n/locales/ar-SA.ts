@@ -152,6 +152,12 @@ const arSA: UIText = {
   settings_import_hint: 'الاستعادة من ملف نسخ احتياطي.',
   settings_clear_hint: 'إزالة جميع العمليات والأصول.',
   settings_clear_data: 'مسح البيانات',
+  timeframe_1d: 'يوم',
+  timeframe_1w: 'أسبوع',
+  timeframe_1m: 'شهر',
+  timeframe_1y: 'سنة',
+  timeframe_all: 'الكل',
+  profit_emptyTimeframe: 'لا توجد بيانات في هذه الفترة',
 };
 
 export default arSA;

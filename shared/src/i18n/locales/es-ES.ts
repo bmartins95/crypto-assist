@@ -152,6 +152,12 @@ const esES: UIText = {
   settings_import_hint: 'Restaura desde un archivo de copia de seguridad.',
   settings_clear_hint: 'Elimina todas las operaciones y activos.',
   settings_clear_data: 'Borrar datos',
+  timeframe_1d: '1D',
+  timeframe_1w: '1S',
+  timeframe_1m: '1M',
+  timeframe_1y: '1A',
+  timeframe_all: 'Todo',
+  profit_emptyTimeframe: 'Sin datos en este período',
 };
 
 export default esES;

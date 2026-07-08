@@ -152,6 +152,12 @@ const zhCN: UIText = {
   settings_import_hint: '从备份文件恢复。',
   settings_clear_hint: '删除所有操作和资产。',
   settings_clear_data: '清除数据',
+  timeframe_1d: '1天',
+  timeframe_1w: '1周',
+  timeframe_1m: '1月',
+  timeframe_1y: '1年',
+  timeframe_all: '全部',
+  profit_emptyTimeframe: '该时段无数据',
 };
 
 export default zhCN;

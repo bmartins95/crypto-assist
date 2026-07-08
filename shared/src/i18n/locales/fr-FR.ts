@@ -152,6 +152,12 @@ const frFR: UIText = {
   settings_import_hint: 'Restaure depuis un fichier de sauvegarde.',
   settings_clear_hint: 'Supprime toutes les opérations et les actifs.',
   settings_clear_data: 'Effacer les données',
+  timeframe_1d: '1J',
+  timeframe_1w: '1S',
+  timeframe_1m: '1M',
+  timeframe_1y: '1A',
+  timeframe_all: 'Tout',
+  profit_emptyTimeframe: 'Aucune donnée pour cette période',
 };
 
 export default frFR;

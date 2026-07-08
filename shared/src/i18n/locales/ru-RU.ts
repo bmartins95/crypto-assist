@@ -152,6 +152,12 @@ const ruRU: UIText = {
   settings_import_hint: 'Восстанавливает из файла резервной копии.',
   settings_clear_hint: 'Удаляет все операции и активы.',
   settings_clear_data: 'Очистить данные',
+  timeframe_1d: '1Д',
+  timeframe_1w: '1Н',
+  timeframe_1m: '1М',
+  timeframe_1y: '1Г',
+  timeframe_all: 'Все',
+  profit_emptyTimeframe: 'Нет данных за этот период',
 };
 
 export default ruRU;

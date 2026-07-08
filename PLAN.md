@@ -423,6 +423,8 @@ Manual (default), 30 s, 1 min, 5 min.
 ### Current state
 `computeTimeline(ops, prices)` in `shared/src/portfolio.ts` walks operations in date order but applies **current** prices to every point. The "Lucro no tempo" and "Valor da carteira" charts show what past portfolio compositions are worth **today**, not what they were worth at the time of each operation. There is also no way to zoom into a shorter window — the charts always render the full operation history.
 
+**Scope addition (same branch):** while fixing the above, a related gap was found and fixed too — `computeTimeline`'s `pnl` only reflected the unrealized P/L of currently-open positions, so a coin's realized gain/loss (from a `Sell`, or the `Sell` leg of a Trade) disappeared from "Lucro no tempo" the moment the position closed, instead of staying reflected going forward. `pnl` now includes a running total of realized P/L from all closed lots, in addition to open positions' unrealized P/L; `invested`/`currentValue` (used only by "Valor da carteira") are unchanged, since that chart is about the market value of current holdings, not cumulative P/L.
+
 ### Goal
 Two related fixes, same branch:
 1. Charts must use the price that was actually in effect on each date, not today's price.
@@ -446,6 +448,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 - "Valor da carteira" chart shows invested vs portfolio value using prices from each date in the selected window.
 - Switching the timeframe selector (1D/1W/1M/1Y/All) reflows both charts to the new window without a page reload.
 - The charted range never shows an asset before the user actually acquired it (verified by a test with an asset first bought mid-window).
+- "Lucro no tempo" keeps a coin's realized gain/loss reflected in `pnl` after the position is closed via a `Sell` or a `Trade` (verified by a test).
 - `pytest` covers the new endpoint (cache hit, cache miss, partial miss).
 - `npm test` covers `computeTimeline` with a `from`/`to` window and `TimeframeSelector` option switching.
 
