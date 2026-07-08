@@ -152,6 +152,12 @@ const enUS: UIText = {
   settings_import_hint: 'Restores from a backup file.',
   settings_clear_hint: 'Removes all operations and assets.',
   settings_clear_data: 'Clear data',
+  timeframe_1d: '1D',
+  timeframe_1w: '1W',
+  timeframe_1m: '1M',
+  timeframe_1y: '1Y',
+  timeframe_all: 'All',
+  profit_emptyTimeframe: 'No data in this period',
 };
 
 export default enUS;

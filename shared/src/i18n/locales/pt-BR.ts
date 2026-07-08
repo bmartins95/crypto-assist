@@ -152,6 +152,12 @@ const ptBR: UIText = {
   settings_import_hint: 'Restaura a partir de um backup.',
   settings_clear_hint: 'Remove todas as operações e ativos.',
   settings_clear_data: 'Limpar dados',
+  timeframe_1d: '1D',
+  timeframe_1w: '1S',
+  timeframe_1m: '1M',
+  timeframe_1y: '1A',
+  timeframe_all: 'Tudo',
+  profit_emptyTimeframe: 'Sem dados no período',
 };
 
 export default ptBR;

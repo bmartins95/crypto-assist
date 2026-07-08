@@ -164,4 +164,10 @@ export interface UIText {
   settings_import_hint: string;
   settings_clear_hint: string;
   settings_clear_data: string;
+  timeframe_1d: string;
+  timeframe_1w: string;
+  timeframe_1m: string;
+  timeframe_1y: string;
+  timeframe_all: string;
+  profit_emptyTimeframe: string;
 }
