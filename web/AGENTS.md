@@ -40,17 +40,19 @@ can mock a single module.
 
 ## External APIs and CSP
 
-The browser calls `api.coingecko.com` directly (`src/lib/coingecko.ts`: coin-list search,
-fallback search, single-price lookups) until PLAN item 13 moves these behind the backend.
-Deployed environments enforce a CloudFront CSP (`aws-infra/stacks/app-stack.ts`) — every
-external host the browser fetches must be in `connect-src`. A CSP-blocked fetch throws like
-a network error and our catch handlers swallow it, so the symptom is a feature that silently
-degrades on deployed environments while working on `localhost` (the dev server has no CSP).
-Before debugging such a mismatch, check `curl -sSI <cloudfront-url> | grep -i content-security-policy`.
+The browser never calls `api.coingecko.com` directly (Item 13 moved coin search behind the
+backend's `GET /api/coins/search`, and current/historical prices were already served
+through the backend). `src/lib/coingecko.ts` no longer exists — `OpDrawer`'s `CoinSearch`
+calls `api.searchCoins(query)`, and price auto-fill calls `api.getPrices(ids)`.
 
-`src/lib/coingecko.ts` caches through a shared `TtlCache`: the full coin list and per-query
-search results expire after 1 hour, single-coin prices after 60 s. `AppLayout` prefetches the
-coin list on mount so the History drawer's search is warm before first use.
+Deployed environments enforce a CloudFront CSP (`aws-infra/stacks/app-stack.ts`) — every
+external host the browser fetches must be in `connect-src`. Since the browser no longer
+fetches CoinGecko directly, `https://api.coingecko.com` can be removed from `connect-src`
+in `aws-infra` as a follow-up (a separate repo/infra change, not performed by this branch).
+A CSP-blocked fetch throws like a network error and our catch handlers swallow it, so any
+future external host added to a browser fetch should be checked with
+`curl -sSI <cloudfront-url> | grep -i content-security-policy` before assuming a feature
+that works on `localhost` will also work on a deployed environment.
 
 Backend errors: `request()` in `src/lib/api/client.ts` surfaces FastAPI's string `detail`
 (falling back to `error`, then a generic message) and attaches `status` to the thrown Error.

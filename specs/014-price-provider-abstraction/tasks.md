@@ -219,18 +219,18 @@ pre-existing row with no matching op keeps `symbol IS NULL` without erroring.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T029 [P] Update `web/AGENTS.md`'s "External APIs and CSP" section: remove the
+- [X] T029 [P] Update `web/AGENTS.md`'s "External APIs and CSP" section: remove the
       "until PLAN item 13" caveat, note `coingecko.ts` no longer exists, and note that
       `https://api.coingecko.com` can be removed from the CloudFront CSP `connect-src` in
       `aws-infra` as a follow-up (a separate repo/infra change, not performed by this
       branch).
-- [ ] T030 [P] Update `backend/AGENTS.md`'s route/structure listing to include
+- [X] T030 [P] Update `backend/AGENTS.md`'s route/structure listing to include
       `price_provider.py`, `providers/`, and `routes/coins.py`.
-- [ ] T031 Run `cd backend && pytest --cov=app --cov-report=term-missing`; confirm ≥90% on
+- [X] T031 Run `cd backend && pytest --cov=app --cov-report=term-missing`; confirm ≥90% on
       every changed module (constitution III) and paste the summary into the PR
       description.
-- [ ] T032 [P] Run `cd web && npm run coverage`; paste the summary into the PR description.
-- [ ] T033 Walk through `quickstart.md` manually: DevTools network check for zero
+- [X] T032 [P] Run `cd web && npm run coverage`; paste the summary into the PR description.
+- [X] T033 Walk through `quickstart.md` manually: DevTools network check for zero
       `api.coingecko.com` requests during search, and the `PRICE_PROVIDER=cryptocompare`
       manual check. Additionally run `grep -r "api.coingecko.com" web/src` and confirm it
       returns no matches — a cheap, automatable stand-in for SC-001 alongside the manual
