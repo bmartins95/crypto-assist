@@ -652,3 +652,34 @@ Each entry: description, estimated effort (S/M/L/XL), estimated user value (low/
 
 ### Done when
 - `docs/roadmap.md` committed to `develop`.
+
+---
+
+## Item 20 — Cross-provider Cognito account linking
+**Branch:** `feat/cognito-account-linking`
+**Depends on:** item 15 (Facebook login merged, so there are two social IdPs to link, not just Google)
+
+- [ ] Done
+
+### Current state
+Discovered while manually testing Item 15 in dev: Cognito does **not** automatically link a federated sign-in (Google, Facebook) to an existing account that shares the same email — this was a wrong assumption baked into `specs/016-facebook-login/spec.md`'s Acceptance Scenario 2, which claimed "Cognito's existing attribute-based account linking behavior applies... exactly as it already does for Google." There is no such existing behavior. Confirmed via `aws cognito-idp list-users` on the dev pool: the same person (`bruno.martins.cesfi@gmail.com`) has **three separate Cognito user records** — one native (email/password, `sub 3478a428-...`), one `google_111350953852010248841` (`sub 14e864a8-...`), one `facebook_122094143511399836` (`sub e4c844c8-...`). Since `backend/`'s `ops` table (and everything else) is scoped by `user_id` = Cognito `sub`, each is a completely distinct, empty wallet from the backend's point of view — logging in via a different provider than the one used to build up wallet data makes that data "disappear" (it isn't lost, it's just under a different account).
+
+Compounding factor: `aws-infra/stacks/app-stack.ts`'s `attributeMapping` for both the Google and Facebook IdP blocks maps only `email`, `name`, `username` — **not** `email_verified`. As a result every federated user in the pool currently shows `email_verified: false` regardless of whether the provider actually verified it, which means there is currently no trustworthy per-user signal to auto-link on even if linking logic existed.
+
+### Goal
+A user who authenticates via Google, Facebook, or email/password with the same (verified) email address lands on the **same** Cognito user / same wallet, instead of silently getting a distinct empty account. Linking must only happen when the identity provider actually confirms the email is verified — auto-linking on an unverified email is an account-takeover vector (anyone could claim your email on a lax IdP and inherit your wallet).
+
+### Approach
+Cognito supports this via a **Pre Sign-up Lambda trigger** (`PreSignUp_ExternalProvider` trigger source) attached to the User Pool: on each federated sign-up, look up whether a `CONFIRMED` user with the same email already exists (`ListUsers` with an email filter); if found and the incoming provider's email is verified, call `AdminLinkProviderForUser` to link the new federated identity to that existing user instead of creating a new one, and auto-confirm/auto-verify the sign-up so it doesn't require a separate confirmation step.
+
+### Files to create
+- `aws-infra/functions/cognito-pre-signup/` (or similar) — the Pre Sign-up Lambda handler implementing the lookup + `AdminLinkProviderForUser` linking logic described above, with unit-testable logic separated from the Lambda entrypoint if the aws-infra repo's conventions support that (it currently has no test suite — see `aws-infra/AGENTS.md` — so this may be the first piece of testable logic there, worth a `/speckit-clarify` decision on whether to add a minimal test setup for just this function or verify by manual/live deploy testing like the rest of that repo).
+
+### Files to modify
+- `aws-infra/stacks/app-stack.ts` — wire the new Lambda as the User Pool's `preSignUp` trigger (SST's `sst.aws.CognitoUserPool` trigger config, or the equivalent direct Pulumi resource if SST's trigger wiring has the same class of bug as `addIdentityProvider()` — verify against a real deploy, don't assume it works). Add `email_verified` to both the Google and Facebook `attributeMapping` blocks so the Lambda has a trustworthy per-provider verified-email signal (Google exposes `email_verified` as an OIDC claim directly; Facebook's Graph API does not expose an equivalent field the same way — confirm during implementation whether Facebook-provided emails can be treated as inherently verified, since Facebook only grants the `email` permission for verified addresses in the first place).
+- `aws-infra/AGENTS.md` — document the linking behavior and its email-verification precondition, mirroring how the Google/Facebook OAuth setup sections are documented.
+
+### Done when
+- Signing in via Google, then via Facebook, then via email/password (or any order), with the same verified email, always resolves to the same Cognito `sub` / same wallet — verified directly against a real dev deploy (`aws cognito-idp list-users`, confirming one user record, not three).
+- A sign-in from a provider that does **not** report the email as verified does **not** get silently linked to an existing account (falls back to today's default behavior: a new, separate account).
+- `aws-infra/AGENTS.md` documents the linking precondition and the `email_verified` attribute mapping requirement for any future IdP addition.
