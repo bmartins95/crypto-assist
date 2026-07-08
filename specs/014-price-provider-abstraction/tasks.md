@@ -135,23 +135,23 @@ than crashing or silently using CoinGecko.
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] `backend/tests/test_price_provider.py`: `get_provider()` returns
+- [X] T018 [P] [US2] `backend/tests/test_price_provider.py`: `get_provider()` returns
       `CoinGeckoProvider` by default and `CryptoCompareProvider` when
       `settings.price_provider == "cryptocompare"`; each `CryptoCompareProvider` method
       raises `NotImplementedError`.
-- [ ] T019 [P] [US2] Extend `backend/tests/test_coins.py` and `test_prices.py`: with
+- [X] T019 [P] [US2] Extend `backend/tests/test_coins.py` and `test_prices.py`: with
       `get_provider` overridden/patched to return a `CryptoCompareProvider`, each route
       responds with a clear "not implemented" error status (not a 500, not CoinGecko data).
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Create `backend/app/providers/cryptocompare.py`: `CryptoCompareProvider`
+- [X] T020 [US2] Create `backend/app/providers/cryptocompare.py`: `CryptoCompareProvider`
       implementing `PriceProvider`; every method (`search_coins`, `get_prices`,
       `get_history`) raises `NotImplementedError("CryptoCompareProvider is not yet
       implemented")`. No HTTP client, no API key setting (research.md §8).
-- [ ] T021 [US2] Wire the `"cryptocompare"` branch into `get_provider()` in
+- [X] T021 [US2] Wire the `"cryptocompare"` branch into `get_provider()` in
       `backend/app/price_provider.py`.
-- [ ] T022 [US2] In `backend/app/routes/coins.py`, `prices.py`, and `price_history.py`, add
+- [X] T022 [US2] In `backend/app/routes/coins.py`, `prices.py`, and `price_history.py`, add
       an `except NotImplementedError as e: raise HTTPException(status_code=501,
       detail=str(e))` clause at the `get_provider()` call site in each route. This clause
       MUST be ordered so it runs before — and is not shadowed by — the existing

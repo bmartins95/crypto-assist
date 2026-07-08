@@ -99,3 +99,14 @@ def test_coingecko_upstream_failure_returns_502():
         assert res.status_code == 502
     finally:
         _cleanup()
+
+
+def test_not_implemented_provider_returns_501():
+    client = _auth_client()
+    try:
+        with patch("app.routes.coins.get_provider") as mock_provider:
+            mock_provider.return_value.search_coins.side_effect = NotImplementedError("nope")
+            res = client.get("/api/coins/search?q=bitcoin")
+        assert res.status_code == 501
+    finally:
+        _cleanup()

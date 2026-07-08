@@ -153,3 +153,10 @@ def test_coingecko_failure_with_nothing_cached_returns_502(empty_client):
     with _mock_httpx(status_code=503, is_success=False):
         res = empty_client.get("/api/prices/history?ids=bitcoin&from=2026-01-01&to=2026-01-01")
     assert res.status_code == 502
+
+
+def test_not_implemented_provider_returns_501_not_500(empty_client):
+    with patch("app.routes.price_history.get_provider") as mock_provider:
+        mock_provider.return_value.get_history.side_effect = NotImplementedError("nope")
+        res = empty_client.get("/api/prices/history?ids=bitcoin&from=2026-01-01&to=2026-01-01")
+    assert res.status_code == 501

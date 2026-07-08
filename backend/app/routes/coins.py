@@ -15,5 +15,8 @@ def search_coins(
     if not query:
         raise HTTPException(status_code=400, detail='Query param "q" is required.')
 
-    results = get_provider().search_coins(query)
+    try:
+        results = get_provider().search_coins(query)
+    except NotImplementedError as e:
+        raise HTTPException(status_code=501, detail=str(e))
     return results[:limit]

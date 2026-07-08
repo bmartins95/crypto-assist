@@ -69,6 +69,11 @@ def get_prices(
                 conn.commit()
             for c in fetched:
                 result[c["id"]] = PriceInfo(price=c["price"], image=c.get("image"))
+        except NotImplementedError as e:
+            # Must precede `except Exception` below: a provider that doesn't implement
+            # this capability is a permanent condition, not a transient upstream hiccup,
+            # so it must never be treated as stale-cache-fallback material.
+            raise HTTPException(status_code=501, detail=str(e))
         except HTTPException:
             # On CoinGecko failure, fall back to stale cache rather than erroring
             for row in cached:

@@ -73,6 +73,11 @@ def get_price_history(
         earliest_missing = datetime.date.fromisoformat(min(missing))
         try:
             fetched = get_provider().get_history(PricedAsset(coin_id=cid), earliest_missing, today)
+        except NotImplementedError as e:
+            # A provider that doesn't implement this capability is a permanent condition,
+            # not a per-coin transient failure — it must abort the whole request with a
+            # clear error rather than being swallowed by the best-effort continue below.
+            raise HTTPException(status_code=501, detail=str(e))
         except HTTPException:
             # Best-effort: leave this coin with only whatever was already cached.
             continue

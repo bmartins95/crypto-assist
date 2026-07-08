@@ -170,3 +170,17 @@ def test_coingecko_non_list_response_returns_502(empty_client):
     with _mock_httpx(json_data={"error": "unexpected"}):
         res = empty_client.get("/api/prices?ids=bitcoin")
     assert res.status_code == 502
+
+
+def test_not_implemented_provider_returns_501(empty_client):
+    with patch("app.routes.prices.get_provider") as mock_provider:
+        mock_provider.return_value.get_prices.side_effect = NotImplementedError("nope")
+        res = empty_client.get("/api/prices?ids=bitcoin")
+    assert res.status_code == 501
+
+
+def test_not_implemented_provider_not_masked_by_stale_cache(stale_client):
+    with patch("app.routes.prices.get_provider") as mock_provider:
+        mock_provider.return_value.get_prices.side_effect = NotImplementedError("nope")
+        res = stale_client.get("/api/prices?ids=bitcoin")
+    assert res.status_code == 501
