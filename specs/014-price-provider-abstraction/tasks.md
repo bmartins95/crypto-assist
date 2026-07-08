@@ -151,9 +151,17 @@ than crashing or silently using CoinGecko.
       implemented")`. No HTTP client, no API key setting (research.md §8).
 - [ ] T021 [US2] Wire the `"cryptocompare"` branch into `get_provider()` in
       `backend/app/price_provider.py`.
-- [ ] T022 [US2] In `backend/app/routes/coins.py`, `prices.py`, and `price_history.py`,
-      catch `NotImplementedError` from the provider call and re-raise as
-      `HTTPException(status_code=501, detail=str(e))`.
+- [ ] T022 [US2] In `backend/app/routes/coins.py`, `prices.py`, and `price_history.py`, add
+      an `except NotImplementedError as e: raise HTTPException(status_code=501,
+      detail=str(e))` clause at the `get_provider()` call site in each route. This clause
+      MUST be ordered so it runs before — and is not shadowed by — the existing
+      CoinGecko-specific fallback handling: `prices.py`'s `except HTTPException:` /
+      `except Exception:` stale-cache fallback (lines ~97-110) and `price_history.py`'s
+      per-coin `except HTTPException: continue` best-effort loop (line ~109) do NOT catch a
+      bare `NotImplementedError` today, so without this ordering the error would either
+      surface as an uncaught 500 (`price_history.py`) or get misreported as a generic
+      upstream 502 (`prices.py`) instead of the clear 501 "not implemented" outcome FR-005
+      and User Story 2 Acceptance Scenario 3 require.
 
 **Checkpoint**: Both user stories independently pass; switching `PRICE_PROVIDER` changes
 behavior without touching route code (SC-003).
@@ -172,10 +180,17 @@ pre-existing row with no matching op keeps `symbol IS NULL` without erroring.
 ### Tests for User Story 3
 
 - [ ] T023 [P] [US3] `backend/tests/test_prices.py`: a cache-miss fetch for a coin_id with
-      a matching `ops` row (seeded via the DB stub) upserts `price_cache.symbol`; a
-      coin_id with no matching `ops` row upserts with `symbol IS NULL` and does not error.
+      a matching `ops` row upserts `price_cache.symbol`; a coin_id with no matching `ops`
+      row upserts with `symbol IS NULL` and does not error. The route now issues two
+      distinct SELECTs against the same mocked connection (the `ops` symbol lookup, then
+      the existing `price_cache` lookup) — `conftest.make_pg_stub` returns one static
+      `fetchall()` result regardless of which SQL ran, so it cannot disambiguate them.
+      Build the cursor mock directly with `cur.execute.side_effect` (or `cur.fetchall.
+      side_effect`) keyed off the SQL text/call order to return the `ops` rows for the
+      first `execute` and the `price_cache` rows for the second, rather than reusing
+      `make_pg_stub` as-is.
 - [ ] T024 [P] [US3] `backend/tests/test_price_history.py`: equivalent coverage for
-      `price_history.symbol`.
+      `price_history.symbol`, with the same two-distinct-queries mocking approach as T023.
 
 ### Implementation for User Story 3
 
@@ -214,7 +229,9 @@ pre-existing row with no matching op keeps `symbol IS NULL` without erroring.
 - [ ] T032 [P] Run `cd web && npm run coverage`; paste the summary into the PR description.
 - [ ] T033 Walk through `quickstart.md` manually: DevTools network check for zero
       `api.coingecko.com` requests during search, and the `PRICE_PROVIDER=cryptocompare`
-      manual check.
+      manual check. Additionally run `grep -r "api.coingecko.com" web/src` and confirm it
+      returns no matches — a cheap, automatable stand-in for SC-001 alongside the manual
+      DevTools check.
 
 ---
 
