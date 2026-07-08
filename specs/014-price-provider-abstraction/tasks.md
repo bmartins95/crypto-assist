@@ -31,7 +31,7 @@ Existing monorepo layout: `backend/app/`, `backend/tests/`, `web/src/`. See plan
 
 ## Phase 1: Setup
 
-- [ ] T001 Create empty `backend/app/providers/__init__.py` package.
+- [X] T001 Create empty `backend/app/providers/__init__.py` package.
 
 ---
 
@@ -42,13 +42,13 @@ behind it. Required before any user story's acceptance scenarios can be verified
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 [P] Define `PricedAsset` dataclass and `PriceProvider` ABC (`search_coins`,
+- [X] T002 [P] Define `PricedAsset` dataclass and `PriceProvider` ABC (`search_coins`,
       `get_prices`, `get_history` per data-model.md) plus `get_provider()` factory in
       `backend/app/price_provider.py`; factory reads `settings.price_provider` and
       currently resolves only `"coingecko"` (the `"cryptocompare"` branch is added in US2).
-- [ ] T003 [P] Add `price_provider: str = "coingecko"` field to `Settings` in
+- [X] T003 [P] Add `price_provider: str = "coingecko"` field to `Settings` in
       `backend/app/config.py`.
-- [ ] T004 Create `backend/app/providers/coingecko.py` with `CoinGeckoProvider`:
+- [X] T004 Create `backend/app/providers/coingecko.py` with `CoinGeckoProvider`:
       - `get_prices` — move `_fetch_from_coingecko` out of `backend/app/routes/prices.py`
         unchanged (same URL, same 429/502 handling), reading only `.coin_id` off each
         `PricedAsset`.
@@ -57,18 +57,18 @@ behind it. Required before any user story's acceptance scenarios can be verified
       - `search_coins` — new: calls `https://api.coingecko.com/api/v3/search?query=...`
         (same `x_cg_demo_api_key` pattern as the other two), returns
         `{id, symbol, name, market_cap_rank}` entries per contracts/coins-search.md.
-- [ ] T005 Update `backend/app/routes/prices.py` to delegate to
+- [X] T005 Update `backend/app/routes/prices.py` to delegate to
       `get_provider().get_prices([PricedAsset(coin_id=cid, symbol=None) for cid in
       stale_ids])` instead of calling `_fetch_from_coingecko` directly (symbol resolution
       itself is US3's job — pass `None` for now). Remove the now-dead
       `_fetch_from_coingecko` and the direct `httpx` import.
-- [ ] T006 Update `backend/app/routes/price_history.py` to delegate to
+- [X] T006 Update `backend/app/routes/price_history.py` to delegate to
       `get_provider().get_history(PricedAsset(coin_id=cid, symbol=None), ...)` instead of
       `_fetch_market_chart`. Remove the now-dead function and direct `httpx` import.
-- [ ] T007 [P] Update `backend/tests/test_prices.py`: change the `_mock_httpx` patch
+- [X] T007 [P] Update `backend/tests/test_prices.py`: change the `_mock_httpx` patch
       target from `app.routes.prices.httpx.Client` to
       `app.providers.coingecko.httpx.Client` (research.md §10). No assertion changes.
-- [ ] T008 [P] Update `backend/tests/test_price_history.py` with the equivalent patch
+- [X] T008 [P] Update `backend/tests/test_price_history.py` with the equivalent patch
       target change.
 
 **Checkpoint**: `cd backend && pytest` passes with the exact same behavior as before this
@@ -87,34 +87,34 @@ populate as before.
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] `backend/tests/test_coins.py`: search with a valid `q` returns results
+- [X] T009 [P] [US1] `backend/tests/test_coins.py`: search with a valid `q` returns results
       (mock `get_provider().search_coins`); empty/missing `q` → 400; missing
       `Authorization` header → 401.
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Create `backend/app/routes/coins.py`: `GET ""` endpoint behind
+- [X] T010 [US1] Create `backend/app/routes/coins.py`: `GET ""` endpoint behind
       `require_auth`, rejects empty/missing `q` with 400, default `limit=7`, calls
       `get_provider().search_coins(q)[:limit]` per contracts/coins-search.md.
-- [ ] T011 [US1] Register the router in `backend/app/main.py`:
+- [X] T011 [US1] Register the router in `backend/app/main.py`:
       `app.include_router(coins.router, prefix="/api/coins/search")`.
-- [ ] T012 [US1] Add `searchCoins(query: string): Promise<CoinSearchResult[]>` to
+- [X] T012 [US1] Add `searchCoins(query: string): Promise<CoinSearchResult[]>` to
       `web/src/lib/api/client.ts` calling `GET /api/coins/search?q=...`.
-- [ ] T013 [US1] Update `web/src/components/OpDrawer.tsx`: `CoinSearch` calls
+- [X] T013 [US1] Update `web/src/components/OpDrawer.tsx`: `CoinSearch` calls
       `api.searchCoins(query)` instead of `getCoinList`/`filterCoinList`/`searchCoins` from
       `@/lib/coingecko`; keep the debounce/sequence-guard logic in `runSearch` as-is; move
       the small local fuzzy-filter used for the `restrictTo` (owned-assets) seed into an
       inline helper in this file; replace `fetchSinglePrice(coin.coinId, apiKey)` calls
       with `api.getPrices([coin.coinId])`; remove the `apiKey` prop from `Props` and
       `CoinSearch`'s params.
-- [ ] T014 [US1] Update `web/src/components/AppLayout.tsx`: remove the `getCoinList('')`
+- [X] T014 [US1] Update `web/src/components/AppLayout.tsx`: remove the `getCoinList('')`
       prefetch call on mount and its `@/lib/coingecko` import.
-- [ ] T015 [US1] Delete `web/src/lib/coingecko.ts`.
-- [ ] T016 [US1] Update `web/src/components/OpDrawer.test.tsx`: replace the
+- [X] T015 [US1] Delete `web/src/lib/coingecko.ts`.
+- [X] T016 [US1] Update `web/src/components/OpDrawer.test.tsx`: replace the
       `vi.mock('@/lib/coingecko', ...)` block with mocks of `api.searchCoins` and
       `api.getPrices` from `@/lib/api/client`; keep the same scenario coverage (empty
       results, race-guard on rapid typing, price auto-fill, price-fetch failure).
-- [ ] T017 [US1] Grep `web/src/components/HistoryTab.tsx` and
+- [X] T017 [US1] Grep `web/src/components/HistoryTab.tsx` and
       `HistoryTab.test.tsx` for leftover `apiKey`/`coingecko` references and remove any
       that remain (the prop is already unused at the router level per research.md §1).
 

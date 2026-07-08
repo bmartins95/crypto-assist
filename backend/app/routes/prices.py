@@ -4,38 +4,13 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.dependencies import require_auth
 from app.db.postgres_client import get_conn
-from app.config import get_settings
 from app.models import PriceInfo
-import httpx
+from app.price_provider import get_provider, PricedAsset
 
 router = APIRouter()
 
 _CACHE_TTL_S = 5 * 60
 _COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')
-
-
-def _fetch_from_coingecko(ids: list[str]) -> list[dict]:
-    api_key = get_settings().coingecko_api_key
-    key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
-    url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={','.join(ids)}{key_param}"
-
-    with httpx.Client(timeout=10) as client:
-        r = client.get(url)
-
-    if r.status_code == 429:
-        raise HTTPException(status_code=429, detail="CoinGecko rate limit exceeded.")
-    if not r.is_success:
-        raise HTTPException(status_code=502, detail="Failed to fetch prices from CoinGecko.")
-
-    data = r.json()
-    if not isinstance(data, list):
-        raise HTTPException(status_code=502, detail="Unexpected CoinGecko response.")
-
-    return [
-        {"id": c["id"], "price": float(c["current_price"]), "image": c.get("image")}
-        for c in data
-        if c.get("current_price") is not None
-    ]
 
 
 @router.get("", response_model=dict[str, PriceInfo])
@@ -80,7 +55,7 @@ def get_prices(
 
     if stale_ids:
         try:
-            fetched = _fetch_from_coingecko(stale_ids)
+            fetched = get_provider().get_prices([PricedAsset(coin_id=cid) for cid in stale_ids])
             if fetched:
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 with conn.cursor() as cur:

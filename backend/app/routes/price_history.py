@@ -3,8 +3,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.dependencies import require_auth
 from app.db.postgres_client import get_conn
-from app.config import get_settings
-import httpx
+from app.price_provider import get_provider, PricedAsset
 
 router = APIRouter()
 
@@ -14,37 +13,6 @@ _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 def _today_utc() -> datetime.date:
     return datetime.datetime.now(datetime.timezone.utc).date()
-
-
-def _fetch_market_chart(coin_id: str, days: int) -> dict[str, float]:
-    api_key = get_settings().coingecko_api_key
-    key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
-    url = (
-        f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-        f"?vs_currency=usd&days={days}&interval=daily{key_param}"
-    )
-
-    with httpx.Client(timeout=10) as client:
-        r = client.get(url)
-
-    if r.status_code == 429:
-        raise HTTPException(status_code=429, detail="CoinGecko rate limit exceeded.")
-    if not r.is_success:
-        raise HTTPException(status_code=502, detail="Failed to fetch price history from CoinGecko.")
-
-    data = r.json()
-    prices = data.get("prices") if isinstance(data, dict) else None
-    if not isinstance(prices, list):
-        raise HTTPException(status_code=502, detail="Unexpected CoinGecko response.")
-
-    result: dict[str, float] = {}
-    for point in prices:
-        if not isinstance(point, list) or len(point) != 2:
-            continue
-        ts_ms, price = point
-        day = datetime.datetime.fromtimestamp(ts_ms / 1000, tz=datetime.timezone.utc).date().isoformat()
-        result[day] = float(price)
-    return result
 
 
 @router.get("", response_model=dict[str, dict[str, float]])
@@ -103,9 +71,8 @@ def get_price_history(
         if not missing:
             continue
         earliest_missing = datetime.date.fromisoformat(min(missing))
-        days_back = (today - earliest_missing).days + 1
         try:
-            fetched = _fetch_market_chart(cid, max(days_back, 1))
+            fetched = get_provider().get_history(PricedAsset(coin_id=cid), earliest_missing, today)
         except HTTPException:
             # Best-effort: leave this coin with only whatever was already cached.
             continue

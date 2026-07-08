@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Op, NewOp, Asset, Prices } from '@/lib/types';
-import { searchCoins, fetchSinglePrice, getCoinList, filterCoinList, CoinSearchResult } from '@/lib/coingecko';
+import { api, CoinSearchResult } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
@@ -15,7 +15,6 @@ interface Props {
   editingOp?: Op;
   assets: Asset[];
   prices: Prices;
-  apiKey?: string;
 }
 
 interface CoinSelection { coinId: string; symbol: string; name: string }
@@ -25,10 +24,31 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 
+// Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
+// the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
+// unrelated to the network search, which the backend already ranks by relevance.
+function filterSeed(list: CoinSearchResult[], query: string): CoinSearchResult[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return list;
+  const scored: { c: CoinSearchResult; score: number }[] = [];
+  for (const c of list) {
+    const sym = c.symbol.toLowerCase();
+    const name = c.name.toLowerCase();
+    let score = -1;
+    if (sym === q) score = 0;
+    else if (sym.startsWith(q)) score = 1;
+    else if (name.startsWith(q)) score = 2;
+    else if (sym.includes(q) || name.includes(q)) score = 3;
+    if (score >= 0) scored.push({ c, score });
+  }
+  scored.sort((a, b) => a.score - b.score || a.c.name.length - b.c.name.length);
+  return scored.map(({ c }) => c);
+}
+
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
-function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
-  id: string; placeholder: string; apiKey: string;
+function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
+  id: string; placeholder: string;
   onSelect: (c: CoinSelection) => void;
   onClear: () => void;
   value: string; onChange: (v: string) => void;
@@ -56,24 +76,19 @@ function CoinSearch({ id, placeholder, apiKey, onSelect, onClear, value, onChang
     return () => document.removeEventListener('mousedown', onDocPointerDown);
   }, [open]);
 
-  // Only falls back to the market-cap-ranked /search endpoint on a genuine fetch
-  // failure — racing the full list against a fixed timeout meant slow connections
-  // silently lost the well-known-coin ranking and saw a truncated result set instead.
   const runSearch = (q: string) => {
     const seq = ++searchSeq.current;
     const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
-    getCoinList(apiKey)
-      .then(list => applyIfCurrent(filterCoinList(list, q)))
-      .catch(async () => {
-        try { applyIfCurrent(await searchCoins(q, apiKey)); } catch { applyIfCurrent([]); }
-      });
+    api.searchCoins(q)
+      .then(applyIfCurrent)
+      .catch(() => applyIfCurrent([]));
   };
 
   const handleInput = (v: string) => {
     onChange(v);
     setOpen(true);
     const q = v.trim();
-    if (restrictTo) { setResults(q ? filterCoinList(restrictTo, q) : restrictTo); return; }
+    if (restrictTo) { setResults(q ? filterSeed(restrictTo, q) : restrictTo); return; }
     if (q.length === 0) { setResults(seed ?? []); return; }
     if (q.length < 2) { setResults([]); return; }
     setResults([]);
@@ -126,7 +141,7 @@ function CheckIcon() {
 const today = () => new Date().toISOString().slice(0, 10);
 const DONE_DISPLAY_MS = 1300;
 
-export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices, apiKey = '' }: Props) {
+export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices }: Props) {
   const { t } = useLocale();
   const { currency, rates } = useCurrency();
   // Monetary inputs are denominated in the display currency; market prices are USD.
@@ -176,7 +191,6 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       document.body.style.overflow = 'hidden';
       setError(null);
       setPhase('idle');
-      getCoinList(apiKey).catch(() => { /* falls back to per-query search */ });
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -209,7 +223,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     (async () => {
       let p = prices[coin.coinId];
       if (!p) {
-        try { p = (await fetchSinglePrice(coin.coinId, apiKey)) ?? undefined; }
+        try { p = (await api.getPrices([coin.coinId]))[coin.coinId]?.price; }
         catch { p = undefined; }
       }
       if (cancelled) return;
@@ -310,7 +324,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     let cancelled = false;
     (async () => {
       try {
-        const p = await fetchSinglePrice(toCoin.coinId, apiKey);
+        const p = (await api.getPrices([toCoin.coinId]))[toCoin.coinId]?.price;
         if (cancelled || !p) return;
         prices[toCoin.coinId] = p;
         syncTradeTotal(fromCoinId, fromQty, toCoin, total);
@@ -403,7 +417,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               </div>
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
-                <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." seed={assetSeed}
                   value={coinText} onChange={setCoinText} onSelect={setCoin}
                   onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
               </div>
@@ -438,7 +452,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
-                    <CoinSearch id="drawer-tr-from" placeholder="ETH, BTC..." apiKey={apiKey}
+                    <CoinSearch id="drawer-tr-from" placeholder="ETH, BTC..."
                       restrictTo={assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }))}
                       emptyLabel={t.trade_form_noAssets}
                       value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
@@ -457,7 +471,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
-                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." apiKey={apiKey} seed={assetSeed}
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
                       value={toCoinText} onChange={setToCoinText} onSelect={setToCoin}
                       onClear={() => { setToCoin(null); setToQty(''); }} />
                   </div>

@@ -3,7 +3,6 @@ import { Outlet } from '@tanstack/react-router';
 import { Op, NewOp, Prices, AvatarCache, GroupMode, ChartType, BackupPayload, Asset } from '@/lib/types';
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
-import { getCoinList } from '@/lib/coingecko';
 import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
 import { useLocale } from '@/context/LocaleContext';
@@ -67,12 +66,6 @@ export default function AppLayout() {
     const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
     setOps(remoteOps);
     setExitPrices(remoteExitPrices);
-  }, []);
-
-  // Warms the coin-list cache as soon as an authenticated user reaches the app,
-  // so it's already available by the time the History drawer's search is used.
-  useEffect(() => {
-    getCoinList('').catch(() => { /* OpDrawer falls back to per-query search */ });
   }, []);
 
   useEffect(() => {

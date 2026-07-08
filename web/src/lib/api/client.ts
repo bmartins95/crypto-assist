@@ -3,6 +3,13 @@ import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupP
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
+export interface CoinSearchResult {
+  id: string;
+  symbol: string;
+  name: string;
+  market_cap_rank?: number;
+}
+
 async function authHeader(): Promise<Record<string, string>> {
   const session = await getValidSession();
   if (!session) throw new Error('Session not found. Please log in again.');
@@ -39,6 +46,8 @@ export const api = {
     request<Record<string, Record<string, number>>>(`/api/prices/history?ids=${ids.join(',')}&from=${from}&to=${to}`),
 
   getExchangeRates: () => request<ExchangeRatesPayload>('/api/exchange-rates'),
+
+  searchCoins: (query: string) => request<CoinSearchResult[]>(`/api/coins/search?q=${encodeURIComponent(query)}`),
 
   exportBackup: () => request<BackupPayload>('/api/export'),
   importBackup: (backup: BackupPayload) => request<void>('/api/import', { method: 'POST', body: JSON.stringify(backup) }),

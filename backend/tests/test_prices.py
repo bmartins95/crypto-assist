@@ -51,7 +51,7 @@ def _mock_httpx(status_code=200, is_success=True, json_data=None):
     mock_client.__enter__ = MagicMock(return_value=mock_client)
     mock_client.__exit__ = MagicMock(return_value=False)
     mock_client.get.return_value = mock_resp
-    return patch("app.routes.prices.httpx.Client", return_value=mock_client)
+    return patch("app.providers.coingecko.httpx.Client", return_value=mock_client)
 
 
 # ── Validation tests ────────────────────────────────────────────────────────
