@@ -458,7 +458,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 **Branch:** `feat/price-provider-abstraction`
 **Depends on:** item 10 (USD prices established)
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 `web/src/lib/coingecko.ts` calls CoinGecko directly from the browser for coin search (exposes API key to the client). `backend/app/routes/prices.py` calls CoinGecko directly with hardcoded logic. No interface exists to swap providers.
