@@ -82,6 +82,7 @@ const esES: UIText = {
   app_title: 'Cartera de Criptoactivos',
   auth_subtitle: 'Inicia sesión o crea tu cuenta para continuar',
   auth_google: 'Continuar con Google',
+  auth_facebook: 'Continuar con Facebook',
   auth_email: 'Entrar con correo electrónico',
   auth_authenticating: 'Autenticando...',
   auth_failed: 'Error de autenticación. Redirigiendo...',

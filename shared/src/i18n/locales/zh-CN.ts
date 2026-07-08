@@ -82,6 +82,7 @@ const zhCN: UIText = {
   app_title: '加密货币钱包',
   auth_subtitle: '登录或创建账户以继续',
   auth_google: '使用 Google 继续',
+  auth_facebook: '使用 Facebook 继续',
   auth_email: '使用邮箱登录',
   auth_authenticating: '正在验证...',
   auth_failed: '验证失败，正在跳转...',

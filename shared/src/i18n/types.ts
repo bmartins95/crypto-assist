@@ -94,6 +94,7 @@ export interface UIText {
   app_title: string;
   auth_subtitle: string;
   auth_google: string;
+  auth_facebook: string;
   auth_email: string;
   auth_authenticating: string;
   auth_failed: string;

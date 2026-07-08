@@ -25,9 +25,9 @@ describe('AuthClient', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the Google and email sign-in buttons', () => {
+  it('renders the Google, Facebook, and email sign-in buttons', () => {
     renderAuth();
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
   });
 
   it('fires the database warm-up ping once on mount', async () => {
@@ -43,10 +43,17 @@ describe('AuthClient', () => {
     await waitFor(() => expect(buildAuthUrl).toHaveBeenCalledWith('Google'));
   });
 
-  it('builds the email auth URL when the email button is clicked', async () => {
+  it('builds the Facebook auth URL when the Facebook button is clicked', async () => {
     const { buildAuthUrl } = await import('@/lib/cognito/client');
     renderAuth();
     fireEvent.click(screen.getAllByRole('button')[1]);
+    await waitFor(() => expect(buildAuthUrl).toHaveBeenCalledWith('Facebook'));
+  });
+
+  it('builds the email auth URL when the email button is clicked', async () => {
+    const { buildAuthUrl } = await import('@/lib/cognito/client');
+    renderAuth();
+    fireEvent.click(screen.getAllByRole('button')[2]);
     await waitFor(() => expect(buildAuthUrl).toHaveBeenCalledWith());
   });
 
@@ -55,6 +62,6 @@ describe('AuthClient', () => {
     vi.mocked(api.warmupDb).mockRejectedValueOnce(new Error('db asleep'));
     renderAuth();
     await waitFor(() => expect(api.warmupDb).toHaveBeenCalledTimes(1));
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(screen.getAllByRole('button')).toHaveLength(3);
   });
 });

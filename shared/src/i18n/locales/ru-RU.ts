@@ -82,6 +82,7 @@ const ruRU: UIText = {
   app_title: 'Крипто-портфель',
   auth_subtitle: 'Войдите или создайте аккаунт для продолжения',
   auth_google: 'Продолжить с Google',
+  auth_facebook: 'Продолжить с Facebook',
   auth_email: 'Войти с email',
   auth_authenticating: 'Аутентификация...',
   auth_failed: 'Ошибка аутентификации. Перенаправление...',

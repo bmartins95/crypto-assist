@@ -82,6 +82,7 @@ const enUS: UIText = {
   app_title: 'Crypto Portfolio',
   auth_subtitle: 'Sign in or create an account to continue',
   auth_google: 'Continue with Google',
+  auth_facebook: 'Continue with Facebook',
   auth_email: 'Sign in with email',
   auth_authenticating: 'Authenticating...',
   auth_failed: 'Authentication failed. Redirecting...',

@@ -82,6 +82,7 @@ const jaJP: UIText = {
   app_title: '暗号資産ポートフォリオ',
   auth_subtitle: 'ログインまたはアカウントを作成して続けてください',
   auth_google: 'Google で続ける',
+  auth_facebook: 'Facebook で続ける',
   auth_email: 'メールでサインイン',
   auth_authenticating: '認証中...',
   auth_failed: '認証に失敗しました。リダイレクト中...',

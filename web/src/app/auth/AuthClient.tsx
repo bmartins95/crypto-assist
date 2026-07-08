@@ -21,6 +21,10 @@ export default function AuthClient() {
     window.location.href = await buildAuthUrl('Google');
   };
 
+  const handleFacebook = async () => {
+    window.location.href = await buildAuthUrl('Facebook');
+  };
+
   const handleEmail = async () => {
     window.location.href = await buildAuthUrl();
   };
@@ -41,6 +45,14 @@ export default function AuthClient() {
           style={{ width: '100%', justifyContent: 'center', padding: '10px 0', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}
         >
           <i className="ti ti-brand-google" /> {t.auth_google}
+        </button>
+
+        <button
+          onClick={handleFacebook}
+          className="btn-sm"
+          style={{ width: '100%', justifyContent: 'center', padding: '10px 0', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <i className="ti ti-brand-facebook" /> {t.auth_facebook}
         </button>
 
         <button
