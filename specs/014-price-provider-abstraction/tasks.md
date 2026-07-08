@@ -179,7 +179,7 @@ pre-existing row with no matching op keeps `symbol IS NULL` without erroring.
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] `backend/tests/test_prices.py`: a cache-miss fetch for a coin_id with
+- [X] T023 [P] [US3] `backend/tests/test_prices.py`: a cache-miss fetch for a coin_id with
       a matching `ops` row upserts `price_cache.symbol`; a coin_id with no matching `ops`
       row upserts with `symbol IS NULL` and does not error. The route now issues two
       distinct SELECTs against the same mocked connection (the `ops` symbol lookup, then
@@ -189,25 +189,28 @@ pre-existing row with no matching op keeps `symbol IS NULL` without erroring.
       side_effect`) keyed off the SQL text/call order to return the `ops` rows for the
       first `execute` and the `price_cache` rows for the second, rather than reusing
       `make_pg_stub` as-is.
-- [ ] T024 [P] [US3] `backend/tests/test_price_history.py`: equivalent coverage for
+- [X] T024 [P] [US3] `backend/tests/test_price_history.py`: equivalent coverage for
       `price_history.symbol`, with the same two-distinct-queries mocking approach as T023.
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Create `backend/db/migrations/007_price_symbol.sql`: additive
+- [X] T025 [US3] Create `backend/db/migrations/007_price_symbol.sql`: additive
       `ALTER TABLE ... ADD COLUMN IF NOT EXISTS symbol text` on both `price_cache` and
       `price_history`, followed by the one-time backfill join against `ops` (research.md
       §9). **Pause here for explicit user approval before this migration is applied to any
       real environment** — database schema changes require sign-off per project policy.
-- [ ] T026 [US3] Update `backend/db/schema.sql` to include `symbol text` on `price_cache`
+      *(Migration file written and verified by applying it to the local disposable dev
+      Postgres container only — NOT applied to dev/staging/prod; that requires the
+      deploy pipeline, gated by PR review/merge.)*
+- [X] T026 [US3] Update `backend/db/schema.sql` to include `symbol text` on `price_cache`
       and `price_history` so fresh installs match the migrated shape.
-- [ ] T027 [US3] Update `backend/app/routes/prices.py`: resolve `coin_id → symbol` for the
+- [X] T027 [US3] Update `backend/app/routes/prices.py`: resolve `coin_id → symbol` for the
       requesting user's own `ids` via
       `SELECT DISTINCT ON (coin_id) coin_id, symbol FROM ops WHERE user_id = %s AND coin_id
       = ANY(%s)` (research.md §6); build real `PricedAsset(coin_id, symbol)` values for the
       provider call; upsert `price_cache` with
       `symbol = COALESCE(EXCLUDED.symbol, price_cache.symbol)` (research.md §7).
-- [ ] T028 [US3] Apply the equivalent change to `backend/app/routes/price_history.py` for
+- [X] T028 [US3] Apply the equivalent change to `backend/app/routes/price_history.py` for
       `price_history`.
 
 **Checkpoint**: All three user stories independently functional (SC-004).

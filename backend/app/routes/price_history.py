@@ -49,6 +49,14 @@ def get_price_history(
                 (coin_ids, from_date, to_date),
             )
             cached = cur.fetchall()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT DISTINCT ON (coin_id) coin_id, symbol FROM ops"
+                " WHERE user_id = %s AND coin_id = ANY(%s) ORDER BY coin_id, created_at",
+                (_auth.user_id, coin_ids),
+            )
+            symbols = {row["coin_id"]: row["symbol"] for row in cur.fetchall()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -65,14 +73,16 @@ def get_price_history(
     all_days = {(from_date + datetime.timedelta(days=i)).isoformat() for i in range(total_days)}
     today = _today_utc()
 
-    to_upsert: list[tuple[str, str, float]] = []
+    to_upsert: list[tuple[str, str, float, str | None]] = []
     for cid in coin_ids:
         missing = all_days - cached_dates.get(cid, set())
         if not missing:
             continue
         earliest_missing = datetime.date.fromisoformat(min(missing))
         try:
-            fetched = get_provider().get_history(PricedAsset(coin_id=cid), earliest_missing, today)
+            fetched = get_provider().get_history(
+                PricedAsset(coin_id=cid, symbol=symbols.get(cid)), earliest_missing, today
+            )
         except NotImplementedError as e:
             # A provider that doesn't implement this capability is a permanent condition,
             # not a per-coin transient failure — it must abort the whole request with a
@@ -84,14 +94,15 @@ def get_price_history(
         for day, price in fetched.items():
             if day in all_days:
                 result.setdefault(cid, {})[day] = price
-                to_upsert.append((cid, day, price))
+                to_upsert.append((cid, day, price, symbols.get(cid)))
 
     if to_upsert:
         try:
             with conn.cursor() as cur:
                 cur.executemany(
-                    "INSERT INTO price_history (coin_id, date, price_usd) VALUES (%s, %s, %s)"
-                    " ON CONFLICT (coin_id, date) DO UPDATE SET price_usd = EXCLUDED.price_usd",
+                    "INSERT INTO price_history (coin_id, date, price_usd, symbol) VALUES (%s, %s, %s, %s)"
+                    " ON CONFLICT (coin_id, date) DO UPDATE SET price_usd = EXCLUDED.price_usd,"
+                    " symbol = COALESCE(EXCLUDED.symbol, price_history.symbol)",
                     to_upsert,
                 )
             conn.commit()

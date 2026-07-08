@@ -55,16 +55,28 @@ def get_prices(
 
     if stale_ids:
         try:
-            fetched = get_provider().get_prices([PricedAsset(coin_id=cid) for cid in stale_ids])
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT DISTINCT ON (coin_id) coin_id, symbol FROM ops"
+                    " WHERE user_id = %s AND coin_id = ANY(%s) ORDER BY coin_id, created_at",
+                    (_auth.user_id, stale_ids),
+                )
+                symbols = {row["coin_id"]: row["symbol"] for row in cur.fetchall()}
+
+            fetched = get_provider().get_prices(
+                [PricedAsset(coin_id=cid, symbol=symbols.get(cid)) for cid in stale_ids]
+            )
             if fetched:
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 with conn.cursor() as cur:
                     cur.executemany(
-                        "INSERT INTO price_cache (coin_id, price_usd, image_url, updated_at)"
-                        " VALUES (%s, %s, %s, %s)"
+                        "INSERT INTO price_cache (coin_id, price_usd, image_url, symbol, updated_at)"
+                        " VALUES (%s, %s, %s, %s, %s)"
                         " ON CONFLICT (coin_id) DO UPDATE SET price_usd = EXCLUDED.price_usd,"
-                        " image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at",
-                        [(c["id"], c["price"], c.get("image"), now_iso) for c in fetched],
+                        " image_url = EXCLUDED.image_url,"
+                        " symbol = COALESCE(EXCLUDED.symbol, price_cache.symbol),"
+                        " updated_at = EXCLUDED.updated_at",
+                        [(c["id"], c["price"], c.get("image"), symbols.get(c["id"]), now_iso) for c in fetched],
                     )
                 conn.commit()
             for c in fetched:

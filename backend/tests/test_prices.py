@@ -184,3 +184,71 @@ def test_not_implemented_provider_not_masked_by_stale_cache(stale_client):
         mock_provider.return_value.get_prices.side_effect = NotImplementedError("nope")
         res = stale_client.get("/api/prices?ids=bitcoin")
     assert res.status_code == 501
+
+
+# ── Symbol threading (Item 13, User Story 3) ────────────────────────────────
+# These build a custom cursor mock (rather than conftest.make_pg_stub) because the
+# route now issues two distinct SELECTs against the same connection — the
+# price_cache lookup, then the ops-symbol lookup — and these tests care about the
+# second query's result specifically, which a single static fetchall() value can't
+# represent.
+
+def _symbol_client(cache_rows, ops_rows):
+    cur = MagicMock()
+    cur.__enter__.return_value = cur
+    cur.fetchall.side_effect = [cache_rows, ops_rows]
+    conn = MagicMock()
+    conn.cursor.return_value = cur
+
+    def _auth():
+        return AuthContext(user_id="user-test")
+
+    app.dependency_overrides[require_auth] = _auth
+    patches = [patch(t, return_value=conn) for t in _DB_PATCH_TARGETS]
+    for p in patches:
+        p.start()
+    return TestClient(app), cur, patches
+
+
+def test_cache_miss_upserts_symbol_from_matching_op():
+    client, cur, patches = _symbol_client([], [{"coin_id": "bitcoin", "symbol": "BTC"}])
+    cg_data = [{"id": "bitcoin", "current_price": 250000.0, "image": None}]
+    try:
+        with _mock_httpx(json_data=cg_data):
+            res = client.get("/api/prices?ids=bitcoin")
+        assert res.status_code == 200
+        rows = cur.executemany.call_args.args[1]
+        assert rows[0][0] == "bitcoin"
+        assert rows[0][1] == 250000.0
+        assert rows[0][3] == "BTC"
+    finally:
+        _cleanup(patches)
+
+
+def test_unexpected_provider_error_falls_back_to_stale_cache(stale_client):
+    with patch("app.routes.prices.get_provider") as mock_provider:
+        mock_provider.return_value.get_prices.side_effect = ValueError("boom")
+        res = stale_client.get("/api/prices?ids=bitcoin")
+    assert res.status_code == 200
+    assert res.json()["bitcoin"]["price"] == 200000.0
+
+
+def test_unexpected_provider_error_with_nothing_cached_returns_502(empty_client):
+    with patch("app.routes.prices.get_provider") as mock_provider:
+        mock_provider.return_value.get_prices.side_effect = ValueError("boom")
+        res = empty_client.get("/api/prices?ids=bitcoin")
+    assert res.status_code == 502
+
+
+def test_cache_miss_with_no_matching_op_upserts_null_symbol():
+    client, cur, patches = _symbol_client([], [])
+    cg_data = [{"id": "bitcoin", "current_price": 250000.0, "image": None}]
+    try:
+        with _mock_httpx(json_data=cg_data):
+            res = client.get("/api/prices?ids=bitcoin")
+        assert res.status_code == 200
+        rows = cur.executemany.call_args.args[1]
+        assert rows[0][0] == "bitcoin"
+        assert rows[0][3] is None
+    finally:
+        _cleanup(patches)
