@@ -493,7 +493,7 @@ Every stored `Op` already has both `coinId` (the canonical CoinGecko slug, e.g. 
 **Branch:** `test/coverage`
 **Depends on:** items 10, 12, 13 (so tests cover the final endpoint shapes)
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 `backend/tests/`: `test_health.py` (1 test), `test_ops.py` (partial CRUD). Missing: exit_prices, prices, export, import, coins, price_history routes. `web/src/`: three component test files exist but cover mainly render; no form submission or error-path tests.
