@@ -463,8 +463,11 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 ### Current state
 `web/src/lib/coingecko.ts` calls CoinGecko directly from the browser for coin search (exposes API key to the client). `backend/app/routes/prices.py` calls CoinGecko directly with hardcoded logic. No interface exists to swap providers.
 
+### Coin identifier mapping (foundation for a future non-CoinGecko provider)
+Every stored `Op` already has both `coinId` (the canonical CoinGecko slug, e.g. `bitcoin` — unique by design) and `symbol` (its ticker, e.g. `BTC` — what a ticker-based provider like CryptoCompare, Binance, or DIA actually looks up by). Rather than building or sourcing a CoinGecko-ID-to-everything crosswalk table (infeasible to source/maintain for ~15k coins), the `PriceProvider` interface should carry both `coin_id` and `symbol` through every price lookup — the CoinGecko implementation uses `coin_id` unchanged; a ticker-based provider implementation uses `symbol` instead. This requires an additive `symbol` column on `price_cache` and `price_history` (both currently key only on `coin_id`) so the value survives the cache round-trip. **Accepted limitation:** this does not solve ticker collisions (two different projects sharing the same symbol) — CoinGecko's slug remains the identity-of-record and the only provider guaranteed unambiguous; a symbol-based provider is a best-effort fallback. Revisit with a real per-coin crosswalk only if a specific coin's data turns out wrong in practice, not preemptively.
+
 ### Files to create
-- `backend/app/price_provider.py` — abstract base class `PriceProvider` with methods `search_coins(query: str) -> list[dict]`, `get_prices(ids: list[str]) -> list[dict]`, `get_history(coin_id: str, from_ts: int, to_ts: int) -> list[dict]`. Factory function `get_provider() -> PriceProvider` reads `settings.price_provider`.
+- `backend/app/price_provider.py` — abstract base class `PriceProvider` with methods `search_coins(query: str) -> list[dict]`, `get_prices(ids: list[str]) -> list[dict]`, `get_history(coin_id: str, from_ts: int, to_ts: int) -> list[dict]`. Factory function `get_provider() -> PriceProvider` reads `settings.price_provider`. Non-CoinGecko implementations of `get_prices`/`get_history` need the coin's `symbol` too (see "Coin identifier mapping" above) — thread it through the method signatures rather than each provider re-deriving it.
 - `backend/app/providers/coingecko.py` — `CoinGeckoProvider(PriceProvider)` extracts existing logic from `prices.py` and `price_history.py`.
 - `backend/app/providers/cryptocompare.py` — `CryptoCompareProvider(PriceProvider)` stub implementing `search_coins` and `get_prices` via CryptoCompare API. History can be left as `raise NotImplementedError` initially.
 - `backend/app/routes/coins.py` — GET `/api/coins/search?q=bitcoin&limit=7`. Calls `get_provider().search_coins(q)`. Returns same shape as current CoinGecko search response.
@@ -481,6 +484,7 @@ New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24
 ### Done when
 - Browser DevTools shows no direct requests to `api.coingecko.com`.
 - Swapping `PRICE_PROVIDER=cryptocompare` in env changes the provider without code changes.
+- `price_cache`/`price_history` carry `symbol` alongside `coin_id`, and `PriceProvider`'s price/history methods receive both, so a ticker-based provider can be implemented without a schema change later.
 - `pytest` covers `test_coins.py` (search returns results, empty query returns 400).
 
 ---
