@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: pip install -r requirements-dev.txt
         working-directory: backend
-      - run: pytest
+      - run: pytest --cov=app --cov-fail-under=80
         working-directory: backend
       - run: bandit -r app/ -ll
         working-directory: backend
@@ -30,7 +30,7 @@ jobs:
         working-directory: backend
       - run: npm ci
         working-directory: web
-      - run: npm test
+      - run: npm run coverage
         working-directory: web
       - run: npm run lint
         working-directory: web
