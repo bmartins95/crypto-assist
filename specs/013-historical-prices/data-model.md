@@ -43,6 +43,9 @@ Persisted in `localStorage` under `profit_timeframe` (web only, per `PLAN.md`), 
 `shared/src/portfolio.ts`:
 
 ```ts
+// invested/currentValue: currently-open positions only (drives "Valor da carteira").
+// pnl: unrealized P/L of open positions + cumulative realized P/L from all closed lots
+// (drives "Lucro no tempo") — see FR-013.
 export interface TimelinePoint {
   date: string;
   invested: number;
@@ -72,6 +75,11 @@ export function computeTimeline(
 - A coin only ever contributes a non-zero `qty` from the day of its first `Buy` onward — since
   `holdings` starts at `qty: 0` and only changes via replayed ops, FR-008 ("never before
   acquisition") holds by construction.
+- Realized P/L: a running total accumulated as ops are replayed (including the seed-before-`from`
+  pass) — every `Sell` adds `min(op.qty, heldQty) * (op.price - avgCost)` to it, the same formula
+  `computeProfitByAsset` uses. Added into `pnl` at every point (FR-013); `invested`/`currentValue`
+  are left alone, since they represent open positions' cost basis and market value, not cumulative
+  wealth.
 
 ## `GET /api/prices/history` response shape
 

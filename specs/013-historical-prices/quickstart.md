@@ -49,3 +49,6 @@ cd web && npm test
 - [ ] SC-002: switch all 5 timeframe options; each reflows within ~1s or shows the loading overlay.
 - [ ] SC-003: an asset bought 10 days ago never appears before its purchase date on any timeframe.
 - [ ] SC-004: reload the page after selecting a non-default timeframe; selection persists.
+- [ ] FR-013: sell (or trade away) a fully-held position at a gain/loss; confirm "Lucro no tempo"
+      keeps showing that realized gain/loss on and after the closing date, instead of the line
+      dropping back to the unrealized-only total the moment the position closes.
