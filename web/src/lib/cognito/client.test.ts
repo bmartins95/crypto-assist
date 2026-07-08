@@ -13,6 +13,13 @@ import {
 const STORAGE_KEY = 'cognito_tokens';
 const VERIFIER_KEY = 'cognito_pkce_verifier';
 
+// DOMAIN is read from VITE_COGNITO_DOMAIN at module load, which is only set via a
+// gitignored .env.local locally and is unset in CI — parse the query string
+// directly rather than new URL(url), which requires a valid absolute URL.
+function paramsOf(url: string): URLSearchParams {
+  return new URLSearchParams(url.split('?')[1] ?? '');
+}
+
 function mockJsonResponse(status: number, body: unknown): Response {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;
 }
@@ -44,7 +51,7 @@ describe('cognito/client', () => {
   describe('buildAuthUrl', () => {
     it('always includes a PKCE code_challenge and stores the verifier', async () => {
       const url = await buildAuthUrl();
-      const params = new URL(url).searchParams;
+      const params = paramsOf(url);
       expect(params.get('code_challenge')).toBeTruthy();
       expect(params.get('code_challenge_method')).toBe('S256');
       expect(params.get('identity_provider')).toBeNull();
@@ -53,7 +60,7 @@ describe('cognito/client', () => {
 
     it('includes identity_provider only when passed', async () => {
       const url = await buildAuthUrl('Google');
-      const params = new URL(url).searchParams;
+      const params = paramsOf(url);
       expect(params.get('identity_provider')).toBe('Google');
     });
   });
@@ -163,7 +170,7 @@ describe('cognito/client', () => {
 
   describe('buildLogoutUrl', () => {
     it('includes client_id and the current origin as logout_uri', () => {
-      const params = new URL(buildLogoutUrl()).searchParams;
+      const params = paramsOf(buildLogoutUrl());
       expect(params.get('client_id')).toBeTruthy();
       expect(params.get('logout_uri')).toBe(window.location.origin);
     });
