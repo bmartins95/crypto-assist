@@ -49,7 +49,7 @@
 **Independent Test**: `aws-infra/AGENTS.md` contains a "Facebook OAuth per-stage setup" section with the SSM param names and the Cognito callback URI to register in the Facebook Developer Console, mirroring the existing Google section's structure.
 
 - [X] T007 [US3] Add a "Facebook OAuth per-stage setup" section to `AGENTS.md`, mirroring the existing "Google OAuth per-stage setup" section: SSM param names (`/crypto-assist/{stage}/FacebookClientId`, `FacebookClientSecret`), the `facebookEnabled: true` flag location, and the Facebook Developer Console redirect URI requirement (`https://{cognito-domain}.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`)
-- [ ] T008 [US3] **PENDING USER APPROVAL** — Run `npx sst deploy --stage dev` from the `aws-infra` repo and confirm it succeeds with no new Cognito resources created (both `facebookEnabled` flags are `false`), verifying this change is a safe no-op on merge. Not run by the autopilot: deploying to live AWS infrastructure requires explicit approval. `tsc --noEmit` was run instead as a safe local substitute — zero errors in `stacks/app-stack.ts`.
+- [X] T008 [US3] Run `npx sst deploy --stage dev` from the `aws-infra` repo and confirm it succeeds with no new Cognito resources created (both `facebookEnabled` flags are `false`), verifying this change is a safe no-op on merge. Ran with explicit user approval — deploy succeeded, only `CryptoAssistGoogleIdP` showed a trivial "Updated" (unrelated metadata refresh), no `CryptoAssistFacebookIdP` resource was created.
 
 **Checkpoint**: All three user stories complete — the capability exists, is visible in config, and is documented for future rollout.
 
