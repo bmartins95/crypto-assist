@@ -8,6 +8,13 @@
 
 **Input**: User description: "Item 15 — Facebook login (see PLAN.md). Adds Facebook as a second Cognito social IdP alongside Google, following the identical pattern in aws-infra/stacks/app-stack.ts (Google IdP block). Requires one-time manual steps documented in the plan (create Facebook App, store FacebookClientId/FacebookClientSecret in SSM for dev and prod, register Cognito callback URI in the Facebook App) before the infra change takes effect end-to-end — these are manual/external prerequisites, not part of the automated implementation."
 
+## Clarifications
+
+### Session 2026-07-08
+
+- Q: Item 15's code changes (`app-stack.ts`, `dev.yaml`, `prod.yaml`, `aws-infra/AGENTS.md`) are entirely in the separate `aws-infra` repo, not `crypto-assist`. How should the implementation/PR be structured? → A: Implement in `aws-infra` on its own `feat/facebook-login` branch (off `master`), open a PR there targeting `master`. This `crypto-assist` branch/spec carries the plan tracking only. `PLAN.md`'s checkbox is ticked in a separate follow-up PR on `crypto-assist` once the `aws-infra` PR merges — this feature's own PR does not touch `PLAN.md`.
+- Q: Facebook SSM secrets and the Facebook Developer App don't exist yet and can't be created by automation. How should `facebookEnabled` be set in the shipped code? → A: Ship the Facebook IdP block and `facebookEnabled` support in both `dev.yaml` and `prod.yaml`, but leave `facebookEnabled: false` (or omit it) in both files. The user flips it to `true` per-environment only after completing the manual Facebook App + SSM steps for that environment.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Sign in with an existing Facebook account (Priority: P1)
@@ -63,7 +70,7 @@ An operator enables Facebook login in dev first, verifies it works, and only the
 ### Functional Requirements
 
 - **FR-001**: The system MUST offer "Continue with Facebook" as a sign-in option on the hosted login UI, in addition to the existing Google option, for any environment where it is enabled.
-- **FR-002**: The system MUST support enabling or disabling the Facebook sign-in option independently per environment (dev/staging/prod) via a config flag, without requiring a code change to toggle it.
+- **FR-002**: The system MUST support enabling or disabling the Facebook sign-in option independently per environment (dev/staging/prod) via a config flag, without requiring a code change to toggle it. This PR ships the flag defaulted to disabled in every environment; enabling it for a given environment is a separate, later config-only change made once that environment's Facebook credentials exist in SSM.
 - **FR-003**: The system MUST NOT store Facebook app credentials (Client ID/Secret) in source code or committed config files; they are read from the existing secrets store at deploy time.
 - **FR-004**: A first-time Facebook sign-in MUST provision a Crypto Assist account for that user, exactly as a first-time Google sign-in does today.
 - **FR-005**: The system MUST reuse the existing post-authentication callback handling (`AuthClient.tsx` / Amplify session establishment) unchanged — Facebook is just another IdP feeding the same callback.
@@ -84,6 +91,8 @@ An operator enables Facebook login in dev first, verifies it works, and only the
 ## Assumptions
 
 - The one-time manual steps from PLAN.md (creating the Facebook App at developers.facebook.com, storing `FacebookClientId`/`FacebookClientSecret` in SSM for dev and prod, and registering the Cognito callback URI in the Facebook App) are external, human-performed prerequisites. This feature's automated implementation (infra code, config) assumes those secrets will exist by the time `facebookEnabled: true` is deployed for a given environment; it does not create Facebook Developer resources or AWS secrets itself.
+- All code changes for this feature live in the `aws-infra` repository (`stacks/app-stack.ts`, `apps/crypto-assist/dev.yaml`, `apps/crypto-assist/prod.yaml`, `AGENTS.md`), implemented and reviewed there via its own branch and PR against `master`. This spec/plan/tasks set lives in `crypto-assist` purely for plan tracking; ticking `PLAN.md`'s Item 15 checkbox happens in a separate, later `crypto-assist` commit/PR after the `aws-infra` PR merges and is out of scope for this feature's own implementation tasks.
+- `facebookEnabled` ships `false` (or absent, same effective default) in both `dev.yaml` and `prod.yaml` as part of this change — no environment goes live with Facebook login as a direct result of this PR. A human flips the flag later, per environment, once that environment's manual prerequisites are done.
 - Account linking behavior between a Google-authenticated and a Facebook-authenticated session sharing the same email is governed entirely by existing Cognito user pool settings and is out of scope to change — this feature only adds a second IdP using the established pattern.
 - No new UI is designed for the login screen beyond adding the second button; visual style matches the existing Google button.
 - Facebook Login product configuration (permissions requested, e.g. `email`, `public_profile`) uses the same minimal scope Google's block currently requests (email + profile), not an expanded set.
