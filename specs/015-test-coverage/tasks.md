@@ -65,7 +65,9 @@ zero test failures.
   `backend/tests/test_exit_prices.py`: create (204, `cur.execute` called with the `INSERT ...
   ON CONFLICT` statement), update an existing coin's price (same statement, new value),
   delete via `exitPrice <= 0` (204, `cur.execute` called with the `DELETE FROM exit_prices`
-  statement), and 401 when no `Authorization` header is present (depends on T002)
+  statement) including the idempotent case where the targeted `coinId` has no existing row
+  (still 204, not an error), and 401 when no `Authorization` header is present (depends on
+  T002)
 - [ ] T004 [P] [US1] Create `backend/tests/test_export.py` with `GET /api/export` scenarios:
   populated account (two-call `fetchall.side_effect` per research.md, assert the response
   matches `BackupPayload` — `version`, `exportedAt`, full `ops[]` fields, `exitPrices` keyed
@@ -98,6 +100,8 @@ statements; after, it shows ≥90% with the valid-file and malformed-file paths 
   `onSuccess` afterward; a file whose parsed JSON has no `ops` array (missing key, wrong type,
   or invalid JSON) throws before any network call and `onSuccess` is never invoked (depends
   on T006)
+- [ ] T007a [US2] Run `cd web && npm run coverage` and confirm `dataHandlers.ts` reports ≥90%
+  statement coverage (FR-007, SC-002 — depends on T007)
 
 **Checkpoint**: `dataHandlers.ts` coverage gap closed and independently verified.
 
@@ -127,6 +131,8 @@ session-expired-and-refresh-failed, and malformed-stored-token paths all exercis
   omits one), and return them; a refresh-endpoint error causes `getValidSession()` to return
   `null` rather than throw; non-JSON `localStorage` content causes `getTokens()` to return
   `null` rather than throw (depends on T008)
+- [ ] T009a [US3] Run `cd web && npm run coverage` and confirm `cognito/client.ts` reports
+  ≥90% statement coverage (FR-007, SC-002 — depends on T009)
 
 **Checkpoint**: `cognito/client.ts` coverage gap closed and independently verified.
 
@@ -156,7 +162,7 @@ just a missing/failing test. Revert before merging (see quickstart.md).
   T011)
 - [ ] T013 [US4] Manually verify both gates fail on regression per quickstart.md's "CI gate
   regression check" (temporarily weaken a test, confirm the gated command exits non-zero,
-  revert) (depends on T005, T007, T009, T010, T012)
+  revert) (depends on T005, T007a, T009a, T010, T012)
 
 **Checkpoint**: Coverage bar is enforced going forward, not just measured once.
 
