@@ -18,6 +18,7 @@ vi.mock('@/lib/api/client', () => ({
     getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
     getExitPrices: vi.fn(async () => ({})),
     getPrices: vi.fn(async () => ({})),
+    searchCoins: vi.fn(async () => []),
     createOp: vi.fn(async () => ({})),
     updateOp: vi.fn(async () => ({})),
     deleteOp: vi.fn(async () => undefined),
@@ -26,10 +27,6 @@ vi.mock('@/lib/api/client', () => ({
     exportBackup: vi.fn(async () => ({ version: 1, exportedAt: '', ops: [] })),
     clearOps: vi.fn(async () => ({ deleted: 0 })),
   },
-}));
-
-vi.mock('@/lib/coingecko', () => ({
-  getCoinList: vi.fn(async () => []),
 }));
 
 vi.mock('@/lib/storage', () => ({

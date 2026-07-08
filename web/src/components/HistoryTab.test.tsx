@@ -9,23 +9,18 @@ import { CurrencyProvider } from '@/context/CurrencyContext';
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
 });
-import { searchCoins } from '@/lib/coingecko';
+import { api } from '@/lib/api/client';
 
-function realFilterCoinList(list: { id: string; symbol: string; name: string }[], query: string) {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  return list.filter(c => c.symbol.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-}
-
-vi.mock('@/lib/coingecko', () => ({
-  searchCoins: vi.fn(async () => []),
-  fetchSinglePrice: vi.fn(async () => null),
-  getCoinList: vi.fn(() => Promise.reject(new Error('coin list unavailable in tests'))),
-  filterCoinList: vi.fn((list: { id: string; symbol: string; name: string }[], query: string) => realFilterCoinList(list, query)),
+vi.mock('@/lib/api/client', () => ({
+  api: {
+    searchCoins: vi.fn(async () => []),
+    getPrices: vi.fn(async () => ({})),
+    getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+  },
 }));
 
 async function selectCoin(input: HTMLElement, result: { id: string; symbol: string; name: string }) {
-  vi.mocked(searchCoins).mockResolvedValueOnce([{ id: result.id, symbol: result.symbol, name: result.name, market_cap_rank: 1 }]);
+  vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: result.id, symbol: result.symbol, name: result.name, market_cap_rank: 1 }]);
   fireEvent.change(input, { target: { value: result.name.slice(0, 3) } });
   await screen.findByText(result.name);
   fireEvent.click(screen.getByText(result.name));

@@ -13,13 +13,12 @@ interface Props {
   ops: Op[];
   assets: Asset[];
   prices: Prices;
-  apiKey?: string;
   onAddOp: (op: NewOp) => Promise<void>;
   onEditOp: (id: string, op: NewOp) => Promise<void>;
   onRemoveOp: (id: string) => void;
 }
 
-export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, onEditOp, onRemoveOp }: Props) {
+export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, fmtFromCurrency } = useCurrency();
@@ -99,7 +98,6 @@ export default function HistoryTab({ ops, assets, prices, apiKey = '', onAddOp, 
         editingOp={editingOp}
         assets={assets}
         prices={prices}
-        apiKey={apiKey}
       />
     </div>
   );

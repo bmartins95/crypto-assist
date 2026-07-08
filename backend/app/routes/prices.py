@@ -4,38 +4,13 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.dependencies import require_auth
 from app.db.postgres_client import get_conn
-from app.config import get_settings
 from app.models import PriceInfo
-import httpx
+from app.price_provider import get_provider, PricedAsset
 
 router = APIRouter()
 
 _CACHE_TTL_S = 5 * 60
 _COIN_ID_RE = re.compile(r'^[a-z0-9-]{1,120}$')
-
-
-def _fetch_from_coingecko(ids: list[str]) -> list[dict]:
-    api_key = get_settings().coingecko_api_key
-    key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
-    url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={','.join(ids)}{key_param}"
-
-    with httpx.Client(timeout=10) as client:
-        r = client.get(url)
-
-    if r.status_code == 429:
-        raise HTTPException(status_code=429, detail="CoinGecko rate limit exceeded.")
-    if not r.is_success:
-        raise HTTPException(status_code=502, detail="Failed to fetch prices from CoinGecko.")
-
-    data = r.json()
-    if not isinstance(data, list):
-        raise HTTPException(status_code=502, detail="Unexpected CoinGecko response.")
-
-    return [
-        {"id": c["id"], "price": float(c["current_price"]), "image": c.get("image")}
-        for c in data
-        if c.get("current_price") is not None
-    ]
 
 
 @router.get("", response_model=dict[str, PriceInfo])
@@ -80,20 +55,37 @@ def get_prices(
 
     if stale_ids:
         try:
-            fetched = _fetch_from_coingecko(stale_ids)
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT DISTINCT ON (coin_id) coin_id, symbol FROM ops"
+                    " WHERE user_id = %s AND coin_id = ANY(%s) ORDER BY coin_id, created_at",
+                    (_auth.user_id, stale_ids),
+                )
+                symbols = {row["coin_id"]: row["symbol"] for row in cur.fetchall()}
+
+            fetched = get_provider().get_prices(
+                [PricedAsset(coin_id=cid, symbol=symbols.get(cid)) for cid in stale_ids]
+            )
             if fetched:
                 now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
                 with conn.cursor() as cur:
                     cur.executemany(
-                        "INSERT INTO price_cache (coin_id, price_usd, image_url, updated_at)"
-                        " VALUES (%s, %s, %s, %s)"
+                        "INSERT INTO price_cache (coin_id, price_usd, image_url, symbol, updated_at)"
+                        " VALUES (%s, %s, %s, %s, %s)"
                         " ON CONFLICT (coin_id) DO UPDATE SET price_usd = EXCLUDED.price_usd,"
-                        " image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at",
-                        [(c["id"], c["price"], c.get("image"), now_iso) for c in fetched],
+                        " image_url = EXCLUDED.image_url,"
+                        " symbol = COALESCE(EXCLUDED.symbol, price_cache.symbol),"
+                        " updated_at = EXCLUDED.updated_at",
+                        [(c["id"], c["price"], c.get("image"), symbols.get(c["id"]), now_iso) for c in fetched],
                     )
                 conn.commit()
             for c in fetched:
                 result[c["id"]] = PriceInfo(price=c["price"], image=c.get("image"))
+        except NotImplementedError as e:
+            # Must precede `except Exception` below: a provider that doesn't implement
+            # this capability is a permanent condition, not a transient upstream hiccup,
+            # so it must never be treated as stale-cache-fallback material.
+            raise HTTPException(status_code=501, detail=str(e))
         except HTTPException:
             # On CoinGecko failure, fall back to stale cache rather than erroring
             for row in cached:

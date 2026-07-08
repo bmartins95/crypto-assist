@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS price_cache (
     coin_id     text           PRIMARY KEY,
     price_usd   numeric(30,10) NOT NULL,
     image_url   text,
+    symbol      text,
     updated_at  timestamptz    DEFAULT now()
 );
 
@@ -46,5 +47,6 @@ CREATE TABLE IF NOT EXISTS price_history (
     coin_id     text           NOT NULL,
     date        date           NOT NULL,
     price_usd   numeric(30,10) NOT NULL,
+    symbol      text,
     PRIMARY KEY (coin_id, date)
 );

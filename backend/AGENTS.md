@@ -19,13 +19,19 @@ app/
   models.py        # Pydantic request/response models
   cognito.py       # decode_token() — validates Cognito access tokens via JWKS
   dependencies.py  # require_auth FastAPI dependency → AuthContext
+  price_provider.py  # PriceProvider ABC + PricedAsset + get_provider() factory (settings.price_provider)
+  providers/
+    coingecko.py      # CoinGeckoProvider — search_coins/get_prices/get_history (real, default)
+    cryptocompare.py  # CryptoCompareProvider — skeleton, every method raises NotImplementedError
   db/
     postgres_client.py  # get_conn() — lazy connect + schema + retry for Aurora 0 ACU
   routes/
     ops.py          # CRUD /api/ops
     exit_prices.py  # /api/exit-prices
-    prices.py       # /api/prices (CoinGecko, USD reference, 5-min cache in DB)
+    coins.py        # GET /api/coins/search — delegates to get_provider().search_coins()
+    prices.py       # /api/prices (via get_provider(), USD reference, 5-min cache in DB)
     exchange_rates.py  # /api/exchange-rates (CoinGecko-derived fiat rates, 1h cache in DB)
+    price_history.py   # /api/prices/history (via get_provider(), daily cache in DB)
     export_data.py  # GET /api/export
     import_data.py  # POST /api/import
 tests/

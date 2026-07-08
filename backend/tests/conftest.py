@@ -34,17 +34,26 @@ def make_pg_stub(data):
     Returns a mock psycopg connection whose cursor supports fetchall/fetchone.
     data: list  → fetchall returns it, fetchone returns first item
     data: dict  → fetchone returns it, fetchall returns [it]
+
+    Only the first fetchall() call returns `data`; every subsequent call on the
+    same cursor returns []. Routes that issue a second SELECT against the same
+    connection (e.g. prices.py/price_history.py's ops-symbol lookup, Item 13)
+    get an empty result for it by default rather than colliding with the first
+    query's rows — tests that care about that second query's shape should build
+    their own stub with `cur.fetchall.side_effect` instead.
     """
     cur = MagicMock()
     # `with conn.cursor() as c:` must yield `cur` itself, not a sub-mock
     cur.__enter__.return_value = cur
 
     if isinstance(data, list):
-        cur.fetchall.return_value = data
+        first_result = data
         cur.fetchone.return_value = data[0] if data else None
     else:
-        cur.fetchall.return_value = [data] if data else []
+        first_result = [data] if data else []
         cur.fetchone.return_value = data or None
+
+    cur.fetchall.side_effect = lambda *a, **k: first_result if cur.fetchall.call_count == 1 else []
 
     conn = MagicMock()
     conn.cursor.return_value = cur

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     cognito_user_pool_id: str
     cognito_region: str = "us-east-1"
     coingecko_api_key: str = ""
+    price_provider: str = "coingecko"
     frontend_origin: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
