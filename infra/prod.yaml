@@ -3,6 +3,7 @@ name: crypto-assist
 cognito:
   domain: crypto-assist
   googleEnabled: true
+  facebookEnabled: false
   web:
     callbackUrls:
       - https://d3nab81epd8vp1.cloudfront.net/auth/callback
