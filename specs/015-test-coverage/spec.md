@@ -119,6 +119,33 @@ paths all exercised.
 
 ---
 
+### User Story 4 - CI Enforces the Coverage Bar Going Forward (Priority: P2)
+
+A future PR that removes or weakens test coverage on a backend route file or on
+`dataHandlers.ts`/`cognito/client.ts` fails CI automatically, instead of the regression going
+unnoticed until someone happens to run coverage locally.
+
+**Why this priority**: Closing the coverage gap once (User Stories 1-3) only has lasting value
+if it cannot silently erode again. Without an enforced gate, this item's work is a one-time
+snapshot that the next unrelated PR could quietly undo.
+
+**Independent Test**: Temporarily delete a test from `test_exit_prices.py` (or comment out an
+assertion), push, and confirm the CI pipeline's test step fails due to the coverage threshold
+— not just because of a missing/failing test.
+
+**Acceptance Scenarios**:
+
+1. **Given** the backend test suite runs in CI, **When** overall coverage (or any route file,
+   whichever the enforcement mechanism measures) drops below 80%, **Then** the CI step exits
+   non-zero and blocks deployment.
+2. **Given** the web test suite runs in CI, **When** `dataHandlers.ts` or `cognito/client.ts`
+   coverage drops below 90%, **Then** `npm test`/`npm run coverage` exits non-zero and blocks
+   deployment.
+3. **Given** coverage is at or above the configured thresholds, **When** CI runs, **Then** the
+   coverage gate step passes with no change to CI runtime behavior for unrelated files.
+
+---
+
 ### Edge Cases
 
 - What happens when `PUT /api/exit-prices` is called for a `coinId` that has no existing row
@@ -155,9 +182,13 @@ paths all exercised.
   changed by this item).
 - **FR-008**: No existing test may be skipped, marked pending, or deleted to reach these
   coverage numbers — all new coverage MUST come from genuine behavioral assertions.
-- **FR-009**: This item MUST NOT change any production behavior in the files it touches —
-  it adds test files only (or test-supporting fixtures), consistent with PLAN.md's
-  "test-only item" framing.
+- **FR-009**: This item MUST NOT change any application source behavior in the files it
+  touches — it adds test files, test-supporting fixtures, and CI/coverage-tool configuration
+  only, consistent with PLAN.md's "test-only item" framing.
+- **FR-010**: The CI pipeline's backend test step MUST fail if overall backend coverage drops
+  below 80%.
+- **FR-011**: The CI pipeline's web test step MUST fail if `dataHandlers.ts` or
+  `cognito/client.ts` coverage drops below 90%.
 
 ### Key Entities
 
@@ -179,6 +210,18 @@ paths all exercised.
 - **SC-004**: A reviewer reading the new test files can identify, for each new test, which
   documented behavior (happy path, error path, or edge case) it verifies — no test exists
   solely to inflate a coverage percentage without a corresponding behavioral assertion.
+- **SC-005**: A deliberately removed or weakened test in a covered file causes the CI test
+  step to fail (verified once during implementation, then reverted).
+
+## Clarifications
+
+### Session 2026-07-08
+
+- Q: CI currently doesn't enforce any coverage threshold — it only runs the test suites.
+  Should this item also add a coverage gate to CI so future PRs can't silently regress below
+  the bar this item establishes? → A: Yes — add CI enforcement (`--cov-fail-under=80` for
+  backend, coverage thresholds for `dataHandlers.ts`/`cognito/client.ts` in the web test
+  config), in addition to the new test files.
 
 ## Assumptions
 
