@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
 import type { Op } from './types';
 
@@ -81,21 +81,59 @@ describe('computePositionsByAssetAndPlatform', () => {
 });
 
 describe('computeTimeline', () => {
-  it('produces one point per date, sorted chronologically', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('produces one point per day in range, sorted chronologically', () => {
     const ops = [
       op({ date: '2024-01-02', type: 'Buy', qty: 1, price: 100 }),
       op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 50 }),
     ];
-    const timeline = computeTimeline(ops, { bitcoin: 150 });
+    const historicalPrices = { bitcoin: { '2024-01-01': 50, '2024-01-02': 60 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
     expect(timeline.map((t) => t.date)).toEqual(['2024-01-01', '2024-01-02']);
   });
 
-  it('computes invested and current value using the given prices', () => {
+  it('prices each day with that day\'s historical price, not a single flat price', () => {
     const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 2, price: 100 })];
-    const [point] = computeTimeline(ops, { bitcoin: 120 });
-    expect(point.invested).toBe(200);
-    expect(point.currentValue).toBe(240);
-    expect(point.pnl).toBe(40);
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 120 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
+    expect(timeline.map((t) => t.currentValue)).toEqual([200, 240]);
+    expect(timeline[0].invested).toBe(200);
+    expect(timeline[1].pnl).toBe(40);
+  });
+
+  it('falls back to the nearest earlier available date within 7 days', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-04');
+    expect(timeline.map((t) => t.currentValue)).toEqual([100, 100, 100, 100]);
+  });
+
+  it('treats price as zero once the fallback window exceeds 7 days', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-09');
+    const last = timeline[timeline.length - 1];
+    expect(last.date).toBe('2024-01-09');
+    expect(last.currentValue).toBe(0);
+  });
+
+  it('never shows an asset contributing before its acquisition date', () => {
+    const ops = [op({ date: '2024-01-05', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-05': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-05');
+    expect(timeline.find((t) => t.date === '2024-01-01')?.currentValue).toBe(0);
+    expect(timeline.find((t) => t.date === '2024-01-05')?.currentValue).toBe(100);
+  });
+
+  it('defaults to the earliest op date through today when from/to are omitted', () => {
+    vi.setSystemTime(new Date('2024-01-03T00:00:00Z'));
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 100, '2024-01-03': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices);
+    expect(timeline.map((t) => t.date)).toEqual(['2024-01-01', '2024-01-02', '2024-01-03']);
   });
 });
 

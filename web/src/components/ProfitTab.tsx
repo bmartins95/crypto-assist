@@ -1,15 +1,24 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import { ChartType, Op, Prices } from '@/lib/types';
 import { fmtPct, fmtDate } from '@/lib/format';
 import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
+import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function earliestOpDate(ops: Op[]): string {
+  return ops.reduce((min, o) => (o.date && o.date < min ? o.date : min), ops[0]?.date ?? todayISO());
+}
 
 const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#888780','#0F6E56'];
 
@@ -32,6 +41,27 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
 
+  const [historicalPrices, setHistoricalPrices] = useState<Record<string, Record<string, number>>>({});
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const isTimeBased = activeChart === 'over-time' || activeChart === 'value';
+  const rangeFrom = earliestOpDate(ops);
+  const rangeTo = todayISO();
+  const coinIds = Array.from(new Set(ops.map(o => o.coinId).filter(Boolean)));
+
+  useEffect(() => {
+    if (!isTimeBased || !coinIds.length) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+    api.getPriceHistory(coinIds, rangeFrom, rangeTo)
+      .then(data => { if (!cancelled) setHistoricalPrices(data); })
+      .catch(() => { if (!cancelled) { setHistoricalPrices({}); setHistoryError(t.common_error); } })
+      .finally(() => { if (!cancelled) setHistoryLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTimeBased, coinIds.join(','), rangeFrom, rangeTo]);
+
   const profitByAsset = computeProfitByAsset(ops, prices);
   const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
   const withPrice = profitByAsset.filter(p => p.hasPrice);
@@ -50,7 +80,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
     const ctx = chartRef.current.getContext('2d');
     if (!ctx) return;
 
-    const timeline = (activeChart === 'over-time' || activeChart === 'value') ? computeTimeline(ops, prices) : [];
+    const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo) : [];
 
     if (activeChart === 'by-asset' && profitByAsset.length) {
       chartInstance.current = new Chart(ctx, {
@@ -111,7 +141,7 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-  }, [ops, prices, activeChart, locale, t, profitByAsset, noPriceData]);
+  }, [ops, prices, historicalPrices, rangeFrom, rangeTo, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
@@ -162,10 +192,18 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
       </div>
 
       <div className="chart-area">
-        <div className="sec-title">{{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}</div>
+        <div className="sec-title">
+          {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
+          {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+        </div>
         <div className="chart-canvas-wrap">
           <canvas ref={chartRef} />
           {noPriceData && noDataOverlay}
+          {isTimeBased && historyLoading && (
+            <div className="chart-loading">
+              <div className="spin" />
+            </div>
+          )}
         </div>
       </div>
 

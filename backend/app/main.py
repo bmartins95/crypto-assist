@@ -9,7 +9,7 @@ from mangum import Mangum
 
 from app.config import get_settings
 from app.db.postgres_client import get_conn
-from app.routes import ops, exit_prices, prices, export_data, import_data, exchange_rates
+from app.routes import ops, exit_prices, prices, export_data, import_data, exchange_rates, price_history
 
 # In Lambda the runtime pre-installs a root handler, so logging.basicConfig() is a
 # no-op and our INFO logs would be dropped (root defaults to WARNING). Set the level
@@ -36,6 +36,7 @@ app.include_router(prices.router, prefix="/api/prices")
 app.include_router(export_data.router, prefix="/api/export")
 app.include_router(import_data.router, prefix="/api/import")
 app.include_router(exchange_rates.router, prefix="/api/exchange-rates")
+app.include_router(price_history.router, prefix="/api/prices/history")
 
 
 # Log which fields failed (never their values — request bodies hold user
