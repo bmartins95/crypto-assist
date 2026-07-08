@@ -415,7 +415,7 @@ Manual (default), 30 s, 1 min, 5 min.
 **Branch:** `feat/historical-prices`
 **Depends on:** item 10 (prices now stored in USD; historical prices should also be USD)
 
-- [ ] Done
+- [x] Done
 
 ### Design reference
 `docs/design/timeframe-chart-design.html` — visual source of truth for the timeframe selector and chart (placement, styling, loading/hover/empty states). `docs/design/item-12-design-notes.md` — accompanying design notes.
