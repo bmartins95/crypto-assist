@@ -92,6 +92,9 @@ export function computeProfitByAsset(ops: Op[], prices: Prices): AssetProfit[] {
   });
 }
 
+// invested/currentValue cover only currently-open positions (what "Valor da carteira" plots);
+// pnl additionally folds in P/L already banked from past sells/trades, so "Lucro no tempo"
+// doesn't drop a coin's realized gain the moment the position closes.
 export interface TimelinePoint {
   date: string;
   invested: number;
@@ -122,17 +125,20 @@ function priceOnDate(historicalPrices: Record<string, Record<string, number>>, c
   return 0;
 }
 
-function applyOpToHoldings(holdings: Record<string, { qty: number; avgCost: number }>, op: Op): void {
-  if (!op.coinId) return;
+function applyOpToHoldings(holdings: Record<string, { qty: number; avgCost: number }>, op: Op): number {
+  if (!op.coinId) return 0;
   if (!holdings[op.coinId]) holdings[op.coinId] = { qty: 0, avgCost: 0 };
   const h = holdings[op.coinId];
   if (op.type === 'Buy') {
     const newQty = h.qty + op.qty;
     h.avgCost = newQty > 0 ? (h.qty * h.avgCost + op.qty * op.price) / newQty : 0;
     h.qty = newQty;
-  } else {
-    h.qty = Math.max(0, h.qty - op.qty);
+    return 0;
   }
+  const sellQty = Math.min(op.qty, h.qty);
+  const realizedPnl = sellQty * (op.price - h.avgCost);
+  h.qty = Math.max(0, h.qty - op.qty);
+  return realizedPnl;
 }
 
 export function computeTimeline(
@@ -146,16 +152,17 @@ export function computeTimeline(
   const rangeTo = to ?? todayISO();
 
   const holdings: Record<string, { qty: number; avgCost: number }> = {};
+  let realizedPnl = 0;
   let opIndex = 0;
   while (opIndex < sorted.length && sorted[opIndex].date < rangeFrom) {
-    applyOpToHoldings(holdings, sorted[opIndex]);
+    realizedPnl += applyOpToHoldings(holdings, sorted[opIndex]);
     opIndex++;
   }
 
   const result: TimelinePoint[] = [];
   for (let day = rangeFrom; day <= rangeTo; day = addDaysISO(day, 1)) {
     while (opIndex < sorted.length && sorted[opIndex].date === day) {
-      applyOpToHoldings(holdings, sorted[opIndex]);
+      realizedPnl += applyOpToHoldings(holdings, sorted[opIndex]);
       opIndex++;
     }
 
@@ -166,7 +173,7 @@ export function computeTimeline(
       invested += h.qty * h.avgCost;
       currentValue += h.qty * priceOnDate(historicalPrices, coinId, day);
     }
-    result.push({ date: day, invested, currentValue, pnl: currentValue - invested });
+    result.push({ date: day, invested, currentValue, pnl: currentValue - invested + realizedPnl });
   }
   return result;
 }

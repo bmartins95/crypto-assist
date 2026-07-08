@@ -78,3 +78,21 @@ shared validators module. Extracting one now for two call sites is a premature a
 
 **Alternatives considered**: A shared `app/validation.py`. Rejected per the above; revisit only if
 a third route needs the same check.
+
+## Decision: `pnl` on `TimelinePoint` includes realized P/L; `invested`/`currentValue` don't
+
+**Rationale**: Found while implementing FR-001 — the pre-existing `computeTimeline` computed
+`pnl` as `currentValue - invested` over currently-open positions only, so a closed position's
+realized gain/loss vanished from "Lucro no tempo" the instant it was sold, contradicting what the
+"Lucro realizado" metric card and by-asset chart already correctly show via
+`computeProfitByAsset`. Fixed by accumulating a running `realizedPnl` total (same
+`sellQty * (price - avgCost)` formula `computeProfitByAsset` already uses) as ops are replayed,
+and folding it into `pnl` for every timeline point. `invested`/`currentValue` are deliberately
+left alone — "Valor da carteira" is about the market value of what you currently hold, not a
+cumulative wealth figure, so backfilling realized P/L into those two fields would conflate two
+different questions ("what do I own right now" vs. "how has my trading performed overall").
+
+**Alternatives considered**: Fold realized P/L into `currentValue` too (so "Valor da carteira"
+also reflects cashed-out gains as if reinvested). Rejected — nothing in the spec or design
+reference asks "Valor da carteira" to model reinvestment of realized proceeds, and doing so would
+silently change what that chart means without a corresponding UI/label change.

@@ -23,6 +23,7 @@ As an investor reviewing my portfolio's profit history, I want the "Lucro no tem
 1. **Given** a buy operation on an earlier date and today's price for that asset has since doubled, **When** the "Lucro no tempo" chart renders the point for that earlier date, **Then** it shows the profit implied by the asset's price on that date, not today's doubled price.
 2. **Given** the same portfolio, **When** the "Valor da carteira" chart renders, **Then** each point shows invested amount vs. portfolio value computed from that date's historical prices.
 3. **Given** a date for which no exact historical price record exists, **When** the chart computes that point, **Then** it falls back to the nearest earlier available date's price (up to 7 days back) and, if none exists within that window, treats the value as zero for that asset on that date.
+4. **Given** an asset was fully sold (or traded away) at a gain or loss, **When** the "Lucro no tempo" chart renders dates on or after the closing date, **Then** that realized gain or loss remains reflected in the plotted profit — it does not disappear the moment the position closes.
 
 ---
 
@@ -64,6 +65,7 @@ As an investor, I want to switch between 1D / 1W / 1M / 1Y / All windows on the 
 - **FR-010**: The timeframe selector MUST be visible only for the two time-based chart modes ("Lucro no tempo" and "Valor da carteira") and hidden for the "Por ativo" mode, which has no timeframe concept.
 - **FR-011**: The system MUST cache fetched historical price data so that repeated requests for the same coin/date do not require a fresh call to the upstream price provider.
 - **FR-012**: The system MUST reject a historical-price request for a malformed coin identifier the same way the existing current-price endpoint does, to keep the outbound request safe from injection into the upstream provider's URL.
+- **FR-013**: The "Lucro no tempo" chart's plotted profit MUST include realized gains/losses from closed positions (full or partial sells, and the sell leg of a trade), accumulated from all such closures up to that date, in addition to the unrealized profit of currently-open positions — a closed position's realized result MUST NOT disappear from the chart once the position is no longer held.
 
 ### Key Entities
 

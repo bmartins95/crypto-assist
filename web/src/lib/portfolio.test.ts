@@ -135,6 +135,31 @@ describe('computeTimeline', () => {
     const timeline = computeTimeline(ops, historicalPrices);
     expect(timeline.map((t) => t.date)).toEqual(['2024-01-01', '2024-01-02', '2024-01-03']);
   });
+
+  it("keeps a closed position's realized profit in pnl instead of dropping it once sold", () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+    ];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-03');
+    expect(timeline[0].pnl).toBe(0);
+    expect(timeline[1].currentValue).toBe(0);
+    expect(timeline[1].invested).toBe(0);
+    expect(timeline[1].pnl).toBe(50);
+    expect(timeline[2].pnl).toBe(50);
+  });
+
+  it("folds a trade's realized loss into pnl the same way a plain sell does", () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', date: '2024-01-02', type: 'Sell', qty: 1, price: 80 }),
+      op({ id: 'op-3', coinId: 'ethereum', symbol: 'ETH', date: '2024-01-02', type: 'Buy', qty: 1, price: 80 }),
+    ];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 80 }, ethereum: { '2024-01-02': 80 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
+    expect(timeline[1].pnl).toBe(-20);
+  });
 });
 
 describe('collectAssets', () => {
