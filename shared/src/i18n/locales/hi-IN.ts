@@ -82,6 +82,7 @@ const hiIN: UIText = {
   app_title: 'क्रिप्टो पोर्टफोलियो',
   auth_subtitle: 'जारी रखने के लिए साइन इन करें या खाता बनाएं',
   auth_google: 'Google से जारी रखें',
+  auth_facebook: 'Facebook से जारी रखें',
   auth_email: 'ईमेल से साइन इन करें',
   auth_authenticating: 'प्रमाणीकरण हो रहा है...',
   auth_failed: 'प्रमाणीकरण विफल। पुनर्निर्देशित हो रहा है...',

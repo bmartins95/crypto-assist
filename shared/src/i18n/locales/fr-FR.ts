@@ -82,6 +82,7 @@ const frFR: UIText = {
   app_title: 'Portefeuille Crypto',
   auth_subtitle: 'Connectez-vous ou créez un compte pour continuer',
   auth_google: 'Continuer avec Google',
+  auth_facebook: 'Continuer avec Facebook',
   auth_email: 'Se connecter par e-mail',
   auth_authenticating: 'Authentification...',
   auth_failed: 'Échec de l\'authentification. Redirection...',

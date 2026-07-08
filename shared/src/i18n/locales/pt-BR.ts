@@ -82,6 +82,7 @@ const ptBR: UIText = {
   app_title: 'Carteira de Criptoativos',
   auth_subtitle: 'Entre ou crie sua conta para continuar',
   auth_google: 'Continuar com Google',
+  auth_facebook: 'Continuar com Facebook',
   auth_email: 'Entrar com e-mail',
   auth_authenticating: 'Autenticando...',
   auth_failed: 'Falha na autenticação. Redirecionando...',

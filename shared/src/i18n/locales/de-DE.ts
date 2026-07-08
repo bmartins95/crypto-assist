@@ -82,6 +82,7 @@ const deDE: UIText = {
   app_title: 'Krypto-Portfolio',
   auth_subtitle: 'Anmelden oder Konto erstellen, um fortzufahren',
   auth_google: 'Weiter mit Google',
+  auth_facebook: 'Weiter mit Facebook',
   auth_email: 'Mit E-Mail anmelden',
   auth_authenticating: 'Authentifizierung...',
   auth_failed: 'Authentifizierung fehlgeschlagen. Weiterleitung...',

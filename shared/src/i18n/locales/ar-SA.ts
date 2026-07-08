@@ -82,6 +82,7 @@ const arSA: UIText = {
   app_title: 'محفظة العملات المشفرة',
   auth_subtitle: 'سجل الدخول أو أنشئ حسابًا للمتابعة',
   auth_google: 'المتابعة مع Google',
+  auth_facebook: 'المتابعة مع Facebook',
   auth_email: 'الدخول بالبريد الإلكتروني',
   auth_authenticating: 'جاري التحقق...',
   auth_failed: 'فشل التحقق. جاري التحويل...',
