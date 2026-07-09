@@ -528,20 +528,22 @@ Every stored `Op` already has both `coinId` (the canonical CoinGecko slug, e.g. 
 Google is the only social IdP. Facebook OAuth credentials are not in SSM. Pattern to follow is identical to Google (`aws-infra/stacks/app-stack.ts` lines 41-65).
 
 ### One-time manual steps (do before coding, document in commit message)
-1. Create a Facebook App at developers.facebook.com with "Facebook Login for Business" product.
+1. Create a Facebook App at developers.facebook.com. **Correction learned during implementation:** do NOT pick "Facebook Login for Business" — that product requires at least one business permission alongside `email`/`public_profile` and will reject a plain consumer login with "Invalid Scopes: email". Pick the classic **"Authenticate and request data from users with Facebook Login"** use case instead. Also ensure the `email` permission is explicitly added under the app's Permissions & Features (it is not automatic like `public_profile`).
 2. Store credentials: `aws ssm put-parameter --name /crypto-assist/dev/FacebookClientId --value <id> --type SecureString` and same for `FacebookClientSecret`. Repeat for prod.
 3. Add Cognito callback URI to Facebook App: `https://{cognito-domain}.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`.
 
 ### Files to modify
 - `aws-infra/stacks/app-stack.ts` — add `facebookEnabled?: boolean` to `AppConfig.cognito`. Below the Google IdP block, add an identical block for Facebook using `FacebookClientId` / `FacebookClientSecret` from SSM. Add `facebookIdP?.providerName` to the `providers` array.
-- `aws-infra/apps/crypto-assist/dev.yaml` — add `facebookEnabled: true` after credentials are in SSM.
-- `aws-infra/apps/crypto-assist/prod.yaml` — same.
+- `crypto-assist/infra/dev.yaml` — add `facebookEnabled: true` after credentials are in SSM. **Correction learned during implementation:** this plan originally said to add the flag to `aws-infra/apps/crypto-assist/dev.yaml` directly — that file is NOT the source of truth. It is overwritten on every `crypto-assist` push to `develop` by the `register-infra` step (reusable `bmartins95/aws-shared-pipeline` workflow), which pushes the contents of *this repo's* `infra/dev.yaml` into `aws-infra`. Editing `aws-infra`'s copy directly works only until the next unrelated deploy silently reverts it.
+- `crypto-assist/infra/prod.yaml` — same field, `false` until prod's manual steps are done.
+- `web/src/app/auth/AuthClient.tsx` — **correction learned during implementation:** this plan originally assumed login was a bare Cognito Hosted UI redirect requiring no `crypto-assist` code change. That was stale — the app has its own custom `/auth` entry screen with a "Continuar com Google" button (hand-rolled PKCE flow via `web/src/lib/cognito/client.ts`, not Amplify). Add a matching "Continuar com Facebook" button plus the `auth_facebook` i18n key across all 10 locales.
 - `aws-infra/AGENTS.md` — add Facebook to the "Google OAuth per-stage setup" section; document SSM param names and Facebook Developer Console redirect URI requirement.
 
 ### Done when
-- "Continuar com Facebook" button appears on the Cognito Hosted UI for dev and prod.
-- End-to-end login with a Facebook account works.
+- "Continuar com Facebook" button appears on the app's own `/auth` screen for dev and prod (not just the raw Cognito Hosted UI, which does not render a Facebook button in this pool's classic Hosted UI template even when the IdP is correctly attached — confirmed via direct inspection of the rendered HTML).
+- End-to-end login with a Facebook account works, verified via `aws cognito-idp list-identity-providers` / `describe-user-pool-client` after a deploy triggered by merging to `develop` (not a manual one-off `sst deploy`, which doesn't persist through the next unrelated pipeline run).
 - Pipeline deploys cleanly.
+- **Known follow-up, not blocking this item:** logging in via Google vs. Facebook vs. email/password with the same email lands on three separate Cognito accounts with separate (empty) wallets — Cognito does not auto-link federated identities by email. Tracked as Item 16.
 
 ---
 
