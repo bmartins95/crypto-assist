@@ -522,7 +522,7 @@ Every stored `Op` already has both `coinId` (the canonical CoinGecko slug, e.g. 
 **Branch:** `feat/facebook-login`
 **Depends on:** nothing
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 Google is the only social IdP. Facebook OAuth credentials are not in SSM. Pattern to follow is identical to Google (`aws-infra/stacks/app-stack.ts` lines 41-65).
