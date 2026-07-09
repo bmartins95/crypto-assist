@@ -9,6 +9,8 @@ import {
 } from '@tanstack/react-router';
 import AuthClient from './app/auth/AuthClient';
 import SettingsPage from './pages/settings';
+import PrivacyPage from './pages/privacy';
+import DataDeletionPage from './pages/data-deletion';
 import AppLayout, { usePortfolio } from './components/AppLayout';
 import WalletTab from './components/WalletTab';
 import ProfitTab from './components/ProfitTab';
@@ -59,6 +61,18 @@ const authCallbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/callback',
   component: AuthCallbackPage,
+});
+
+const privacyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/privacy',
+  component: PrivacyPage,
+});
+
+const dataDeletionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/data-deletion',
+  component: DataDeletionPage,
 });
 
 const appLayoutRoute = createRoute({
@@ -154,6 +168,8 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   authRoute,
   authCallbackRoute,
+  privacyRoute,
+  dataDeletionRoute,
   appLayoutRoute.addChildren([walletRoute, profitRoute, historyRoute, settingsRoute]),
 ]);
 
