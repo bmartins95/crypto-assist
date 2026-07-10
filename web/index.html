@@ -12,6 +12,21 @@
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"
     />
     <title>Carteira de Criptoativos</title>
+    <script>
+      // Hard navigations (OAuth round trips, the Cognito logout redirect) briefly show
+      // the browser's default white background before any CSS loads — this blocking,
+      // pre-paint script sets the correct dark/light background immediately, matching
+      // ThemeContext's own resolution logic, so that gap reads as the app's own
+      // background instead of a jarring white flash.
+      (function () {
+        var stored = localStorage.getItem('crypto-assist:theme');
+        var dark = stored === 'dark' || (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.setAttribute('data-theme', stored);
+        }
+        document.documentElement.style.background = dark ? '#0a0a0b' : '#ebebeb';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

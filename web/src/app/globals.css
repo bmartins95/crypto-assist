@@ -714,6 +714,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-card > *:nth-child(5), .auth-hero > *:nth-child(5) { animation-delay: .27s; }
 .auth-card > *:nth-child(6), .auth-hero > *:nth-child(6) { animation-delay: .33s; }
 .auth-card > *:nth-child(7), .auth-hero > *:nth-child(7) { animation-delay: .39s; }
+/* Loading/error states appear across route (and hard-navigation) boundaries — a
+   fresh .auth-card mounts each time, which would replay the staggered rise above
+   and read as a flicker. These should appear immediately instead, same principle
+   as showing the loading state right on click rather than waiting for a callback. */
+.auth-card > .auth-loader, .auth-card > .auth-error-state { animation: none; opacity: 1; }
 
 .auth-card {
   position: relative; z-index: 1; width: 100%; max-width: 392px; background: var(--s-surface);
