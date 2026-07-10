@@ -5,6 +5,10 @@ import LoadingState from './LoadingState';
 import { useLocale } from '@/context/LocaleContext';
 
 const TIMEOUT_MS = 28000;
+// On a fast/warm backend this can resolve in well under a second, right after
+// AuthCallback's own loading screen — a minimum visible time keeps that handoff
+// from reading as a flicker (entrance animation cut off mid-fade).
+const MIN_VISIBLE_MS = 400;
 
 interface AppBootstrapGateProps {
   run: () => Promise<void>;
@@ -18,6 +22,7 @@ export default function AppBootstrapGate({ run, children }: AppBootstrapGateProp
 
   useEffect(() => {
     let cancelled = false;
+    const mountedAt = Date.now();
     setStatus('pending');
     const timeoutId = setTimeout(() => {
       if (!cancelled) setStatus('error');
@@ -25,10 +30,12 @@ export default function AppBootstrapGate({ run, children }: AppBootstrapGateProp
 
     run()
       .then(() => {
-        if (!cancelled) {
-          clearTimeout(timeoutId);
-          setStatus('ready');
-        }
+        if (cancelled) return;
+        clearTimeout(timeoutId);
+        const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - mountedAt));
+        setTimeout(() => {
+          if (!cancelled) setStatus('ready');
+        }, wait);
       })
       .catch(() => {
         if (!cancelled) {

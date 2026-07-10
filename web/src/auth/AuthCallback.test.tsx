@@ -40,10 +40,10 @@ describe('AuthCallback', () => {
     expect(screen.getByText(/autenticando/i)).toBeTruthy();
   });
 
-  it('navigates into the app when the redirect sign-in succeeds', () => {
+  it('navigates into the app when the redirect sign-in succeeds', async () => {
     renderCallback();
     act(() => hubCallback?.({ payload: { event: 'signInWithRedirect' } }));
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/wallet' });
+    await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/wallet' }));
   });
 
   it('shows a failure message and a way back to login when the redirect fails', () => {

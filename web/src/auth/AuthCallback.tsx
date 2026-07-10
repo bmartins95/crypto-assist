@@ -7,6 +7,12 @@ import LoadingState from './LoadingState';
 import { isAuthenticated } from './useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
+// Auth on localhost/warm backends can resolve in well under a second, which — combined
+// with AppBootstrapGate's own loading screen right after — cut this screen's entrance
+// animation off mid-fade and read as a flicker. A short minimum visible time lets each
+// stage actually settle before the next one takes over.
+const MIN_VISIBLE_MS = 400;
+
 export default function AuthCallback() {
   const { t } = useLocale();
   const navigate = useNavigate();
@@ -14,18 +20,29 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let cancelled = false;
+    let navigated = false;
+    const mountedAt = Date.now();
+
+    const proceed = () => {
+      if (navigated) return;
+      navigated = true;
+      const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - mountedAt));
+      setTimeout(() => {
+        if (!cancelled) navigate({ to: '/wallet' });
+      }, wait);
+    };
 
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
       if (cancelled) return;
       if (payload.event === 'signInWithRedirect') {
-        navigate({ to: '/wallet' });
+        proceed();
       } else if (payload.event === 'signInWithRedirect_failure') {
         setFailed(true);
       }
     });
 
     isAuthenticated().then(ok => {
-      if (!cancelled && ok) navigate({ to: '/wallet' });
+      if (!cancelled && ok) proceed();
     });
 
     return () => {
