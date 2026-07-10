@@ -46,6 +46,25 @@ export default function HeroPage() {
               </div>
               <span className="pill down">-2,45%</span>
             </div>
+            <svg className="auth-spark" viewBox="0 0 320 70" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="auth-spark-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#2dd4bf" stopOpacity=".3" />
+                  <stop offset="1" stopColor="#2dd4bf" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0 52 C 40 30, 70 20, 110 24 C 150 28, 180 8, 220 14 C 255 19, 285 40, 320 30 L320 70 L0 70 Z"
+                fill="url(#auth-spark-fill)"
+              />
+              <path
+                d="M0 52 C 40 30, 70 20, 110 24 C 150 28, 180 8, 220 14 C 255 19, 285 40, 320 30"
+                fill="none"
+                stroke="#2dd4bf"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
             <div className="auth-pv-row">
               <span className="coin" style={{ background: '#f7931a' }}>B</span>
               <span className="auth-pv-nm">Bitcoin</span>
@@ -66,14 +85,31 @@ export default function HeroPage() {
 
         <div className="auth-features">
           <div className="auth-feat">
+            <div className="ic">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M23 4v6h-6M1 20v-6h6" />
+                <path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15" />
+              </svg>
+            </div>
             <h3>{t.hero_feature1_title}</h3>
             <p>{t.hero_feature1_desc}</p>
           </div>
           <div className="auth-feat">
+            <div className="ic">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <path d="M2 10h20" />
+              </svg>
+            </div>
             <h3>{t.hero_feature2_title}</h3>
             <p>{t.hero_feature2_desc}</p>
           </div>
           <div className="auth-feat">
+            <div className="ic">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 17l6-6 4 4 8-8M17 7h4v4" />
+              </svg>
+            </div>
             <h3>{t.hero_feature3_title}</h3>
             <p>{t.hero_feature3_desc}</p>
           </div>
