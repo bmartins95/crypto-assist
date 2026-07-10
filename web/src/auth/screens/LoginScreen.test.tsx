@@ -52,12 +52,26 @@ describe('LoginScreen', () => {
     await vi.waitFor(() => expect(signInWithRedirect).toHaveBeenCalledWith('Facebook'));
   });
 
-  it('shows an error message when the social redirect fails', async () => {
+  it('shows the loading state immediately on click, before signInWithRedirect resolves', async () => {
+    const { signInWithRedirect } = await import('../useAuth');
+    let resolveRedirect: () => void = () => undefined;
+    vi.mocked(signInWithRedirect).mockReturnValueOnce(
+      new Promise<void>(resolve => { resolveRedirect = resolve; })
+    );
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: /google/i }));
+    expect(screen.getByText(/autenticando/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /google/i })).toBeNull();
+    resolveRedirect();
+  });
+
+  it('reverts to the button view and shows an error when the social redirect fails', async () => {
     const { signInWithRedirect } = await import('../useAuth');
     vi.mocked(signInWithRedirect).mockRejectedValueOnce(new Error('network'));
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: /google/i }));
     expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /google/i })).toBeTruthy();
   });
 
   it('links the legal line to /terms and /privacy', () => {

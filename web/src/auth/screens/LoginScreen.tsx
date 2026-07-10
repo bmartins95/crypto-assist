@@ -4,6 +4,7 @@ import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import ProviderButton from '../ProviderButton';
+import LoadingState from '../LoadingState';
 import { signInWithRedirect } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -11,16 +12,32 @@ export default function LoginScreen() {
   const { t } = useLocale();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
 
   const handleSocial = async (provider: 'Google' | 'Facebook') => {
     setError('');
+    // signInWithRedirect hard-navigates the browser away almost immediately on
+    // success — there's no "loading" gap for a normal await to cover, so the
+    // loading state has to go up before the call, not after it.
+    setRedirecting(true);
     try {
       await signInWithRedirect(provider);
     } catch (err) {
       console.error('signInWithRedirect failed:', err);
+      setRedirecting(false);
       setError(t.auth_error_generic);
     }
   };
+
+  if (redirecting) {
+    return (
+      <AuthShell>
+        <AuthCard>
+          <LoadingState title={t.auth_callback_title} messages={[t.auth_callback_message]} />
+        </AuthCard>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell>
