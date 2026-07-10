@@ -706,24 +706,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 @keyframes auth-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.auth-card > *, .auth-hero > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
-.auth-card > *:nth-child(1), .auth-hero > *:nth-child(1) { animation-delay: .03s; }
-.auth-card > *:nth-child(2), .auth-hero > *:nth-child(2) { animation-delay: .09s; }
-.auth-card > *:nth-child(3), .auth-hero > *:nth-child(3) { animation-delay: .15s; }
-.auth-card > *:nth-child(4), .auth-hero > *:nth-child(4) { animation-delay: .21s; }
-.auth-card > *:nth-child(5), .auth-hero > *:nth-child(5) { animation-delay: .27s; }
-.auth-card > *:nth-child(6), .auth-hero > *:nth-child(6) { animation-delay: .33s; }
-.auth-card > *:nth-child(7), .auth-hero > *:nth-child(7) { animation-delay: .39s; }
-/* Loading/error states appear across route (and hard-navigation) boundaries — a
-   fresh .auth-card mounts each time, which would replay the staggered rise above
-   and look like the whole screen restarting. A quick, single, non-staggered fade
-   reads as a smooth handoff between stages instead of either a slow re-entrance
-   or an untransitioned instant cut (both of which look like a flicker). */
-@keyframes auth-fade-in { from { opacity: 0; } to { opacity: 1; } }
-.auth-card > .auth-loader, .auth-card > .auth-error-state {
-  animation: auth-fade-in .2s ease forwards;
-  opacity: 0;
-}
+.auth-card > *, .auth-hero-page > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
+.auth-card > *:nth-child(1), .auth-hero-page > *:nth-child(1) { animation-delay: .03s; }
+.auth-card > *:nth-child(2), .auth-hero-page > *:nth-child(2) { animation-delay: .09s; }
+.auth-card > *:nth-child(3), .auth-hero-page > *:nth-child(3) { animation-delay: .15s; }
+.auth-card > *:nth-child(4), .auth-hero-page > *:nth-child(4) { animation-delay: .21s; }
+.auth-card > *:nth-child(5), .auth-hero-page > *:nth-child(5) { animation-delay: .27s; }
+.auth-card > *:nth-child(6), .auth-hero-page > *:nth-child(6) { animation-delay: .33s; }
+.auth-card > *:nth-child(7), .auth-hero-page > *:nth-child(7) { animation-delay: .39s; }
+/* Loading/error states: per auth-flow-prototype.html, the outer .loader block itself
+   isn't animated — each inner element (logo, title, message, dots) fades/rises in
+   individually, on the same rise timing as everything else in the card. */
+.auth-card > .auth-loader, .auth-card > .auth-error-state { opacity: 1; animation: none; }
+.auth-loader > *, .auth-error-state > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
+.auth-loader > *:nth-child(1), .auth-error-state > *:nth-child(1) { animation-delay: .03s; }
+.auth-loader > *:nth-child(2), .auth-error-state > *:nth-child(2) { animation-delay: .09s; }
+.auth-loader > *:nth-child(3), .auth-error-state > *:nth-child(3) { animation-delay: .15s; }
+.auth-loader > *:nth-child(4), .auth-error-state > *:nth-child(4) { animation-delay: .21s; }
 
 .auth-card {
   position: relative; z-index: 1; width: 100%; max-width: 392px; background: var(--s-surface);
@@ -741,6 +740,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   padding: 0;
 }
 .auth-back:hover { background: transparent; color: var(--text); }
+.auth-back svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--s-text-dim); font-size: 12px; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--s-border-soft); }
@@ -804,7 +804,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 @media (prefers-reduced-motion: reduce) {
   .auth-glow::before, .auth-glow::after,
-  .auth-card > *, .auth-hero > *,
+  .auth-card > *, .auth-hero-page > *,
+  .auth-loader > *, .auth-error-state > *,
   .auth-loader .auth-logo, .auth-dots i, .auth-check-wrap, .auth-check-wrap svg,
   .auth-msg { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
 }

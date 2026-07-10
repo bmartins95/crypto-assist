@@ -4,6 +4,7 @@ import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
+import BackButton from '../BackButton';
 import { signIn, resetPassword, confirmResetPassword } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -66,9 +67,7 @@ export default function EmailLoginScreen() {
     return (
       <AuthShell>
         <AuthCard>
-          <button type="button" className="auth-back" onClick={() => setMode('login')}>
-            {t.auth_back}
-          </button>
+          <BackButton label={t.auth_back} onClick={() => setMode('login')} />
           <div className="auth-brand">
             <BrandMark size={60} />
             <h1>{t.auth_forgot_title}</h1>
@@ -90,9 +89,7 @@ export default function EmailLoginScreen() {
     return (
       <AuthShell>
         <AuthCard>
-          <button type="button" className="auth-back" onClick={() => setMode('login')}>
-            {t.auth_back}
-          </button>
+          <BackButton label={t.auth_back} onClick={() => setMode('login')} />
           <div className="auth-brand">
             <BrandMark size={60} />
             <h1>{t.auth_forgot_title}</h1>
@@ -137,9 +134,7 @@ export default function EmailLoginScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <button type="button" className="auth-back" onClick={() => navigate({ to: '/login' })}>
-          {t.auth_back}
-        </button>
+        <BackButton label={t.auth_back} onClick={() => navigate({ to: '/login' })} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_login_title}</h1>

@@ -5,6 +5,7 @@ import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import ProviderButton from '../ProviderButton';
 import LoadingState from '../LoadingState';
+import BackButton from '../BackButton';
 import { signInWithRedirect } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -42,9 +43,7 @@ export default function LoginScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <button type="button" className="auth-back" onClick={() => navigate({ to: '/' })}>
-          {t.auth_back_home}
-        </button>
+        <BackButton label={t.auth_back_home} onClick={() => navigate({ to: '/' })} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_welcome}</h1>

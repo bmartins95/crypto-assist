@@ -4,6 +4,7 @@ import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
+import BackButton from '../BackButton';
 import { signUp, confirmSignUp, resendSignUpCode, signIn } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -105,9 +106,7 @@ export default function SignupScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <button type="button" className="auth-back" onClick={() => navigate({ to: '/login/email' })}>
-          {t.auth_back}
-        </button>
+        <BackButton label={t.auth_back} onClick={() => navigate({ to: '/login/email' })} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_signup_title}</h1>
