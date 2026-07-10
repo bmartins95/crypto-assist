@@ -18,7 +18,7 @@ Add a Cognito Pre Sign-up Lambda trigger (`triggers.preSignUp` on the existing `
 
 **Testing**: `node --test` + `node:assert/strict` (Node's built-in test runner, zero new dependency) for the Pre Sign-up Lambda's pure decision logic (`decide()`); everything else (trigger wiring, `AdminLinkProviderForUser` actually working, the migration script) is verified live against a dev deploy, consistent with the rest of `aws-infra` (no existing test suite there).
 
-**Target Platform**: AWS Cognito User Pool (via SST v4's `triggers.preSignUp`) + a standalone Node script run manually against the same pool, one environment (dev) initially per PLAN.md Item 16's scope, prod migration deferred until dev is verified
+**Target Platform**: AWS Cognito User Pool (via SST v4's `triggers.preSignUp`) + a standalone Node script run manually against the same pool. Originally scoped as dev-only with prod deferred until dev was verified; in practice both were completed in this same PR once dev was confirmed working (see spec.md SC-005) — deployed to prod and the migration run there too, resolving prod's own pre-existing duplicate group.
 
 **Project Type**: Infrastructure-as-code addition (Lambda trigger + IdP attribute mapping change) plus a one-off operator script, both in the existing multi-app SST v4 stack (`aws-infra` repo)
 

@@ -551,7 +551,7 @@ Google is the only social IdP. Facebook OAuth credentials are not in SSM. Patter
 **Branch:** `feat/cognito-account-linking`
 **Depends on:** item 15 (Facebook login merged, so there are two social IdPs to link, not just Google)
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 Discovered while manually testing Item 15 in dev: Cognito does **not** automatically link a federated sign-in (Google, Facebook) to an existing account that shares the same email — this was a wrong assumption baked into `specs/016-facebook-login/spec.md`'s Acceptance Scenario 2, which claimed "Cognito's existing attribute-based account linking behavior applies... exactly as it already does for Google." There is no such existing behavior. Confirmed via `aws cognito-idp list-users` on the dev pool: the same person (`bruno.martins.cesfi@gmail.com`) has **three separate Cognito user records** — one native (email/password, `sub 3478a428-...`), one `google_111350953852010248841` (`sub 14e864a8-...`), one `facebook_122094143511399836` (`sub e4c844c8-...`). Since `backend/`'s `ops` table (and everything else) is scoped by `user_id` = Cognito `sub`, each is a completely distinct, empty wallet from the backend's point of view — logging in via a different provider than the one used to build up wallet data makes that data "disappear" (it isn't lost, it's just under a different account).
@@ -571,10 +571,19 @@ Cognito supports this via a **Pre Sign-up Lambda trigger** (`PreSignUp_ExternalP
 - `aws-infra/stacks/app-stack.ts` — wire the new Lambda as the User Pool's `preSignUp` trigger (SST's `sst.aws.CognitoUserPool` trigger config, or the equivalent direct Pulumi resource if SST's trigger wiring has the same class of bug as `addIdentityProvider()` — verify against a real deploy, don't assume it works). Add `email_verified` to both the Google and Facebook `attributeMapping` blocks so the Lambda has a trustworthy per-provider verified-email signal (Google exposes `email_verified` as an OIDC claim directly; Facebook's Graph API does not expose an equivalent field the same way — confirm during implementation whether Facebook-provided emails can be treated as inherently verified, since Facebook only grants the `email` permission for verified addresses in the first place).
 - `aws-infra/AGENTS.md` — document the linking behavior and its email-verification precondition, mirroring how the Google/Facebook OAuth setup sections are documented.
 
+### Corrections learned during implementation
+- **Scope expansion** (via `/speckit-clarify`): a one-off migration for the *already-existing* duplicate accounts (this item's own "Current state" example) was added as User Story 4 — the Pre Sign-up Lambda alone only prevents *new* duplicates going forward, it does nothing for accounts already split before it shipped.
+- A federated user's Cognito `UserStatus` is `EXTERNAL_PROVIDER`, not `CONFIRMED` as this item's "Approach" section assumed — confirmed live against the dev pool. Matching now checks both statuses.
+- **The big one**: `AdminLinkProviderForUser` cannot merge two already-existing Cognito accounts at all (`InvalidParameterException: Merging is not currently supported, provide a SourceUser that has not been signed up in order to link`) — discovered running the migration live against real duplicate accounts in both dev and prod. There is no supported Cognito API to retroactively merge already-independent user records. The actual fix for pre-existing duplicates: delete the non-canonical **federated** account, then have that person sign in again via the same provider — a genuinely new sign-up this time, correctly linked by the Pre Sign-up Lambda. A non-canonical **native** account has no provider to re-authenticate through and is disabled instead, not deleted.
+- The migration script (`aws-infra/scripts/merge-duplicate-cognito-users.ts`) cannot check `ops` emptiness itself — Aurora sits in a private VPC subnet with no path from a local script. Wallet-emptiness confirmation before running for real is a manual operator step.
+
 ### Done when
-- Signing in via Google, then via Facebook, then via email/password (or any order), with the same verified email, always resolves to the same Cognito `sub` / same wallet — verified directly against a real dev deploy (`aws cognito-idp list-users`, confirming one user record, not three).
-- A sign-in from a provider that does **not** report the email as verified does **not** get silently linked to an existing account (falls back to today's default behavior: a new, separate account).
-- `aws-infra/AGENTS.md` documents the linking precondition and the `email_verified` attribute mapping requirement for any future IdP addition.
+- Signing in via Google, then via Facebook, then via email/password (or any order), with the same verified email, always resolves to the same Cognito `sub` / same wallet — verified directly against a real dev deploy (`aws cognito-idp list-users`, confirming one user record, not three). ✅ Verified in dev; also deployed and migrated in prod (bruno's prod duplicates resolved from 2 accounts to 1).
+- A sign-in from a provider that does **not** report the email as verified does **not** get silently linked to an existing account (falls back to today's default behavior: a new, separate account). ✅ Verified via synthetic Lambda invoke against dev.
+- `aws-infra/AGENTS.md` documents the linking precondition and the `email_verified` attribute mapping requirement for any future IdP addition. ✅
+- Pre-existing duplicate accounts in both dev and prod are resolved down to one Cognito user each. ✅ Migration run and verified idempotent in both environments. **Follow-up for bruno, not blocking**: sign in once more via each deleted provider (Facebook in dev, Facebook in prod) to complete the re-link on the client side.
+
+Full PR chain: [aws-infra#4](https://github.com/bmartins95/aws-infra/pull/4) (implementation, merged), [crypto-assist#70](https://github.com/bmartins95/crypto-assist/pull/70) (spec/plan/tasks tracking, merged).
 
 ---
 
