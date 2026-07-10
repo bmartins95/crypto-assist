@@ -117,6 +117,7 @@ An operator runs a one-off migration against an environment (e.g. dev) that find
 - **SC-002**: Zero federated sign-ups with an unverified or unmatched email result in access to another person's existing wallet data.
 - **SC-003**: 100% of simulated lookup/link failures in the Lambda's unit tests result in a failed sign-up rather than a silently created unlinked account.
 - **SC-004**: Running the one-off migration against dev, followed by one re-authentication per deleted federated account, resolves bruno's 3 known pre-existing duplicate accounts down to 1 Cognito user, with the oldest account's wallet data intact and reachable from all 3 sign-in methods afterward — the migration step itself verified directly via `aws cognito-idp list-users` (down to 1 user immediately after the script runs); full 3-method reachability requires the re-authentication step, which is a manual action outside this feature's automated scope.
+- **SC-005** (post-plan addition): the trigger and migration were also deployed and run against **prod** in this same PR, ahead of the plan's original "prod deferred until dev is verified" scope — prod's 2 known duplicate accounts (Google + Facebook, no native account existed there) resolved down to 1 (Google, confirmed with the user as the account holding real data before deletion), verified via `aws cognito-idp list-users` and idempotency re-check, same as dev.
 
 ## Assumptions
 

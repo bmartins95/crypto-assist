@@ -110,3 +110,11 @@ Task: "Build functions/cognito-pre-signup/{decide,index}.ts"
 ## Implementation Strategy
 
 **MVP first**: Complete Phase 1 → Phase 2 → Phase 3 (US1) and the core linking capability exists and is independently verifiable via a real dev deploy. Phases 4–5 (US2, US3) harden the same code with safety-boundary and fail-closed test coverage before it's considered done. Phase 6 (US4) is a parallel, independent track (different files) that can start as soon as Setup is done, but its live dev run (T016) should happen after US1 is deployed (T008), otherwise a newly-merged duplicate could immediately re-fragment on the next federated sign-in. In practice, since this ships as one PR, all phases land together — the phase split exists for review clarity and independent-test traceability.
+
+## Post-Merge Follow-Up: Prod Rollout
+
+`aws-infra#4` merged, then — same session, at the user's request, ahead of this plan's original "prod deferred" scope (see plan.md) — the same sequence was repeated against **prod**:
+- `npx sst deploy --stage prod`, verified via `describe-user-pool`/`describe-identity-provider` (not just the deploy log) that the trigger and `email_verified` mapping actually attached.
+- Prod had its own pre-existing duplicate group for bruno (Google + Facebook only, no native account) — confirmed with the user which account held real data (Google, the older one, matching the oldest-wins default) **before** running the migration for real this time, correcting the process gap from the dev run (see spec.md Assumptions).
+- Migration run against prod: Facebook duplicate deleted, re-run confirmed idempotent (no remaining group).
+- Follow-up for the user, not blocking: sign in once more via Facebook in prod to complete the re-link.
