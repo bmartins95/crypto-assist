@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
+import { flushSync } from 'react-dom';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
@@ -25,12 +26,17 @@ export default function SignupScreen() {
 
   // A password field's value surviving into an unmount (any exit that isn't an
   // actual submit) reads to Chrome's password manager like an implicit submission —
-  // it'll offer to save/check the value. Clearing it first avoids that false positive.
+  // it'll offer to save/check the value. flushSync forces the empty value to actually
+  // commit to the DOM before the caller's subsequent navigate() unmounts the field;
+  // without it React 18 batches both updates together and the cleared value is never
+  // painted, so Chrome still sees the last typed characters at removal time.
   // Only for the *pre-submit* form step — the post-signUp confirm step still needs
   // `password` in state for the auto sign-in once the code is confirmed.
   const resetSensitiveFields = () => {
-    setPassword('');
-    setConfirmPassword('');
+    flushSync(() => {
+      setPassword('');
+      setConfirmPassword('');
+    });
   };
 
   const validate = (): boolean => {
