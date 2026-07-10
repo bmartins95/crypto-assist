@@ -716,9 +716,14 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-card > *:nth-child(7), .auth-hero > *:nth-child(7) { animation-delay: .39s; }
 /* Loading/error states appear across route (and hard-navigation) boundaries — a
    fresh .auth-card mounts each time, which would replay the staggered rise above
-   and read as a flicker. These should appear immediately instead, same principle
-   as showing the loading state right on click rather than waiting for a callback. */
-.auth-card > .auth-loader, .auth-card > .auth-error-state { animation: none; opacity: 1; }
+   and look like the whole screen restarting. A quick, single, non-staggered fade
+   reads as a smooth handoff between stages instead of either a slow re-entrance
+   or an untransitioned instant cut (both of which look like a flicker). */
+@keyframes auth-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.auth-card > .auth-loader, .auth-card > .auth-error-state {
+  animation: auth-fade-in .2s ease forwards;
+  opacity: 0;
+}
 
 .auth-card {
   position: relative; z-index: 1; width: 100%; max-width: 392px; background: var(--s-surface);
