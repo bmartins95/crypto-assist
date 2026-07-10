@@ -9,13 +9,12 @@ vi.mock('@tanstack/react-router', () => ({
     void activeProps;
     return <a href={to} {...anchorProps}>{children}</a>;
   },
+  useNavigate: () => vi.fn(),
 }));
 
-vi.mock('@/lib/cognito/client', () => ({
-  getSession: vi.fn(() => ({ id_token: 'token' })),
-  getEmailFromIdToken: vi.fn(() => 'user@example.com'),
-  clearSession: vi.fn(),
-  buildLogoutUrl: vi.fn(() => 'https://logout.example.com'),
+vi.mock('@/auth/useAuth', () => ({
+  fetchUserAttributes: vi.fn(() => Promise.resolve({ email: 'user@example.com', name: 'User' })),
+  signOut: vi.fn(() => Promise.resolve()),
 }));
 
 function LocaleSwitcher() {
@@ -50,11 +49,11 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /histórico/i }).getAttribute('href')).toBe('/history');
   });
 
-  it('renders the footer with settings link, logout button, and user chip', () => {
+  it('renders the footer with settings link, logout button, and user chip', async () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /configurações/i }).getAttribute('href')).toBe('/settings');
     expect(screen.getByRole('button', { name: /sair/i })).toBeTruthy();
-    expect(screen.getByText('user@example.com')).toBeTruthy();
+    expect(await screen.findByText('user@example.com')).toBeTruthy();
     expect(screen.getByText('U')).toBeTruthy();
   });
 
@@ -82,11 +81,19 @@ describe('Sidebar', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('clears the session on logout click', async () => {
-    const { clearSession } = await import('@/lib/cognito/client');
+  it('signs out on logout click', async () => {
+    const { signOut } = await import('@/auth/useAuth');
     renderSidebar();
     fireEvent.click(screen.getByRole('button', { name: /sair/i }));
-    expect(clearSession).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows an error message when sign-out fails', async () => {
+    const { signOut } = await import('@/auth/useAuth');
+    vi.mocked(signOut).mockRejectedValueOnce(new Error('network'));
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: /sair/i }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
   });
 
   it('updates all labels immediately when the locale changes', () => {

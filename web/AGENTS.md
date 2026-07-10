@@ -8,7 +8,7 @@ See the root [`AGENTS.md`](../AGENTS.md) for monorepo-wide conventions and
 - **Vite** for bundling and dev server (replaces Next.js)
 - **React 19** with plain `.tsx` components — no server components, no SSR
 - **TanStack Router** for file-based routing (replaces Next.js App Router)
-- **`@aws-amplify/auth`** for authentication (replaces `@supabase/ssr`)
+- **`aws-amplify`** (the `aws-amplify/auth` subpath) for authentication
 - **Tailwind CSS v4**
 - **Vitest + Testing Library** for unit tests
 
@@ -18,8 +18,11 @@ Routes live in `src/routes/` following TanStack Router's file-based convention.
 TanStack Router generates a `routeTree.gen.ts` file — do not edit it manually,
 it is regenerated on every `vite dev` / `vite build`.
 
-Auth guard: protected routes check `fetchAuthSession()` from `@aws-amplify/auth`
-inside the route's `beforeLoad`. Unauthenticated users are redirected to `/login`.
+Auth guard: protected routes call `requireAuth` (`src/auth/RequireAuth.tsx`, which
+checks `isAuthenticated()` from `src/auth/useAuth.ts`) inside the route's `beforeLoad`.
+Unauthenticated users are redirected to `/login`. The public `/login`, `/login/email`,
+and `/signup` routes use the inverse guard, `redirectIfAuthenticated`, so an
+already-signed-in visitor is sent straight into the app.
 
 ## shared/ resolution
 
@@ -29,14 +32,25 @@ like `../../shared/src` — always use the `@crypto-assist/shared` alias.
 
 ## Auth
 
-`src/lib/auth.ts` wraps Amplify and exposes:
-- `signIn(email, password)` / `signOut()`
-- `signInWithGoogle()` — redirects to Cognito hosted UI
-- `getAccessToken()` — returns the JWT for backend calls (Bearer header)
-- `getCurrentUser()` — returns `{ userId, email }`
+`src/auth/useAuth.ts` wraps `aws-amplify/auth` and exposes:
+- `signIn(email, password)` / `signUp(name, email, password)` / `signOut()`
+- `confirmSignUp(email, code)` / `resendSignUpCode(email)`
+- `resetPassword(email)` / `confirmResetPassword(email, code, newPassword)`
+- `signInWithRedirect(provider)` — `'Google' | 'Facebook'`, redirects to that provider's consent screen
+- `isAuthenticated()` / `getAccessToken()` — returns the JWT for backend calls (Bearer header)
+- `fetchUserAttributes()` — returns `{ email, name }`
 
-Do not call Amplify directly in components — go through this wrapper so tests
-can mock a single module.
+`Amplify.configure(...)` runs once in `src/main.tsx`, reading `VITE_COGNITO_USER_POOL_ID`,
+`VITE_COGNITO_CLIENT_ID`, and `VITE_COGNITO_DOMAIN`. Do not call Amplify directly in
+components — go through `useAuth.ts` so tests can mock a single module.
+
+The custom auth UI (`src/auth/`) fully replaces the Cognito Hosted UI: `screens/HeroPage.tsx`
+(public landing, `/`), `screens/LoginScreen.tsx` (provider choice, `/login`),
+`screens/EmailLoginScreen.tsx` (email/password + forgot-password, `/login/email`),
+`screens/SignupScreen.tsx` (signup + confirmation code, `/signup`), and `AuthCallback.tsx`
+(`/auth/callback`, shown while a social redirect completes). `AppBootstrapGate.tsx` wraps
+`AppLayout`'s first data fetch after login with a branded loading state and a timeout-based
+error/retry state (~28s), replacing a plain loading spinner.
 
 ## External APIs and CSP
 

@@ -25,8 +25,8 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 **Purpose**: Add the new dependency and document the env var this feature starts consuming.
 
-- [ ] T001 Add `@aws-amplify/auth` to `web/package.json` dependencies and run `npm install` in `web/`
-- [ ] T002 [P] Document `VITE_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxx` in `web/.env.local.example` (already injected by the deploy pipeline per `scripts/ci-build-web.sh`; new locally)
+- [x] T001 Add `@aws-amplify/auth` to `web/package.json` dependencies and run `npm install` in `web/`
+- [x] T002 [P] Document `VITE_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxx` in `web/.env.local.example` (already injected by the deploy pipeline per `scripts/ci-build-web.sh`; new locally)
 
 ---
 
@@ -36,33 +36,33 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete. **Note**: this phase intentionally leaves `/login` unresolved (redirect target with no route yet) until US1 lands — acceptable because this feature ships as a single PR, not deployed phase-by-phase.
 
-- [ ] T003 [P] Create `web/src/auth/useAuth.ts` — thin wrapper over `aws-amplify/auth` exposing `signIn`, `signUp`, `confirmSignUp`, `resendSignUpCode`, `resetPassword`, `confirmResetPassword`, `signInWithRedirect`, `signOut`, `fetchAuthSession`, `fetchUserAttributes`
-- [ ] T004 [P] Wire `Amplify.configure(...)` in `web/src/main.tsx` using `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_CLIENT_ID` / `VITE_COGNITO_DOMAIN`, `redirectSignIn`/`redirectSignOut` at `${window.location.origin}/auth/callback` and `window.location.origin`
-- [ ] T005 [P] Create `web/src/auth/RequireAuth.tsx` — async guard helper (`fetchAuthSession()`-based) for use in route `beforeLoad`
-- [ ] T006 [P] Create `web/src/auth/AuthShell.tsx` — page wrapper with animated brand glow, centered `.stage` slot
-- [ ] T007 [P] Create `web/src/auth/AuthCard.tsx` — 392px max-width card, staggered `.a` entrance for direct children; verify it remains legible (no clipped/overflowing content) down to a 360px viewport width (SC-006)
-- [ ] T008 [P] Create `web/src/auth/BrandMark.tsx` — inline logo SVG with a `size` prop
-- [ ] T009 [P] Create `web/src/auth/AuthField.tsx` — labeled input (email/password/text), teal focus ring, associated `<label>`
-- [ ] T010 [P] Create `web/src/auth/ProviderButton.tsx` — full-width Google/Facebook/e-mail button with provider icon
-- [ ] T011 [P] Create `web/src/auth/LoadingState.tsx` — spinner ring + rotating `messages` cross-fade (reused by `AuthCallback` in US2 and `AppBootstrapGate` in US4)
-- [ ] T012 [P] Create `web/src/auth/SuccessState.tsx` — animated check-draw + title/subtitle
-- [ ] T013 Add auth design tokens (`--brand-a`, `--accent-ink`), keyframes (`rise`, `drift1`, `drift2`, `spin`, `pulse`, `blink`, `pop`, `draw`), primitive classes (`.a-shell`, `.a-glow`, `.a-card`, `.a-field`, `.a-btn`, `.a-loader`, `.a-check`) and a `prefers-reduced-motion` override to `web/src/app/globals.css`, reusing existing `--s-accent`/`--s-surface`/`--s-border`/`--bg` tokens per research.md
-- [ ] T014 Add new `UIText` keys (`hero_*`, `auth_login_*`, `auth_signup_*`, `auth_forgot_*`, `auth_callback_*`, `auth_bootstrap_*`, `terms_*`, `legal_*`) to `shared/src/i18n/types.ts`
-- [ ] T015 [P] Add the new key translations to `shared/src/i18n/locales/pt-BR.ts`
-- [ ] T016 [P] Add the new key translations to `shared/src/i18n/locales/en-US.ts`
-- [ ] T017 [P] Add the new key translations to `shared/src/i18n/locales/es-ES.ts`
-- [ ] T018 [P] Add the new key translations to `shared/src/i18n/locales/fr-FR.ts`
-- [ ] T019 [P] Add the new key translations to `shared/src/i18n/locales/de-DE.ts`
-- [ ] T020 [P] Add the new key translations to `shared/src/i18n/locales/zh-CN.ts`
-- [ ] T021 [P] Add the new key translations to `shared/src/i18n/locales/ja-JP.ts`
-- [ ] T022 [P] Add the new key translations to `shared/src/i18n/locales/ar-SA.ts`
-- [ ] T023 [P] Add the new key translations to `shared/src/i18n/locales/hi-IN.ts`
-- [ ] T024 [P] Add the new key translations to `shared/src/i18n/locales/ru-RU.ts`
-- [ ] T025 Update `web/src/router.tsx`: `appLayoutRoute.beforeLoad` uses `RequireAuth`/`fetchAuthSession()` instead of `getSession()`; redirect target becomes `/login`; remove the old `authRoute`/`authCallbackRoute` definitions (callback route is re-added in US2)
-- [ ] T026 Update `web/src/components/Sidebar.tsx`: logout action calls `useAuth().signOut()` instead of `clearSession()`/`buildLogoutUrl()`; user chip email comes from `useAuth().fetchUserAttributes()` instead of `getEmailFromIdToken()`
-- [ ] T027 Update `web/src/components/Sidebar.test.tsx` mocks from `@/lib/cognito/client` to `@/auth/useAuth`
-- [ ] T028 Delete `web/src/lib/cognito/client.ts` and `web/src/lib/cognito/client.test.ts`
-- [ ] T029 Delete `web/src/app/auth/AuthClient.tsx` and `web/src/app/auth/AuthClient.test.tsx`
+- [x] T003 [P] Create `web/src/auth/useAuth.ts` — thin wrapper over `aws-amplify/auth` exposing `signIn`, `signUp`, `confirmSignUp`, `resendSignUpCode`, `resetPassword`, `confirmResetPassword`, `signInWithRedirect`, `signOut`, `fetchAuthSession`, `fetchUserAttributes`
+- [x] T004 [P] Wire `Amplify.configure(...)` in `web/src/main.tsx` using `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_CLIENT_ID` / `VITE_COGNITO_DOMAIN`, `redirectSignIn`/`redirectSignOut` at `${window.location.origin}/auth/callback` and `window.location.origin`
+- [x] T005 [P] Create `web/src/auth/RequireAuth.tsx` — async guard helper (`fetchAuthSession()`-based) for use in route `beforeLoad`
+- [x] T006 [P] Create `web/src/auth/AuthShell.tsx` — page wrapper with animated brand glow, centered `.stage` slot
+- [x] T007 [P] Create `web/src/auth/AuthCard.tsx` — 392px max-width card, staggered `.a` entrance for direct children; verify it remains legible (no clipped/overflowing content) down to a 360px viewport width (SC-006)
+- [x] T008 [P] Create `web/src/auth/BrandMark.tsx` — inline logo SVG with a `size` prop
+- [x] T009 [P] Create `web/src/auth/AuthField.tsx` — labeled input (email/password/text), teal focus ring, associated `<label>`
+- [x] T010 [P] Create `web/src/auth/ProviderButton.tsx` — full-width Google/Facebook/e-mail button with provider icon
+- [x] T011 [P] Create `web/src/auth/LoadingState.tsx` — spinner ring + rotating `messages` cross-fade (reused by `AuthCallback` in US2 and `AppBootstrapGate` in US4)
+- [x] T012 [P] Create `web/src/auth/SuccessState.tsx` — animated check-draw + title/subtitle
+- [x] T013 Add auth design tokens (`--brand-a`, `--accent-ink`), keyframes (`rise`, `drift1`, `drift2`, `spin`, `pulse`, `blink`, `pop`, `draw`), primitive classes (`.a-shell`, `.a-glow`, `.a-card`, `.a-field`, `.a-btn`, `.a-loader`, `.a-check`) and a `prefers-reduced-motion` override to `web/src/app/globals.css`, reusing existing `--s-accent`/`--s-surface`/`--s-border`/`--bg` tokens per research.md
+- [x] T014 Add new `UIText` keys (`hero_*`, `auth_login_*`, `auth_signup_*`, `auth_forgot_*`, `auth_callback_*`, `auth_bootstrap_*`, `terms_*`, `legal_*`) to `shared/src/i18n/types.ts`
+- [x] T015 [P] Add the new key translations to `shared/src/i18n/locales/pt-BR.ts`
+- [x] T016 [P] Add the new key translations to `shared/src/i18n/locales/en-US.ts`
+- [x] T017 [P] Add the new key translations to `shared/src/i18n/locales/es-ES.ts`
+- [x] T018 [P] Add the new key translations to `shared/src/i18n/locales/fr-FR.ts`
+- [x] T019 [P] Add the new key translations to `shared/src/i18n/locales/de-DE.ts`
+- [x] T020 [P] Add the new key translations to `shared/src/i18n/locales/zh-CN.ts`
+- [x] T021 [P] Add the new key translations to `shared/src/i18n/locales/ja-JP.ts`
+- [x] T022 [P] Add the new key translations to `shared/src/i18n/locales/ar-SA.ts`
+- [x] T023 [P] Add the new key translations to `shared/src/i18n/locales/hi-IN.ts`
+- [x] T024 [P] Add the new key translations to `shared/src/i18n/locales/ru-RU.ts`
+- [x] T025 Update `web/src/router.tsx`: `appLayoutRoute.beforeLoad` uses `RequireAuth`/`fetchAuthSession()` instead of `getSession()`; redirect target becomes `/login`; remove the old `authRoute`/`authCallbackRoute` definitions (callback route is re-added in US2)
+- [x] T026 Update `web/src/components/Sidebar.tsx`: logout action calls `useAuth().signOut()` instead of `clearSession()`/`buildLogoutUrl()`; user chip email comes from `useAuth().fetchUserAttributes()` instead of `getEmailFromIdToken()`
+- [x] T027 Update `web/src/components/Sidebar.test.tsx` mocks from `@/lib/cognito/client` to `@/auth/useAuth`
+- [x] T028 Delete `web/src/lib/cognito/client.ts` and `web/src/lib/cognito/client.test.ts`
+- [x] T029 Delete `web/src/app/auth/AuthClient.tsx` and `web/src/app/auth/AuthClient.test.tsx`
 
 **Checkpoint**: App compiles, protected routes gate on a real Amplify session, logout works. No screen yet renders at `/login`, `/signup`, or `/` for a logged-out visitor — filled in by US1/US3 next.
 
@@ -76,18 +76,18 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 ### Tests for User Story 1
 
-- [ ] T030 [P] [US1] Test `EmailLoginScreen`: renders labeled fields, submits valid credentials, shows a specific error on wrong password, preserves the email field after a failed attempt, forgot-password request → code → new password flow, and asserts sign-in goes through `useAuth().signIn` (never sets `window.location.href` to the Cognito Hosted UI domain — SC-002/FR-015) — `web/src/auth/screens/EmailLoginScreen.test.tsx`
-- [ ] T031 [P] [US1] Test `SignupScreen`: field validation (invalid email, short password, mismatched confirm-password, empty required field), successful `signUp` shows the confirm-code step, wrong/expired code shows a specific error with a resend option, and asserts sign-up goes through `useAuth().signUp`/`confirmSignUp` (never the Hosted UI domain — SC-002/FR-015) — `web/src/auth/screens/SignupScreen.test.tsx`
-- [ ] T032 [P] [US1] Test `LoginScreen`: renders Google/Facebook/e-mail `ProviderButton`s, e-mail button navigates to `/login/email`, legal line links to `/terms` and `/privacy` — `web/src/auth/screens/LoginScreen.test.tsx`
-- [ ] T033 [P] [US1] Test `terms.tsx` renders expected headings — `web/src/pages/terms.test.tsx`
+- [x] T030 [P] [US1] Test `EmailLoginScreen`: renders labeled fields, submits valid credentials, shows a specific error on wrong password, preserves the email field after a failed attempt, forgot-password request → code → new password flow, and asserts sign-in goes through `useAuth().signIn` (never sets `window.location.href` to the Cognito Hosted UI domain — SC-002/FR-015) — `web/src/auth/screens/EmailLoginScreen.test.tsx`
+- [x] T031 [P] [US1] Test `SignupScreen`: field validation (invalid email, short password, mismatched confirm-password, empty required field), successful `signUp` shows the confirm-code step, wrong/expired code shows a specific error with a resend option, and asserts sign-up goes through `useAuth().signUp`/`confirmSignUp` (never the Hosted UI domain — SC-002/FR-015) — `web/src/auth/screens/SignupScreen.test.tsx`
+- [x] T032 [P] [US1] Test `LoginScreen`: renders Google/Facebook/e-mail `ProviderButton`s, e-mail button navigates to `/login/email`, legal line links to `/terms` and `/privacy` — `web/src/auth/screens/LoginScreen.test.tsx`
+- [x] T033 [P] [US1] Test `terms.tsx` renders expected headings — `web/src/pages/terms.test.tsx`
 
 ### Implementation for User Story 1
 
-- [ ] T034 [US1] Create `web/src/auth/screens/LoginScreen.tsx` — three `ProviderButton`s (Google/Facebook call `useAuth().signInWithRedirect`; e-mail routes to `/login/email`), legal line, back-to-hero link
-- [ ] T035 [US1] Create `web/src/auth/screens/EmailLoginScreen.tsx` — email/password `AuthField`s, submit → `useAuth().signIn` with inline error mapping (FR-010/FR-011), nested "Esqueci a senha" request-code/enter-code+new-password sub-steps via `useAuth().resetPassword`/`confirmResetPassword`, link to `/signup`
-- [ ] T036 [US1] Create `web/src/auth/screens/SignupScreen.tsx` — name/email/password/confirm-password `AuthField`s with client-side validation, submit → `useAuth().signUp`, nested confirm-code step → `useAuth().confirmSignUp` with a resend-code option, link to `/login/email`
-- [ ] T037 [P] [US1] Create `web/src/pages/terms.tsx` — minimal Terms of Service page modeled on `web/src/pages/privacy.tsx`'s style/depth
-- [ ] T038 [US1] Add `/login`, `/login/email`, `/signup` routes to `web/src/router.tsx`, each wrapped in `AuthShell`/`AuthCard` and redirecting an already-authenticated visitor into `/wallet` (FR-007); add `/terms` as a plain, ungated route (renders regardless of auth state, same as the existing `/privacy` route — Terms of Service is not one of FR-007's three gated screens)
+- [x] T034 [US1] Create `web/src/auth/screens/LoginScreen.tsx` — three `ProviderButton`s (Google/Facebook call `useAuth().signInWithRedirect`; e-mail routes to `/login/email`), legal line, back-to-hero link
+- [x] T035 [US1] Create `web/src/auth/screens/EmailLoginScreen.tsx` — email/password `AuthField`s, submit → `useAuth().signIn` with inline error mapping (FR-010/FR-011), nested "Esqueci a senha" request-code/enter-code+new-password sub-steps via `useAuth().resetPassword`/`confirmResetPassword`, link to `/signup`
+- [x] T036 [US1] Create `web/src/auth/screens/SignupScreen.tsx` — name/email/password/confirm-password `AuthField`s with client-side validation, submit → `useAuth().signUp`, nested confirm-code step → `useAuth().confirmSignUp` with a resend-code option, link to `/login/email`
+- [x] T037 [P] [US1] Create `web/src/pages/terms.tsx` — minimal Terms of Service page modeled on `web/src/pages/privacy.tsx`'s style/depth
+- [x] T038 [US1] Add `/login`, `/login/email`, `/signup` routes to `web/src/router.tsx`, each wrapped in `AuthShell`/`AuthCard` and redirecting an already-authenticated visitor into `/wallet` (FR-007); add `/terms` as a plain, ungated route (renders regardless of auth state, same as the existing `/privacy` route — Terms of Service is not one of FR-007's three gated screens)
 
 **Checkpoint**: User Story 1 is fully functional and independently testable — signup, confirmation, login, wrong-password, and forgot-password all work end to end with no Hosted UI redirect.
 
@@ -103,13 +103,13 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 ### Tests for User Story 2
 
-- [ ] T039 [P] [US2] Test `AuthCallback`: shows `LoadingState` while the redirect exchange is in progress, routes into the app on success — `web/src/auth/AuthCallback.test.tsx`
-- [ ] T040 [P] [US2] Test `AuthCallback`: shows a clear message and returns to `/login` on failure or denied consent, never leaves the user on a blank/stuck screen — `web/src/auth/AuthCallback.test.tsx`
+- [x] T039 [P] [US2] Test `AuthCallback`: shows `LoadingState` while the redirect exchange is in progress, routes into the app on success — `web/src/auth/AuthCallback.test.tsx`
+- [x] T040 [P] [US2] Test `AuthCallback`: shows a clear message and returns to `/login` on failure or denied consent, never leaves the user on a blank/stuck screen — `web/src/auth/AuthCallback.test.tsx`
 
 ### Implementation for User Story 2
 
-- [ ] T041 [US2] Create `web/src/auth/AuthCallback.tsx` — uses `LoadingState` (title from `auth_callback_authenticating`) while Amplify completes the redirect exchange; on success navigates into the app; on failure/cancel shows the failure message then returns to `/login`
-- [ ] T042 [US2] Add the `/auth/callback` route back to `web/src/router.tsx`, pointing at `AuthCallback`
+- [x] T041 [US2] Create `web/src/auth/AuthCallback.tsx` — uses `LoadingState` (title from `auth_callback_authenticating`) while Amplify completes the redirect exchange; on success navigates into the app; on failure/cancel shows the failure message then returns to `/login`
+- [x] T042 [US2] Add the `/auth/callback` route back to `web/src/router.tsx`, pointing at `AuthCallback`
 
 **Checkpoint**: User Stories 1 AND 2 both work independently — the full email/password and social flows are usable with no unbranded screen anywhere in either.
 
@@ -125,14 +125,14 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 ### Tests for User Story 3
 
-- [ ] T043 [P] [US3] Test `HeroPage`: renders headline/preview/feature cards, primary CTA routes to `/login`, secondary CTA routes to `/login/email` — `web/src/auth/screens/HeroPage.test.tsx`
-- [ ] T044 [P] [US3] Test `indexRoute`: unauthenticated visit to `/` renders the hero (no redirect); authenticated visit redirects to `/wallet` — `web/src/router.test.tsx` (create if it does not yet exist)
+- [x] T043 [P] [US3] Test `HeroPage`: renders headline/preview/feature cards, primary CTA routes to `/login`, secondary CTA routes to `/login/email` — `web/src/auth/screens/HeroPage.test.tsx`
+- [x] T044 [P] [US3] Test `indexRoute`: unauthenticated visit to `/` renders the hero (no redirect); authenticated visit redirects to `/wallet` — `web/src/router.test.tsx` (create if it does not yet exist)
 
 ### Implementation for User Story 3
 
-- [ ] T045 [US3] Create `web/src/auth/screens/HeroPage.tsx` — topbar (`BrandMark` + "Entrar" ghost button → `/login`), gradient headline, sub copy, CTAs, product preview panel, three feature cards
-- [ ] T046 [US3] Update `web/src/router.tsx`'s `indexRoute`: unauthenticated → render `HeroPage`; authenticated → redirect to `/wallet` (replaces the current unconditional redirect)
-- [ ] T047 [P] [US3] Add hero-specific CSS (`.topbar`, `.hero-main`, `.preview`, `.pv-row`, `.features`, `.feat`, mobile single-column collapse) to `web/src/app/globals.css`
+- [x] T045 [US3] Create `web/src/auth/screens/HeroPage.tsx` — topbar (`BrandMark` + "Entrar" ghost button → `/login`), gradient headline, sub copy, CTAs, product preview panel, three feature cards
+- [x] T046 [US3] Update `web/src/router.tsx`'s `indexRoute`: unauthenticated → render `HeroPage`; authenticated → redirect to `/wallet` (replaces the current unconditional redirect)
+- [x] T047 [P] [US3] Add hero-specific CSS (`.topbar`, `.hero-main`, `.preview`, `.pv-row`, `.features`, `.feat`, mobile single-column collapse) to `web/src/app/globals.css`
 
 **Checkpoint**: All three of US1-US3 work independently — a fresh, logged-out visitor can go from `/` through signup/login to the app with every screen branded.
 
@@ -148,12 +148,12 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 ### Tests for User Story 4
 
-- [ ] T048 [P] [US4] Test `AppBootstrapGate`: shows `LoadingState` with rotating messages while pending, renders children on success, shows error+"Tentar novamente" retry after the timeout — `web/src/auth/AppBootstrapGate.test.tsx`
+- [x] T048 [P] [US4] Test `AppBootstrapGate`: shows `LoadingState` with rotating messages while pending, renders children on success, shows error+"Tentar novamente" retry after the timeout — `web/src/auth/AppBootstrapGate.test.tsx`
 
 ### Implementation for User Story 4
 
-- [ ] T049 [US4] Create `web/src/auth/AppBootstrapGate.tsx` — wraps a pending/error/ready state machine around a provided async operation, ~28s timeout (SC-005's 30s budget), "Tentar novamente" retry calling the operation again
-- [ ] T050 [US4] Update `web/src/components/AppLayout.tsx`: replace the existing plain-text `loading` branch with `<AppBootstrapGate>` wrapping the existing first-fetch effect/`reload` callback
+- [x] T049 [US4] Create `web/src/auth/AppBootstrapGate.tsx` — wraps a pending/error/ready state machine around a provided async operation, ~28s timeout (SC-005's 30s budget), "Tentar novamente" retry calling the operation again
+- [x] T050 [US4] Update `web/src/components/AppLayout.tsx`: replace the existing plain-text `loading` branch with `<AppBootstrapGate>` wrapping the existing first-fetch effect/`reload` callback
 
 **Checkpoint**: All four user stories work independently and together — the full spec.md flow (hero → login/signup → callback → bootstrap → app) is usable end to end.
 
@@ -161,13 +161,13 @@ description: "Task list for Custom Auth UI (specs/018-custom-auth-ui)"
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T051 [P] Update `web/AGENTS.md`'s "Auth" section to describe the new `web/src/auth/useAuth.ts` Amplify wrapper, replacing its stale pre-existing description
-- [ ] T052 Audit `shared/src/i18n/types.ts` and all 10 locale files for keys made dead by this refactor (e.g. old `auth_subtitle`/`auth_authenticating`/`auth_failed` if fully superseded) and remove them
-- [ ] T053 Verify the mobile app still builds after the `shared/src/i18n` changes (`cd mobile && npx tsc --noEmit`), per the constitution's mobile-parity check
-- [ ] T054 Run `cd web && npm run coverage`; confirm ≥90% on every changed module; add any missing edge-case tests (reduced motion, narrow viewport, session-expiry mid-flow)
-- [ ] T055 Run `cd web && npm run lint` and fix all findings
-- [ ] T056 Run `cd backend && pytest` to confirm the untouched backend suite is still green
-- [ ] T057 Execute `quickstart.md`'s manual verification steps end to end against local dev
+- [x] T051 [P] Update `web/AGENTS.md`'s "Auth" section to describe the new `web/src/auth/useAuth.ts` Amplify wrapper, replacing its stale pre-existing description
+- [x] T052 Audit `shared/src/i18n/types.ts` and all 10 locale files for keys made dead by this refactor (e.g. old `auth_subtitle`/`auth_authenticating`/`auth_failed` if fully superseded) and remove them
+- [x] T053 Verify the mobile app still builds after the `shared/src/i18n` changes (`cd mobile && npx tsc --noEmit`), per the constitution's mobile-parity check
+- [x] T054 Run `cd web && npm run coverage`; confirm ≥90% on every changed module; add any missing edge-case tests (reduced motion, narrow viewport, session-expiry mid-flow)
+- [x] T055 Run `cd web && npm run lint` and fix all findings
+- [x] T056 Run `cd backend && pytest` to confirm the untouched backend suite is still green
+- [x] T057 Execute `quickstart.md`'s manual verification steps end to end against local dev
 
 ---
 

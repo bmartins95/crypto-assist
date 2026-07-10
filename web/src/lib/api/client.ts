@@ -1,4 +1,4 @@
-import { getValidSession } from '@/lib/cognito/client';
+import { getAccessToken } from '@/auth/useAuth';
 import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
@@ -11,9 +11,8 @@ export interface CoinSearchResult {
 }
 
 async function authHeader(): Promise<Record<string, string>> {
-  const session = await getValidSession();
-  if (!session) throw new Error('Session not found. Please log in again.');
-  return { Authorization: `Bearer ${session.access_token}` };
+  const token = await getAccessToken();
+  return { Authorization: `Bearer ${token}` };
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

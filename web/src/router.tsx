@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import {
   createRootRoute,
   createRoute,
@@ -7,15 +6,21 @@ import {
   Outlet,
   type RouterHistory,
 } from '@tanstack/react-router';
-import AuthClient from './app/auth/AuthClient';
+import HeroPage from './auth/screens/HeroPage';
+import LoginScreen from './auth/screens/LoginScreen';
+import EmailLoginScreen from './auth/screens/EmailLoginScreen';
+import SignupScreen from './auth/screens/SignupScreen';
+import AuthCallback from './auth/AuthCallback';
+import { requireAuth, redirectIfAuthenticated } from './auth/RequireAuth';
+import { isAuthenticated } from './auth/useAuth';
 import SettingsPage from './pages/settings';
 import PrivacyPage from './pages/privacy';
+import TermsPage from './pages/terms';
 import DataDeletionPage from './pages/data-deletion';
 import AppLayout, { usePortfolio } from './components/AppLayout';
 import WalletTab from './components/WalletTab';
 import ProfitTab from './components/ProfitTab';
 import HistoryTab from './components/HistoryTab';
-import { exchangeCode, getSession } from './lib/cognito/client';
 import { useLocale } from './context/LocaleContext';
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
@@ -23,50 +28,51 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => { throw redirect({ to: '/wallet' }); },
-});
-
-const authRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/auth',
-  beforeLoad: () => {
-    if (getSession()) throw redirect({ to: '/wallet' });
-  },
-  component: () => <AuthClient />,
-});
-
-function AuthCallbackPage() {
-  const { t } = useLocale();
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get('code');
-    if (!code) {
-      window.location.replace('/auth?error=auth_callback_failed');
-      return;
+  beforeLoad: async () => {
+    if (await isAuthenticated()) {
+      throw redirect({ to: '/wallet' });
     }
-    exchangeCode(code)
-      .then(() => window.location.replace('/wallet'))
-      .catch(() => {
-        setError(true);
-        setTimeout(() => window.location.replace('/auth?error=auth_callback_failed'), 2000);
-      });
-  }, []);
+  },
+  component: HeroPage,
+});
 
-  if (error) return <p style={{ padding: 32 }}>{t.auth_failed}</p>;
-  return <p style={{ padding: 32 }}>{t.auth_authenticating}</p>;
-}
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login',
+  beforeLoad: redirectIfAuthenticated,
+  component: LoginScreen,
+});
+
+const loginEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login/email',
+  beforeLoad: redirectIfAuthenticated,
+  component: EmailLoginScreen,
+});
+
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/signup',
+  beforeLoad: redirectIfAuthenticated,
+  component: SignupScreen,
+});
 
 const authCallbackRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/callback',
-  component: AuthCallbackPage,
+  component: AuthCallback,
 });
 
 const privacyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/privacy',
   component: PrivacyPage,
+});
+
+const termsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/terms',
+  component: TermsPage,
 });
 
 const dataDeletionRoute = createRoute({
@@ -78,9 +84,7 @@ const dataDeletionRoute = createRoute({
 const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',
-  beforeLoad: () => {
-    if (!getSession()) throw redirect({ to: '/auth' });
-  },
+  beforeLoad: requireAuth,
   component: AppLayout,
 });
 
@@ -166,9 +170,12 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  authRoute,
+  loginRoute,
+  loginEmailRoute,
+  signupRoute,
   authCallbackRoute,
   privacyRoute,
+  termsRoute,
   dataDeletionRoute,
   appLayoutRoute.addChildren([walletRoute, profitRoute, historyRoute, settingsRoute]),
 ]);
