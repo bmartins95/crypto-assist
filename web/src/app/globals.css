@@ -777,7 +777,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-btn-primary:hover { background: var(--s-accent); filter: brightness(1.08); }
 
 .auth-loader { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
-.auth-loader .auth-logo { animation: auth-logo-pulse 1.8s ease-in-out infinite; }
+/* Two animations on the same element: the one-shot entrance rise (matching the other
+   loader children) and the continuous pulse. Both must be named here together — a
+   higher-specificity `animation` shorthand fully replaces a lower-specificity one
+   rather than merging, so splitting these across two rules silently drops the rise
+   (and its opacity: 0 -> 1) while the pulse keeps running invisibly at opacity: 0. */
+.auth-loader .auth-logo {
+  opacity: 0;
+  animation: auth-rise .55s cubic-bezier(.4,0,.2,1) .03s forwards, auth-logo-pulse 1.8s ease-in-out infinite;
+}
 @keyframes auth-logo-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 .auth-loader h2 { font-size: 16px; font-weight: 600; margin-top: 26px; }
 .auth-msg { font-size: 13px; color: var(--s-text-dim); margin-top: 8px; min-height: 19px; transition: opacity .3s; }
