@@ -16,7 +16,8 @@ export default function LoginScreen() {
     setError('');
     try {
       await signInWithRedirect(provider);
-    } catch {
+    } catch (err) {
+      console.error('signInWithRedirect failed:', err);
       setError(t.auth_error_generic);
     }
   };

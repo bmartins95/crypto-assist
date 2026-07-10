@@ -20,7 +20,10 @@ Amplify.configure({
       loginWith: {
         oauth: {
           domain: cognitoDomain,
-          scopes: ['openid', 'email', 'profile'],
+          // aws.cognito.signin.user.admin is required for GetUser (fetchUserAttributes)
+          // calls made with the access token issued by this OAuth flow — without it,
+          // Cognito returns 400 on any post-login GetUser call.
+          scopes: ['openid', 'email', 'profile', 'aws.cognito.signin.user.admin'],
           redirectSignIn: [`${window.location.origin}/auth/callback`],
           redirectSignOut: [window.location.origin],
           responseType: 'code',
