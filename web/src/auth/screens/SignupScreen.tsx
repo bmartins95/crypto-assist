@@ -23,6 +23,16 @@ export default function SignupScreen() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // A password field's value surviving into an unmount (any exit that isn't an
+  // actual submit) reads to Chrome's password manager like an implicit submission —
+  // it'll offer to save/check the value. Clearing it first avoids that false positive.
+  // Only for the *pre-submit* form step — the post-signUp confirm step still needs
+  // `password` in state for the auto sign-in once the code is confirmed.
+  const resetSensitiveFields = () => {
+    setPassword('');
+    setConfirmPassword('');
+  };
+
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
     if (!name.trim()) errors.name = t.auth_error_required_field;
@@ -106,7 +116,7 @@ export default function SignupScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <BackButton label={t.auth_back} onClick={() => navigate({ to: '/login/email' })} />
+        <BackButton label={t.auth_back} onClick={() => { resetSensitiveFields(); navigate({ to: '/login/email' }); }} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_signup_title}</h1>
@@ -145,7 +155,7 @@ export default function SignupScreen() {
           </button>
         </form>
         <p className="auth-foot">
-          {t.auth_have_account} <a onClick={() => navigate({ to: '/login/email' })}>{t.auth_login_submit}</a>
+          {t.auth_have_account} <a onClick={() => { resetSensitiveFields(); navigate({ to: '/login/email' }); }}>{t.auth_login_submit}</a>
         </p>
       </AuthCard>
     </AuthShell>
