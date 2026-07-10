@@ -48,3 +48,6 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>
 );
+
+// Hand off from index.html's static pre-React spinner now that real content is mounting.
+document.getElementById('boot-loader')?.remove();

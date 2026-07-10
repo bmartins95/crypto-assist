@@ -777,13 +777,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-btn-primary:hover { background: var(--s-accent); filter: brightness(1.08); }
 
 .auth-loader { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
-.auth-warm-logo { position: relative; width: 76px; height: 76px; }
-.auth-ring {
-  position: absolute; inset: -9px; border-radius: 26px; border: 3px solid transparent;
-  border-top-color: var(--s-accent); animation: auth-spin 1s linear infinite;
-}
-@keyframes auth-spin { to { transform: rotate(360deg); } }
-.auth-loader h2 { font-size: 16px; font-weight: 600; margin-top: 24px; }
+.auth-loader .auth-logo { animation: auth-logo-pulse 1.8s ease-in-out infinite; }
+@keyframes auth-logo-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.auth-loader h2 { font-size: 16px; font-weight: 600; margin-top: 26px; }
 .auth-msg { font-size: 13px; color: var(--s-text-dim); margin-top: 8px; min-height: 19px; transition: opacity .3s; }
 .auth-dots { display: inline-flex; gap: 4px; margin-top: 16px; }
 .auth-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--s-text-dim); animation: auth-blink 1.2s infinite; }
@@ -809,7 +805,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 @media (prefers-reduced-motion: reduce) {
   .auth-glow::before, .auth-glow::after,
   .auth-card > *, .auth-hero > *,
-  .auth-ring, .auth-dots i, .auth-check-wrap, .auth-check-wrap svg,
+  .auth-loader .auth-logo, .auth-dots i, .auth-check-wrap, .auth-check-wrap svg,
   .auth-msg { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
 }
 

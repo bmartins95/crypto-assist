@@ -30,10 +30,7 @@ export default function LoadingState({ title, messages }: LoadingStateProps) {
 
   return (
     <div className="auth-loader">
-      <div className="auth-warm-logo">
-        <BrandMark size={76} />
-        <div className="auth-ring" aria-hidden="true" />
-      </div>
+      <BrandMark size={76} />
       <h2>{title}</h2>
       <p className="auth-msg" style={{ opacity: fade ? 0 : 1 }}>
         {messages[index]}

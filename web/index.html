@@ -12,6 +12,20 @@
       href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css"
     />
     <title>Carteira de Criptoativos</title>
+    <style>
+      /* Simple ring, not the pulsing brand-logo LoadingState uses — this has to render
+         before React (and the brand SVG) is even loaded, so it stays intentionally
+         minimal. Its only job is making sure this gap is never a blank/black screen. */
+      #boot-loader {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      }
+      #boot-loader .ring {
+        width: 40px; height: 40px; border-radius: 50%;
+        border: 3px solid rgba(45, 212, 191, .25); border-top-color: #2dd4bf;
+        animation: boot-spin 1s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+    </style>
     <script>
       // Hard navigations (OAuth round trips, the Cognito logout redirect) briefly show
       // the browser's default white background before any CSS loads — this blocking,
@@ -29,6 +43,14 @@
     </script>
   </head>
   <body>
+    <!--
+      Visible the instant the document paints — well before the JS module below is
+      fetched/parsed/executed. Without this, every hard navigation (OAuth round trip,
+      logout redirect, first visit) has a genuinely empty window between "page starts
+      loading" and "React has mounted anything." main.tsx removes this node right
+      after its first render, so it's never seen alongside real app content.
+    -->
+    <div id="boot-loader"><div class="ring"></div></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
