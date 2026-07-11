@@ -90,9 +90,9 @@ describe('LocaleContext', () => {
     expect(screen.getByTestId('locale').textContent).toBe('ja-JP');
   });
 
-  it('falls back to pt-BR when no browser language is supported', () => {
+  it('falls back to the en-US default when no browser language is supported', () => {
     stubBrowserLanguages(['nl-NL', 'sv-SE']);
     render(<LocaleProvider><LocaleConsumer /></LocaleProvider>);
-    expect(screen.getByTestId('locale').textContent).toBe('pt-BR');
+    expect(screen.getByTestId('locale').textContent).toBe('en-US');
   });
 });

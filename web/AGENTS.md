@@ -52,6 +52,15 @@ The custom auth UI (`src/auth/`) fully replaces the Cognito Hosted UI: `screens/
 `AppLayout`'s first data fetch after login with a branded loading state and a timeout-based
 error/retry state (~28s), replacing a plain loading spinner.
 
+## i18n / locale
+
+`src/context/LocaleContext.tsx` resolves the active locale in this order: (1) the
+saved preference in `localStorage['crypto-assist:locale']`, if any; (2) the first
+entry in `navigator.languages` that matches a supported locale exactly, or by
+language-only subtag (e.g. `en-GB` → `en-US`) if no exact match exists; (3) the
+`en-US` default. Setting a preference via Settings always overrides browser
+detection from then on.
+
 ## External APIs and CSP
 
 The browser never calls `api.coingecko.com` directly (Item 13 moved coin search behind the

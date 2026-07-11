@@ -4,7 +4,7 @@ import { getLocale, LOCALES } from '@crypto-assist/shared';
 
 const RTL_LOCALES = new Set<Locale>(['ar-SA']);
 const STORAGE_KEY = 'crypto-assist:locale';
-const DEFAULT_LOCALE: Locale = 'pt-BR';
+const DEFAULT_LOCALE: Locale = 'en-US';
 
 // Falls back to the language-only subtag (e.g. 'en' from 'en-GB') when the browser's
 // exact region tag isn't one of the 10 we ship — every supported language maps to the
