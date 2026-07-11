@@ -6,6 +6,37 @@ const RTL_LOCALES = new Set<Locale>(['ar-SA']);
 const STORAGE_KEY = 'crypto-assist:locale';
 const DEFAULT_LOCALE: Locale = 'pt-BR';
 
+// Falls back to the language-only subtag (e.g. 'en' from 'en-GB') when the browser's
+// exact region tag isn't one of the 10 we ship — every supported language maps to the
+// one locale variant we actually have, so a British or Australian visitor still gets
+// English instead of dropping straight to the pt-BR default.
+const LANGUAGE_ONLY_FALLBACK: Record<string, Locale> = {
+  pt: 'pt-BR',
+  en: 'en-US',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+  zh: 'zh-CN',
+  ja: 'ja-JP',
+  ar: 'ar-SA',
+  hi: 'hi-IN',
+  ru: 'ru-RU',
+};
+
+function detectBrowserLocale(): Locale | null {
+  if (typeof navigator === 'undefined') return null;
+  const candidates = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const raw of candidates) {
+    const exact = (Object.keys(LOCALES) as Locale[]).find(l => l.toLowerCase() === raw?.toLowerCase());
+    if (exact) return exact;
+  }
+  for (const raw of candidates) {
+    const fallback = LANGUAGE_ONLY_FALLBACK[raw?.split('-')[0].toLowerCase() ?? ''];
+    if (fallback) return fallback;
+  }
+  return null;
+}
+
 interface LocaleContextValue {
   locale: Locale;
   t: UIText;
@@ -17,7 +48,8 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored && stored in LOCALES ? (stored as Locale) : DEFAULT_LOCALE;
+    if (stored && stored in LOCALES) return stored as Locale;
+    return detectBrowserLocale() ?? DEFAULT_LOCALE;
   });
 
   const t = useMemo(() => getLocale(locale), [locale]);
