@@ -6,6 +6,7 @@ import {
   Outlet,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { PasswordVaultProvider } from './auth/PasswordVault';
 import HeroPage from './auth/screens/HeroPage';
 import LoginScreen from './auth/screens/LoginScreen';
 import EmailLoginScreen from './auth/screens/EmailLoginScreen';
@@ -23,7 +24,13 @@ import ProfitTab from './components/ProfitTab';
 import HistoryTab from './components/HistoryTab';
 import { useLocale } from './context/LocaleContext';
 
-const rootRoute = createRootRoute({ component: () => <Outlet /> });
+const rootRoute = createRootRoute({
+  component: () => (
+    <PasswordVaultProvider>
+      <Outlet />
+    </PasswordVaultProvider>
+  ),
+});
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

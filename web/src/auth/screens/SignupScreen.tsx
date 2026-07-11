@@ -1,10 +1,10 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { flushSync } from 'react-dom';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
+import PasswordSlot from '../PasswordVault';
 import BackButton from '../BackButton';
 import { signUp, confirmSignUp, resendSignUpCode, signIn } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
@@ -23,21 +23,6 @@ export default function SignupScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // A password field's value surviving into an unmount (any exit that isn't an
-  // actual submit) reads to Chrome's password manager like an implicit submission —
-  // it'll offer to save/check the value. flushSync forces the empty value to actually
-  // commit to the DOM before the caller's subsequent navigate() unmounts the field;
-  // without it React 18 batches both updates together and the cleared value is never
-  // painted, so Chrome still sees the last typed characters at removal time.
-  // Only for the *pre-submit* form step — the post-signUp confirm step still needs
-  // `password` in state for the auto sign-in once the code is confirmed.
-  const resetSensitiveFields = () => {
-    flushSync(() => {
-      setPassword('');
-      setConfirmPassword('');
-    });
-  };
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -122,7 +107,7 @@ export default function SignupScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <BackButton label={t.auth_back} onClick={() => { resetSensitiveFields(); navigate({ to: '/login/email' }); }} />
+        <BackButton label={t.auth_back} onClick={() => navigate({ to: '/login/email' })} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_signup_title}</h1>
@@ -138,18 +123,18 @@ export default function SignupScreen() {
             autoComplete="email"
             error={fieldErrors.email}
           />
-          <AuthField
+          <PasswordSlot
+            slot="primary"
             label={t.auth_field_password}
-            type="password"
             value={password}
             onChange={setPassword}
             placeholder={t.auth_signup_min_password}
             autoComplete="new-password"
             error={fieldErrors.password}
           />
-          <AuthField
+          <PasswordSlot
+            slot="secondary"
             label={t.auth_field_confirm_password}
-            type="password"
             value={confirmPassword}
             onChange={setConfirmPassword}
             autoComplete="new-password"
@@ -161,7 +146,7 @@ export default function SignupScreen() {
           </button>
         </form>
         <p className="auth-foot">
-          {t.auth_have_account} <a onClick={() => { resetSensitiveFields(); navigate({ to: '/login/email' }); }}>{t.auth_login_submit}</a>
+          {t.auth_have_account} <a onClick={() => navigate({ to: '/login/email' })}>{t.auth_login_submit}</a>
         </p>
       </AuthCard>
     </AuthShell>

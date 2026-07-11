@@ -1,10 +1,10 @@
 import { useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { flushSync } from 'react-dom';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
+import PasswordSlot from '../PasswordVault';
 import BackButton from '../BackButton';
 import { signIn, resetPassword, confirmResetPassword } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
@@ -21,20 +21,6 @@ export default function EmailLoginScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // A password field's value surviving into an unmount (any exit that isn't an
-  // actual submit) reads to Chrome's password manager like an implicit submission —
-  // it'll offer to save/check the value. flushSync forces the empty value to actually
-  // commit to the DOM before the caller's subsequent navigate()/setMode() unmounts the
-  // field; without it React 18 batches both updates together and the cleared value is
-  // never painted, so Chrome still sees the last typed characters at removal time.
-  const resetSensitiveFields = () => {
-    flushSync(() => {
-      setPassword('');
-      setNewPassword('');
-      setCode('');
-    });
-  };
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -82,7 +68,7 @@ export default function EmailLoginScreen() {
     return (
       <AuthShell>
         <AuthCard>
-          <BackButton label={t.auth_back} onClick={() => { resetSensitiveFields(); setMode('login'); }} />
+          <BackButton label={t.auth_back} onClick={() => setMode('login')} />
           <div className="auth-brand">
             <BrandMark size={60} />
             <h1>{t.auth_forgot_title}</h1>
@@ -104,7 +90,7 @@ export default function EmailLoginScreen() {
     return (
       <AuthShell>
         <AuthCard>
-          <BackButton label={t.auth_back} onClick={() => { resetSensitiveFields(); setMode('login'); }} />
+          <BackButton label={t.auth_back} onClick={() => setMode('login')} />
           <div className="auth-brand">
             <BrandMark size={60} />
             <h1>{t.auth_forgot_title}</h1>
@@ -112,9 +98,9 @@ export default function EmailLoginScreen() {
           </div>
           <form onSubmit={handleForgotConfirm} noValidate>
             <AuthField label={t.auth_forgot_code_label} value={code} onChange={setCode} />
-            <AuthField
+            <PasswordSlot
+              slot="primary"
               label={t.auth_forgot_new_password_label}
-              type="password"
               value={newPassword}
               onChange={setNewPassword}
               autoComplete="new-password"
@@ -138,7 +124,7 @@ export default function EmailLoginScreen() {
             <h1>{t.auth_forgot_title}</h1>
             <p>{t.auth_forgot_success}</p>
           </div>
-          <button type="button" className="auth-btn auth-btn-primary" onClick={() => { resetSensitiveFields(); setMode('login'); }}>
+          <button type="button" className="auth-btn auth-btn-primary" onClick={() => setMode('login')}>
             {t.auth_login_submit}
           </button>
         </AuthCard>
@@ -149,7 +135,7 @@ export default function EmailLoginScreen() {
   return (
     <AuthShell>
       <AuthCard>
-        <BackButton label={t.auth_back} onClick={() => { resetSensitiveFields(); navigate({ to: '/login' }); }} />
+        <BackButton label={t.auth_back} onClick={() => navigate({ to: '/login' })} />
         <div className="auth-brand">
           <BrandMark size={60} />
           <h1>{t.auth_login_title}</h1>
@@ -157,16 +143,16 @@ export default function EmailLoginScreen() {
         </div>
         <form onSubmit={handleLogin} noValidate>
           <AuthField label={t.auth_field_email} type="email" value={email} onChange={setEmail} autoComplete="email" />
-          <AuthField
+          <PasswordSlot
+            slot="primary"
             label={t.auth_field_password}
-            type="password"
             value={password}
             onChange={setPassword}
             autoComplete="current-password"
           />
           <div className="auth-row-between">
             <span />
-            <a onClick={() => { resetSensitiveFields(); setMode('forgot-request'); }}>{t.auth_forgot_password}</a>
+            <a onClick={() => setMode('forgot-request')}>{t.auth_forgot_password}</a>
           </div>
           {error && <p className="auth-field-error" role="alert">{error}</p>}
           <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
@@ -174,7 +160,7 @@ export default function EmailLoginScreen() {
           </button>
         </form>
         <p className="auth-foot">
-          {t.auth_no_account} <a onClick={() => { resetSensitiveFields(); navigate({ to: '/signup' }); }}>{t.auth_create_account}</a>
+          {t.auth_no_account} <a onClick={() => navigate({ to: '/signup' })}>{t.auth_create_account}</a>
         </p>
       </AuthCard>
     </AuthShell>
