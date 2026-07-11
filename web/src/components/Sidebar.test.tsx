@@ -3,18 +3,19 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import Sidebar from './Sidebar';
 import { LocaleProvider, useLocale } from '@/context/LocaleContext';
 
+const navigateMock = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, ...rest }: { children: React.ReactNode; to: string } & Record<string, unknown>) => {
     const { activeProps, ...anchorProps } = rest;
     void activeProps;
     return <a href={to} {...anchorProps}>{children}</a>;
   },
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
 }));
 
 vi.mock('@/auth/useAuth', () => ({
   fetchUserAttributes: vi.fn(() => Promise.resolve({ email: 'user@example.com', name: 'User' })),
-  signOut: vi.fn(() => Promise.resolve()),
+  signOut: vi.fn(() => Promise.resolve('done')),
 }));
 
 function LocaleSwitcher() {
@@ -81,11 +82,21 @@ describe('Sidebar', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('signs out on logout click', async () => {
+  it('signs out and navigates home after a local (email/password) logout', async () => {
     const { signOut } = await import('@/auth/useAuth');
     renderSidebar();
     fireEvent.click(screen.getByRole('button', { name: /sair/i }));
     await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/' }));
+  });
+
+  it('does not navigate when a federated logout is already redirecting', async () => {
+    const { signOut } = await import('@/auth/useAuth');
+    vi.mocked(signOut).mockResolvedValueOnce('redirecting');
+    renderSidebar();
+    fireEvent.click(screen.getByRole('button', { name: /sair/i }));
+    await vi.waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('shows an error message when sign-out fails', async () => {

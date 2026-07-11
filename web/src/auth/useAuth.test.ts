@@ -105,8 +105,19 @@ describe('useAuth', () => {
     expect(amplifyAuth.signInWithRedirect).toHaveBeenCalledWith({ provider: 'Google' });
   });
 
-  it('signOut calls Amplify signOut', async () => {
-    await signOut();
+  it('signOut reports done for an email/password session', async () => {
+    amplifyAuth.fetchAuthSession.mockResolvedValueOnce({
+      tokens: { idToken: { payload: { email: 'user@example.com' } } },
+    });
+    expect(await signOut()).toBe('done');
+    expect(amplifyAuth.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('signOut reports redirecting for a federated session', async () => {
+    amplifyAuth.fetchAuthSession.mockResolvedValueOnce({
+      tokens: { idToken: { payload: { identities: [{ providerName: 'Google' }] } } },
+    });
+    expect(await signOut()).toBe('redirecting');
     expect(amplifyAuth.signOut).toHaveBeenCalledTimes(1);
   });
 

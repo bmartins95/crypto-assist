@@ -59,8 +59,18 @@ export async function signInWithRedirect(provider: SocialProvider): Promise<void
   await amplifySignInWithRedirect({ provider });
 }
 
-export async function signOut(): Promise<void> {
+export type SignOutOutcome = 'redirecting' | 'done';
+
+export async function signOut(): Promise<SignOutOutcome> {
+  // Amplify only hard-redirects through Cognito's hosted logout endpoint for
+  // sessions created via signInWithRedirect (federated users carry an `identities`
+  // claim in the id token). An email/password session signs out locally and simply
+  // resolves — the caller must navigate itself in that case, and must NOT navigate
+  // in the federated case or it races the hard redirect and double-loads the page.
+  const session = await fetchAuthSession();
+  const federated = Boolean(session.tokens?.idToken?.payload.identities);
   await amplifySignOut();
+  return federated ? 'redirecting' : 'done';
 }
 
 export async function isAuthenticated(): Promise<boolean> {

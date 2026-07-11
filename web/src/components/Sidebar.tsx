@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { fetchUserAttributes, signOut } from '@/auth/useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -10,6 +10,7 @@ interface Props {
 
 export default function Sidebar({ collapsed, onToggle }: Props) {
   const { t } = useLocale();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [logoutError, setLogoutError] = useState('');
 
@@ -24,11 +25,12 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
   const handleLogout = async () => {
     setLogoutError('');
     try {
-      // No client-side navigate here: since OAuth is configured, Amplify's signOut()
-      // always hard-redirects through Cognito's Hosted-UI logout endpoint back to
-      // redirectSignOut (this app's origin) to fully clear the session — our own
-      // navigate would race that redirect and double-render the destination screen.
-      await signOut();
+      // Federated sessions ('redirecting') hard-redirect through Cognito's hosted
+      // logout endpoint on their own — navigating too would race that redirect and
+      // double-render the destination. Email/password sessions ('done') sign out
+      // locally and need this explicit navigation home.
+      const outcome = await signOut();
+      if (outcome === 'done') navigate({ to: '/' });
     } catch {
       setLogoutError(t.auth_error_generic);
     }
