@@ -164,6 +164,7 @@ export interface UIText {
   auth_bootstrap_error_title: string;
   auth_bootstrap_error_message: string;
   auth_bootstrap_retry: string;
+  auth_bootstrap_retrying: string;
   auth_ready_title: string;
   auth_ready_subtitle: string;
   dashboard_export: string;

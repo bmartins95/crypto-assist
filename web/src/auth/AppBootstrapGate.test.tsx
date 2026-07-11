@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import AppBootstrapGate from './AppBootstrapGate';
 import { LocaleProvider } from '@/context/LocaleContext';
+
+const navigateMock = vi.fn();
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigateMock,
+}));
+
+vi.mock('./useAuth', () => ({
+  signOut: vi.fn(() => Promise.resolve('done')),
+}));
 
 function renderGate(run: () => Promise<void>) {
   render(
@@ -16,6 +25,7 @@ function renderGate(run: () => Promise<void>) {
 describe('AppBootstrapGate', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -41,6 +51,8 @@ describe('AppBootstrapGate', () => {
     const run = vi.fn(() => Promise.reject(new Error('boom')));
     renderGate(run);
     expect(await screen.findByText(/não foi possível carregar/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^tentar novamente$/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^sair$/i })).toBeTruthy();
   });
 
   it('shows an error state with retry when the timeout is reached', async () => {
@@ -49,16 +61,68 @@ describe('AppBootstrapGate', () => {
     renderGate(run);
     await act(() => vi.advanceTimersByTimeAsync(30000));
     expect(screen.getByText(/não foi possível carregar/i)).toBeTruthy();
-    const retryButton = screen.getByRole('button', { name: /tentar novamente/i });
-    expect(retryButton).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^tentar novamente$/i })).toBeTruthy();
   });
 
-  it('retries by calling run again when the retry button is clicked', async () => {
-    vi.useFakeTimers();
-    const run = vi.fn(() => new Promise<void>(() => undefined));
+  it('retries inline on the same error card — no bounce back to the loading screen', async () => {
+    const run = vi.fn(() => Promise.reject(new Error('boom')));
     renderGate(run);
-    await act(() => vi.advanceTimersByTimeAsync(30000));
-    fireEvent.click(screen.getByRole('button', { name: /tentar novamente/i }));
+    await screen.findByText(/não foi possível carregar/i);
+
+    let resolveRetry: () => void = () => undefined;
+    run.mockImplementationOnce(() => new Promise<void>(resolve => { resolveRetry = resolve; }));
+    fireEvent.click(screen.getByRole('button', { name: /^tentar novamente$/i }));
+
+    expect(screen.queryByText(/preparando sua carteira/i)).toBeNull();
+    expect(await screen.findByRole('button', { name: /tentando/i })).toBeTruthy();
+
+    resolveRetry();
+    expect(await screen.findByTestId('app-content')).toBeTruthy();
     expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it('stays on the error card and resets the button after a failed retry', async () => {
+    const run = vi.fn(() => Promise.reject(new Error('boom')));
+    renderGate(run);
+    await screen.findByText(/não foi possível carregar/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^tentar novamente$/i }));
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('button', { name: /^tentar novamente$/i })).toBeTruthy();
+    expect(screen.getByText(/não foi possível carregar/i)).toBeTruthy();
+  });
+
+  it('signs out and navigates home when the exit button is clicked', async () => {
+    const { signOut } = await import('./useAuth');
+    const run = vi.fn(() => Promise.reject(new Error('boom')));
+    renderGate(run);
+    await screen.findByText(/não foi possível carregar/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^sair$/i }));
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/' }));
+  });
+
+  it('does not navigate on exit when the sign-out is already redirecting (federated session)', async () => {
+    const { signOut } = await import('./useAuth');
+    vi.mocked(signOut).mockResolvedValueOnce('redirecting');
+    const run = vi.fn(() => Promise.reject(new Error('boom')));
+    renderGate(run);
+    await screen.findByText(/não foi possível carregar/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^sair$/i }));
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('still navigates home on exit if sign-out itself throws', async () => {
+    const { signOut } = await import('./useAuth');
+    vi.mocked(signOut).mockRejectedValueOnce(new Error('network'));
+    const run = vi.fn(() => Promise.reject(new Error('boom')));
+    renderGate(run);
+    await screen.findByText(/não foi possível carregar/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /^sair$/i }));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/' }));
   });
 });
