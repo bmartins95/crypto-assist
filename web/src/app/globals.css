@@ -758,6 +758,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font: inherit; font-size: 14px; padding: 11px 13px; border-radius: 10px; width: 100%;
 }
 .auth-inp:focus { outline: none; border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
+/* Visual password masking for the text-typed state PasswordField switches into on
+   the first keystroke (see PasswordField.tsx for why it must not stay type=password). */
+.auth-inp-masked { -webkit-text-security: disc; }
 /* Chrome forces its own white/yellow autofill background and ignores a plain
    background-color override; painting a huge inset box-shadow in our own surface
    color is the only override it respects, combined with a near-infinite transition

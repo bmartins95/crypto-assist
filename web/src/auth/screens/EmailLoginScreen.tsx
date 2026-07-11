@@ -4,7 +4,8 @@ import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
-import PasswordSlot from '../PasswordVault';
+import PasswordField from '../PasswordField';
+import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
 import { signIn, resetPassword, confirmResetPassword } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
@@ -28,6 +29,7 @@ export default function EmailLoginScreen() {
     setSubmitting(true);
     try {
       await signIn(email, password);
+      await storePasswordCredential(email, password);
       navigate({ to: '/wallet' });
     } catch {
       setError(t.auth_error_invalid_credentials);
@@ -56,6 +58,7 @@ export default function EmailLoginScreen() {
     setSubmitting(true);
     try {
       await confirmResetPassword(email, code, newPassword);
+      await storePasswordCredential(email, newPassword);
       setMode('forgot-done');
     } catch {
       setError(t.auth_error_code_invalid);
@@ -98,8 +101,7 @@ export default function EmailLoginScreen() {
           </div>
           <form onSubmit={handleForgotConfirm} noValidate>
             <AuthField label={t.auth_forgot_code_label} value={code} onChange={setCode} />
-            <PasswordSlot
-              slot="primary"
+            <PasswordField
               label={t.auth_forgot_new_password_label}
               value={newPassword}
               onChange={setNewPassword}
@@ -143,8 +145,7 @@ export default function EmailLoginScreen() {
         </div>
         <form onSubmit={handleLogin} noValidate>
           <AuthField label={t.auth_field_email} type="email" value={email} onChange={setEmail} autoComplete="email" />
-          <PasswordSlot
-            slot="primary"
+          <PasswordField
             label={t.auth_field_password}
             value={password}
             onChange={setPassword}

@@ -4,7 +4,8 @@ import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
-import PasswordSlot from '../PasswordVault';
+import PasswordField from '../PasswordField';
+import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
 import { signUp, confirmSignUp, resendSignUpCode, signIn } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
@@ -47,6 +48,9 @@ export default function SignupScreen() {
     setSubmitting(true);
     try {
       await signUp(name, email, password);
+      // The account now exists server-side with this password even though the email
+      // is not yet confirmed — this is the success moment for the save-password offer.
+      await storePasswordCredential(email, password);
       setStep('confirm');
     } catch (err) {
       const errName = err instanceof Error ? err.name : '';
@@ -123,8 +127,7 @@ export default function SignupScreen() {
             autoComplete="email"
             error={fieldErrors.email}
           />
-          <PasswordSlot
-            slot="primary"
+          <PasswordField
             label={t.auth_field_password}
             value={password}
             onChange={setPassword}
@@ -132,8 +135,7 @@ export default function SignupScreen() {
             autoComplete="new-password"
             error={fieldErrors.password}
           />
-          <PasswordSlot
-            slot="secondary"
+          <PasswordField
             label={t.auth_field_confirm_password}
             value={confirmPassword}
             onChange={setConfirmPassword}
