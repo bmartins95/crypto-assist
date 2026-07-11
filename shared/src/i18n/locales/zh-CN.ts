@@ -134,6 +134,7 @@ const zhCN: UIText = {
   auth_confirm_code_label: '验证码',
   auth_confirm_submit: '确认',
   auth_confirm_resend: '重新发送验证码',
+  auth_confirm_resend_wait: '{seconds}秒后可重新发送',
   auth_error_email_invalid: '请输入有效的邮箱地址。',
   auth_error_password_short: '密码至少需要 8 个字符。',
   auth_error_password_mismatch: '两次输入的密码不一致。',

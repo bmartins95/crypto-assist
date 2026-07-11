@@ -134,6 +134,7 @@ const ruRU: UIText = {
   auth_confirm_code_label: 'Код',
   auth_confirm_submit: 'Подтвердить',
   auth_confirm_resend: 'Отправить код повторно',
+  auth_confirm_resend_wait: 'Отправить код повторно через {seconds}с',
   auth_error_email_invalid: 'Введите действительный email.',
   auth_error_password_short: 'Пароль должен содержать не менее 8 символов.',
   auth_error_password_mismatch: 'Пароли не совпадают.',

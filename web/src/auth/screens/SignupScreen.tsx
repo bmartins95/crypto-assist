@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
@@ -11,6 +11,7 @@ import { signUp, confirmSignUp, resendSignUpCode, signIn } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_COOLDOWN_S = 30;
 
 export default function SignupScreen() {
   const { t } = useLocale();
@@ -24,6 +25,13 @@ export default function SignupScreen() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown(s => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -51,6 +59,7 @@ export default function SignupScreen() {
       // The account now exists server-side with this password even though the email
       // is not yet confirmed — this is the success moment for the save-password offer.
       await storePasswordCredential(email, password);
+      setResendCooldown(RESEND_COOLDOWN_S);
       setStep('confirm');
     } catch (err) {
       const errName = err instanceof Error ? err.name : '';
@@ -76,9 +85,11 @@ export default function SignupScreen() {
   };
 
   const handleResend = async () => {
+    if (resendCooldown > 0) return;
     setError('');
     try {
       await resendSignUpCode(email);
+      setResendCooldown(RESEND_COOLDOWN_S);
     } catch {
       setError(t.auth_error_generic);
     }
@@ -101,7 +112,11 @@ export default function SignupScreen() {
             </button>
           </form>
           <p className="auth-foot">
-            <a onClick={handleResend}>{t.auth_confirm_resend}</a>
+            {resendCooldown > 0 ? (
+              <span>{t.auth_confirm_resend_wait.replace('{seconds}', String(resendCooldown))}</span>
+            ) : (
+              <a onClick={handleResend}>{t.auth_confirm_resend}</a>
+            )}
           </p>
         </AuthCard>
       </AuthShell>

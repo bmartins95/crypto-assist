@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import SignupScreen from './SignupScreen';
 import { LocaleProvider } from '@/context/LocaleContext';
 
@@ -30,9 +30,24 @@ function fillValidForm() {
   fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'password123' } });
 }
 
+async function elapseResendCooldown() {
+  // The countdown chains one setTimeout per second, each re-armed by a React
+  // effect — advancing second by second (with effects flushed in between) is the
+  // only way the chain actually progresses under fake timers.
+  for (let i = 0; i < 40 && screen.queryByText(/reenviar código em \d+s/i); i++) {
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+  }
+}
+
 describe('SignupScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('shows validation errors for an empty submission', () => {
@@ -110,24 +125,41 @@ describe('SignupScreen', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
   });
 
-  it('resends the confirmation code', async () => {
+  it('shows a countdown instead of the resend link right after signup', async () => {
     const { resendSignUpCode } = await import('../useAuth');
     renderScreen();
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    await screen.findByText(/reenviar código/i);
-    fireEvent.click(screen.getByText(/reenviar código/i));
+    const countdown = await screen.findByText(/reenviar código em \d+s/i);
+    fireEvent.click(countdown);
+    expect(resendSignUpCode).not.toHaveBeenCalled();
+  });
+
+  it('resends the confirmation code after the cooldown and restarts it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { resendSignUpCode } = await import('../useAuth');
+    renderScreen();
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    await screen.findByText(/reenviar código em \d+s/i);
+
+    await elapseResendCooldown();
+    fireEvent.click(screen.getByText(/^reenviar código$/i));
     await vi.waitFor(() => expect(resendSignUpCode).toHaveBeenCalledWith('bruno@example.com'));
+    expect(await screen.findByText(/reenviar código em \d+s/i)).toBeTruthy();
   });
 
   it('shows an error when resending the code fails', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { resendSignUpCode } = await import('../useAuth');
     vi.mocked(resendSignUpCode).mockRejectedValueOnce(new Error('network'));
     renderScreen();
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    await screen.findByText(/reenviar código/i);
-    fireEvent.click(screen.getByText(/reenviar código/i));
+    await screen.findByText(/reenviar código em \d+s/i);
+
+    await elapseResendCooldown();
+    fireEvent.click(screen.getByText(/^reenviar código$/i));
     expect(await screen.findByRole('alert')).toBeTruthy();
   });
 

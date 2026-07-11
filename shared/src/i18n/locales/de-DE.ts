@@ -134,6 +134,7 @@ const deDE: UIText = {
   auth_confirm_code_label: 'Code',
   auth_confirm_submit: 'Bestätigen',
   auth_confirm_resend: 'Code erneut senden',
+  auth_confirm_resend_wait: 'Code erneut senden in {seconds}s',
   auth_error_email_invalid: 'Gib eine gültige E-Mail-Adresse ein.',
   auth_error_password_short: 'Das Passwort muss mindestens 8 Zeichen lang sein.',
   auth_error_password_mismatch: 'Die Passwörter stimmen nicht überein.',

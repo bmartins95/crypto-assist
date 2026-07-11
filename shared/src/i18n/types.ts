@@ -146,6 +146,7 @@ export interface UIText {
   auth_confirm_code_label: string;
   auth_confirm_submit: string;
   auth_confirm_resend: string;
+  auth_confirm_resend_wait: string;
   auth_error_email_invalid: string;
   auth_error_password_short: string;
   auth_error_password_mismatch: string;

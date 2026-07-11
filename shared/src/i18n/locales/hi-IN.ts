@@ -134,6 +134,7 @@ const hiIN: UIText = {
   auth_confirm_code_label: 'कोड',
   auth_confirm_submit: 'पुष्टि करें',
   auth_confirm_resend: 'कोड फिर से भेजें',
+  auth_confirm_resend_wait: '{seconds} सेकंड में कोड फिर से भेजें',
   auth_error_email_invalid: 'एक मान्य ईमेल पता दर्ज करें।',
   auth_error_password_short: 'पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।',
   auth_error_password_mismatch: 'पासवर्ड मेल नहीं खाते।',

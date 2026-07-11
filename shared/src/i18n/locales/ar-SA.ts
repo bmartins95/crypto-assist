@@ -134,6 +134,7 @@ const arSA: UIText = {
   auth_confirm_code_label: 'الرمز',
   auth_confirm_submit: 'تأكيد',
   auth_confirm_resend: 'إعادة إرسال الرمز',
+  auth_confirm_resend_wait: 'إعادة إرسال الرمز بعد {seconds} ثانية',
   auth_error_email_invalid: 'أدخل بريدًا إلكترونيًا صالحًا.',
   auth_error_password_short: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.',
   auth_error_password_mismatch: 'كلمتا المرور غير متطابقتين.',

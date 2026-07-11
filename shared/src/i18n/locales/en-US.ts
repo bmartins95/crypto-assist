@@ -134,6 +134,7 @@ const enUS: UIText = {
   auth_confirm_code_label: 'Code',
   auth_confirm_submit: 'Confirm',
   auth_confirm_resend: 'Resend code',
+  auth_confirm_resend_wait: 'Resend code in {seconds}s',
   auth_error_email_invalid: 'Enter a valid email address.',
   auth_error_password_short: 'Password must be at least 8 characters.',
   auth_error_password_mismatch: 'Passwords do not match.',

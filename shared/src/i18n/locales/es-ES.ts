@@ -134,6 +134,7 @@ const esES: UIText = {
   auth_confirm_code_label: 'Código',
   auth_confirm_submit: 'Confirmar',
   auth_confirm_resend: 'Reenviar código',
+  auth_confirm_resend_wait: 'Reenviar código en {seconds}s',
   auth_error_email_invalid: 'Ingresa un correo electrónico válido.',
   auth_error_password_short: 'La contraseña debe tener al menos 8 caracteres.',
   auth_error_password_mismatch: 'Las contraseñas no coinciden.',

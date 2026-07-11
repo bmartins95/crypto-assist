@@ -134,6 +134,7 @@ const jaJP: UIText = {
   auth_confirm_code_label: 'コード',
   auth_confirm_submit: '確認',
   auth_confirm_resend: 'コードを再送信',
+  auth_confirm_resend_wait: '{seconds}秒後に再送信できます',
   auth_error_email_invalid: '有効なメールアドレスを入力してください。',
   auth_error_password_short: 'パスワードは8文字以上で入力してください。',
   auth_error_password_mismatch: 'パスワードが一致しません。',
