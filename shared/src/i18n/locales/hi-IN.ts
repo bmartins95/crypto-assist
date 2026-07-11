@@ -169,7 +169,6 @@ const hiIN: UIText = {
   common_increase: 'बढ़ाएं',
   common_decrease: 'घटाएं',
   dashboard_subtitle: 'CoinGecko के ज़रिए रियल-टाइम कीमतें · BRL में मूल्य',
-  dashboard_error_load: 'आपका डेटा लोड करने में त्रुटि। पेज रीलोड करें।',
   dashboard_error_add_op: 'ऑपरेशन दर्ज करने में विफल। पुनः प्रयास करें।',
   dashboard_error_edit_op: 'ऑपरेशन सहेजने में विफल। पुनः प्रयास करें।',
   dashboard_error_delete_op: 'ऑपरेशन हटाने में विफल। पुनः प्रयास करें।',

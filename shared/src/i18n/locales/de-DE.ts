@@ -169,7 +169,6 @@ const deDE: UIText = {
   common_increase: 'Erhöhen',
   common_decrease: 'Verringern',
   dashboard_subtitle: 'Echtzeitpreise über CoinGecko · Werte in BRL',
-  dashboard_error_load: 'Fehler beim Laden Ihrer Daten. Seite neu laden.',
   dashboard_error_add_op: 'Fehler beim Erfassen der Operation. Bitte erneut versuchen.',
   dashboard_error_edit_op: 'Fehler beim Speichern der Operation. Bitte erneut versuchen.',
   dashboard_error_delete_op: 'Fehler beim Löschen der Operation. Bitte erneut versuchen.',

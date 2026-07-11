@@ -169,7 +169,6 @@ const arSA: UIText = {
   common_increase: 'زيادة',
   common_decrease: 'إنقاص',
   dashboard_subtitle: 'أسعار فورية عبر CoinGecko · القيم بـ BRL',
-  dashboard_error_load: 'فشل تحميل بياناتك. أعد تحميل الصفحة.',
   dashboard_error_add_op: 'فشل تسجيل العملية. حاول مرة أخرى.',
   dashboard_error_edit_op: 'فشل حفظ العملية. حاول مرة أخرى.',
   dashboard_error_delete_op: 'فشل حذف العملية. حاول مرة أخرى.',

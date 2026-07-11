@@ -169,7 +169,6 @@ const frFR: UIText = {
   common_increase: 'Augmenter',
   common_decrease: 'Diminuer',
   dashboard_subtitle: 'Prix en temps réel via CoinGecko · Valeurs en BRL',
-  dashboard_error_load: 'Échec du chargement de vos données. Rechargez la page.',
   dashboard_error_add_op: "Échec de l'enregistrement de l'opération. Réessayez.",
   dashboard_error_edit_op: "Échec de la sauvegarde de l'opération. Réessayez.",
   dashboard_error_delete_op: "Échec de la suppression de l'opération. Réessayez.",

@@ -169,7 +169,6 @@ const esES: UIText = {
   common_increase: 'Aumentar',
   common_decrease: 'Disminuir',
   dashboard_subtitle: 'Precios en tiempo real vía CoinGecko · Valores en BRL',
-  dashboard_error_load: 'Error al cargar tus datos. Recarga la página.',
   dashboard_error_add_op: 'Error al registrar la operación. Inténtalo de nuevo.',
   dashboard_error_edit_op: 'Error al guardar la operación. Inténtalo de nuevo.',
   dashboard_error_delete_op: 'Error al eliminar la operación. Inténtalo de nuevo.',

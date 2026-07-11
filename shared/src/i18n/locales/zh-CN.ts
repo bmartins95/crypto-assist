@@ -169,7 +169,6 @@ const zhCN: UIText = {
   common_increase: '增加',
   common_decrease: '减少',
   dashboard_subtitle: '通过 CoinGecko 实时价格 · 以 BRL 显示',
-  dashboard_error_load: '加载数据失败。请刷新页面。',
   dashboard_error_add_op: '记录操作失败。请重试。',
   dashboard_error_edit_op: '保存操作失败。请重试。',
   dashboard_error_delete_op: '删除操作失败。请重试。',

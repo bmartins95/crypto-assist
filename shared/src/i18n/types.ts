@@ -181,7 +181,6 @@ export interface UIText {
   common_increase: string;
   common_decrease: string;
   dashboard_subtitle: string;
-  dashboard_error_load: string;
   dashboard_error_add_op: string;
   dashboard_error_edit_op: string;
   dashboard_error_delete_op: string;

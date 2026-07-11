@@ -169,7 +169,6 @@ const jaJP: UIText = {
   common_increase: '増やす',
   common_decrease: '減らす',
   dashboard_subtitle: 'CoinGecko 経由のリアルタイム価格 · BRL建て',
-  dashboard_error_load: 'データの読み込みに失敗しました。ページを再読み込みしてください。',
   dashboard_error_add_op: '操作の記録に失敗しました。もう一度お試しください。',
   dashboard_error_edit_op: '操作の保存に失敗しました。もう一度お試しください。',
   dashboard_error_delete_op: '操作の削除に失敗しました。もう一度お試しください。',
