@@ -694,3 +694,27 @@ Each entry: description, estimated effort (S/M/L/XL), estimated user value (low/
 
 ### Done when
 - `docs/roadmap.md` committed to `develop`.
+
+---
+
+## Item 21 — Extract auth kit to a standalone reusable repository
+**Branch:** `chore/extract-auth-kit`
+**Depends on:** item 17 (custom auth UI must exist first)
+
+- [ ] Done
+
+### Current state
+Item 17 builds the branded hero/login/signup/callback/bootstrap-gate auth flow directly inside `web/src/auth/` for this app only (per Item 17's clarification: no reuse-specific packaging in that item, since this repo forbids speculative abstraction). The components are already token-driven (CSS custom properties for brand colors) and cleanly boundaried, which is what makes a later extraction realistic.
+
+### Goal
+Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `AuthField`, `LoadingState`, `SuccessState`, `AuthCallback`, `AppBootstrapGate`, `RequireAuth`, `useAuth`, and the login/signup screen shells) into its own standalone, versioned GitHub repository, published so other apps (starting with any future `bmartins95` project) can install it and get a fully working, brandable auth flow by swapping a token file, a logo, and an auth-backend adapter — without touching crypto-assist-specific code.
+
+### Scope notes (to refine when this item is actually planned)
+- Needs a decision on the package's auth-backend abstraction boundary — Item 17's `useAuth()` hook was already designed as the seam for this (per `auth-flow-implementation.md`'s "Reusing the kit in another app" section), but generalizing it beyond Cognito/Amplify is new work.
+- `crypto-assist`'s own `web/src/auth/` would become a thin consumer of the published package rather than the source of truth.
+- Out of scope: any change to this app's actual auth behavior, screens, or copy — this item is a pure extraction/refactor, not a redesign.
+
+### Done when
+- The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
+- `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
+- A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.

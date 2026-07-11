@@ -24,6 +24,7 @@
   --s-text-dim: #71717a;
   --s-danger-dim: rgba(239, 68, 68, .08);
   --s-danger-border: rgba(239, 68, 68, .25);
+  --brand-a: #f7931a;
   accent-color: var(--s-accent);
 }
 
@@ -684,4 +685,205 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 @media (max-width: 820px) {
   .layout, .layout.collapsed { grid-template-columns: 1fr; }
   .sb { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--s-border-soft); }
+}
+
+/* ===================== Auth (custom auth UI) ===================== */
+
+.auth-shell { position: relative; min-height: 100vh; overflow: hidden; }
+.auth-glow { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.auth-glow::before, .auth-glow::after {
+  content: ''; position: absolute; width: 640px; height: 640px; border-radius: 50%;
+  filter: blur(130px); opacity: .15;
+}
+.auth-glow::before { background: var(--brand-a); top: -180px; left: -140px; animation: auth-drift1 16s ease-in-out infinite; }
+.auth-glow::after { background: var(--s-accent); bottom: -220px; right: -160px; animation: auth-drift2 18s ease-in-out infinite; }
+@keyframes auth-drift1 { 50% { transform: translate(60px, 50px); } }
+@keyframes auth-drift2 { 50% { transform: translate(-50px, -40px); } }
+
+.auth-stage {
+  position: relative; z-index: 1; min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; padding: 84px 22px 48px;
+}
+
+@keyframes auth-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.auth-card > *, .auth-hero-page > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
+.auth-card > *:nth-child(1), .auth-hero-page > *:nth-child(1) { animation-delay: .03s; }
+.auth-card > *:nth-child(2), .auth-hero-page > *:nth-child(2) { animation-delay: .09s; }
+.auth-card > *:nth-child(3), .auth-hero-page > *:nth-child(3) { animation-delay: .15s; }
+.auth-card > *:nth-child(4), .auth-hero-page > *:nth-child(4) { animation-delay: .21s; }
+.auth-card > *:nth-child(5), .auth-hero-page > *:nth-child(5) { animation-delay: .27s; }
+.auth-card > *:nth-child(6), .auth-hero-page > *:nth-child(6) { animation-delay: .33s; }
+.auth-card > *:nth-child(7), .auth-hero-page > *:nth-child(7) { animation-delay: .39s; }
+/* Loading/error states: per auth-flow-prototype.html, the outer .loader block itself
+   isn't animated — each inner element (logo, title, message, dots) fades/rises in
+   individually, on the same rise timing as everything else in the card. */
+.auth-card > .auth-loader, .auth-card > .auth-error-state { opacity: 1; animation: none; }
+.auth-loader > *, .auth-error-state > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
+.auth-loader > *:nth-child(1), .auth-error-state > *:nth-child(1) { animation-delay: .03s; }
+.auth-loader > *:nth-child(2), .auth-error-state > *:nth-child(2) { animation-delay: .09s; }
+.auth-loader > *:nth-child(3), .auth-error-state > *:nth-child(3) { animation-delay: .15s; }
+.auth-loader > *:nth-child(4), .auth-error-state > *:nth-child(4) { animation-delay: .21s; }
+
+.auth-card {
+  position: relative; z-index: 1; width: 100%; max-width: 392px; background: var(--s-surface);
+  border: 1px solid var(--s-border); border-radius: 20px; padding: 34px 30px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
+}
+
+.auth-brand { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
+.auth-brand h1 { font-size: 19px; font-weight: 700; letter-spacing: -.02em; margin-top: 14px; }
+.auth-brand p { font-size: 13px; color: var(--s-text-dim); margin-top: 4px; line-height: 1.45; }
+
+.auth-back {
+  background: transparent; border: 0; color: var(--s-text-dim); font: inherit; font-size: 13px;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 18px;
+  padding: 0;
+}
+.auth-back:hover { background: transparent; color: var(--text); }
+.auth-back svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--s-text-dim); font-size: 12px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--s-border-soft); }
+
+.auth-foot { margin-top: 22px; text-align: center; font-size: 12.5px; color: var(--s-text-dim); }
+.auth-foot a { color: var(--s-accent); text-decoration: none; font-weight: 500; cursor: pointer; }
+
+.auth-legal { margin-top: 18px; text-align: center; font-size: 11px; color: var(--s-text-dim); line-height: 1.5; }
+.auth-legal a { color: var(--s-text-muted); text-decoration: underline; cursor: pointer; }
+
+.auth-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; text-align: left; }
+.auth-field label { font-size: 12.5px; color: var(--s-text-muted); }
+.auth-inp {
+  background: var(--s-surface-2); border: 1px solid var(--s-border); color: var(--text);
+  font: inherit; font-size: 14px; padding: 11px 13px; border-radius: 10px; width: 100%;
+}
+.auth-inp:focus { outline: none; border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
+/* Visual password masking for the text-typed state PasswordField switches into on
+   the first keystroke (see PasswordField.tsx for why it must not stay type=password). */
+.auth-inp-masked { -webkit-text-security: disc; }
+/* Chrome forces its own white/yellow autofill background and ignores a plain
+   background-color override; painting a huge inset box-shadow in our own surface
+   color is the only override it respects, combined with a near-infinite transition
+   delay so it doesn't flash to white before settling. */
+.auth-inp:-webkit-autofill,
+.auth-inp:-webkit-autofill:hover,
+.auth-inp:-webkit-autofill:focus,
+.auth-inp:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--s-surface-2) inset !important;
+  box-shadow: 0 0 0 1000px var(--s-surface-2) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  caret-color: var(--text);
+  transition: background-color 600000s 0s, color 600000s 0s;
+  animation-name: auth-autofill-detect;
+}
+/* No-op keyframe used purely as a JS-visible signal: an onAnimationStart listener on
+   the input fires exactly when Chrome autofills it, which is the standard workaround
+   for Chrome autofill sometimes not reliably dispatching an 'input' event — without
+   this, React's controlled value can stay stale and empty while the field visibly
+   shows the autofilled password, which then flip-flops when React next re-renders. */
+@keyframes auth-autofill-detect { from {} to {} }
+.auth-field-error { font-size: 12px; color: var(--danger); }
+
+.auth-row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 12.5px; }
+.auth-row-between a { color: var(--s-accent); text-decoration: none; cursor: pointer; }
+
+.auth-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  font: inherit; font-size: 14px; line-height: 1.2; font-weight: 500; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--s-border); background: var(--s-surface-2); color: var(--text);
+  transition: transform .1s, background .15s; cursor: pointer;
+}
+.auth-btn + .auth-btn { margin-top: 10px; }
+.auth-btn:hover { background: var(--s-surface-hover); }
+.auth-btn:active { transform: scale(.985); }
+.auth-btn:disabled { cursor: default; opacity: .6; }
+.auth-btn-primary { background: var(--s-accent); border-color: var(--s-accent); color: #04201c; font-weight: 600; }
+.auth-btn-primary:hover { background: var(--s-accent); filter: brightness(1.08); }
+
+.auth-loader { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
+/* Two animations on the same element: the one-shot entrance rise (matching the other
+   loader children) and the continuous pulse. Both must be named here together — a
+   higher-specificity `animation` shorthand fully replaces a lower-specificity one
+   rather than merging, so splitting these across two rules silently drops the rise
+   (and its opacity: 0 -> 1) while the pulse keeps running invisibly at opacity: 0. */
+.auth-loader .auth-logo {
+  opacity: 0;
+  animation: auth-rise .55s cubic-bezier(.4,0,.2,1) .03s forwards, auth-logo-pulse 1.8s ease-in-out infinite;
+}
+@keyframes auth-logo-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.auth-loader h2 { font-size: 16px; font-weight: 600; margin-top: 26px; }
+.auth-msg { font-size: 13px; color: var(--s-text-dim); margin-top: 8px; min-height: 19px; transition: opacity .3s; }
+.auth-dots { display: inline-flex; gap: 4px; margin-top: 16px; }
+.auth-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--s-text-dim); animation: auth-blink 1.2s infinite; }
+.auth-dots i:nth-child(2) { animation-delay: .2s; }
+.auth-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes auth-blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; background: var(--s-accent); } }
+
+.auth-check-wrap {
+  width: 76px; height: 76px; border-radius: 50%; background: rgba(52, 211, 153, .14);
+  display: flex; align-items: center; justify-content: center; animation: auth-pop .4s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes auth-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.auth-check-wrap svg {
+  stroke: var(--success); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 40; stroke-dashoffset: 40; animation: auth-draw .5s .15s ease forwards;
+}
+@keyframes auth-draw { to { stroke-dashoffset: 0; } }
+
+.auth-error-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
+.auth-error-state h2 { font-size: 16px; font-weight: 600; margin-top: 16px; }
+.auth-error-state p { font-size: 13px; color: var(--s-text-dim); margin-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-glow::before, .auth-glow::after,
+  .auth-card > *, .auth-hero-page > *,
+  .auth-loader > *, .auth-error-state > *,
+  .auth-loader .auth-logo, .auth-dots i, .auth-check-wrap, .auth-check-wrap svg,
+  .auth-msg { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+.auth-hero-page { max-width: 1000px; width: 100%; position: relative; z-index: 1; }
+.auth-topbar { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 64px; }
+.auth-brandrow { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
+.auth-ghost {
+  background: transparent; border: 1px solid var(--s-border); color: var(--text); font: inherit;
+  font-size: 13.5px; font-weight: 500; padding: 9px 18px; border-radius: 10px; cursor: pointer; transition: .15s;
+}
+.auth-ghost:hover { background: var(--s-surface-hover); }
+.auth-hero-main { display: grid; grid-template-columns: 1.02fr .98fr; gap: 44px; align-items: center; width: 100%; }
+.auth-hero-main h1 { font-size: 40px; line-height: 1.07; letter-spacing: -.03em; font-weight: 800; }
+.auth-grad {
+  background: linear-gradient(120deg, var(--brand-a), var(--s-accent)); -webkit-background-clip: text;
+  background-clip: text; color: transparent;
+}
+.auth-hero-sub { font-size: 16px; color: var(--s-text-muted); margin-top: 20px; line-height: 1.55; max-width: 450px; }
+.auth-hero-ctas { display: flex; align-items: center; gap: 12px; margin-top: 30px; }
+.auth-hero-ctas .auth-btn { width: auto; padding: 12px 22px; margin-top: 0; }
+
+.auth-preview {
+  background: var(--s-surface); border: 1px solid var(--s-border); border-radius: 18px; padding: 18px 20px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .35);
+}
+.auth-pv-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.auth-pv-label { font-size: 12px; color: var(--s-text-dim); }
+.auth-pv-value { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
+.auth-spark { width: 100%; height: 70px; display: block; margin: 6px 0 14px; }
+.auth-pv-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-top: 1px solid var(--s-border-soft); }
+.auth-pv-nm { font-size: 13px; font-weight: 600; flex: 1; }
+
+.auth-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 70px; width: 100%; }
+.auth-feat { background: var(--s-surface); border: 1px solid var(--s-border-soft); border-radius: 14px; padding: 18px; }
+.auth-feat .ic {
+  width: 34px; height: 34px; border-radius: 9px; background: var(--s-accent-dim);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+}
+.auth-feat .ic svg { width: 18px; height: 18px; stroke: var(--s-accent); fill: none; stroke-width: 2; }
+.auth-feat h3 { font-size: 14px; font-weight: 600; }
+.auth-feat p { font-size: 12.5px; color: var(--s-text-dim); margin-top: 5px; line-height: 1.5; }
+
+@media (max-width: 820px) {
+  .auth-hero-main { grid-template-columns: 1fr; }
+  .auth-hero-main h1 { font-size: 32px; }
+  .auth-features { grid-template-columns: 1fr; }
+  .auth-topbar { margin-bottom: 40px; }
 }

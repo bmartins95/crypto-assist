@@ -6,7 +6,7 @@ import { getLocale } from '@crypto-assist/shared';
 
 const RTL_LOCALES = new Set<Locale>(['ar-SA']);
 const STORAGE_KEY = 'crypto-assist:locale';
-const DEFAULT_LOCALE: Locale = 'pt-BR';
+const DEFAULT_LOCALE: Locale = 'en-US';
 
 interface LocaleContextValue {
   locale: Locale;

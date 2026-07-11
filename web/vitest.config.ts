@@ -11,7 +11,7 @@ export default defineConfig({
     coverage: {
       thresholds: {
         'src/lib/dataHandlers.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
-        'src/lib/cognito/client.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
+        'src/auth/useAuth.ts': { statements: 90, branches: 90, functions: 90, lines: 90 },
       },
     },
   },

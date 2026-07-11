@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from './client';
 
-vi.mock('@/lib/cognito/client', () => ({
-  getValidSession: vi.fn(async () => ({ access_token: 'token' })),
+vi.mock('@/auth/useAuth', () => ({
+  getAccessToken: vi.fn(async () => 'token'),
 }));
 
 function mockResponse(status: number, body: unknown): Response {

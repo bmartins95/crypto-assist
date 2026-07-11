@@ -41,19 +41,10 @@ vi.mock('@/lib/storage', () => ({
   clearLegacyData: vi.fn(),
 }));
 
-const sessionTokens = vi.hoisted(() => ({
-  id_token: 'token',
-  access_token: 'access',
-  refresh_token: 'refresh',
-  expires_at: Date.now() + 3600_000,
-}));
-
-vi.mock('@/lib/cognito/client', () => ({
-  getSession: vi.fn(() => sessionTokens),
-  getEmailFromIdToken: vi.fn(() => 'user@example.com'),
-  clearSession: vi.fn(),
-  buildLogoutUrl: vi.fn(() => 'https://logout.example.com'),
-  exchangeCode: vi.fn(async () => undefined),
+vi.mock('@/auth/useAuth', () => ({
+  isAuthenticated: vi.fn(async () => true),
+  fetchUserAttributes: vi.fn(async () => ({ email: 'user@example.com', name: 'User' })),
+  signOut: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/components/WalletTab', () => ({
@@ -75,7 +66,7 @@ vi.mock('@/components/HistoryTab', () => ({
     </div>
   ),
 }));
-vi.mock('@/app/auth/AuthClient', () => ({ default: () => <div data-testid="auth-view" /> }));
+vi.mock('@/auth/screens/LoginScreen', () => ({ default: () => <div data-testid="auth-view" /> }));
 
 async function renderAt(path: string) {
   const testRouter = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
@@ -97,8 +88,8 @@ describe('AppLayout', () => {
     vi.clearAllMocks();
     vi.stubGlobal('alert', vi.fn());
     vi.stubGlobal('confirm', vi.fn(() => false));
-    const { getSession } = await import('@/lib/cognito/client');
-    vi.mocked(getSession).mockReturnValue(sessionTokens);
+    const { isAuthenticated } = await import('@/auth/useAuth');
+    vi.mocked(isAuthenticated).mockResolvedValue(true);
     const { api } = await import('@/lib/api/client');
     vi.mocked(api.getOps).mockResolvedValue([]);
     vi.mocked(api.getExitPrices).mockResolvedValue({});
@@ -127,7 +118,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: /histórico/i })).toBeTruthy();
     expect(screen.getByRole('link', { name: /configurações/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /sair/i })).toBeTruthy();
-    expect(screen.getByText('user@example.com')).toBeTruthy();
+    expect(await screen.findByText('user@example.com')).toBeTruthy();
   });
 
   it('switches routes via sidebar without refetching portfolio data', async () => {
@@ -161,9 +152,9 @@ describe('AppLayout', () => {
     expect(storageMod.clearLegacyData).toHaveBeenCalledTimes(1);
   });
 
-  it('redirects unauthenticated users to /auth', async () => {
-    const { getSession } = await import('@/lib/cognito/client');
-    vi.mocked(getSession).mockReturnValue(null);
+  it('redirects unauthenticated users to /login', async () => {
+    const { isAuthenticated } = await import('@/auth/useAuth');
+    vi.mocked(isAuthenticated).mockResolvedValue(false);
     await renderAt('/wallet');
     await waitFor(() => expect(screen.getByTestId('auth-view')).toBeTruthy());
     expect(screen.queryByTestId('wallet-view')).toBeNull();
@@ -228,9 +219,17 @@ describe('AppLayout', () => {
     expect(api.getPrices).toHaveBeenCalledTimes(1);
   });
 
-  it('redirects the root URL to /wallet', async () => {
+  it('redirects the root URL to /wallet when authenticated', async () => {
     await renderAt('/');
     await waitFor(() => expect(screen.getByTestId('wallet-view')).toBeTruthy());
+  });
+
+  it('shows the public hero page at the root URL when unauthenticated', async () => {
+    const { isAuthenticated } = await import('@/auth/useAuth');
+    vi.mocked(isAuthenticated).mockResolvedValue(false);
+    await renderAt('/');
+    await waitFor(() => expect(screen.getByText(/clara como nunca/i)).toBeTruthy());
+    expect(screen.queryByTestId('wallet-view')).toBeNull();
   });
 
   describe('price auto-refresh', () => {
@@ -386,28 +385,4 @@ describe('AppLayout', () => {
     });
   });
 
-  describe('auth callback', () => {
-    it('exchanges the code and proceeds when present', async () => {
-      const { exchangeCode } = await import('@/lib/cognito/client');
-      window.history.pushState({}, '', '/auth/callback?code=abc');
-      await renderAt('/auth/callback');
-      await waitFor(() => expect(exchangeCode).toHaveBeenCalledWith('abc'));
-    });
-
-    it('shows the failure message when the exchange fails', async () => {
-      const { exchangeCode } = await import('@/lib/cognito/client');
-      vi.mocked(exchangeCode).mockRejectedValueOnce(new Error('bad code'));
-      window.history.pushState({}, '', '/auth/callback?code=bad');
-      await renderAt('/auth/callback');
-      await waitFor(() => expect(screen.getByText(/falha na autenticação/i)).toBeTruthy());
-    });
-
-    it('does not exchange when the code is missing', async () => {
-      const { exchangeCode } = await import('@/lib/cognito/client');
-      window.history.pushState({}, '', '/auth/callback');
-      await renderAt('/auth/callback');
-      await waitFor(() => expect(screen.queryByTestId('wallet-view')).toBeNull());
-      expect(exchangeCode).not.toHaveBeenCalled();
-    });
-  });
 });

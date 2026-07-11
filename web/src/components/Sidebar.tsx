@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { getSession, getEmailFromIdToken, clearSession, buildLogoutUrl } from '@/lib/cognito/client';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { fetchUserAttributes, signOut } from '@/auth/useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
 interface Props {
@@ -10,16 +10,30 @@ interface Props {
 
 export default function Sidebar({ collapsed, onToggle }: Props) {
   const { t } = useLocale();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [logoutError, setLogoutError] = useState('');
 
   useEffect(() => {
-    const session = getSession();
-    if (session) setEmail(getEmailFromIdToken(session.id_token));
+    // A failed background attribute fetch just leaves the chip's email blank —
+    // there's no actionable state to surface for a non-critical, non-user-initiated call.
+    fetchUserAttributes()
+      .then(attrs => setEmail(attrs.email))
+      .catch(() => undefined);
   }, []);
 
-  const handleLogout = () => {
-    clearSession();
-    window.location.href = buildLogoutUrl();
+  const handleLogout = async () => {
+    setLogoutError('');
+    try {
+      // Federated sessions ('redirecting') hard-redirect through Cognito's hosted
+      // logout endpoint on their own — navigating too would race that redirect and
+      // double-render the destination. Email/password sessions ('done') sign out
+      // locally and need this explicit navigation home.
+      const outcome = await signOut();
+      if (outcome === 'done') navigate({ to: '/' });
+    } catch {
+      setLogoutError(t.auth_error_generic);
+    }
   };
 
   const navItems = [
@@ -74,6 +88,11 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
           <i className="ti ti-logout" aria-hidden="true" />
           <span className="lbl">{t.nav_logout}</span>
         </button>
+        {logoutError && (
+          <p className="auth-field-error" role="alert" style={{ padding: '0 12px' }}>
+            {logoutError}
+          </p>
+        )}
         <div className="userchip">
           <span className="avatar">{email ? email[0].toUpperCase() : ''}</span>
           <span className="ue">{email}</span>

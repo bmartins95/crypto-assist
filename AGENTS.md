@@ -15,7 +15,7 @@ Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-re
 
 - English: variable/field names, comments, API errors, SQL schema, commit messages, docs
 - UI strings (labels, buttons, toasts, table headers): driven by the user's selected locale via the i18n layer in `shared/src/i18n/`
-- Default locale: `pt-BR` (Portuguese / BRL) — used when no preference is stored
+- Default locale: `en-US` — used when no preference is stored (web also tries to match the browser's language first; see `web/AGENTS.md`). Default currency remains `BRL` (`CurrencyContext`), independent of UI language.
 - All values in code and the database must be in English — no Portuguese words in identifiers, enum values, or stored strings. UI labels are the only place Portuguese appears, and only via the i18n layer.
 
 ## Shared code (`shared/`)

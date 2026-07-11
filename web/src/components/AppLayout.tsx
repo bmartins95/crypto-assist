@@ -5,6 +5,7 @@ import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, d
 import { api } from '@/lib/api/client';
 import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
+import AppBootstrapGate from '@/auth/AppBootstrapGate';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { usePriceRefresh } from '@/context/PriceRefreshContext';
@@ -45,7 +46,6 @@ export default function AppLayout() {
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Prices>({});
   const [avatarCache, setAvatarCache] = useState<AvatarCache>({});
-  const [loading, setLoading] = useState(true);
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
@@ -68,41 +68,33 @@ export default function AppLayout() {
     setExitPrices(remoteExitPrices);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setAvatarCache(storage.getAvatars());
-      try {
-        const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
-        if (cancelled) return;
+  const bootstrap = useCallback(async () => {
+    setAvatarCache(storage.getAvatars());
+    try {
+      const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
 
-        if (remoteOps.length === 0) {
-          const legacyOps = getLegacyOps();
-          if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
-            const wantsImport = confirm(t.dashboard_confirm_legacy);
-            if (wantsImport) {
-              const legacyExitPrices = getLegacyExitPrices();
-              const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
-              await api.importBackup(legacyBackup);
-              clearLegacyData();
-              await reload();
-              if (!cancelled) setLoading(false);
-              return;
-            }
-            declineMigration();
+      if (remoteOps.length === 0) {
+        const legacyOps = getLegacyOps();
+        if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
+          const wantsImport = confirm(t.dashboard_confirm_legacy);
+          if (wantsImport) {
+            const legacyExitPrices = getLegacyExitPrices();
+            const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
+            await api.importBackup(legacyBackup);
+            clearLegacyData();
+            await reload();
+            return;
           }
+          declineMigration();
         }
-
-        setOps(remoteOps);
-        setExitPrices(remoteExitPrices);
-      } catch {
-        setStatusMsg(t.dashboard_error_load);
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [reload]);
+
+      setOps(remoteOps);
+      setExitPrices(remoteExitPrices);
+    } catch {
+      setStatusMsg(t.dashboard_error_load);
+    }
+  }, [reload, t]);
 
   const addOp = useCallback(async (op: NewOp) => {
     try {
@@ -176,11 +168,11 @@ export default function AppLayout() {
 
   const didAutoFetchPrices = useRef(false);
   useEffect(() => {
-    if (!loading && assets.length > 0 && !didAutoFetchPrices.current) {
+    if (assets.length > 0 && !didAutoFetchPrices.current) {
       didAutoFetchPrices.current = true;
       fetchPrices();
     }
-  }, [loading, assets, fetchPrices]);
+  }, [assets, fetchPrices]);
 
   // fetchPrices' identity changes every time prices/avatarCache update; reading it through
   // a ref keeps this effect's own dependency to just `interval`, so scheduling isn't reset each tick.
@@ -200,20 +192,15 @@ export default function AppLayout() {
   }), [ops, usdOps, assets, prices, avatarCache, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, setExitPrice, reload]);
 
   return (
-    <div className={collapsed ? 'layout collapsed' : 'layout'}>
-      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
-      <main className="content">
-        {loading ? (
-          <div className="empty-state" style={{ marginTop: 40 }}>
-            <i className="ti ti-loader-2" />
-            <span>{t.common_loading}</span>
-          </div>
-        ) : (
+    <AppBootstrapGate run={bootstrap}>
+      <div className={collapsed ? 'layout collapsed' : 'layout'}>
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+        <main className="content">
           <PortfolioContext.Provider value={portfolio}>
             <Outlet />
           </PortfolioContext.Provider>
-        )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </AppBootstrapGate>
   );
 }

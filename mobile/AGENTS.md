@@ -44,7 +44,7 @@ Auth uses **Amazon Cognito Hosted UI** via `expo-web-browser.openAuthSessionAsyn
 
 ## i18n
 
-`mobile/src/context/LocaleContext.tsx` — `LocaleProvider` + `useLocale()` hook. Reads/writes locale preference to `expo-secure-store` under the key `crypto-assist:locale`. Defaults to `pt-BR`. For `ar-SA` (RTL), calls `I18nManager.forceRTL(true)` and shows a restart alert since layout direction requires a full reload.
+`mobile/src/context/LocaleContext.tsx` — `LocaleProvider` + `useLocale()` hook. Reads/writes locale preference to `expo-secure-store` under the key `crypto-assist:locale`. Defaults to `en-US` (no device-language detection yet, unlike `web/`). For `ar-SA` (RTL), calls `I18nManager.forceRTL(true)` and shows a restart alert since layout direction requires a full reload.
 
 Settings screen is at `mobile/app/settings.tsx` — displays 10 locale options as a scrollable list. Navigate to it via the ⚙ button in the wallet tab header.
 
