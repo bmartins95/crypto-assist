@@ -1,17 +1,17 @@
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
 import PasswordField from '../PasswordField';
+import ConfirmSignUpCard from '../ConfirmSignUpCard';
 import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
-import { signUp, confirmSignUp, resendSignUpCode, signIn } from '../useAuth';
+import { signUp, signIn } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const RESEND_COOLDOWN_S = 30;
 
 export default function SignupScreen() {
   const { t } = useLocale();
@@ -21,17 +21,9 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [code, setCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown(s => s - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendCooldown]);
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -59,7 +51,6 @@ export default function SignupScreen() {
       // The account now exists server-side with this password even though the email
       // is not yet confirmed — this is the success moment for the save-password offer.
       await storePasswordCredential(email, password);
-      setResendCooldown(RESEND_COOLDOWN_S);
       setStep('confirm');
     } catch (err) {
       const errName = err instanceof Error ? err.name : '';
@@ -69,55 +60,17 @@ export default function SignupScreen() {
     }
   };
 
-  const handleConfirm = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-    try {
-      await confirmSignUp(email, code);
-      await signIn(email, password);
-      navigate({ to: '/wallet' });
-    } catch {
-      setError(t.auth_error_code_invalid);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-    setError('');
-    try {
-      await resendSignUpCode(email);
-      setResendCooldown(RESEND_COOLDOWN_S);
-    } catch {
-      setError(t.auth_error_generic);
-    }
-  };
-
   if (step === 'confirm') {
     return (
       <AuthShell>
         <AuthCard>
-          <div className="auth-brand">
-            <BrandMark size={60} />
-            <h1>{t.auth_confirm_title}</h1>
-            <p>{t.auth_confirm_subtitle}</p>
-          </div>
-          <form onSubmit={handleConfirm} noValidate>
-            <AuthField label={t.auth_confirm_code_label} value={code} onChange={setCode} />
-            {error && <p className="auth-field-error" role="alert">{error}</p>}
-            <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
-              {t.auth_confirm_submit}
-            </button>
-          </form>
-          <p className="auth-foot">
-            {resendCooldown > 0 ? (
-              <span>{t.auth_confirm_resend_wait.replace('{seconds}', String(resendCooldown))}</span>
-            ) : (
-              <a onClick={handleResend}>{t.auth_confirm_resend}</a>
-            )}
-          </p>
+          <ConfirmSignUpCard
+            email={email}
+            onConfirmed={async () => {
+              await signIn(email, password);
+              navigate({ to: '/wallet' });
+            }}
+          />
         </AuthCard>
       </AuthShell>
     );

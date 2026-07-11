@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const amplifyAuth = vi.hoisted(() => ({
-  signIn: vi.fn(async () => undefined),
+  signIn: vi.fn(async () => ({ isSignedIn: true, nextStep: { signInStep: 'DONE' } })),
   signUp: vi.fn(async () => undefined),
   confirmSignUp: vi.fn(async () => undefined),
   resendSignUpCode: vi.fn(async () => undefined),
@@ -35,8 +35,36 @@ describe('useAuth', () => {
   });
 
   it('signIn forwards email/password to Amplify as username/password', async () => {
-    await signIn('user@example.com', 'pw');
+    const outcome = await signIn('user@example.com', 'pw');
     expect(amplifyAuth.signIn).toHaveBeenCalledWith({ username: 'user@example.com', password: 'pw' });
+    expect(outcome).toBe('done');
+  });
+
+  it('signIn reports an unconfirmed account via the CONFIRM_SIGN_UP next step', async () => {
+    amplifyAuth.signIn.mockResolvedValueOnce({ isSignedIn: false, nextStep: { signInStep: 'CONFIRM_SIGN_UP' } });
+    expect(await signIn('user@example.com', 'pw')).toBe('confirm-signup');
+  });
+
+  it('signIn reports an unconfirmed account via a thrown UserNotConfirmedException', async () => {
+    amplifyAuth.signIn.mockRejectedValueOnce(
+      Object.assign(new Error('not confirmed'), { name: 'UserNotConfirmedException' })
+    );
+    expect(await signIn('user@example.com', 'pw')).toBe('confirm-signup');
+  });
+
+  it('signIn throws on an unsupported next step instead of faking success', async () => {
+    amplifyAuth.signIn.mockResolvedValueOnce({
+      isSignedIn: false,
+      nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_SMS_CODE' },
+    });
+    await expect(signIn('user@example.com', 'pw')).rejects.toThrow('Unsupported sign-in step');
+  });
+
+  it('signIn rethrows credential failures', async () => {
+    amplifyAuth.signIn.mockRejectedValueOnce(
+      Object.assign(new Error('bad password'), { name: 'NotAuthorizedException' })
+    );
+    await expect(signIn('user@example.com', 'pw')).rejects.toThrow('bad password');
   });
 
   it('signUp forwards name/email/password with email/name as user attributes', async () => {

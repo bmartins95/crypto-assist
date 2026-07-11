@@ -13,8 +13,22 @@ import {
 
 export type SocialProvider = 'Google' | 'Facebook';
 
-export async function signIn(email: string, password: string): Promise<void> {
-  await amplifySignIn({ username: email, password });
+export type SignInOutcome = 'done' | 'confirm-signup';
+
+export async function signIn(email: string, password: string): Promise<SignInOutcome> {
+  // Amplify surfaces an unconfirmed user either as a CONFIRM_SIGN_UP next step or
+  // as a thrown UserNotConfirmedException depending on flow — normalize both so
+  // callers can route the user to the confirmation-code step instead of treating
+  // the sign-in as a silent no-op.
+  try {
+    const result = await amplifySignIn({ username: email, password });
+    if (result.nextStep.signInStep === 'CONFIRM_SIGN_UP') return 'confirm-signup';
+    if (result.isSignedIn) return 'done';
+    throw new Error(`Unsupported sign-in step: ${result.nextStep.signInStep}`);
+  } catch (err) {
+    if (err instanceof Error && err.name === 'UserNotConfirmedException') return 'confirm-signup';
+    throw err;
+  }
 }
 
 export async function signUp(name: string, email: string, password: string): Promise<void> {

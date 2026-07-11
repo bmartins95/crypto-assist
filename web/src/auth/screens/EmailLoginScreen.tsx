@@ -5,12 +5,13 @@ import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
 import PasswordField from '../PasswordField';
+import ConfirmSignUpCard from '../ConfirmSignUpCard';
 import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
 import { signIn, resetPassword, confirmResetPassword } from '../useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
-type Mode = 'login' | 'forgot-request' | 'forgot-confirm' | 'forgot-done';
+type Mode = 'login' | 'confirm-signup' | 'forgot-request' | 'forgot-confirm' | 'forgot-done';
 
 export default function EmailLoginScreen() {
   const { t } = useLocale();
@@ -28,7 +29,11 @@ export default function EmailLoginScreen() {
     setError('');
     setSubmitting(true);
     try {
-      await signIn(email, password);
+      const outcome = await signIn(email, password);
+      if (outcome === 'confirm-signup') {
+        setMode('confirm-signup');
+        return;
+      }
       await storePasswordCredential(email, password);
       navigate({ to: '/wallet' });
     } catch {
@@ -66,6 +71,25 @@ export default function EmailLoginScreen() {
       setSubmitting(false);
     }
   };
+
+  if (mode === 'confirm-signup') {
+    return (
+      <AuthShell>
+        <AuthCard>
+          <BackButton label={t.auth_back} onClick={() => setMode('login')} />
+          <ConfirmSignUpCard
+            email={email}
+            resendOnMount
+            onConfirmed={async () => {
+              await signIn(email, password);
+              await storePasswordCredential(email, password);
+              navigate({ to: '/wallet' });
+            }}
+          />
+        </AuthCard>
+      </AuthShell>
+    );
+  }
 
   if (mode === 'forgot-request') {
     return (
