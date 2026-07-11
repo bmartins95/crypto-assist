@@ -31,6 +31,13 @@ export default function AuthField({
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
+        // Chrome's autofill doesn't always reliably fire a plain 'input' event; the
+        // auth-autofill-detect keyframe (globals.css) only runs while :-webkit-autofill
+        // is active, so this reliably catches it and forces React's controlled value
+        // to match what's actually showing on screen.
+        onAnimationStart={e => {
+          if (e.animationName === 'auth-autofill-detect') onChange(e.currentTarget.value);
+        }}
         placeholder={placeholder}
         autoComplete={autoComplete}
         required={required}

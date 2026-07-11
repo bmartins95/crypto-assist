@@ -138,6 +138,13 @@ export function PasswordVaultProvider({ children }: { children: ReactNode }) {
             type="password"
             value={props?.value ?? ''}
             onChange={e => props?.onChange(e.target.value)}
+            // Chrome's autofill doesn't always reliably fire a plain 'input' event;
+            // the auth-autofill-detect keyframe (globals.css) only runs while
+            // :-webkit-autofill is active, so this reliably catches it and forces
+            // React's controlled value to match what's actually showing on screen.
+            onAnimationStart={e => {
+              if (e.animationName === 'auth-autofill-detect') props?.onChange(e.currentTarget.value);
+            }}
             placeholder={props?.placeholder}
             autoComplete={props?.autoComplete}
             aria-invalid={props?.ariaInvalid}
@@ -206,6 +213,9 @@ export default function PasswordSlot({ slot, label, value, onChange, placeholder
           type="password"
           value={value}
           onChange={e => onChange(e.target.value)}
+          onAnimationStart={e => {
+            if (e.animationName === 'auth-autofill-detect') onChange(e.currentTarget.value);
+          }}
           placeholder={placeholder}
           autoComplete={autoComplete}
           aria-invalid={Boolean(error)}
