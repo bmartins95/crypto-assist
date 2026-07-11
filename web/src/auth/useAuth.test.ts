@@ -11,6 +11,7 @@ const amplifyAuth = vi.hoisted(() => ({
   signOut: vi.fn(async () => undefined),
   fetchAuthSession: vi.fn(async () => ({ tokens: undefined })),
   fetchUserAttributes: vi.fn(async () => ({})),
+  getCurrentUser: vi.fn(async (): Promise<Record<string, unknown>> => ({ username: 'u', userId: 'id' })),
 }));
 
 vi.mock('aws-amplify/auth', () => amplifyAuth);
@@ -106,18 +107,25 @@ describe('useAuth', () => {
   });
 
   it('signOut reports done for an email/password session', async () => {
-    amplifyAuth.fetchAuthSession.mockResolvedValueOnce({
-      tokens: { idToken: { payload: { email: 'user@example.com' } } },
+    amplifyAuth.getCurrentUser.mockResolvedValueOnce({
+      username: 'u',
+      userId: 'id',
+      signInDetails: { loginId: 'user@example.com', authFlowType: 'USER_SRP_AUTH' },
     });
     expect(await signOut()).toBe('done');
     expect(amplifyAuth.signOut).toHaveBeenCalledTimes(1);
   });
 
-  it('signOut reports redirecting for a federated session', async () => {
-    amplifyAuth.fetchAuthSession.mockResolvedValueOnce({
-      tokens: { idToken: { payload: { identities: [{ providerName: 'Google' }] } } },
-    });
+  it('signOut reports redirecting for a session created via signInWithRedirect', async () => {
+    // Amplify never populates signInDetails for hosted-UI/redirect sessions.
+    amplifyAuth.getCurrentUser.mockResolvedValueOnce({ username: 'google_123', userId: 'id' });
     expect(await signOut()).toBe('redirecting');
+    expect(amplifyAuth.signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('signOut reports done when no user session can be read', async () => {
+    amplifyAuth.getCurrentUser.mockRejectedValueOnce(new Error('not signed in'));
+    expect(await signOut()).toBe('done');
     expect(amplifyAuth.signOut).toHaveBeenCalledTimes(1);
   });
 

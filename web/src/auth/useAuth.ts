@@ -9,6 +9,7 @@ import {
   signOut as amplifySignOut,
   fetchAuthSession,
   fetchUserAttributes as amplifyFetchUserAttributes,
+  getCurrentUser as amplifyGetCurrentUser,
 } from 'aws-amplify/auth';
 
 export type SocialProvider = 'Google' | 'Facebook';
@@ -63,14 +64,16 @@ export type SignOutOutcome = 'redirecting' | 'done';
 
 export async function signOut(): Promise<SignOutOutcome> {
   // Amplify only hard-redirects through Cognito's hosted logout endpoint for
-  // sessions created via signInWithRedirect (federated users carry an `identities`
-  // claim in the id token). An email/password session signs out locally and simply
-  // resolves — the caller must navigate itself in that case, and must NOT navigate
-  // in the federated case or it races the hard redirect and double-loads the page.
-  const session = await fetchAuthSession();
-  const federated = Boolean(session.tokens?.idToken?.payload.identities);
+  // sessions created via signInWithRedirect. On 'done' the caller must navigate
+  // itself; on 'redirecting' it must NOT, or it races the hard redirect and
+  // double-loads the page. signInDetails is how the session was CREATED — Amplify
+  // populates it for native (email/password) sign-ins only, never for hosted-UI
+  // redirects. The id token's `identities` claim cannot distinguish this: accounts
+  // linked across providers carry it even on email/password sessions.
+  const currentUser = await amplifyGetCurrentUser().catch(() => null);
   await amplifySignOut();
-  return federated ? 'redirecting' : 'done';
+  if (!currentUser) return 'done';
+  return currentUser.signInDetails?.authFlowType ? 'done' : 'redirecting';
 }
 
 export async function isAuthenticated(): Promise<boolean> {
