@@ -591,7 +591,7 @@ Full PR chain: [aws-infra#4](https://github.com/bmartins95/aws-infra/pull/4) (im
 **Branch:** `feat/custom-auth-ui`
 **Depends on:** item 15 (all social providers ready before redesigning the screen)
 
-- [ ] Done
+- [x] Done
 
 ### Current state
 `web/src/app/auth/AuthClient.tsx` handles the post-OAuth callback. The actual login screen is Cognito Hosted UI (a redirect to `crypto-assist[-dev].auth.us-east-1.amazoncognito.com`). Amplify's `signInWithRedirect()` triggers the redirect. Signup is also on Hosted UI.
@@ -621,7 +621,7 @@ Build custom `/login` and `/signup` routes. Email/password flows use Amplify's `
 **Branch:** `docs/ops-ux-study`
 **Depends on:** nothing (research only)
 
-- [ ] Done
+- [x] Won't do
 
 ### Output
 `docs/ops-ux-proposal.md` containing:
