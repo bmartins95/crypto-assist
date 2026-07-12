@@ -238,4 +238,14 @@ export interface UIText {
   timeframe_1y: string;
   timeframe_all: string;
   profit_emptyTimeframe: string;
+  platform_kind_exchange: string;
+  platform_kind_wallet: string;
+  platform_kind_defi: string;
+  platform_kind_custom: string;
+  platform_search_placeholder: string;
+  platform_use_custom: string;
+  platform_group_recent: string;
+  platform_group_exchanges: string;
+  platform_group_wallets: string;
+  platform_group_defi: string;
 }

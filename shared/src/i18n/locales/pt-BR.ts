@@ -226,6 +226,16 @@ const ptBR: UIText = {
   timeframe_1y: '1A',
   timeframe_all: 'Tudo',
   profit_emptyTimeframe: 'Sem dados no período',
+  platform_kind_exchange: 'Corretora',
+  platform_kind_wallet: 'Carteira',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Personalizada',
+  platform_search_placeholder: 'Busque: Binance, MetaMask, Kamino…',
+  platform_use_custom: 'Usar "{text}" como personalizada',
+  platform_group_recent: 'Recentes',
+  platform_group_exchanges: 'Corretoras',
+  platform_group_wallets: 'Carteiras',
+  platform_group_defi: 'DeFi / Protocolos',
 };
 
 export default ptBR;

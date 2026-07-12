@@ -27,8 +27,8 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 **Purpose**: Lay down the two pure-data files nothing else depends on writing code against yet — the DB migration and the curated seed catalog.
 
-- [ ] T001 [P] Create `backend/db/migrations/008_platform_fields.sql` — additive `ALTER TABLE ops ADD COLUMN platform_id text`, `ADD COLUMN platform_name text`; `CREATE TABLE IF NOT EXISTS platform_cache (id text PRIMARY KEY, name text NOT NULL, logo_url text, updated_at timestamptz NOT NULL DEFAULT now())` per data-model.md
-- [ ] T002 [P] Create `shared/src/platforms/seed.json` — curated wallet/DeFi catalog (id/name/kind/subtitle/logoUrl), seeded from the design reference's sample list (MetaMask, Phantom, Rabby, Ledger, Trezor, Trust Wallet, Kamino, Aave, Aerodrome, Lido)
+- [X] T001 [P] Create `backend/db/migrations/008_platform_fields.sql` — additive `ALTER TABLE ops ADD COLUMN platform_id text`, `ADD COLUMN platform_name text`; `CREATE TABLE IF NOT EXISTS platform_cache (id text PRIMARY KEY, name text NOT NULL, logo_url text, updated_at timestamptz NOT NULL DEFAULT now())` per data-model.md
+- [X] T002 [P] Create `shared/src/platforms/seed.json` — curated wallet/DeFi catalog (id/name/kind/subtitle/logoUrl), seeded from the design reference's sample list (MetaMask, Phantom, Rabby, Ledger, Trezor, Trust Wallet, Kamino, Aave, Aerodrome, Lido)
 
 ---
 
@@ -38,33 +38,33 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 [P] Create `shared/src/platforms.ts` — `Platform`, `PlatformKind` types; imports and re-types `./platforms/seed.json` as `PLATFORM_SEED: Platform[]` (depends on T002)
-- [ ] T004 `shared/src/types.ts` — `NewOp`/`Op`/`AssetWithPlatform`: remove `platform: string`, add `platformId?: string`, `platformName?: string` (data-model.md)
-- [ ] T005 `shared/src/index.ts` — export `Platform`, `PlatformKind`, `PLATFORM_SEED` (depends on T003)
-- [ ] T006 `shared/src/i18n/types.ts` — add `platform_kind_exchange`, `platform_kind_wallet`, `platform_kind_defi`, `platform_kind_custom`, `platform_search_placeholder`, `platform_use_custom`, `platform_group_recent`, `platform_group_exchanges`, `platform_group_wallets`, `platform_group_defi`
-- [ ] T007 [P] Add the new key translations to `shared/src/i18n/locales/pt-BR.ts` (depends on T006)
-- [ ] T008 [P] Add the new key translations to `shared/src/i18n/locales/en-US.ts` (depends on T006)
-- [ ] T009 [P] Add the new key translations to `shared/src/i18n/locales/es-ES.ts` (depends on T006)
-- [ ] T010 [P] Add the new key translations to `shared/src/i18n/locales/fr-FR.ts` (depends on T006)
-- [ ] T011 [P] Add the new key translations to `shared/src/i18n/locales/de-DE.ts` (depends on T006)
-- [ ] T012 [P] Add the new key translations to `shared/src/i18n/locales/zh-CN.ts` (depends on T006)
-- [ ] T013 [P] Add the new key translations to `shared/src/i18n/locales/ja-JP.ts` (depends on T006)
-- [ ] T014 [P] Add the new key translations to `shared/src/i18n/locales/ar-SA.ts` (depends on T006)
-- [ ] T015 [P] Add the new key translations to `shared/src/i18n/locales/hi-IN.ts` (depends on T006)
-- [ ] T016 [P] Add the new key translations to `shared/src/i18n/locales/ru-RU.ts` (depends on T006)
-- [ ] T017 `backend/app/models.py` — `NewOp`/`Op`: remove `platform: str = ""`, add `platform_id: str | None = None`, `platform_name: str | None = None`
-- [ ] T018 Create `backend/app/platform_resolve.py` — `resolve_platform(raw: str, user_id: str, conn) -> tuple[str | None, str | None]`: blank input → `(None, None)`; else match trimmed/lowercased value against `platform_cache` (exchange) then `shared/src/platforms/seed.json` (wallet/defi, loaded once at module level via a repo-relative path); else `('custom:' + slugify(trimmed), trimmed)` (research.md §4-§5)
-- [ ] T019 Create `backend/app/routes/platforms.py` (part 1/2) — `router` with `GET ""` (mounted at `/api/platforms/exchanges`, `require_auth`-gated): cache-first read of `platform_cache`, 24h TTL, refetch CoinGecko `GET /exchanges?per_page=250` on stale/missing, upsert, stale-on-upstream-failure fallback — mirrors `backend/app/routes/exchange_rates.py` exactly; rewrites each `logoUrl` to `/api/platforms/logo/{id}` before responding (contracts/platforms-exchanges.md)
-- [ ] T020 `backend/app/routes/platforms.py` (part 2/2) — add a **separate** `logo_router` with `GET "/{id}"` (mounted at `/api/platforms/logo`, **no `require_auth`** — an `<img src>` request can't carry a Bearer token): 404 if `id` isn't a known `platform_cache` row, else `httpx`-fetch that row's stored `logo_url` and return the bytes with the upstream `Content-Type` and `Cache-Control: public, max-age=604800`; 502 on upstream fetch failure (contracts/platforms-logo.md, research.md §3)
-- [ ] T021 `backend/app/main.py` — `app.include_router(platforms.router, prefix="/api/platforms/exchanges")` and `app.include_router(platforms.logo_router, prefix="/api/platforms/logo")`
-- [ ] T022 `backend/app/routes/ops.py` — read/write `platform_id`/`platform_name` on create, update, and list/get responses instead of `platform` (depends on T017)
-- [ ] T023 [P] `web/src/lib/api/client.ts` — add `getPlatformExchanges(): Promise<{ exchanges: Platform[]; updatedAt: string }>` (no client-side URL handling needed — `logoUrl` values are already same-origin proxy paths per T019)
-- [ ] T024 [P] Create `web/src/components/platform/platformAvatar.ts` — `hashColor(name)`/`initials(name)` helpers per the design reference's algorithm
-- [ ] T025 Create `web/src/components/platform/PlatformLogo.tsx` — renders `platform.logoUrl` in an `<img>` with `onError` → initials-avatar fallback (`size: 'sm' | 'md'`) (depends on T024)
-- [ ] T026 Create `web/src/components/platform/PlatformChip.tsx` — `PlatformLogo` + name + optional `personalizada` tag for `kind === 'custom'` (depends on T025)
-- [ ] T027 Create `web/src/components/platform/usePlatformCatalog.ts` — merges `PLATFORM_SEED` (T003) with `getPlatformExchanges()` (T023) by `id`, tracks `recent` platform ids in `localStorage`, exposes `{ catalog, byId, recent }`
-- [ ] T028 `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm`, `.plogo-md`, `.cat`, `.cat.exchange`, `.cat.wallet`, `.cat.defi`, `.cat.custom` per the design reference tokens
-- [ ] T029 [P] Create `backend/tests/test_platforms.py` — exchanges: cache hit (no CoinGecko call), cache miss (CoinGecko called, cached, `logoUrl` rewritten to a `/api/platforms/logo/...` path), stale cache refetches, upstream failure falls back to stale cache, 401 without auth; logo proxy: 200 with correct `Content-Type`/`Cache-Control` for a known id, 404 for an unknown id, 502 on upstream fetch failure, and explicitly confirms it responds **without** an `Authorization` header (the auth exception itself needs a positive test, not just an absence of one)
+- [X] T003 [P] Create `shared/src/platforms.ts` — `Platform`, `PlatformKind` types; imports and re-types `./platforms/seed.json` as `PLATFORM_SEED: Platform[]` (depends on T002)
+- [X] T004 `shared/src/types.ts` — `NewOp`/`Op`/`AssetWithPlatform`: remove `platform: string`, add `platformId?: string`, `platformName?: string` (data-model.md)
+- [X] T005 `shared/src/index.ts` — export `Platform`, `PlatformKind`, `PLATFORM_SEED` (depends on T003)
+- [X] T006 `shared/src/i18n/types.ts` — add `platform_kind_exchange`, `platform_kind_wallet`, `platform_kind_defi`, `platform_kind_custom`, `platform_search_placeholder`, `platform_use_custom`, `platform_group_recent`, `platform_group_exchanges`, `platform_group_wallets`, `platform_group_defi`
+- [X] T007 [P] Add the new key translations to `shared/src/i18n/locales/pt-BR.ts` (depends on T006)
+- [X] T008 [P] Add the new key translations to `shared/src/i18n/locales/en-US.ts` (depends on T006)
+- [X] T009 [P] Add the new key translations to `shared/src/i18n/locales/es-ES.ts` (depends on T006)
+- [X] T010 [P] Add the new key translations to `shared/src/i18n/locales/fr-FR.ts` (depends on T006)
+- [X] T011 [P] Add the new key translations to `shared/src/i18n/locales/de-DE.ts` (depends on T006)
+- [X] T012 [P] Add the new key translations to `shared/src/i18n/locales/zh-CN.ts` (depends on T006)
+- [X] T013 [P] Add the new key translations to `shared/src/i18n/locales/ja-JP.ts` (depends on T006)
+- [X] T014 [P] Add the new key translations to `shared/src/i18n/locales/ar-SA.ts` (depends on T006)
+- [X] T015 [P] Add the new key translations to `shared/src/i18n/locales/hi-IN.ts` (depends on T006)
+- [X] T016 [P] Add the new key translations to `shared/src/i18n/locales/ru-RU.ts` (depends on T006)
+- [X] T017 `backend/app/models.py` — `NewOp`/`Op`: remove `platform: str = ""`, add `platform_id: str | None = None`, `platform_name: str | None = None`
+- [X] T018 Create `backend/app/platform_resolve.py` — `resolve_platform(raw: str, user_id: str, conn) -> tuple[str | None, str | None]`: blank input → `(None, None)`; else match trimmed/lowercased value against `platform_cache` (exchange) then `shared/src/platforms/seed.json` (wallet/defi, loaded once at module level via a repo-relative path); else `('custom:' + slugify(trimmed), trimmed)` (research.md §4-§5)
+- [X] T019 Create `backend/app/routes/platforms.py` (part 1/2) — `router` with `GET ""` (mounted at `/api/platforms/exchanges`, `require_auth`-gated): cache-first read of `platform_cache`, 24h TTL, refetch CoinGecko `GET /exchanges?per_page=250` on stale/missing, upsert, stale-on-upstream-failure fallback — mirrors `backend/app/routes/exchange_rates.py` exactly; rewrites each `logoUrl` to `/api/platforms/logo/{id}` before responding (contracts/platforms-exchanges.md)
+- [X] T020 `backend/app/routes/platforms.py` (part 2/2) — add a **separate** `logo_router` with `GET "/{id}"` (mounted at `/api/platforms/logo`, **no `require_auth`** — an `<img src>` request can't carry a Bearer token): 404 if `id` isn't a known `platform_cache` row, else `httpx`-fetch that row's stored `logo_url` and return the bytes with the upstream `Content-Type` and `Cache-Control: public, max-age=604800`; 502 on upstream fetch failure (contracts/platforms-logo.md, research.md §3)
+- [X] T021 `backend/app/main.py` — `app.include_router(platforms.router, prefix="/api/platforms/exchanges")` and `app.include_router(platforms.logo_router, prefix="/api/platforms/logo")`
+- [X] T022 `backend/app/routes/ops.py` — read/write `platform_id`/`platform_name` on create, update, and list/get responses instead of `platform` (depends on T017)
+- [X] T023 [P] `web/src/lib/api/client.ts` — add `getPlatformExchanges(): Promise<{ exchanges: Platform[]; updatedAt: string }>` (no client-side URL handling needed — `logoUrl` values are already same-origin proxy paths per T019)
+- [X] T024 [P] Create `web/src/components/platform/platformAvatar.ts` — `hashColor(name)`/`initials(name)` helpers per the design reference's algorithm
+- [X] T025 Create `web/src/components/platform/PlatformLogo.tsx` — renders `platform.logoUrl` in an `<img>` with `onError` → initials-avatar fallback (`size: 'sm' | 'md'`) (depends on T024)
+- [X] T026 Create `web/src/components/platform/PlatformChip.tsx` — `PlatformLogo` + name + optional `personalizada` tag for `kind === 'custom'` (depends on T025)
+- [X] T027 Create `web/src/components/platform/usePlatformCatalog.ts` — merges `PLATFORM_SEED` (T003) with `getPlatformExchanges()` (T023) by `id`, tracks `recent` platform ids in `localStorage`, exposes `{ catalog, byId, recent }`
+- [X] T028 `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm`, `.plogo-md`, `.cat`, `.cat.exchange`, `.cat.wallet`, `.cat.defi`, `.cat.custom` per the design reference tokens
+- [X] T029 [P] Create `backend/tests/test_platforms.py` — exchanges: cache hit (no CoinGecko call), cache miss (CoinGecko called, cached, `logoUrl` rewritten to a `/api/platforms/logo/...` path), stale cache refetches, upstream failure falls back to stale cache, 401 without auth; logo proxy: 200 with correct `Content-Type`/`Cache-Control` for a known id, 404 for an unknown id, 502 on upstream fetch failure, and explicitly confirms it responds **without** an `Authorization` header (the auth exception itself needs a positive test, not just an absence of one)
 - [ ] T030 [P] Create `web/src/components/platform/PlatformLogo.test.tsx` — renders image when `logoUrl` present, falls back to initials on missing `logoUrl` and on image `onError`, same name always produces the same fallback color
 - [ ] T031 [P] Create `web/src/components/platform/PlatformChip.test.tsx` — renders name + logo, shows `personalizada` tag only for `kind === 'custom'`, respects `size`/`bold` props
 - [ ] T032 [P] Create `web/src/components/platform/usePlatformCatalog.test.ts` — merges seed + fetched exchanges without duplicates, `recent` persists to and reads from `localStorage`, tolerates a failed exchange fetch (seed-only catalog, no throw)

@@ -226,6 +226,16 @@ const esES: UIText = {
   timeframe_1y: '1A',
   timeframe_all: 'Todo',
   profit_emptyTimeframe: 'Sin datos en este período',
+  platform_kind_exchange: 'Exchange',
+  platform_kind_wallet: 'Cartera',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Personalizada',
+  platform_search_placeholder: 'Buscar: Binance, MetaMask, Kamino…',
+  platform_use_custom: 'Usar "{text}" como personalizada',
+  platform_group_recent: 'Recientes',
+  platform_group_exchanges: 'Exchanges',
+  platform_group_wallets: 'Carteras',
+  platform_group_defi: 'DeFi / Protocolos',
 };
 
 export default esES;

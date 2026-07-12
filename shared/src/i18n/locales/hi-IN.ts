@@ -226,6 +226,16 @@ const hiIN: UIText = {
   timeframe_1y: '1वर्ष',
   timeframe_all: 'सभी',
   profit_emptyTimeframe: 'इस अवधि में कोई डेटा नहीं',
+  platform_kind_exchange: 'एक्सचेंज',
+  platform_kind_wallet: 'वॉलेट',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'कस्टम',
+  platform_search_placeholder: 'खोजें: Binance, MetaMask, Kamino…',
+  platform_use_custom: '"{text}" को कस्टम के रूप में उपयोग करें',
+  platform_group_recent: 'हाल ही में उपयोग किए गए',
+  platform_group_exchanges: 'एक्सचेंज',
+  platform_group_wallets: 'वॉलेट',
+  platform_group_defi: 'DeFi / प्रोटोकॉल',
 };
 
 export default hiIN;

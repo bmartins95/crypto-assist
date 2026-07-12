@@ -226,6 +226,16 @@ const deDE: UIText = {
   timeframe_1y: '1J',
   timeframe_all: 'Alle',
   profit_emptyTimeframe: 'Keine Daten in diesem Zeitraum',
+  platform_kind_exchange: 'Börse',
+  platform_kind_wallet: 'Wallet',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Benutzerdefiniert',
+  platform_search_placeholder: 'Suchen: Binance, MetaMask, Kamino…',
+  platform_use_custom: '„{text}" als benutzerdefiniert verwenden',
+  platform_group_recent: 'Zuletzt verwendet',
+  platform_group_exchanges: 'Börsen',
+  platform_group_wallets: 'Wallets',
+  platform_group_defi: 'DeFi / Protokolle',
 };
 
 export default deDE;

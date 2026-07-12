@@ -226,6 +226,16 @@ const jaJP: UIText = {
   timeframe_1y: '1年',
   timeframe_all: '全期間',
   profit_emptyTimeframe: 'この期間のデータがありません',
+  platform_kind_exchange: '取引所',
+  platform_kind_wallet: 'ウォレット',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'カスタム',
+  platform_search_placeholder: '検索：Binance、MetaMask、Kamino…',
+  platform_use_custom: '「{text}」をカスタムとして使用',
+  platform_group_recent: '最近使用',
+  platform_group_exchanges: '取引所',
+  platform_group_wallets: 'ウォレット',
+  platform_group_defi: 'DeFi / プロトコル',
 };
 
 export default jaJP;

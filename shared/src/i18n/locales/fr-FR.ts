@@ -226,6 +226,16 @@ const frFR: UIText = {
   timeframe_1y: '1A',
   timeframe_all: 'Tout',
   profit_emptyTimeframe: 'Aucune donnée pour cette période',
+  platform_kind_exchange: 'Plateforme d’échange',
+  platform_kind_wallet: 'Portefeuille',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Personnalisée',
+  platform_search_placeholder: 'Rechercher : Binance, MetaMask, Kamino…',
+  platform_use_custom: 'Utiliser « {text} » comme personnalisée',
+  platform_group_recent: 'Récents',
+  platform_group_exchanges: 'Plateformes d’échange',
+  platform_group_wallets: 'Portefeuilles',
+  platform_group_defi: 'DeFi / Protocoles',
 };
 
 export default frFR;

@@ -226,6 +226,16 @@ const ruRU: UIText = {
   timeframe_1y: '1Г',
   timeframe_all: 'Все',
   profit_emptyTimeframe: 'Нет данных за этот период',
+  platform_kind_exchange: 'Биржа',
+  platform_kind_wallet: 'Кошелёк',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Свой вариант',
+  platform_search_placeholder: 'Поиск: Binance, MetaMask, Kamino…',
+  platform_use_custom: 'Использовать «{text}» как свой вариант',
+  platform_group_recent: 'Недавние',
+  platform_group_exchanges: 'Биржи',
+  platform_group_wallets: 'Кошельки',
+  platform_group_defi: 'DeFi / Протоколы',
 };
 
 export default ruRU;

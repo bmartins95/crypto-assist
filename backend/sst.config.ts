@@ -49,7 +49,11 @@ export default $config({
       url: { cors: false },
       timeout: "30 seconds",
       memory: "512 MB",
-      copyFiles: [{ from: "db" }],
+      // "platforms" bundles the curated wallet/DeFi seed catalog that lives in
+      // shared/ (single source of truth with the frontend, per Item 22 research.md
+      // §1) — resolve_platform() needs it at runtime for JSON-import resolution,
+      // and shared/ itself isn't otherwise copied into this Python Lambda's bundle.
+      copyFiles: [{ from: "db" }, { from: "../shared/src/platforms", to: "platforms" }],
       vpc: {
         privateSubnets: vpcPrivateSubnets.value.apply(v => v.split(",")),
         securityGroups: lambdaSgId.value.apply(id => [id]),

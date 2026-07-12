@@ -226,6 +226,16 @@ const arSA: UIText = {
   timeframe_1y: 'سنة',
   timeframe_all: 'الكل',
   profit_emptyTimeframe: 'لا توجد بيانات في هذه الفترة',
+  platform_kind_exchange: 'منصة تداول',
+  platform_kind_wallet: 'محفظة',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'مخصصة',
+  platform_search_placeholder: 'ابحث: Binance، MetaMask، Kamino…',
+  platform_use_custom: 'استخدام "{text}" كمنصة مخصصة',
+  platform_group_recent: 'الأخيرة',
+  platform_group_exchanges: 'منصات التداول',
+  platform_group_wallets: 'المحافظ',
+  platform_group_defi: 'DeFi / البروتوكولات',
 };
 
 export default arSA;

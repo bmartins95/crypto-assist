@@ -30,7 +30,8 @@ class NewOp(BaseModel):
     price: float
     fee: float = 0.0
     total: float
-    platform: str = ""
+    platformId: str | None = None
+    platformName: str | None = None
     currency: CurrencyCode = "BRL"
 
 
@@ -55,11 +56,16 @@ class BackupPayload(BaseModel):
     exitPrices: dict[str, float] = {}
 
 
-# Import ops differ from NewOp in three ways old backups require: no id (the
+# Import ops differ from NewOp in four ways old backups require: no id (the
 # insert never uses one — the DB assigns it), Portuguese field names from
-# before the schema itself was translated, and Compra/Venda type coercion.
+# before the schema itself was translated, Compra/Venda type coercion, and a
+# legacy free-text `platform` string (pre-Item-22 backups) that the import
+# route resolves against the platform catalog via resolve_platform() before
+# insert — it never reaches NewOp/the ops table directly.
 # All of this stays off NewOp so the ops CRUD API keeps rejecting legacy shapes.
 class ImportOp(NewOp):
+    platform: str | None = None
+
     @model_validator(mode="before")
     @classmethod
     def coerce_legacy_fields(cls, data: object) -> object:
@@ -90,4 +96,15 @@ class DeleteAllOpsResponse(BaseModel):
 
 class ExchangeRatesResponse(BaseModel):
     rates: dict[CurrencyCode, float]
+    updatedAt: str
+
+
+class PlatformExchangeEntry(BaseModel):
+    id: str
+    name: str
+    logoUrl: str | None = None
+
+
+class PlatformsExchangesResponse(BaseModel):
+    exchanges: list[PlatformExchangeEntry]
     updatedAt: str

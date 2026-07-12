@@ -226,6 +226,16 @@ const zhCN: UIText = {
   timeframe_1y: '1年',
   timeframe_all: '全部',
   profit_emptyTimeframe: '该时段无数据',
+  platform_kind_exchange: '交易所',
+  platform_kind_wallet: '钱包',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: '自定义',
+  platform_search_placeholder: '搜索：Binance、MetaMask、Kamino…',
+  platform_use_custom: '将"{text}"用作自定义平台',
+  platform_group_recent: '最近使用',
+  platform_group_exchanges: '交易所',
+  platform_group_wallets: '钱包',
+  platform_group_defi: 'DeFi / 协议',
 };
 
 export default zhCN;

@@ -226,6 +226,16 @@ const enUS: UIText = {
   timeframe_1y: '1Y',
   timeframe_all: 'All',
   profit_emptyTimeframe: 'No data in this period',
+  platform_kind_exchange: 'Exchange',
+  platform_kind_wallet: 'Wallet',
+  platform_kind_defi: 'DeFi',
+  platform_kind_custom: 'Custom',
+  platform_search_placeholder: 'Search: Binance, MetaMask, Kamino…',
+  platform_use_custom: 'Use "{text}" as custom',
+  platform_group_recent: 'Recent',
+  platform_group_exchanges: 'Exchanges',
+  platform_group_wallets: 'Wallets',
+  platform_group_defi: 'DeFi / Protocols',
 };
 
 export default enUS;

@@ -1,0 +1,12 @@
+[
+  { "id": "metamask", "name": "MetaMask", "kind": "wallet", "subtitle": "Carteira · EVM" },
+  { "id": "phantom", "name": "Phantom", "kind": "wallet", "subtitle": "Carteira · Solana" },
+  { "id": "rabby", "name": "Rabby", "kind": "wallet", "subtitle": "Carteira · EVM" },
+  { "id": "ledger", "name": "Ledger", "kind": "wallet", "subtitle": "Carteira física" },
+  { "id": "trezor", "name": "Trezor", "kind": "wallet", "subtitle": "Carteira física" },
+  { "id": "trust", "name": "Trust Wallet", "kind": "wallet", "subtitle": "Carteira · multi-chain" },
+  { "id": "kamino", "name": "Kamino", "kind": "defi", "subtitle": "DeFi · Solana" },
+  { "id": "aave", "name": "Aave", "kind": "defi", "subtitle": "DeFi · empréstimos" },
+  { "id": "aerodrome", "name": "Aerodrome", "kind": "defi", "subtitle": "DeFi · Base" },
+  { "id": "lido", "name": "Lido", "kind": "defi", "subtitle": "DeFi · staking" }
+]

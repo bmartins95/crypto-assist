@@ -17,7 +17,8 @@ _OP_ROW = {
     "price": "250000",
     "fee": "5",
     "total": "2505",
-    "platform": "Binance",
+    "platform_id": "binance",
+    "platform_name": "Binance",
     "currency": "BRL",
 }
 
@@ -65,7 +66,8 @@ def test_export_populated_account_matches_backup_payload_shape(export_client):
             "price": 250000.0,
             "fee": 5.0,
             "total": 2505.0,
-            "platform": "Binance",
+            "platformId": "binance",
+            "platformName": "Binance",
             "currency": "BRL",
         }
     ]
