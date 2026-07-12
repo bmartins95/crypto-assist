@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ErrorState from './ErrorState';
 
 const props = {
@@ -63,14 +63,5 @@ describe('ErrorState', () => {
     render(<ErrorState {...props} onRetry={vi.fn()} onExit={onExit} />);
     fireEvent.click(screen.getByRole('button', { name: props.exitLabel }));
     expect(onExit).toHaveBeenCalledTimes(1);
-  });
-
-  it('applies the shake class from the first retry onward, not on initial mount', async () => {
-    const onRetry = vi.fn(() => Promise.resolve());
-    const { container } = render(<ErrorState {...props} onRetry={onRetry} />);
-    expect(container.querySelector('.auth-error-icon-shake')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: props.retryLabel }));
-    await waitFor(() => expect(container.querySelector('.auth-error-icon-shake')).not.toBeNull());
   });
 });

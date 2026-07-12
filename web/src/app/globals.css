@@ -835,7 +835,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-error-state p { font-size: 13px; color: var(--s-text-dim); margin-top: 8px; line-height: 1.5; }
 
 .auth-error-icon-wrap {
-  width: 64px; height: 64px; border-radius: 50%; background: var(--danger-bg);
+  /* A translucent tint (matching .auth-check-wrap's own rgba(52,211,153,.14) pattern),
+     not the solid --danger-bg used for banners/pills — a solid fill here reads as much
+     more alarming/heavy than the subtle badge the design calls for. */
+  width: 64px; height: 64px; border-radius: 50%; background: rgba(248, 113, 113, .12);
   display: flex; align-items: center; justify-content: center;
 }
 .auth-error-icon-wrap svg { width: 28px; height: 28px; stroke: var(--danger); }
@@ -845,13 +848,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-error-state > .auth-error-icon-wrap {
   opacity: 0;
   animation: auth-pop .35s cubic-bezier(.2,.8,.2,1) .03s forwards;
-}
-.auth-error-icon-shake { animation: auth-error-shake .5s; }
-@keyframes auth-error-shake {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-3px); }
-  40%, 60% { transform: translateX(3px); }
 }
 
 .auth-error-actions { display: flex; flex-direction: column; width: 100%; margin-top: 22px; }
@@ -866,7 +862,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .auth-card > *, .auth-hero-page > *,
   .auth-loader > *, .auth-error-state > *,
   .auth-loader .auth-logo, .auth-dots i, .auth-check-wrap, .auth-check-wrap svg,
-  .auth-error-icon-wrap, .auth-error-icon-shake, .auth-btn-spinning svg,
+  .auth-error-icon-wrap, .auth-btn-spinning svg,
   .auth-msg { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
 }
 

@@ -30,15 +30,9 @@ function RefreshIcon() {
 
 export default function ErrorState({ title, message, retryLabel, retryingLabel, exitLabel, onRetry, onExit }: ErrorStateProps) {
   const [retrying, setRetrying] = useState(false);
-  // Starts at 0 (no shake — the icon's entrance animation runs once on mount instead)
-  // and only turns the shake class on from the FIRST retry onward; changing the key
-  // forces React to remount the wrapper each time, which is what replays a CSS
-  // animation without a manual DOM reflow hack.
-  const [shakeCount, setShakeCount] = useState(0);
 
   const handleRetry = async () => {
     if (retrying) return;
-    setShakeCount(c => c + 1);
     setRetrying(true);
     try {
       await onRetry();
@@ -54,9 +48,7 @@ export default function ErrorState({ title, message, retryLabel, retryingLabel, 
   return (
     <div className="auth-error-state">
       <div className="auth-error-icon-wrap">
-        <div key={shakeCount} className={shakeCount > 0 ? 'auth-error-icon-shake' : undefined}>
-          <AlertIcon />
-        </div>
+        <AlertIcon />
       </div>
       <h2>{title}</h2>
       <p>{message}</p>
