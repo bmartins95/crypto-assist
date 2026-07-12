@@ -32,3 +32,4 @@
 ## Notes
 
 - All items pass on first validation pass. No [NEEDS CLARIFICATION] markers were needed — reasonable defaults were available for source of exchange data (CoinGecko, matching the existing price-provider integration established in Item 13), migration strategy for pre-existing free-text platform values (exact-match resolution, documented in Assumptions), and mobile scope (explicitly out of scope, matching how prior view-redesign items were scoped).
+- 2026-07-11 clarification session: resolved custom-platform visibility scope (private per-user, FR-002) and legacy-backup import compatibility (FR-014). Re-validated against the updated spec — all items still pass.

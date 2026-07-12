@@ -6,6 +6,13 @@
 
 **Status**: Draft
 
+## Clarifications
+
+### Session 2026-07-11
+
+- Q: When a user types a custom (not-in-catalog) platform name, should that custom platform be visible only to them, or shared globally so other users see/reuse it too? → A: Private per-user — each user's custom platforms are scoped to their own account only; other users never see or match against them, even if they type an identical name, consistent with this app's existing per-user data isolation.
+- Q: A JSON backup exported before this feature ships still carries the old free-text `platform` string instead of a platform identity — how should import handle that legacy field? → A: Resolve it the same way as the one-time database migration (match against the catalog, else fall back to a private custom platform), so pre-existing backups keep importing successfully with no behavior change visible to the user.
+
 **Input**: User description: "Implement PLAN.md Item 22 — Platform field catalog (logo + name + category). Branch from develop as feat/platform-field-catalog. Full item text is in PLAN.md (search 'Item 22'). Design reference: docs/design/platform-field-redesign.html (pixel source of truth) and docs/design/platform-field-implementation.md (component contracts, CSS, file list). Depends on items 7, 9, 13 which are already merged to develop. Summary of the feature: refactor the free-text `platform` field on operations into a first-class entity with logo, name, and category (exchange/wallet/defi/custom), replacing plain text inputs/displays with new PlatformLogo/PlatformChip/PlatformSelect components across the operation drawer (OpDrawer.tsx), History table (HistoryTab.tsx), and both Wallet grouped views (WalletTab.tsx 'Por plataforma' and 'Ativo + plataforma'). Backend gains a cached CoinGecko /exchanges proxy endpoint and an additive DB migration adding platform_id/platform_name columns to ops (old platform column deprecated but not dropped). Curated wallet/DeFi seed list ships in-repo."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -75,7 +82,7 @@ In the Wallet view's "By platform" and "Asset + platform" groupings, a user sees
 ### Functional Requirements
 
 - **FR-001**: The system MUST let a user search a categorized platform catalog (Exchange, Wallet, DeFi) by name from the operation drawer's Platform field, with results grouped by category and each result showing a logo.
-- **FR-002**: The system MUST let a user select a platform not present in the catalog and register it as a "custom" platform, generating a deterministic, name-based fallback visual identity (same name always produces the same identity) with no manual configuration required.
+- **FR-002**: The system MUST let a user select a platform not present in the catalog and register it as a "custom" platform, generating a deterministic, name-based fallback visual identity (same name always produces the same identity) with no manual configuration required. Custom platforms MUST be scoped to the user who created them — invisible to, and never matched against, any other user's operations or picker results, even for an identical name.
 - **FR-003**: The system MUST support full keyboard operation of the platform picker: arrow keys to move the highlight (including through the custom-platform option), Enter to select, Escape to close without changing the value.
 - **FR-004**: The system MUST persist a selected platform's identity on the operation record (not just its display text), so re-opening an operation for editing shows the same platform pre-selected.
 - **FR-005**: The system MUST display each operation's platform with its logo (or initials-avatar fallback) in the History table, and MUST visually distinguish custom (non-catalog) platforms from catalog ones.
@@ -87,10 +94,11 @@ In the Wallet view's "By platform" and "Asset + platform" groupings, a user sees
 - **FR-011**: The system MUST distinguish coin/asset logos from platform logos through a consistent, distinct visual shape, so a user can tell at a glance which kind of logo they are looking at anywhere in the product.
 - **FR-012**: The platform picker MUST remain usable (accepting a typed custom value) even when the external exchange catalog source is unreachable.
 - **FR-013**: Every platform-picker input and every interactive result row MUST be operable and identifiable via assistive technology (proper combobox/listbox/option roles and labels), consistent with the product's existing accessibility requirements.
+- **FR-014**: The system MUST successfully import a data backup created before this feature existed (containing the old free-text platform label rather than a platform identity), resolving each legacy value the same way as the one-time historical-operations migration (catalog match, else private custom platform), so previously-working backups continue to import without error or data loss.
 
 ### Key Entities
 
-- **Platform**: A named entity a user can attribute an operation to. Has an identity (stable identifier), a display name, a category (`exchange`, `wallet`, `defi`, or `custom`), and an optional logo. Catalog platforms (exchange/wallet/defi) are shared across all users; custom platforms are effectively user-typed labels with a generated fallback identity.
+- **Platform**: A named entity a user can attribute an operation to. Has an identity (stable identifier), a display name, a category (`exchange`, `wallet`, `defi`, or `custom`), and an optional logo. Catalog platforms (exchange/wallet/defi) are shared across all users; custom platforms are effectively user-typed labels with a generated fallback identity, scoped privately to the user who created them.
 - **Operation (existing entity, extended)**: A buy/sell/trade record. Gains a reference to the Platform it was executed on, replacing today's loose free-text label, while remaining fully readable even for platforms typed before this feature existed.
 - **Platform Catalog**: The searchable, categorized collection of known platforms (exchange + wallet + DeFi) presented to the user during selection, refreshed periodically from its external and in-product sources.
 
