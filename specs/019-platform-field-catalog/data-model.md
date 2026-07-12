@@ -33,7 +33,7 @@ Backfill (one-time, not part of the auto-applied schema migration — see quicks
 |-------------|-----------------|-------|
 | id          | text PRIMARY KEY | CoinGecko exchange id, e.g. `'binance'`. |
 | name        | text NOT NULL   | Exchange display name. |
-| logo_url    | text            | CoinGecko's own image URL (research.md §3 — linked directly, not proxied). |
+| logo_url    | text            | CoinGecko's own upstream image URL — never sent to the browser directly; only read server-side by the `GET /api/platforms/logo/{id}` proxy (research.md §3). |
 | updated_at  | timestamptz NOT NULL DEFAULT now() | Used for the 24h TTL check (research.md §2), same pattern as `exchange_rates.updated_at`. |
 
 ## NewOp / Op (`shared/src/types.ts`, modified)
@@ -51,4 +51,4 @@ No shape change to the payload envelope itself. Each op entry within it moves fr
 
 ## PlatformCatalog (assembled client-side, not persisted)
 
-The merged result `usePlatformCatalog.ts` exposes: `{ catalog: Platform[], byId: Record<string, Platform>, recent: Platform[] }`. `catalog` = `seed.json` entries + the fetched-and-cached `GET /api/platforms/exchanges` response, deduplicated by `id`. `recent` = the last N platform ids a user selected, read from `localStorage` (client-side preference, no backend involvement — consistent with existing prefs like `theme`, `hide_balances`).
+The merged result `usePlatformCatalog.ts` exposes: `{ catalog: Platform[], byId: Record<string, Platform>, recent: Platform[] }`. `catalog` = `seed.json` entries + the fetched-and-cached `GET /api/platforms/exchanges` response (whose `logoUrl` values are already same-origin proxy paths, not raw CoinGecko URLs — research.md §3), deduplicated by `id`. `recent` = the last N platform ids a user selected, read from `localStorage` (client-side preference, no backend involvement — consistent with existing prefs like `theme`, `hide_balances`).

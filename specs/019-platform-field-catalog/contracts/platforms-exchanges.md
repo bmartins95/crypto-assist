@@ -15,11 +15,13 @@ No query parameters — the full (cached, refreshed) exchange list is always ret
 ```json
 {
   "exchanges": [
-    { "id": "binance", "name": "Binance", "logoUrl": "https://.../binance.png" }
+    { "id": "binance", "name": "Binance", "logoUrl": "/api/platforms/logo/binance" }
   ],
   "updatedAt": "2026-07-11T12:00:00+00:00"
 }
 ```
+
+`logoUrl` is a same-origin path to this feature's own logo proxy (see `contracts/platforms-logo.md`), not CoinGecko's raw image URL — the browser never receives a third-party image URL (spec FR-008).
 
 ## Errors
 
@@ -32,5 +34,5 @@ No query parameters — the full (cached, refreshed) exchange list is always ret
 ## Behavior notes
 
 - Cache-first, 24h TTL, stale-on-upstream-failure — identical shape to `GET /api/exchange-rates` (see research.md §2). A 429/502 is only ever surfaced to the client if `platform_cache` is completely empty (first-ever cold call in an environment); any existing cached data is served instead, matching `exchange_rates.py`'s `except HTTPException: if have_all: ...` branch.
-- `logoUrl` is CoinGecko's own image URL, rendered directly by the frontend (research.md §3) — this endpoint does not proxy image bytes.
+- `logoUrl` values are rewritten to same-origin `/api/platforms/logo/{id}` paths before this endpoint responds — see `contracts/platforms-logo.md` for the proxy route itself (research.md §3).
 - Curated wallet/DeFi platforms are **not** included in this response — they ship with the web bundle (`shared/src/platforms/seed.json`) and are merged client-side in `usePlatformCatalog.ts`.
