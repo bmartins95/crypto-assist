@@ -131,7 +131,7 @@ function SettingsRoute() {
   const { t } = useLocale();
   return (
     <div className="app">
-      <div style={{ marginBottom: '1.75rem' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto 1.75rem' }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text)', lineHeight: 1.2 }}>
           {t.settings_title}
         </h1>

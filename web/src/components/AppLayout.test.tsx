@@ -133,11 +133,25 @@ describe('AppLayout', () => {
     expect(api.getExitPrices).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a load-error status when the initial fetch fails', async () => {
+  it('shows the bootstrap error screen instead of an empty wallet when the initial fetch fails', async () => {
+    const { api } = await import('@/lib/api/client');
+    vi.mocked(api.getOps).mockRejectedValue(new Error('network'));
+    await renderAt('/wallet');
+    expect(await screen.findByRole('button', { name: /tentar novamente/i })).toBeTruthy();
+    expect(screen.queryByTestId('wallet-view')).toBeNull();
+  });
+
+  it('retries the bootstrap and renders the wallet once the retry succeeds', async () => {
     const { api } = await import('@/lib/api/client');
     vi.mocked(api.getOps).mockRejectedValueOnce(new Error('network'));
     await renderAt('/wallet');
-    await waitFor(() => expect(screen.getByTestId('wallet-view').textContent).not.toBe(''));
+    const retryButton = await screen.findByRole('button', { name: /tentar novamente/i });
+
+    vi.mocked(api.getOps).mockResolvedValueOnce([]);
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(screen.getByTestId('wallet-view')).toBeTruthy());
+    expect(api.getOps).toHaveBeenCalledTimes(2);
   });
 
   it('offers legacy migration and imports on confirm', async () => {

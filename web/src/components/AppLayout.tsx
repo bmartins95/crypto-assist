@@ -68,32 +68,34 @@ export default function AppLayout() {
     setExitPrices(remoteExitPrices);
   }, []);
 
+  // Deliberately lets a failure here propagate instead of catching it: AppBootstrapGate
+  // (the caller) awaits this promise and shows its own full-screen error/retry state on
+  // rejection. Swallowing the error here used to leave the wallet silently rendering
+  // with an empty portfolio on any transient failure (Aurora cold start, a token not
+  // yet ready right after login) — the exact bug of "wallet loads empty, refresh fixes
+  // it" — since AppBootstrapGate never saw the failure and always moved on to 'ready'.
   const bootstrap = useCallback(async () => {
     setAvatarCache(storage.getAvatars());
-    try {
-      const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+    const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
 
-      if (remoteOps.length === 0) {
-        const legacyOps = getLegacyOps();
-        if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
-          const wantsImport = confirm(t.dashboard_confirm_legacy);
-          if (wantsImport) {
-            const legacyExitPrices = getLegacyExitPrices();
-            const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
-            await api.importBackup(legacyBackup);
-            clearLegacyData();
-            await reload();
-            return;
-          }
-          declineMigration();
+    if (remoteOps.length === 0) {
+      const legacyOps = getLegacyOps();
+      if (legacyOps.length > 0 && !hasMigrationBeenDeclined()) {
+        const wantsImport = confirm(t.dashboard_confirm_legacy);
+        if (wantsImport) {
+          const legacyExitPrices = getLegacyExitPrices();
+          const legacyBackup: BackupPayload = { version: 1, exportedAt: new Date().toISOString(), ops: legacyOps, exitPrices: legacyExitPrices };
+          await api.importBackup(legacyBackup);
+          clearLegacyData();
+          await reload();
+          return;
         }
+        declineMigration();
       }
-
-      setOps(remoteOps);
-      setExitPrices(remoteExitPrices);
-    } catch {
-      setStatusMsg(t.dashboard_error_load);
     }
+
+    setOps(remoteOps);
+    setExitPrices(remoteExitPrices);
   }, [reload, t]);
 
   const addOp = useCallback(async (op: NewOp) => {

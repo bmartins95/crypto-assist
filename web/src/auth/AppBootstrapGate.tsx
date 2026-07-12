@@ -1,7 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import AuthShell from './AuthShell';
 import AuthCard from './AuthCard';
 import LoadingState from './LoadingState';
+import ErrorState from './ErrorState';
+import { signOut, type SignOutOutcome } from './useAuth';
 import { useLocale } from '@/context/LocaleContext';
 
 const TIMEOUT_MS = 28000;
@@ -17,8 +20,8 @@ interface AppBootstrapGateProps {
 
 export default function AppBootstrapGate({ run, children }: AppBootstrapGateProps) {
   const { t } = useLocale();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<'pending' | 'ready' | 'error'>('pending');
-  const [attemptCount, setAttemptCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +51,37 @@ export default function AppBootstrapGate({ run, children }: AppBootstrapGateProp
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [attemptCount]);
+    // Deliberately excludes `run` — its identity changes whenever AppLayout's own
+    // state changes (ops/prices/etc.), which must not re-trigger the initial-load
+    // effect. Manual retries call `run()` directly instead (see handleRetry below).
+  }, []);
+
+  // Stays on the error card and shows an inline "retrying" state on the button rather
+  // than bouncing back through the full-screen loading state — a manual retry is a
+  // much shorter, more confident wait than the initial cold load.
+  const handleRetry = useCallback(async () => {
+    try {
+      await run();
+      setStatus('ready');
+    } catch {
+      // Stays in 'error' — ErrorState's own local state resets the button and the
+      // icon reshakes on the next click.
+    }
+  }, [run]);
+
+  // The escape hatch the timeout screen didn't have before: a user stuck here (bad
+  // network, backend down) can leave instead of being trapped with only a retry
+  // button. 'redirecting' means signOut() is already hard-navigating via Cognito's
+  // hosted logout for a federated session — don't also navigate and race it.
+  const handleExit = useCallback(async () => {
+    let outcome: SignOutOutcome = 'done';
+    try {
+      outcome = await signOut();
+    } catch {
+      // Still want the user out of the stuck screen even if sign-out itself failed.
+    }
+    if (outcome !== 'redirecting') navigate({ to: '/' });
+  }, [navigate]);
 
   if (status === 'ready') return <>{children}</>;
 
@@ -56,18 +89,15 @@ export default function AppBootstrapGate({ run, children }: AppBootstrapGateProp
     return (
       <AuthShell>
         <AuthCard>
-          <div className="auth-error-state">
-            <h2>{t.auth_bootstrap_error_title}</h2>
-            <p>{t.auth_bootstrap_error_message}</p>
-            <button
-              type="button"
-              className="auth-btn auth-btn-primary"
-              style={{ marginTop: 22, maxWidth: 220 }}
-              onClick={() => setAttemptCount(c => c + 1)}
-            >
-              {t.auth_bootstrap_retry}
-            </button>
-          </div>
+          <ErrorState
+            title={t.auth_bootstrap_error_title}
+            message={t.auth_bootstrap_error_message}
+            retryLabel={t.auth_bootstrap_retry}
+            retryingLabel={t.auth_bootstrap_retrying}
+            exitLabel={t.nav_logout}
+            onRetry={handleRetry}
+            onExit={handleExit}
+          />
         </AuthCard>
       </AuthShell>
     );
