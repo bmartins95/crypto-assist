@@ -718,3 +718,71 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 - The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
 - `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
 - A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.
+
+---
+
+## Item 22 — Platform field catalog (logo + name + category)
+**Branch:** `feat/platform-field-catalog`
+**Depends on:** items 7, 9 (Wallet and History views must be in their redesigned form), item 13 (price provider abstraction — the new platform-exchange proxy endpoint follows the same provider/caching pattern as `routes/coins.py`)
+
+- [ ] Done
+
+### Design reference
+`docs/design/platform-field-redesign.html` — pixel source of truth (combobox, chips, category badges, group headers). `docs/design/platform-field-implementation.md` — accompanying implementation notes (component contracts, CSS, file list).
+
+### Current state
+`platform` is a plain free-text field with no catalog, logo, or category behind it:
+- `shared/src/types.ts` — `NewOp.platform: string`; `Op` inherits it; `AssetWithPlatform.platform: string`; `GroupMode = 'asset' | 'platform' | 'both'`.
+- `backend/db/schema.sql` — `platform text NOT NULL DEFAULT ''` on `ops`, no FK/lookup table.
+- `backend/app/models.py` — `platform: str = ""` on `NewOp`/`Op`, unvalidated.
+- `web/src/components/OpDrawer.tsx` — plain `<input type="text">` (single-op field around L414-415, trade-form field around L445-446), state via `useState('')`, no autocomplete. Contrast with the adjacent coin field, which uses the inline `CoinSearch` component (defined in the same file, ~L50-130) — a controlled input with a network-backed dropdown, an outside-click-close listener, and a `searchSeq` ref guarding against out-of-order async responses. `CoinSearch` has no keyboard arrow-key navigation today (click-only) — the new `PlatformSelect` needs to add that, it isn't just a copy-paste of the existing pattern.
+- `web/src/components/HistoryTab.tsx` — platform column renders as plain dimmed text with an em-dash fallback (`{o.platform || '—'}`), no icon.
+- `web/src/components/WalletTab.tsx` — "Por plataforma" grouped rows render plain text, no icon at all. "Ativo + plataforma" group headers *do* show an icon today, but it's a fixed `ti-building-bank` glyph identical for every platform — not the lock icon originally assumed when this item was scoped; per-asset rows elsewhere already use a real per-item logo component (`CoinBadge`), which is the pattern the new `PlatformLogo`/`PlatformChip` should follow instead.
+- `shared/src/i18n/types.ts` — only plain-string platform keys exist today (`wallet_groupBy_platform`, `wallet_col_platform`, `wallet_noPlatform`, `history_col_platform`, `history_form_platform`). No icon/logo/category keys.
+- `backend/app/routes/coins.py` is the pattern to mirror for a new platform-exchange endpoint: a simple auth-gated `GET` with `q`/`limit`, delegating to a provider, 400 on empty query.
+
+### Goal
+Turn `plataforma` into a first-class entity with a logo, name, and category (`exchange` / `wallet` / `defi` / `custom`), and replace every free-text platform input/display with the `PlatformLogo` / `PlatformChip` / `PlatformSelect` primitives described in the design reference — landing in the operation drawer, the History table, and both Wallet grouped views.
+
+### Catalog sources
+Three sources feed one catalog, per the design doc:
+- **`exchange`** — CoinGecko `/exchanges` (name + image), fetched and cached server-side (never render CoinGecko's raw image URL directly from the browser — proxy/cache it so the list doesn't break when they rotate URLs).
+- **`wallet` / `defi`** — a curated seed list shipped in-repo (not available from any API — MetaMask, Phantom, Kamino, etc. are not exchanges).
+- **`custom`** — user-typed, not in the catalog, falls back to a deterministic initials avatar (same name → same color, everywhere).
+
+### Database migration
+Additive only, per this repo's migration rules — the existing `platform` column is not touched in this item:
+1. `ALTER TABLE ops ADD COLUMN platform_id VARCHAR(160)`, `ADD COLUMN platform_name VARCHAR(120)`.
+2. Backfill: for every existing row, set `platform_name = platform` and `platform_id = 'custom:' || slug(platform)` (empty string stays empty/null). **Pause for user approval before running this migration** — it touches every existing op row for every user, same precondition as Item 4's `Op.type` backfill.
+3. New table `platform_cache` (mirrors `price_cache`'s shape): `id VARCHAR(160) PRIMARY KEY, name VARCHAR(120) NOT NULL, logo_url TEXT, updated_at TIMESTAMPTZ NOT NULL` — caches the CoinGecko `/exchanges` fetch.
+4. The old `platform` column is deprecated (no longer written to by new code) but left in place; dropping it is a follow-up migration once the deploy is confirmed stable, not part of this item.
+
+### Files to create
+- `web/src/components/platform/PlatformLogo.tsx` (+ `hashColor`/`initials` helpers in `platformAvatar.ts`) — rounded-square logo or initials-avatar fallback on image error.
+- `web/src/components/platform/PlatformChip.tsx` — logo + name, optional `personalizada` tag for `kind === 'custom'`.
+- `web/src/components/platform/PlatformSelect.tsx` — combobox mirroring `CoinSearch`'s controlled-input/dropdown pattern, plus category grouping, a `Recentes` group, the custom-fallback row, and full keyboard support (↑/↓/Enter/Esc), which `CoinSearch` doesn't have today.
+- `web/src/components/platform/usePlatformCatalog.ts` — fetches the exchange list once (cached), merges it with the in-repo curated wallet/DeFi seed, tracks recent platforms (localStorage), exposes `{ catalog, byId, recent }`.
+- `web/src/lib/platformSeed.ts` (or `shared/src/`) — curated wallet/DeFi seed list (MetaMask, Phantom, Rabby, Ledger, Trezor, Trust Wallet, Kamino, Aave, Aerodrome, Lido, etc., per the design doc's sample catalog).
+- `backend/app/routes/platforms.py` — `GET /api/platforms/exchanges`, auth-gated, returns the cached/refreshed CoinGecko exchange list (name + logo URL), following the `coins.py` pattern.
+- `backend/db/migrations/` — the additive migration described above.
+
+### Files to modify
+- `shared/src/types.ts` — add `Platform`, `PlatformKind`. `NewOp` gains `platformId: string`, `platformName: string`, replacing free-text `platform` for all new writes. `AssetWithPlatform` updated accordingly.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `platform_kind_exchange/wallet/defi/custom`, `platform_search_placeholder`, `platform_use_custom`, `platform_group_recent/exchanges/wallets/defi`.
+- `backend/app/models.py` — add `platform_id: str`, `platform_name: str` to `NewOp`/`Op`.
+- `backend/app/routes/ops.py` — read/write the new columns instead of `platform`.
+- `web/src/components/OpDrawer.tsx` — swap both platform text inputs (single-op and trade forms) for `<PlatformSelect>`.
+- `web/src/components/HistoryTab.tsx` — platform cell → `<PlatformChip platform={op.platform} showCustomTag />`.
+- `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />`; "Ativo + plataforma" group headers → replace the fixed `ti-building-bank` icon with the real `PlatformLogo`, add the category badge, and move the group total + return to the right of the header (per the design doc — today the user sums the sub-table mentally).
+- `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm/md`, `.cat.*`, `.dd*`, `.dd-custom`, `.plus`, `.sel-logo`, `.inp.withlogo`, `.grp-hd` per the design reference's tokens.
+
+### Done when
+- Platform logos are rounded squares; coin logos stay circles.
+- `PlatformSelect` filters as you type, groups results by category, shows the platform logo inline in the input once selected, and supports ↑/↓/Enter/Esc plus full combobox ARIA roles (`combobox`, `listbox`, `option`).
+- A name not in the catalog offers `Usar "<texto>" como personalizada` and produces a stable initials avatar (same name → same color across every screen).
+- A broken/missing `logoUrl` silently falls back to the initials avatar — no broken-image icon anywhere.
+- History shows logo + name; custom platforms carry the `personalizada` tag.
+- "Por plataforma" rows and "Ativo + plataforma" group headers show the real logo; group headers show the group total + return on the right.
+- Existing operations still render correctly after the migration (their backfilled `platform_id`/`platform_name` resolve to a sensible chip, custom or otherwise).
+- Mobile still builds and the ops-related screens still render (this item's redesign is web-only; `shared/` type changes must not break the mobile type contract).
+- `pytest` covers the new `platforms.py` route (cache hit, cache miss, refresh) and the ops migration backfill. `npm test` passes, including new tests for `PlatformSelect`, `PlatformLogo`, and `PlatformChip`.
