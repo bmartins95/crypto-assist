@@ -30,13 +30,44 @@ def _mock_httpx(status_code=200, is_success=True, json_data=None):
 
 def test_search_returns_results():
     client = _auth_client()
-    cg_data = {"coins": [{"id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1}]}
+    cg_data = {"coins": [{
+        "id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1,
+        "large": "https://cg.example/bitcoin-large.png", "thumb": "https://cg.example/bitcoin-thumb.png",
+    }]}
     try:
         with _mock_httpx(json_data=cg_data):
             res = client.get("/api/coins/search?q=bitcoin")
         assert res.status_code == 200
         body = res.json()
-        assert body == [{"id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1}]
+        assert body == [{
+            "id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1,
+            "image": "https://cg.example/bitcoin-large.png",
+        }]
+    finally:
+        _cleanup()
+
+
+def test_search_falls_back_to_thumb_when_large_missing():
+    client = _auth_client()
+    cg_data = {"coins": [{
+        "id": "bitcoin", "symbol": "btc", "name": "Bitcoin",
+        "thumb": "https://cg.example/bitcoin-thumb.png",
+    }]}
+    try:
+        with _mock_httpx(json_data=cg_data):
+            res = client.get("/api/coins/search?q=bitcoin")
+        assert res.json()[0]["image"] == "https://cg.example/bitcoin-thumb.png"
+    finally:
+        _cleanup()
+
+
+def test_search_image_is_none_when_absent():
+    client = _auth_client()
+    cg_data = {"coins": [{"id": "bitcoin", "symbol": "btc", "name": "Bitcoin"}]}
+    try:
+        with _mock_httpx(json_data=cg_data):
+            res = client.get("/api/coins/search?q=bitcoin")
+        assert res.json()[0]["image"] is None
     finally:
         _cleanup()
 

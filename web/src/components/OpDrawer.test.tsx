@@ -464,6 +464,40 @@ describe('OpDrawer', () => {
     expect(api.searchCoins).toHaveBeenCalledWith('bit');
   });
 
+  it('shows a round coin logo per result in the search dropdown', async () => {
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([
+      { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
+    ]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
+    await screen.findByText('Bitcoin');
+    const img = document.querySelector('.search-item .coin img');
+    expect(img).toHaveAttribute('src', 'https://cg.example/bitcoin.png');
+  });
+
+  it('falls back to initials in the dropdown when a coin has no image', async () => {
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
+    await screen.findByText('Bitcoin');
+    expect(document.querySelector('.search-item .coin img')).not.toBeInTheDocument();
+    expect(document.querySelector('.search-item .coin')).toHaveTextContent('BTC');
+  });
+
+  it('shows the selected coin\'s logo inline in the input once picked', async () => {
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([
+      { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
+    ]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
+    await screen.findByText('Bitcoin');
+    fireEvent.click(screen.getByText('Bitcoin'));
+    const input = screen.getByLabelText('Moeda comprada');
+    expect(input).toHaveClass('withcoin');
+    const inlineImg = input.parentElement?.querySelector('.sel-logo .coin img');
+    expect(inlineImg).toHaveAttribute('src', 'https://cg.example/bitcoin.png');
+  });
+
   it('closes the dropdown and clears the unit price when clicking outside the coin field', async () => {
     mockGetPricesOnce(50000);
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];

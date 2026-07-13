@@ -8,6 +8,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
 import PlatformSelect from '@/components/platform/PlatformSelect';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
+import CoinLogo from '@/components/CoinLogo';
 
 interface Props {
   open: boolean;
@@ -19,7 +20,7 @@ interface Props {
   prices: Prices;
 }
 
-interface CoinSelection { coinId: string; symbol: string; name: string }
+interface CoinSelection { coinId: string; symbol: string; name: string; image?: string | null }
 
 type Phase = 'idle' | 'loading' | 'done';
 type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
@@ -49,7 +50,7 @@ function filterSeed(list: CoinSearchResult[], query: string): CoinSearchResult[]
 
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
-function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel }: {
+function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected }: {
   id: string; placeholder: string;
   onSelect: (c: CoinSelection) => void;
   onClear: () => void;
@@ -58,6 +59,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   seed?: CoinSearchResult[];
   restrictTo?: CoinSearchResult[];
   emptyLabel?: string;
+  selected?: CoinSelection | null;
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -108,12 +110,18 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
     onChange(c.name + ' (' + c.symbol.toUpperCase() + ')');
     setResults([]);
     setOpen(false);
-    onSelect({ coinId: c.id, symbol: c.symbol.toUpperCase(), name: c.name });
+    onSelect({ coinId: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image });
   };
+
+  const showInlineLogo = !open && !!selected;
 
   return (
     <div className="search-wrap" ref={wrapRef}>
+      {showInlineLogo && selected && (
+        <span className="sel-logo"><CoinLogo image={selected.image} symbol={selected.symbol} size="sm" /></span>
+      )}
       <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off"
+        className={`inp${showInlineLogo ? ' withcoin' : ''}`}
         value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
       {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
         <div className="search-dropdown">
@@ -121,7 +129,8 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
             <div className="search-item" style={{ color: 'var(--text3)', cursor: 'default' }}>{emptyLabel}</div>
           ) : results.map(c => (
             <div key={c.id} className="search-item" onClick={() => select(c)}>
-              <span>{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
+              <CoinLogo image={c.image} symbol={c.symbol} size="sm" />
+              <span className="meta">{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
               <span className="search-item-rank">{c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
             </div>
           ))}
@@ -421,7 +430,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
                 <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." seed={assetSeed}
-                  value={coinText} onChange={setCoinText} onSelect={setCoin}
+                  value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
                   onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
               </div>
               <div className="drawer-grid">
@@ -459,6 +468,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                       restrictTo={assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }))}
                       emptyLabel={t.trade_form_noAssets}
                       value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
+                      selected={fromCoinId ? { coinId: fromCoinId, symbol: assets.find(a => a.coinId === fromCoinId)?.symbol || '', name: '' } : null}
                       onClear={() => setFromCoinId('')} />
                   </div>
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
@@ -475,7 +485,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
-                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin}
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
                       onClear={() => { setToCoin(null); setToQty(''); }} />
                   </div>
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"

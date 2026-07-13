@@ -8,6 +8,9 @@ export interface CoinSearchResult {
   symbol: string;
   name: string;
   market_cap_rank?: number;
+  // CoinGecko's own image URL, rendered directly — same precedent as existing
+  // coin logos elsewhere in the app (price_cache.image_url / WalletTab's CoinBadge).
+  image?: string | null;
 }
 
 async function authHeader(): Promise<Record<string, string>> {

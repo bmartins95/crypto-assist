@@ -31,6 +31,7 @@ class CoinGeckoProvider(PriceProvider):
                 "symbol": c["symbol"],
                 "name": c["name"],
                 "market_cap_rank": c.get("market_cap_rank"),
+                "image": c.get("large") or c.get("thumb"),
             }
             for c in coins
             if c.get("id") and c.get("symbol") and c.get("name")
