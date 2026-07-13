@@ -77,6 +77,29 @@ describe('PlatformSelect', () => {
     expect(onChange).toHaveBeenCalledWith({ id: 'custom:sod', name: 'Sod', kind: 'custom' });
   });
 
+  it('supports ArrowUp to move the highlight back up', async () => {
+    const { onChange } = renderSelect();
+    fireEvent.focus(input());
+    await waitFor(() => expect(screen.getByText('Binance')).toBeInTheDocument());
+    fireEvent.change(input(), { target: { value: 'Sod' } });
+    fireEvent.keyDown(input(), { key: 'ArrowDown' });
+    fireEvent.keyDown(input(), { key: 'ArrowUp' });
+    fireEvent.keyDown(input(), { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith({ id: 'custom:sod', name: 'Sod', kind: 'custom' });
+  });
+
+  it('highlights an option on mouse hover, including the custom row', async () => {
+    renderSelect();
+    fireEvent.focus(input());
+    await waitFor(() => expect(screen.getByText('MetaMask')).toBeInTheDocument());
+    fireEvent.mouseEnter(screen.getByText('MetaMask').closest('[role="option"]') as Element);
+    expect(screen.getByText('MetaMask').closest('[role="option"]')).toHaveAttribute('aria-selected', 'true');
+    fireEvent.change(input(), { target: { value: 'Sod' } });
+    const customRow = screen.getByText('Usar "Sod" como personalizada').closest('[role="option"]') as Element;
+    fireEvent.mouseEnter(customRow);
+    expect(customRow).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('closes on Escape without changing the current value', async () => {
     const { onChange } = renderSelect();
     fireEvent.focus(input());

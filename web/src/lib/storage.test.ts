@@ -39,7 +39,8 @@ describe('getLegacyOps', () => {
     localStorage.setItem('cp_ops', JSON.stringify([PT_OP]));
     expect(getLegacyOps()).toEqual([{
       date: '2026-06-10', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
-      type: 'Buy', qty: 0.5, price: 300000, fee: 10, total: 150010, platform: 'Binance',
+      type: 'Buy', qty: 0.5, price: 300000, fee: 10, total: 150010,
+      platformId: 'custom:binance', platformName: 'Binance',
     }]);
   });
 
@@ -55,13 +56,14 @@ describe('getLegacyOps', () => {
     expect(getLegacyOps()[0].type).toBe('Sell');
   });
 
-  it('defaults missing fee and platform', () => {
+  it('defaults missing fee and leaves platform unset', () => {
     const { taxa, plataforma, ...rest } = PT_OP;
     void taxa; void plataforma;
     localStorage.setItem('cp_ops', JSON.stringify([rest]));
     const [op] = getLegacyOps();
     expect(op.fee).toBe(0);
-    expect(op.platform).toBe('');
+    expect(op.platformId).toBeUndefined();
+    expect(op.platformName).toBeUndefined();
   });
 
   it('drops entries that cannot be normalized', () => {

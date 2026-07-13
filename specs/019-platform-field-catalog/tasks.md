@@ -151,9 +151,9 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T052 [P] Verify `mobile/` still builds and any screen reading `Op`/`NewOp` still renders after the `platform` → `platformId`/`platformName` type change (constitution Principle I; spec Assumptions)
-- [ ] T053 [P] `cd backend && pytest --cov=app --cov-report=term-missing` — confirm ≥90% coverage on `platforms.py` (both routers), `platform_resolve.py`, and the changed lines of `ops.py`/`import_data.py`
-- [ ] T054 [P] `cd web && npm run coverage` — confirm ≥90% coverage on the new `platform/` components and the changed lines of `OpDrawer.tsx`/`HistoryTab.tsx`/`WalletTab.tsx`
+- [X] T052 [P] Verify `mobile/` still builds and any screen reading `Op`/`NewOp` still renders after the `platform` → `platformId`/`platformName` type change (constitution Principle I; spec Assumptions)
+- [X] T053 [P] `cd backend && pytest --cov=app --cov-report=term-missing` — confirm ≥90% coverage on `platforms.py` (both routers), `platform_resolve.py`, and the changed lines of `ops.py`/`import_data.py`
+- [X] T054 [P] `cd web && npm run coverage` — confirm ≥90% coverage on the new `platform/` components and the changed lines of `OpDrawer.tsx`/`HistoryTab.tsx`/`WalletTab.tsx`
 - [ ] T055 Run `quickstart.md` end-to-end manually against local dev (all 8 sections)
 - [ ] T056 Sanity-check `GET /api/platforms/logo/{id}` is reachable at the same origin as the rest of the deployed API once available (no CSP change expected, since it's same-origin by construction — confirms research.md §3's proxy approach actually avoided the CSP concern it was built to avoid)
 

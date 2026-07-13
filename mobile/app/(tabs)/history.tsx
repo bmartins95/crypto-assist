@@ -80,7 +80,7 @@ export default function HistoryScreen() {
               <Text style={styles.detail}>{mask(fmtQty(o.qty, locale))} × {mask(fmtOp(o.price, o))}</Text>
               <Text style={styles.total}>{mask(fmtOp(o.total, o))}</Text>
             </View>
-            {o.platform ? <Text style={styles.platform}>{o.platform}</Text> : null}
+            {o.platformName ? <Text style={styles.platform}>{o.platformName}</Text> : null}
           </View>
         )}
         ListEmptyComponent={<Text style={styles.empty}>{t.history_emptyState}</Text>}
