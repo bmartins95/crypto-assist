@@ -167,6 +167,7 @@ const ptBR: UIText = {
   common_save: 'Salvar',
   common_cancel: 'Cancelar',
   common_delete: 'Excluir',
+  common_clear: 'Limpar',
   common_increase: 'Aumentar',
   common_decrease: 'Diminuir',
   dashboard_subtitle: 'Cotações em tempo real via CoinGecko · Valores em reais (BRL)',

@@ -21,6 +21,11 @@ interface PlatformCatalog {
   byId: Record<string, Platform>;
   recent: Platform[];
   addRecent: (platformId: string) => void;
+  // Resolves an operation's stored platformId/platformName into a renderable Platform:
+  // a catalog hit (has a logo) if still known, else a synthetic `custom`-kind Platform
+  // built from the denormalized name (covers real custom platforms and any catalog
+  // entry that's since dropped out of the cached exchange list — data-model.md).
+  resolveOpPlatform: (platformId?: string, platformName?: string) => Platform | null;
 }
 
 export function usePlatformCatalog(): PlatformCatalog {
@@ -62,5 +67,10 @@ export function usePlatformCatalog(): PlatformCatalog {
     localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   }
 
-  return { catalog, byId, recent, addRecent };
+  function resolveOpPlatform(platformId?: string, platformName?: string): Platform | null {
+    if (!platformId || !platformName) return null;
+    return byId[platformId] ?? { id: platformId, name: platformName, kind: 'custom' };
+  }
+
+  return { catalog, byId, recent, addRecent, resolveOpPlatform };
 }

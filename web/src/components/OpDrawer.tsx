@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Op, NewOp, Asset, Prices } from '@/lib/types';
+import { Op, NewOp, Asset, Prices, Platform } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
+import PlatformSelect from '@/components/platform/PlatformSelect';
+import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
   open: boolean;
@@ -144,6 +146,7 @@ const DONE_DISPLAY_MS = 1300;
 export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices }: Props) {
   const { t } = useLocale();
   const { currency, rates } = useCurrency();
+  const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
   const [opType, setOpType] = useState<'buy' | 'sell' | 'trade'>('buy');
@@ -151,7 +154,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const [phase, setPhase] = useState<Phase>('idle');
 
   const [date, setDate] = useState(today());
-  const [platform, setPlatform] = useState('');
+  const [platform, setPlatform] = useState<Platform | null>(null);
   const [coin, setCoin] = useState<CoinSelection | null>(null);
   const [coinText, setCoinText] = useState('');
   const [qty, setQty] = useState('');
@@ -175,7 +178,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const priorOverflow = useRef('');
 
   const resetBuySell = () => {
-    setDate(today()); setPlatform(''); setCoin(null); setCoinText('');
+    setDate(today()); setPlatform(null); setCoin(null); setCoinText('');
     setQty(''); setUnitPrice(''); setPriceState('idle'); setFee('');
   };
 
@@ -194,7 +197,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
-        setPlatform(editingOp.platform || '');
+        setPlatform(resolveOpPlatform(editingOp.platformId, editingOp.platformName));
         setCoin({ coinId: editingOp.coinId, symbol: editingOp.symbol, name: editingOp.name });
         setCoinText(`${editingOp.name} (${editingOp.symbol})`);
         setQty(String(editingOp.qty));
@@ -283,7 +286,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
       date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
       type: opType === 'buy' ? 'Buy' : 'Sell',
       qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
-      platform: platform.trim(),
+      platformId: platform?.id, platformName: platform?.name,
       currency: editingOp?.currency ?? currency,
     };
     setPhase('loading');
@@ -350,13 +353,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     const sellOp: NewOp = {
       date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
       type: 'Sell', qty: fromQtyNum, price: totalNum / fromQtyNum, fee: 0, total: totalNum,
-      platform: platform.trim(),
+      platformId: platform?.id, platformName: platform?.name,
       currency,
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
       type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
-      total: totalNum + tradeFeeNum, platform: platform.trim(),
+      total: totalNum + tradeFeeNum, platformId: platform?.id, platformName: platform?.name,
       currency,
     };
     setPhase('loading');
@@ -412,7 +415,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 </div>
                 <div className="fld">
                   <label htmlFor="drawer-platform">{t.history_form_platform}</label>
-                  <input id="drawer-platform" type="text" placeholder="Binance, MetaMask..." value={platform} onChange={e => setPlatform(e.target.value)} />
+                  <PlatformSelect id="drawer-platform" value={platform} onChange={setPlatform} />
                 </div>
               </div>
               <div className="fld">
@@ -443,7 +446,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
                 </div>
                 <div className="fld">
                   <label htmlFor="drawer-tr-platform">{t.history_form_platform}</label>
-                  <input id="drawer-tr-platform" type="text" placeholder="Binance, MetaMask..." value={platform} onChange={e => setPlatform(e.target.value)} />
+                  <PlatformSelect id="drawer-tr-platform" value={platform} onChange={setPlatform} />
                 </div>
               </div>
 

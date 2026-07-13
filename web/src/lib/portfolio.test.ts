@@ -14,7 +14,6 @@ function op(overrides: Partial<Op>): Op {
     price: 100,
     fee: 0,
     total: 100,
-    platform: '',
     ...overrides,
   };
 }
@@ -66,17 +65,18 @@ describe('computePositions', () => {
 describe('computePositionsByAssetAndPlatform', () => {
   it('keeps the same asset separate per platform', () => {
     const ops = [
-      op({ platform: 'Binance', qty: 1, price: 100 }),
-      op({ platform: 'MetaMask', qty: 2, price: 200 }),
+      op({ platformId: 'binance', platformName: 'Binance', qty: 1, price: 100 }),
+      op({ platformId: 'metamask', platformName: 'MetaMask', qty: 2, price: 200 }),
     ];
     const positions = computePositionsByAssetAndPlatform(ops);
     expect(positions).toHaveLength(2);
-    expect(positions.map((p) => p.platform).sort()).toEqual(['Binance', 'MetaMask']);
+    expect(positions.map((p) => p.platformName).sort()).toEqual(['Binance', 'MetaMask']);
   });
 
-  it('falls back to an empty string when the platform is empty', () => {
-    const [position] = computePositionsByAssetAndPlatform([op({ platform: '' })]);
-    expect(position.platform).toBe('');
+  it('falls back to an empty string when no platform is set', () => {
+    const [position] = computePositionsByAssetAndPlatform([op({})]);
+    expect(position.platformId).toBe('');
+    expect(position.platformName).toBe('');
   });
 });
 

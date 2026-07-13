@@ -16,6 +16,7 @@ vi.mock('@/lib/api/client', () => ({
     searchCoins: vi.fn(async () => []),
     getPrices: vi.fn(async () => ({})),
     getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+    getPlatformExchanges: vi.fn(async () => ({ exchanges: [], updatedAt: '2026-01-01T00:00:00Z' })),
   },
 }));
 
@@ -45,7 +46,8 @@ const editingOp: Op = {
   price: 100,
   fee: 1,
   total: 199,
-  platform: 'Kraken',
+  platformId: 'kraken',
+  platformName: 'Kraken',
 };
 
 async function selectCoin(input: HTMLElement, result: { id: string; symbol: string; name: string }) {
@@ -53,6 +55,12 @@ async function selectCoin(input: HTMLElement, result: { id: string; symbol: stri
   fireEvent.change(input, { target: { value: result.name.slice(0, 3) } });
   await screen.findByText(result.name, {}, { timeout: 2000 });
   fireEvent.click(screen.getByText(result.name));
+}
+
+function selectCustomPlatform(input: HTMLElement, name: string) {
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: name } });
+  fireEvent.click(screen.getByText(`Usar "${name}" como personalizada`));
 }
 
 const waitForClose = () => new Promise(r => setTimeout(r, 1350));
@@ -103,7 +111,7 @@ describe('OpDrawer', () => {
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2024-03-10' } });
-    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Binance' } });
+    selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Binance');
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
@@ -112,7 +120,7 @@ describe('OpDrawer', () => {
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       type: 'Buy', coinId: 'bitcoin', qty: 2, price: 100, fee: 5, total: 205,
-      date: '2024-03-10', platform: 'Binance',
+      date: '2024-03-10', platformId: 'custom:binance', platformName: 'Binance',
     }));
     await waitForClose();
     expect(onClose).toHaveBeenCalled();
@@ -191,7 +199,7 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={assets} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2024-03-10' } });
-    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
+    selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
@@ -202,8 +210,8 @@ describe('OpDrawer', () => {
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'Sell', coinId: 'ethereum', qty: 1, total: 500, date: '2024-03-10', platform: 'Kraken' }),
-      expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5, fee: 2, total: 502, date: '2024-03-10', platform: 'Kraken' }),
+      expect.objectContaining({ type: 'Sell', coinId: 'ethereum', qty: 1, total: 500, date: '2024-03-10', platformId: 'custom:kraken', platformName: 'Kraken' }),
+      expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5, fee: 2, total: 502, date: '2024-03-10', platformId: 'custom:kraken', platformName: 'Kraken' }),
     );
     await waitForClose();
     expect(onClose).toHaveBeenCalled();
@@ -285,7 +293,7 @@ describe('OpDrawer', () => {
 
   it('discards Trade-only fields but keeps platform when switching away from Trade', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} prices={{}} />);
-    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'Kraken' } });
+    selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Kraken');
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Compra' }));

@@ -66,7 +66,7 @@ describe('WalletTab', () => {
 
   it('groups by platform when groupMode is "platform"', () => {
     const opsForPlatform = [
-      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platform: 'Binance' },
+      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platformId: 'binance', platformName: 'Binance' },
     ];
     renderWithLocale(<WalletTab {...baseProps} ops={opsForPlatform} assets={[asset]} groupMode="platform" />);
     expect(screen.getByText('Binance')).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe('WalletTab', () => {
 
   it('renders AssetWithPlatform rows when groupMode is "both"', () => {
     const opsForBoth = [
-      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platform: 'Binance' },
+      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platformId: 'binance', platformName: 'Binance' },
     ];
     renderWithLocale(<WalletTab {...baseProps} ops={opsForBoth} assets={[asset]} groupMode="both" />);
     expect(screen.getByText('Binance')).toBeInTheDocument();

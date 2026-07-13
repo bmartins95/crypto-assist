@@ -167,6 +167,7 @@ const zhCN: UIText = {
   common_save: '保存',
   common_cancel: '取消',
   common_delete: '删除',
+  common_clear: '清除',
   common_increase: '增加',
   common_decrease: '减少',
   dashboard_subtitle: '通过 CoinGecko 实时价格 · 以 BRL 显示',

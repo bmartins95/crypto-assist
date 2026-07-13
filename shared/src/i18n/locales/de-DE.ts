@@ -167,6 +167,7 @@ const deDE: UIText = {
   common_save: 'Speichern',
   common_cancel: 'Abbrechen',
   common_delete: 'Löschen',
+  common_clear: 'Leeren',
   common_increase: 'Erhöhen',
   common_decrease: 'Verringern',
   dashboard_subtitle: 'Echtzeitpreise über CoinGecko · Werte in BRL',

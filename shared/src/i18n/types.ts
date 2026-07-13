@@ -179,6 +179,7 @@ export interface UIText {
   common_save: string;
   common_cancel: string;
   common_delete: string;
+  common_clear: string;
   common_increase: string;
   common_decrease: string;
   dashboard_subtitle: string;

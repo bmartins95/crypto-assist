@@ -167,6 +167,7 @@ const jaJP: UIText = {
   common_save: '保存',
   common_cancel: 'キャンセル',
   common_delete: '削除',
+  common_clear: 'クリア',
   common_increase: '増やす',
   common_decrease: '減らす',
   dashboard_subtitle: 'CoinGecko 経由のリアルタイム価格 · BRL建て',

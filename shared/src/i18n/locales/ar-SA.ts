@@ -167,6 +167,7 @@ const arSA: UIText = {
   common_save: 'حفظ',
   common_cancel: 'إلغاء',
   common_delete: 'حذف',
+  common_clear: 'مسح',
   common_increase: 'زيادة',
   common_decrease: 'إنقاص',
   dashboard_subtitle: 'أسعار فورية عبر CoinGecko · القيم بـ BRL',

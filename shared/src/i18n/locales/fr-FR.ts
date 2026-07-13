@@ -167,6 +167,7 @@ const frFR: UIText = {
   common_save: 'Enregistrer',
   common_cancel: 'Annuler',
   common_delete: 'Supprimer',
+  common_clear: 'Effacer',
   common_increase: 'Augmenter',
   common_decrease: 'Diminuer',
   dashboard_subtitle: 'Prix en temps réel via CoinGecko · Valeurs en BRL',
