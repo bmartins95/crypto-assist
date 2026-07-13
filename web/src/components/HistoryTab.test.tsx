@@ -16,6 +16,7 @@ vi.mock('@/lib/api/client', () => ({
     searchCoins: vi.fn(async () => []),
     getPrices: vi.fn(async () => ({})),
     getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+    getPlatformExchanges: vi.fn(async () => ({ exchanges: [{ id: 'binance', name: 'Binance', kind: 'exchange' }], updatedAt: '2026-01-01T00:00:00Z' })),
   },
 }));
 
@@ -51,7 +52,8 @@ const existingOp: Op = {
   price: 200000,
   fee: 5,
   total: 100005,
-  platform: 'Binance',
+  platformId: 'binance',
+  platformName: 'Binance',
 };
 
 const STORAGE_KEY = 'crypto-assist:locale';
@@ -82,6 +84,25 @@ describe('HistoryTab', () => {
     const tag = document.querySelector('.tbl tbody .tag');
     expect(tag).toHaveTextContent('Compra');
     expect(document.querySelector('.drawer')).not.toHaveClass('open');
+  });
+
+  it('shows a logo next to a catalog-matched platform', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    await waitFor(() => expect(screen.queryByText('Personalizada')).not.toBeInTheDocument());
+    expect(document.querySelector('.tbl tbody .plogo')).toBeInTheDocument();
+  });
+
+  it('tags a custom (non-catalog) platform and shows an initials avatar', () => {
+    const customOp: Op = { ...existingOp, id: 'op-custom', platformId: 'custom:sodex', platformName: 'Sodex' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[customOp]} />);
+    expect(screen.getByText('Sodex')).toBeInTheDocument();
+    expect(screen.getByText('Personalizada')).toBeInTheDocument();
+  });
+
+  it('shows the empty-state dash for an operation with no platform', () => {
+    const noPlatformOp: Op = { ...existingOp, id: 'op-none', platformId: undefined, platformName: undefined };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[noPlatformOp]} />);
+    expect(document.querySelector('.tbl tbody .plat')).not.toBeInTheDocument();
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {

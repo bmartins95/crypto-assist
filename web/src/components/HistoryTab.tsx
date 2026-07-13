@@ -8,6 +8,8 @@ import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
+import PlatformChip from '@/components/platform/PlatformChip';
+import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
   ops: Op[];
@@ -26,6 +28,7 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
+  const { resolveOpPlatform } = usePlatformCatalog();
 
   const openForNew = () => { setEditingOp(undefined); setDrawerOpen(true); };
   const openForEdit = (o: Op) => { setEditingOp(o); setDrawerOpen(true); };
@@ -67,7 +70,9 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
               </tr>
             </thead>
             <tbody>
-              {ops.map(o => (
+              {ops.map(o => {
+                const platform = resolveOpPlatform(o.platformId, o.platformName);
+                return (
                 <tr key={o.id}>
                   <td style={{ color: 'var(--s-text-dim)' }}>{fmtDate(o.date, locale)}</td>
                   <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
@@ -76,7 +81,7 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
                   <td className="num">{mask(fmtOp(o.price, o))}</td>
                   <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>
                   <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmtOp(o.fee, o)) : '—'}</td>
-                  <td style={{ color: 'var(--s-text-dim)' }}>{o.platform || '—'}</td>
+                  <td>{platform ? <PlatformChip platform={platform} showCustomTag /> : <span style={{ color: 'var(--s-text-dim)' }}>—</span>}</td>
                   <td className="num">
                     <span className="op-actions">
                       <button className="icon-btn" onClick={() => openForEdit(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>
@@ -84,7 +89,8 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

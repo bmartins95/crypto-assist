@@ -105,11 +105,11 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 ### Tests for User Story 2
 
-- [ ] T041 [P] [US2] Update `web/src/components/HistoryTab.test.tsx` — a row with a catalog platform shows its logo; a row with a custom platform shows an initials avatar and the `personalizada` tag; a row with no platform shows the existing empty-state text
+- [X] T041 [P] [US2] Update `web/src/components/HistoryTab.test.tsx` — a row with a catalog platform shows its logo; a row with a custom platform shows an initials avatar and the `personalizada` tag; a row with no platform shows the existing empty-state text
 
 ### Implementation for User Story 2
 
-- [ ] T042 [US2] `web/src/components/HistoryTab.tsx` — replace the plain-text Platform cell (`{o.platform || '—'}`) with `<PlatformChip platform={...} showCustomTag />`, resolved via `usePlatformCatalog`'s `byId` map plus the op's own `platformId`/`platformName` for custom entries (depends on T026, T027)
+- [X] T042 [US2] `web/src/components/HistoryTab.tsx` — replace the plain-text Platform cell (`{o.platform || '—'}`) with `<PlatformChip platform={...} showCustomTag />`, resolved via `usePlatformCatalog`'s `byId` map plus the op's own `platformId`/`platformName` for custom entries (depends on T026, T027)
 
 **Checkpoint**: History shows a recognizable logo/avatar for every operation's platform, custom platforms visibly tagged.
 
