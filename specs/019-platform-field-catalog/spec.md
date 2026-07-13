@@ -36,19 +36,21 @@ When registering a buy, sell, or trade operation, a user searches for the exchan
 
 ---
 
-### User Story 2 - Recognize where each operation happened at a glance in History (Priority: P1)
+### User Story 2 - Recognize where each operation happened in History (Priority: P1)
 
-Looking at the operations table, a user recognizes the platform of each row by its logo instantly, without reading the text — the way coin logos already let them recognize assets at a glance.
+Looking at the operations table, a user sees each row's actual platform name — resolved from the platform's stored identity, not a loose, possibly-stale free-text string.
 
-**Why this priority**: History is the highest-traffic read view for platform data (every operation ever recorded lives here) and today shows only plain gray text with an em-dash fallback for missing values — the least informative of the three affected views.
+**Why this priority**: History is the highest-traffic read view for platform data (every operation ever recorded lives here) and today shows only plain gray text with an em-dash fallback for missing values.
 
-**Independent Test**: Can be tested by opening the History view with a mix of catalog-matched and custom platforms in past operations and confirming every row shows a logo (or initials-avatar fallback) next to the platform name, with custom platforms visually tagged.
+**Independent Test**: Can be tested by opening the History view with a mix of catalog-matched and custom platforms in past operations and confirming every row shows the correct resolved platform name.
 
 **Acceptance Scenarios**:
 
-1. **Given** the History table has rows with platforms that exist in the catalog, **When** the table renders, **Then** each row's Platform column shows that platform's logo next to its name.
-2. **Given** a row's platform is a custom (non-catalog) value, **When** the table renders, **Then** the row shows a deterministic initials avatar for that platform and a visual "custom" tag distinguishing it from catalog platforms.
-3. **Given** a platform's logo image fails to load, **When** the table renders, **Then** the row silently falls back to the initials avatar — no broken-image icon is ever shown.
+1. **Given** the History table has rows with platforms that exist in the catalog, **When** the table renders, **Then** each row's Platform column shows that platform's current name.
+2. **Given** a row's platform is a custom (non-catalog) value, **When** the table renders, **Then** the row shows that platform's name as plain text, indistinguishable in styling from a catalog platform.
+3. **Given** an operation has no platform set, **When** the table renders, **Then** the row shows the existing em-dash fallback.
+
+**Correction learned during implementation**: the original design reference (`docs/design/platform-field-redesign.html`) showed a per-row logo and a "personalizada" tag in History, matching Wallet's treatment. Per direct user feedback after this shipped, History was simplified to name-only text — no logo, no custom tag — keeping the richer visual treatment (logo, category badge, custom tag) exclusive to the Wallet grouped views (User Story 3), where a platform is the primary grouping axis rather than one column among many in a dense table.
 
 ---
 
@@ -85,7 +87,7 @@ In the Wallet view's "By platform" and "Asset + platform" groupings, a user sees
 - **FR-002**: The system MUST let a user select a platform not present in the catalog and register it as a "custom" platform, generating a deterministic, name-based fallback visual identity (same name always produces the same identity) with no manual configuration required. Custom platforms MUST be scoped to the user who created them — invisible to, and never matched against, any other user's operations or picker results, even for an identical name.
 - **FR-003**: The system MUST support full keyboard operation of the platform picker: arrow keys to move the highlight (including through the custom-platform option), Enter to select, Escape to close without changing the value.
 - **FR-004**: The system MUST persist a selected platform's identity on the operation record (not just its display text), so re-opening an operation for editing shows the same platform pre-selected.
-- **FR-005**: The system MUST display each operation's platform with its logo (or initials-avatar fallback) in the History table, and MUST visually distinguish custom (non-catalog) platforms from catalog ones.
+- **FR-005**: The system MUST display each operation's resolved platform name (not a raw, potentially stale free-text string) in the History table. Per implementation-time correction, History renders name-only text — no logo, no custom/catalog visual distinction — that richer treatment is scoped to the Wallet grouped views (FR-006).
 - **FR-006**: The system MUST display each platform's logo, category, and (for grouped views) aggregate total value and return in the Wallet view's "By platform" and "Asset + platform" groupings.
 - **FR-007**: The system MUST fall back to a generated initials avatar whenever a platform has no logo image or its logo fails to load, and MUST never show a broken-image indicator.
 - **FR-008**: The system MUST source exchange platforms from an external, regularly refreshed catalog and MUST NOT expose that external source's raw image URLs directly to end-user browsers (logos are served/cached through the system's own backend).
@@ -107,7 +109,7 @@ In the Wallet view's "By platform" and "Asset + platform" groupings, a user sees
 ### Measurable Outcomes
 
 - **SC-001**: A user can find and select a well-known exchange, wallet, or DeFi platform from the picker in 3 keystrokes or fewer for common platforms (e.g., typing "bin" surfaces Binance).
-- **SC-002**: 100% of operations — both newly created and pre-existing/migrated — render a recognizable platform identity (logo or initials avatar) in every view that shows platform, with zero blank or broken-image states.
+- **SC-002**: 100% of operations — both newly created and pre-existing/migrated — render a recognizable platform identity (logo or initials avatar in the Wallet views; resolved name in History) in every view that shows platform, with zero blank or broken-image states.
 - **SC-003**: A user unfamiliar with the product can distinguish a coin logo from a platform logo without being told, on first look (verified via the distinct shape convention).
 - **SC-004**: Registering an operation with a platform not in the catalog takes no more steps than registering one that is in the catalog (both complete in one picker interaction).
 - **SC-005**: In the Wallet view's grouped modes, a user can read each platform group's total value and return without performing any mental arithmetic across rows.

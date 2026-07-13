@@ -8,7 +8,6 @@ import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
-import PlatformChip from '@/components/platform/PlatformChip';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
@@ -81,7 +80,7 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
                   <td className="num">{mask(fmtOp(o.price, o))}</td>
                   <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>
                   <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmtOp(o.fee, o)) : '—'}</td>
-                  <td>{platform ? <PlatformChip platform={platform} showCustomTag /> : <span style={{ color: 'var(--s-text-dim)' }}>—</span>}</td>
+                  <td style={{ color: 'var(--s-text-dim)' }}>{platform ? platform.name : '—'}</td>
                   <td className="num">
                     <span className="op-actions">
                       <button className="icon-btn" onClick={() => openForEdit(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>

@@ -101,17 +101,19 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 **Goal**: The History table's Platform column shows each operation's real logo (or initials avatar), with custom platforms visually tagged.
 
-**Independent Test**: Open History with a mix of catalog and custom platforms among existing operations and confirm every row shows a logo/avatar, never plain text or a broken image.
+**Independent Test**: Open History with a mix of catalog and custom platforms among existing operations and confirm every row shows the correct resolved platform name, never raw/stale free text.
+
+**Correction learned during implementation**: originally implemented with `PlatformChip` (logo + `personalizada` tag), matching the design reference. Per direct user feedback after shipping, simplified to name-only text — no logo, no tag — keeping that richer treatment exclusive to Wallet (US3).
 
 ### Tests for User Story 2
 
-- [X] T041 [P] [US2] Update `web/src/components/HistoryTab.test.tsx` — a row with a catalog platform shows its logo; a row with a custom platform shows an initials avatar and the `personalizada` tag; a row with no platform shows the existing empty-state text
+- [X] T041 [P] [US2] Update `web/src/components/HistoryTab.test.tsx` — a row with a catalog platform shows its resolved name as plain text (no logo, no tag); a row with a custom platform shows its name the same way; a row with no platform shows the existing empty-state dash
 
 ### Implementation for User Story 2
 
-- [X] T042 [US2] `web/src/components/HistoryTab.tsx` — replace the plain-text Platform cell (`{o.platform || '—'}`) with `<PlatformChip platform={...} showCustomTag />`, resolved via `usePlatformCatalog`'s `byId` map plus the op's own `platformId`/`platformName` for custom entries (depends on T026, T027)
+- [X] T042 [US2] `web/src/components/HistoryTab.tsx` — replace the plain-text Platform cell (`{o.platform || '—'}`) with the resolved platform's name (`resolveOpPlatform(o.platformId, o.platformName)?.name`, via `usePlatformCatalog`) as plain text — no `PlatformChip`, no logo, no custom tag (depends on T027)
 
-**Checkpoint**: History shows a recognizable logo/avatar for every operation's platform, custom platforms visibly tagged.
+**Checkpoint**: History shows the correct resolved platform name for every operation.
 
 ---
 

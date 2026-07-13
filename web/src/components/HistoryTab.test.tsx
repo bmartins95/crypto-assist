@@ -86,23 +86,25 @@ describe('HistoryTab', () => {
     expect(document.querySelector('.drawer')).not.toHaveClass('open');
   });
 
-  it('shows a logo next to a catalog-matched platform', async () => {
+  it('shows a catalog-matched platform as plain text, with no logo or tag', async () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
-    await waitFor(() => expect(screen.queryByText('Personalizada')).not.toBeInTheDocument());
-    expect(document.querySelector('.tbl tbody .plogo')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Binance')).toBeInTheDocument());
+    expect(document.querySelector('.tbl tbody .plogo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Personalizada')).not.toBeInTheDocument();
   });
 
-  it('tags a custom (non-catalog) platform and shows an initials avatar', () => {
+  it('shows a custom (non-catalog) platform as plain text too, with no tag', () => {
     const customOp: Op = { ...existingOp, id: 'op-custom', platformId: 'custom:sodex', platformName: 'Sodex' };
     renderWithLocale(<HistoryTab {...baseProps} ops={[customOp]} />);
     expect(screen.getByText('Sodex')).toBeInTheDocument();
-    expect(screen.getByText('Personalizada')).toBeInTheDocument();
+    expect(screen.queryByText('Personalizada')).not.toBeInTheDocument();
   });
 
   it('shows the empty-state dash for an operation with no platform', () => {
     const noPlatformOp: Op = { ...existingOp, id: 'op-none', platformId: undefined, platformName: undefined };
     renderWithLocale(<HistoryTab {...baseProps} ops={[noPlatformOp]} />);
-    expect(document.querySelector('.tbl tbody .plat')).not.toBeInTheDocument();
+    const cells = document.querySelectorAll('.tbl tbody td');
+    expect(cells[7]).toHaveTextContent('—');
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {
