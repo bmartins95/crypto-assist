@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import WalletTab from './WalletTab';
 import type { Asset } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+
+vi.mock('@/lib/api/client', () => ({
+  api: {
+    getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+    getPlatformExchanges: vi.fn(async () => ({ exchanges: [{ id: 'binance', name: 'Binance', kind: 'exchange' }], updatedAt: '2026-01-01T00:00:00Z' })),
+  },
+}));
 
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
@@ -79,6 +86,32 @@ describe('WalletTab', () => {
     renderWithLocale(<WalletTab {...baseProps} ops={opsForBoth} assets={[asset]} groupMode="both" />);
     expect(screen.getByText('Binance')).toBeInTheDocument();
     expect(screen.getByText('Bitcoin')).toBeInTheDocument();
+  });
+
+  it('renders a PlatformChip (logo + bold name) as the first column when grouped "by platform"', async () => {
+    const opsForPlatform = [
+      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platformId: 'binance', platformName: 'Binance' },
+    ];
+    renderWithLocale(<WalletTab {...baseProps} ops={opsForPlatform} assets={[asset]} groupMode="platform" />);
+    await waitFor(() => expect(document.querySelector('.tbl tbody .plogo-md')).toBeInTheDocument());
+    expect(screen.getByText('Binance')).toHaveStyle({ fontWeight: 600 });
+  });
+
+  it('renders the real logo, category badge, and right-aligned total/return in "Asset + platform" group headers', async () => {
+    const opsForBoth = [
+      { id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 100, fee: 0, total: 100, platformId: 'binance', platformName: 'Binance' },
+    ];
+    renderWithLocale(<WalletTab {...baseProps} ops={opsForBoth} assets={[asset]} prices={{ bitcoin: 150 }} groupMode="both" />);
+    await waitFor(() => expect(screen.getByText('Corretora')).toBeInTheDocument());
+    expect(document.querySelector('.grp-hd .plogo-md')).toBeInTheDocument();
+    expect(document.querySelectorAll('.ti-building-bank')).toHaveLength(0);
+    const gsum = document.querySelector('.grp-hd .gsum');
+    expect(gsum).toHaveTextContent('+50.00%');
+  });
+
+  it('omits an empty platform group from "Asset + platform" (existing behavior preserved)', () => {
+    renderWithLocale(<WalletTab {...baseProps} ops={[]} assets={[asset]} groupMode="both" />);
+    expect(document.querySelectorAll('.grp-hd')).toHaveLength(0);
   });
 
   describe('US1 — metric cards', () => {

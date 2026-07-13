@@ -137,6 +137,11 @@ body {
 
 .topbar-title { font-size: 13px; font-weight: 500; color: var(--text2); }
 
+.grp-hd { display: flex; align-items: center; gap: 10px; margin: 22px 0 9px; padding: 0 2px; }
+.grp-hd:first-child { margin-top: 0; }
+.grp-hd .gname { font-size: 13.5px; font-weight: 600; }
+.grp-hd .gsum { margin-left: auto; font-size: 12px; color: var(--s-text-dim); font-variant-numeric: tabular-nums; }
+
 .chead {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 20px; gap: 16px; flex-wrap: wrap;

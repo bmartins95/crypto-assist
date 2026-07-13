@@ -123,13 +123,13 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 
 ### Tests for User Story 3
 
-- [ ] T043 [P] [US3] Update `web/src/components/WalletTab.test.tsx` — "By platform" row renders a `PlatformChip` (size `md`, bold) instead of plain text; "Asset + platform" group header renders `PlatformLogo` + category badge + right-aligned total/return instead of the `ti-building-bank` icon; an empty platform group is still omitted (existing behavior preserved)
+- [X] T043 [P] [US3] Update `web/src/components/WalletTab.test.tsx` — "By platform" row renders a `PlatformChip` (size `md`, bold) instead of plain text; "Asset + platform" group header renders `PlatformLogo` + category badge + right-aligned total/return instead of the `ti-building-bank` icon; an empty platform group is still omitted (existing behavior preserved)
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />` (depends on T026, T027)
-- [ ] T045 [US3] `web/src/components/WalletTab.tsx` — "Ativo + plataforma" group header → replace the fixed `ti-building-bank` icon with `<PlatformLogo size="md" />`, add the category badge, move the group total + return to the right of the header
-- [ ] T046 [US3] `web/src/app/globals.css` — add/update `.grp-hd`, `.grp-hd .gname`, `.grp-hd .gsum` per the design reference
+- [X] T044 [US3] `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />` (depends on T026, T027)
+- [X] T045 [US3] `web/src/components/WalletTab.tsx` — "Ativo + plataforma" group header → replace the fixed `ti-building-bank` icon with `<PlatformLogo size="md" />`, add the category badge, move the group total + return to the right of the header
+- [X] T046 [US3] `web/src/app/globals.css` — add/update `.grp-hd`, `.grp-hd .gname`, `.grp-hd .gsum` per the design reference
 
 **Checkpoint**: Both Wallet grouped views show real platform identity and, for grouped headers, an at-a-glance total.
 
