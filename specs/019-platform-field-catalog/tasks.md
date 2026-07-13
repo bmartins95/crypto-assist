@@ -155,7 +155,7 @@ description: "Task list for Platform Field Catalog (specs/019-platform-field-cat
 - [X] T053 [P] `cd backend && pytest --cov=app --cov-report=term-missing` — confirm ≥90% coverage on `platforms.py` (both routers), `platform_resolve.py`, and the changed lines of `ops.py`/`import_data.py`
 - [X] T054 [P] `cd web && npm run coverage` — confirm ≥90% coverage on the new `platform/` components and the changed lines of `OpDrawer.tsx`/`HistoryTab.tsx`/`WalletTab.tsx`
 - [ ] T055 Run `quickstart.md` end-to-end manually against local dev (all 8 sections)
-- [ ] T056 Sanity-check `GET /api/platforms/logo/{id}` is reachable at the same origin as the rest of the deployed API once available (no CSP change expected, since it's same-origin by construction — confirms research.md §3's proxy approach actually avoided the CSP concern it was built to avoid)
+- [ ] T056 Once deployed, verify `GET /api/platforms/logo/{id}` loads in a real browser: it is same-origin with the rest of the backend API (not the web app's own CloudFront origin — the web app already calls the backend cross-origin for every other request, allow-listed via CSP `connect-src`), and the browser never issues a request to `api.coingecko.com` for a platform logo. `img-src`/`default-src` may need the backend host added to CSP if it isn't already implicitly covered — check with `curl -sSI <dev-url> | grep -i content-security-policy` per `web/AGENTS.md`'s guidance before assuming it works.
 
 ---
 
