@@ -21,7 +21,38 @@ import AppLayout, { usePortfolio } from './components/AppLayout';
 import WalletTab from './components/WalletTab';
 import ProfitTab from './components/ProfitTab';
 import HistoryTab from './components/HistoryTab';
+import WalletSkeleton from './components/skeleton/WalletSkeleton';
+import ProfitSkeleton from './components/skeleton/ProfitSkeleton';
+import HistorySkeleton from './components/skeleton/HistorySkeleton';
+import { useBootstrapStatus } from './auth/BootstrapStatusContext';
+import { useDelayedLoading } from './hooks/useDelayedLoading';
+import { useElapsedOver } from './hooks/useElapsedOver';
 import { useLocale } from './context/LocaleContext';
+
+const COLD_START_MS = 2500;
+
+// Shared by every content route: skeleton while loading (after a short delay, so
+// fast responses show nothing). Past COLD_START_MS the wait is almost certainly a
+// cold backend, so a compact status pill overlays the skeleton — the skeleton
+// itself never swaps away, since replacing it with the login-branded loader read
+// as the login page having taken over the wallet.
+function useContentLoading() {
+  const status = useBootstrapStatus();
+  const isLoading = status === 'pending';
+  const showSkeleton = useDelayedLoading(isLoading);
+  const isCold = useElapsedOver(isLoading, COLD_START_MS);
+  return { showSkeleton, isCold };
+}
+
+function WarmingNotice() {
+  const { t } = useLocale();
+  return (
+    <div className="warming-notice" role="status">
+      <span className="spin-sm" aria-hidden="true" />
+      {t.auth_bootstrap_title}
+    </div>
+  );
+}
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
@@ -90,8 +121,17 @@ const appLayoutRoute = createRoute({
 
 function WalletRoute() {
   const p = usePortfolio();
+  const { showSkeleton, isCold } = useContentLoading();
+  if (showSkeleton) {
+    return (
+      <div className="app content-loading-host">
+        {isCold && <WarmingNotice />}
+        <WalletSkeleton />
+      </div>
+    );
+  }
   return (
-    <div className="app">
+    <div className="app content-enter">
       <WalletTab
         ops={p.usdOps} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
         groupMode={p.groupMode} onGroupMode={p.setGroupMode}
@@ -104,8 +144,17 @@ function WalletRoute() {
 
 function ProfitRoute() {
   const p = usePortfolio();
+  const { showSkeleton, isCold } = useContentLoading();
+  if (showSkeleton) {
+    return (
+      <div className="app content-loading-host">
+        {isCold && <WarmingNotice />}
+        <ProfitSkeleton />
+      </div>
+    );
+  }
   return (
-    <div className="app">
+    <div className="app content-enter">
       <ProfitTab
         ops={p.usdOps} prices={p.prices}
         activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
@@ -117,8 +166,17 @@ function ProfitRoute() {
 
 function HistoryRoute() {
   const p = usePortfolio();
+  const { showSkeleton, isCold } = useContentLoading();
+  if (showSkeleton) {
+    return (
+      <div className="app content-loading-host">
+        {isCold && <WarmingNotice />}
+        <HistorySkeleton />
+      </div>
+    );
+  }
   return (
-    <div className="app">
+    <div className="app content-enter">
       <HistoryTab
         ops={p.ops} assets={p.assets} prices={p.prices}
         onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp}

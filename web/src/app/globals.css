@@ -911,3 +911,39 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .auth-features { grid-template-columns: 1fr; }
   .auth-topbar { margin-bottom: 40px; }
 }
+
+/* ── Skeleton loading (refresh) ──────────────────────────────── */
+.sk {
+  background: var(--s-surface-2);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.sk::after {
+  content: '';
+  position: absolute; inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .05), transparent);
+  animation: sk-shimmer 1.4s infinite;
+}
+@keyframes sk-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .sk::after { animation: none; }
+}
+
+.content-loading-host { position: relative; }
+.warming-notice {
+  position: absolute; top: 2px; left: 50%; transform: translateX(-50%); z-index: 50;
+  display: flex; align-items: center; gap: 9px; white-space: nowrap;
+  background: var(--s-surface); border: 1px solid var(--s-border); border-radius: 999px;
+  padding: 8px 16px; font-size: 12.5px; color: var(--s-text-muted);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+.warming-notice .spin-sm {
+  width: 14px; height: 14px; border: 2px solid var(--s-border); border-top-color: var(--s-accent);
+  border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+}
+@media (prefers-reduced-motion: reduce) { .warming-notice .spin-sm { animation: none; } }
+
+.content-enter { animation: content-fade-in .22s ease; }
+@keyframes content-fade-in { from { opacity: 0; } to { opacity: 1; } }
