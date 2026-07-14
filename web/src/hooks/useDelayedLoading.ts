@@ -29,7 +29,6 @@ export function useDelayedLoading(isLoading: boolean, delay = 150, minDuration =
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, delay, minDuration]);
 
   return show;
