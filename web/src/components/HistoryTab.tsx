@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Op, NewOp, Asset, Prices } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { Op, NewOp, Asset, AvatarCache, Prices } from '@/lib/types';
 import { fmtQty, fmtDate } from '@/lib/format';
+import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -13,13 +14,14 @@ import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 interface Props {
   ops: Op[];
   assets: Asset[];
+  avatarCache: AvatarCache;
   prices: Prices;
   onAddOp: (op: NewOp) => Promise<void>;
   onEditOp: (id: string, op: NewOp) => Promise<void>;
   onRemoveOp: (id: string) => void;
 }
 
-export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onRemoveOp }: Props) {
+export default function HistoryTab({ ops, assets, avatarCache, prices, onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, fmtFromCurrency } = useCurrency();
@@ -28,6 +30,8 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
   const { resolveOpPlatform } = usePlatformCatalog();
+
+  const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops), [ops]);
 
   const openForNew = () => { setEditingOp(undefined); setDrawerOpen(true); };
   const openForEdit = (o: Op) => { setEditingOp(o); setDrawerOpen(true); };
@@ -102,6 +106,8 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
         onSubmitTrade={handleSubmitTrade}
         editingOp={editingOp}
         assets={assets}
+        platformAssets={platformAssets}
+        avatarCache={avatarCache}
         prices={prices}
       />
     </div>

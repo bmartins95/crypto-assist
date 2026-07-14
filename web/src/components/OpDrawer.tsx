@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Op, NewOp, Asset, Prices, Platform } from '@/lib/types';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Op, NewOp, Asset, AssetWithPlatform, AvatarCache, Prices, Platform } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
+import { fmtQty } from '@/lib/format';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
 import PlatformSelect from '@/components/platform/PlatformSelect';
+import DatePicker from '@/components/DatePicker/DatePicker';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 import CoinLogo from '@/components/CoinLogo';
 
@@ -17,6 +19,8 @@ interface Props {
   onSubmitTrade: (sell: NewOp, buy: NewOp) => void | Promise<void>;
   editingOp?: Op;
   assets: Asset[];
+  platformAssets: AssetWithPlatform[];
+  avatarCache: AvatarCache;
   prices: Prices;
 }
 
@@ -26,6 +30,7 @@ type Phase = 'idle' | 'loading' | 'done';
 type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
+const DEBOUNCE_MS = 300;
 
 // Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
 // the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
@@ -50,7 +55,7 @@ function filterSeed(list: CoinSearchResult[], query: string): CoinSearchResult[]
 
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
-function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected }: {
+function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected, disabled, groupLabel, qtyLabel }: {
   id: string; placeholder: string;
   onSelect: (c: CoinSelection) => void;
   onClear: () => void;
@@ -60,11 +65,15 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   restrictTo?: CoinSearchResult[];
   emptyLabel?: string;
   selected?: CoinSelection | null;
+  disabled?: boolean;
+  groupLabel?: string;
+  qtyLabel?: (coinId: string) => string | undefined;
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const searchSeq = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (!open) return;
@@ -80,6 +89,8 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
     return () => document.removeEventListener('mousedown', onDocPointerDown);
   }, [open]);
 
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
   const runSearch = (q: string) => {
     const seq = ++searchSeq.current;
     const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
@@ -88,15 +99,19 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
       .catch(() => applyIfCurrent([]));
   };
 
+  // Debounced so a fast typist doesn't fire one request per keystroke — only
+  // once input pauses for DEBOUNCE_MS. Any pending search is cancelled outright
+  // when the query is cleared/restricted, not just left to resolve and get
+  // discarded, so a stale request never reaches the network at all.
   const handleInput = (v: string) => {
     onChange(v);
     setOpen(true);
     const q = v.trim();
+    clearTimeout(debounceRef.current);
     if (restrictTo) { setResults(q ? filterSeed(restrictTo, q) : restrictTo); return; }
     if (q.length === 0) { setResults(seed ?? []); return; }
-    if (q.length < 2) { setResults([]); return; }
     setResults([]);
-    runSearch(q);
+    debounceRef.current = setTimeout(() => runSearch(q), DEBOUNCE_MS);
   };
 
   const handleFocus = () => {
@@ -120,20 +135,25 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
       {showInlineLogo && selected && (
         <span className="sel-logo"><CoinLogo image={selected.image} symbol={selected.symbol} size="sm" /></span>
       )}
-      <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off"
+      <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off" disabled={disabled}
         className={`inp${showInlineLogo ? ' withcoin' : ''}`}
         value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
       {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
         <div className="search-dropdown">
           {results.length === 0 && emptyLabel ? (
             <div className="search-item" style={{ color: 'var(--text3)', cursor: 'default' }}>{emptyLabel}</div>
-          ) : results.map(c => (
-            <div key={c.id} className="search-item" onClick={() => select(c)}>
-              <CoinLogo image={c.image} symbol={c.symbol} size="sm" />
-              <span className="meta">{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
-              <span className="search-item-rank">{c.market_cap_rank ? '#' + c.market_cap_rank : ''}</span>
-            </div>
-          ))}
+          ) : (
+            <>
+              {groupLabel && <div className="dd-grp">{groupLabel}</div>}
+              {results.map(c => (
+                <div key={c.id} className="search-item" onClick={() => select(c)}>
+                  <CoinLogo image={c.image} symbol={c.symbol} size="sm" />
+                  <span className="meta">{c.name} <span style={{ color: 'var(--text2)', fontSize: 12 }}>{c.symbol.toUpperCase()}</span></span>
+                  <span className="search-item-rank">{qtyLabel?.(c.id) ?? (c.market_cap_rank ? '#' + c.market_cap_rank : '')}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -152,8 +172,8 @@ function CheckIcon() {
 const today = () => new Date().toISOString().slice(0, 10);
 const DONE_DISPLAY_MS = 1300;
 
-export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, prices }: Props) {
-  const { t } = useLocale();
+export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editingOp, assets, platformAssets, avatarCache, prices }: Props) {
+  const { t, locale } = useLocale();
   const { currency, rates } = useCurrency();
   const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
@@ -171,6 +191,8 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
 
+  const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
+  const [destPlatform, setDestPlatform] = useState<Platform | null>(null);
   const [fromCoinId, setFromCoinId] = useState('');
   const [fromCoinText, setFromCoinText] = useState('');
   const [fromQty, setFromQty] = useState('');
@@ -192,9 +214,35 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   };
 
   const resetTrade = () => {
+    setOriginPlatform(null); setDestPlatform(null);
     setFromCoinId(''); setFromCoinText(''); setFromQty(''); setToCoin(null); setToCoinText('');
     setToQty(''); setTotal(''); setTradeFee(''); setTotalHint('');
   };
+
+  const handleOriginPlatformChange = (p: Platform | null) => {
+    setOriginPlatform(p);
+    setFromCoinId(''); setFromCoinText(''); setFromQty('');
+  };
+
+  const originHoldings = useMemo(
+    () => originPlatform ? platformAssets.filter(a => a.platformId === originPlatform.id) : [],
+    [platformAssets, originPlatform]
+  );
+  // Platforms you can actually sell from — anything with no current balance
+  // anywhere (including the legacy blank platformId from pre-catalog ops) isn't
+  // a valid "from" choice.
+  const heldPlatforms = useMemo(() => {
+    const seen = new Map<string, Platform>();
+    for (const a of platformAssets) {
+      if (!a.platformId || seen.has(a.platformId)) continue;
+      const p = resolveOpPlatform(a.platformId, a.platformName);
+      if (p) seen.set(a.platformId, p);
+    }
+    return [...seen.values()];
+  }, [platformAssets, resolveOpPlatform]);
+  const fromHolding = originHoldings.find(a => a.coinId === fromCoinId);
+  const fromOverBalance = !!fromHolding && (parseFloat(fromQty) || 0) > fromHolding.qty;
+  const showTransferWarning = !!originPlatform && !!destPlatform && destPlatform.id !== originPlatform.id;
 
   useEffect(() => {
     if (open) {
@@ -350,25 +398,26 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
     const toQtyNum = parseFloat(toQty) || 0;
     const totalNum = parseFloat(total) || 0;
     const tradeFeeNum = parseFloat(tradeFee) || 0;
-    if (!fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || totalNum <= 0) {
+    if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || totalNum <= 0) {
       setError(t.history_form_validationRequired);
       return;
     }
-    if (fromCoinId === toCoin.coinId) {
+    const effectiveDest = destPlatform ?? originPlatform;
+    if (fromCoinId === toCoin.coinId && effectiveDest.id === originPlatform.id) {
       setError(t.trade_form_sameAsset);
       return;
     }
-    const fromAsset = assets.find(a => a.coinId === fromCoinId);
+    const fromAsset = originHoldings.find(a => a.coinId === fromCoinId);
     const sellOp: NewOp = {
       date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
       type: 'Sell', qty: fromQtyNum, price: totalNum / fromQtyNum, fee: 0, total: totalNum,
-      platformId: platform?.id, platformName: platform?.name,
+      platformId: originPlatform.id, platformName: originPlatform.name,
       currency,
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
       type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
-      total: totalNum + tradeFeeNum, platformId: platform?.id, platformName: platform?.name,
+      total: totalNum + tradeFeeNum, platformId: effectiveDest.id, platformName: effectiveDest.name,
       currency,
     };
     setPhase('loading');
@@ -382,7 +431,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const titleId = 'drawer-title';
   const busy = phase !== 'idle';
-  const assetSeed: CoinSearchResult[] = assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }));
+  const assetSeed: CoinSearchResult[] = assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }));
   const priceBadge = editingOp || priceState === 'idle'
     ? undefined
     : priceState === 'fetching'
@@ -420,7 +469,7 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
               <div className="drawer-grid">
                 <div className="fld">
                   <label htmlFor="drawer-date">{t.history_form_date}</label>
-                  <input ref={firstFieldRef} id="drawer-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+                  <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
                 </div>
                 <div className="fld">
                   <label htmlFor="drawer-platform">{t.history_form_platform}</label>
@@ -448,39 +497,58 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
             </>
           ) : (
             <>
-              <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-tr-date">{t.history_form_date}</label>
-                  <input ref={firstFieldRef} id="drawer-tr-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
-                </div>
-                <div className="fld">
-                  <label htmlFor="drawer-tr-platform">{t.history_form_platform}</label>
-                  <PlatformSelect id="drawer-tr-platform" value={platform} onChange={setPlatform} />
-                </div>
+              <div className="fld tr-date">
+                <label htmlFor="drawer-tr-date">{t.history_form_date}</label>
+                <DatePicker id="drawer-tr-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
               </div>
 
               <div className="trade-block out">
                 <div className="trade-hd"><span className="dot" />{t.trade_form_from}</div>
+                <div className="fld">
+                  <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
+                  <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
+                    options={heldPlatforms} />
+                </div>
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
-                    <CoinSearch id="drawer-tr-from" placeholder="ETH, BTC..."
-                      restrictTo={assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name }))}
-                      emptyLabel={t.trade_form_noAssets}
+                    <CoinSearch id="drawer-tr-from"
+                      placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
+                      disabled={!originPlatform}
+                      restrictTo={originHoldings.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }))}
+                      emptyLabel={originPlatform ? t.trade_form_noAssetsOnPlatform.replace('{platform}', originPlatform.name) : undefined}
+                      groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
+                      qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
                       value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
-                      selected={fromCoinId ? { coinId: fromCoinId, symbol: assets.find(a => a.coinId === fromCoinId)?.symbol || '', name: '' } : null}
+                      selected={fromCoinId ? { coinId: fromCoinId, symbol: fromHolding?.symbol || '', name: '' } : null}
                       onClear={() => setFromCoinId('')} />
                   </div>
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
-                    value={fromQty} suffix={assets.find(a => a.coinId === fromCoinId)?.symbol}
-                    onChange={v => { setFromQty(v); syncTradeTotal(fromCoinId, v, toCoin, total); }} />
+                    value={fromQty} suffix={fromHolding?.symbol} error={fromOverBalance}
+                    onChange={v => { setFromQty(v); syncTradeTotal(fromCoinId, v, toCoin, total); }}
+                    hint={fromHolding && (
+                      <span className={`bal-row${fromOverBalance ? ' err' : ''}`}>
+                        <span>{(fromOverBalance ? t.trade_form_balanceExceeded : t.trade_form_balance)
+                          .replace('{qty}', fmtQty(fromHolding.qty, locale)).replace('{symbol}', fromHolding.symbol)}</span>
+                        <button type="button" className="max"
+                          onClick={() => { const q = String(fromHolding.qty); setFromQty(q); syncTradeTotal(fromCoinId, q, toCoin, total); }}>
+                          {t.trade_form_max}
+                        </button>
+                      </span>
+                    )} />
                 </div>
               </div>
 
               <div className="trade-arrow"><span className="badge"><i className="ti ti-arrow-down" /></span></div>
+              {showTransferWarning && <div className="xfer-warn"><i className="ti ti-arrows-exchange" /> {t.trade_form_transferWarning}</div>}
 
               <div className="trade-block in">
                 <div className="trade-hd"><span className="dot" />{t.trade_form_to}</div>
+                <div className="fld">
+                  <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
+                  <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
+                  <span className="fhint">{t.trade_form_platformToHint}</span>
+                </div>
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>

@@ -9,13 +9,23 @@ interface Props {
   id: string;
   value: Platform | null;
   onChange: (platform: Platform | null) => void;
+  // Restricts the picker to this fixed list (e.g. only platforms the user holds
+  // assets on, for the Trade "from" side) instead of the full catalog — also
+  // disables the "add as custom" row, since a platform outside this list can't
+  // be a valid choice regardless of what the user types.
+  options?: Platform[];
 }
 
-const CATEGORY_ORDER: PlatformKind[] = ['exchange', 'wallet', 'defi'];
+// 'custom' only ever shows up via a restricted `options` list (a held platform
+// the user typed in freehand before it existed in the catalog) — the
+// unrestricted catalog from usePlatformCatalog() never contains one.
+const CATEGORY_ORDER: PlatformKind[] = ['exchange', 'wallet', 'defi', 'custom'];
 
-export default function PlatformSelect({ id, value, onChange }: Props) {
+export default function PlatformSelect({ id, value, onChange, options }: Props) {
   const { t } = useLocale();
-  const { catalog, recent, addRecent } = usePlatformCatalog();
+  const { catalog: fullCatalog, recent: allRecent, addRecent } = usePlatformCatalog();
+  const catalog = options ?? fullCatalog;
+  const recent = options ? allRecent.filter(p => options.some(o => o.id === p.id)) : allRecent;
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
@@ -47,7 +57,7 @@ export default function PlatformSelect({ id, value, onChange }: Props) {
     [catalog, trimmedQuery]
   );
   const exactMatch = filtered.some(p => p.name.toLowerCase() === trimmedQuery.toLowerCase());
-  const showCustomRow = trimmedQuery.length > 0 && !exactMatch;
+  const showCustomRow = !options && trimmedQuery.length > 0 && !exactMatch;
 
   const groups = useMemo(() => {
     const g: { key: string; label: string; items: Platform[] }[] = [];
@@ -152,6 +162,11 @@ export default function PlatformSelect({ id, value, onChange }: Props) {
       )}
       {open && (
         <div className="dd" id={`${id}-listbox`} role="listbox">
+          {options && flatItems.length === 0 && (
+            <div className="search-item" style={{ color: 'var(--text3)', cursor: 'default' }}>
+              {t.trade_form_noAssets}
+            </div>
+          )}
           {groups.map(g => {
             let indexOffset = 0;
             for (const prior of groups) {

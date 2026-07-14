@@ -20,14 +20,15 @@ interface Props {
   step?: number;
   min?: number;
   max?: number;
-  hint?: string;
+  hint?: React.ReactNode;
   badge?: Badge;
+  error?: boolean;
 }
 
 export default function NumericField({
   id, value, onChange, label, placeholder,
   prefix, suffix, readOnly = false,
-  showStepper = false, step = 1, min, max, hint, badge,
+  showStepper = false, step = 1, min, max, hint, badge, error = false,
 }: Props) {
   const { t } = useLocale();
 
@@ -41,7 +42,7 @@ export default function NumericField({
     onChange(String(n));
   };
 
-  const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf', badge && 'has-badge'].filter(Boolean).join(' ');
+  const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf', badge && 'has-badge', error && 'err'].filter(Boolean).join(' ');
 
   return (
     <div className="fld">

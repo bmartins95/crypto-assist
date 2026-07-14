@@ -57,5 +57,12 @@ CREATE TABLE IF NOT EXISTS platform_cache (
     id          text        PRIMARY KEY,
     name        text        NOT NULL,
     logo_url    text,
+    kind        text        NOT NULL DEFAULT 'exchange',
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS coin_search_cache (
+    query       text        PRIMARY KEY,
+    results     jsonb       NOT NULL,
     updated_at  timestamptz NOT NULL DEFAULT now()
 );

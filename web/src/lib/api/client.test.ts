@@ -65,11 +65,11 @@ describe('api.getPlatformExchanges', () => {
     vi.unstubAllGlobals();
   });
 
-  it('prefixes each exchange logoUrl with the backend origin and tags kind as exchange', async () => {
+  it('prefixes each exchange logoUrl with the backend origin, preserving kind', async () => {
     vi.mocked(fetch).mockResolvedValue(mockResponse(200, {
       exchanges: [
-        { id: 'binance', name: 'Binance', logoUrl: '/api/platforms/logo/binance' },
-        { id: 'kraken', name: 'Kraken', logoUrl: null },
+        { id: 'binance', name: 'Binance', logoUrl: '/api/platforms/logo/binance', kind: 'exchange' },
+        { id: 'kraken', name: 'Kraken', logoUrl: null, kind: 'exchange' },
       ],
       updatedAt: '2026-01-01T00:00:00Z',
     }));
@@ -79,5 +79,18 @@ describe('api.getPlatformExchanges', () => {
       { id: 'kraken', name: 'Kraken', kind: 'exchange', logoUrl: undefined },
     ]);
     expect(result.updatedAt).toBe('2026-01-01T00:00:00Z');
+  });
+
+  it('preserves a curated wallet/DeFi entry\'s own kind instead of forcing it to exchange', async () => {
+    vi.mocked(fetch).mockResolvedValue(mockResponse(200, {
+      exchanges: [
+        { id: 'metamask', name: 'MetaMask', logoUrl: '/api/platforms/logo/metamask', kind: 'wallet' },
+      ],
+      updatedAt: '2026-01-01T00:00:00Z',
+    }));
+    const result = await api.getPlatformExchanges();
+    expect(result.exchanges).toEqual([
+      { id: 'metamask', name: 'MetaMask', kind: 'wallet', logoUrl: 'http://localhost:3001/api/platforms/logo/metamask' },
+    ]);
   });
 });

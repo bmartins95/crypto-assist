@@ -103,6 +103,7 @@ class PlatformExchangeEntry(BaseModel):
     id: str
     name: str
     logoUrl: str | None = None
+    kind: str = "exchange"
 
 
 class PlatformsExchangesResponse(BaseModel):

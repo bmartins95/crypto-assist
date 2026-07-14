@@ -1,3 +1,4 @@
+import base64
 import datetime
 import time
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -44,11 +45,12 @@ def _row_ts(row: dict) -> float:
     return datetime.datetime.fromisoformat(str(updated).replace("Z", "+00:00")).timestamp()
 
 
-def _to_entry(platform_id: str, name: str, logo_url: str | None) -> PlatformExchangeEntry:
+def _to_entry(platform_id: str, name: str, logo_url: str | None, kind: str) -> PlatformExchangeEntry:
     return PlatformExchangeEntry(
         id=platform_id,
         name=name,
         logoUrl=f"/api/platforms/logo/{platform_id}" if logo_url else None,
+        kind=kind,
     )
 
 
@@ -57,16 +59,22 @@ def get_platform_exchanges(_auth=Depends(require_auth)):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, logo_url, updated_at FROM platform_cache")
+            cur.execute("SELECT id, name, logo_url, updated_at FROM platform_cache WHERE kind = 'exchange'")
             cached = cur.fetchall()
+            # Curated wallet/DeFi entries (Item: platform icon sourcing) are static, seeded
+            # once by a migration — they never come from CoinGecko and never go stale, so
+            # they're excluded from the freshness check below and always returned as-is.
+            cur.execute("SELECT id, name, logo_url, kind FROM platform_cache WHERE kind != 'exchange'")
+            curated = cur.fetchall()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    curated_entries = [_to_entry(row["id"], row["name"], row["logo_url"], row["kind"]) for row in curated]
     fresh = bool(cached) and all(time.time() - _row_ts(row) < _CACHE_TTL_S for row in cached)
 
     if fresh:
         return PlatformsExchangesResponse(
-            exchanges=[_to_entry(row["id"], row["name"], row["logo_url"]) for row in cached],
+            exchanges=[_to_entry(row["id"], row["name"], row["logo_url"], "exchange") for row in cached] + curated_entries,
             updatedAt=max(str(row["updated_at"]) for row in cached),
         )
 
@@ -76,7 +84,7 @@ def get_platform_exchanges(_auth=Depends(require_auth)):
         if cached:
             # Serve stale exchanges rather than failing the whole picker on upstream trouble.
             return PlatformsExchangesResponse(
-                exchanges=[_to_entry(row["id"], row["name"], row["logo_url"]) for row in cached],
+                exchanges=[_to_entry(row["id"], row["name"], row["logo_url"], "exchange") for row in cached] + curated_entries,
                 updatedAt=max(str(row["updated_at"]) for row in cached),
             )
         raise
@@ -85,8 +93,8 @@ def get_platform_exchanges(_auth=Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.executemany(
-                "INSERT INTO platform_cache (id, name, logo_url, updated_at)"
-                " VALUES (%s, %s, %s, %s)"
+                "INSERT INTO platform_cache (id, name, logo_url, kind, updated_at)"
+                " VALUES (%s, %s, %s, 'exchange', %s)"
                 " ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name,"
                 " logo_url = EXCLUDED.logo_url, updated_at = EXCLUDED.updated_at",
                 [(e["id"], e["name"], e["logo_url"], now_iso) for e in exchanges],
@@ -97,7 +105,7 @@ def get_platform_exchanges(_auth=Depends(require_auth)):
         conn.rollback()
 
     return PlatformsExchangesResponse(
-        exchanges=[_to_entry(e["id"], e["name"], e["logo_url"]) for e in exchanges],
+        exchanges=[_to_entry(e["id"], e["name"], e["logo_url"], "exchange") for e in exchanges] + curated_entries,
         updatedAt=now_iso,
     )
 
@@ -114,8 +122,26 @@ def get_platform_logo(platform_id: str):
     if not row or not row["logo_url"]:
         raise HTTPException(status_code=404, detail="Unknown platform id.")
 
+    logo_url = row["logo_url"]
+
+    # Curated wallet/DeFi logos are embedded inline (no upstream host to proxy —
+    # see 010_curated_platform_logos.sql for why) — decode straight from the
+    # stored data: URI instead of trying to httpx.get() a non-network scheme.
+    if logo_url.startswith("data:"):
+        header, _, b64_data = logo_url.partition(",")
+        content_type = header[len("data:"):].split(";")[0] or "image/png"
+        try:
+            content = base64.b64decode(b64_data)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Malformed stored logo data.")
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={"Cache-Control": "public, max-age=604800"},
+        )
+
     with httpx.Client(timeout=10) as client:
-        r = client.get(row["logo_url"])
+        r = client.get(logo_url)
     if not r.is_success:
         raise HTTPException(status_code=502, detail="Failed to fetch platform logo.")
 

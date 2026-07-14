@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/auth/useAuth';
-import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload, Platform } from '@/lib/types';
+import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload, Platform, PlatformKind } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
@@ -55,7 +55,7 @@ export const api = {
   // never a raw CoinGecko URL — see backend contracts/platforms-logo.md); prefix it with
   // BACKEND_URL here, once, so every caller of usePlatformCatalog gets a ready-to-render URL.
   getPlatformExchanges: async (): Promise<{ exchanges: Platform[]; updatedAt: string }> => {
-    const data = await request<{ exchanges: { id: string; name: string; logoUrl: string | null }[]; updatedAt: string }>(
+    const data = await request<{ exchanges: { id: string; name: string; logoUrl: string | null; kind: PlatformKind }[]; updatedAt: string }>(
       '/api/platforms/exchanges'
     );
     return {
@@ -63,7 +63,7 @@ export const api = {
       exchanges: data.exchanges.map(e => ({
         id: e.id,
         name: e.name,
-        kind: 'exchange',
+        kind: e.kind,
         logoUrl: e.logoUrl ? `${BACKEND_URL}${e.logoUrl}` : undefined,
       })),
     };
