@@ -30,21 +30,21 @@ describe('HeroPage', () => {
     expect(screen.getByRole('heading', { name: /lucro e histórico/i, level: 3 })).toBeTruthy();
   });
 
-  it('routes the primary CTA to /login', () => {
+  it('routes the primary CTA to /login with signup intent', () => {
     renderHero();
     fireEvent.click(screen.getByRole('button', { name: /começar agora/i }));
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/login' });
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/login', search: { intent: 'signup' } });
   });
 
-  it('routes the secondary CTA to /login/email', () => {
+  it('routes the secondary CTA to /login with signin intent', () => {
     renderHero();
     fireEvent.click(screen.getByRole('button', { name: /já tenho conta/i }));
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/login/email' });
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/login', search: { intent: 'signin' } });
   });
 
-  it('routes the topbar "Entrar" button to /login', () => {
+  it('routes the topbar "Entrar" button to /login with signin intent', () => {
     renderHero();
     fireEvent.click(screen.getByRole('button', { name: /^entrar$/i }));
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/login' });
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/login', search: { intent: 'signin' } });
   });
 });

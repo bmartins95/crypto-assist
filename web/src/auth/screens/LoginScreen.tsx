@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import AuthShell from '../AuthShell';
 import AuthCard from '../AuthCard';
@@ -12,8 +12,10 @@ import { useLocale } from '@/context/LocaleContext';
 export default function LoginScreen() {
   const { t } = useLocale();
   const navigate = useNavigate();
+  const { intent } = useSearch({ from: '/login' });
   const [error, setError] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+  const emailTarget = intent === 'signup' ? '/signup' : '/login/email';
 
   const handleSocial = async (provider: 'Google' | 'Facebook') => {
     setError('');
@@ -52,7 +54,7 @@ export default function LoginScreen() {
         <ProviderButton provider="google" label={t.auth_google} onClick={() => handleSocial('Google')} />
         <ProviderButton provider="facebook" label={t.auth_facebook} onClick={() => handleSocial('Facebook')} />
         <div className="auth-divider">ou</div>
-        <ProviderButton provider="email" label={t.auth_email} onClick={() => navigate({ to: '/login/email' })} />
+        <ProviderButton provider="email" label={t.auth_email} onClick={() => navigate({ to: emailTarget })} />
         {error && (
           <p className="auth-field-error" role="alert" style={{ marginTop: 12, textAlign: 'center' }}>
             {error}
