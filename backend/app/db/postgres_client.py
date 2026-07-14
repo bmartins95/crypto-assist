@@ -1,3 +1,4 @@
+import importlib.util
 import logging
 import threading
 import time
@@ -123,6 +124,13 @@ def _ensure_schema(conn: psycopg.Connection) -> None:
     logger.info("Schema: ensured successfully.")
 
 
+def _apply_python_migration(path: Path, conn: psycopg.Connection) -> None:
+    spec = importlib.util.spec_from_file_location(f"migration_{path.stem}", path)
+    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    module.migrate(conn)
+
+
 def _run_migrations(conn: psycopg.Connection, migrations_dir: Path | None = None) -> None:
     if migrations_dir is None:
         migrations_dir = Path(__file__).parent.parent.parent / "db" / "migrations"
@@ -145,14 +153,24 @@ def _run_migrations(conn: psycopg.Connection, migrations_dir: Path | None = None
         cur.execute("SELECT filename FROM schema_migrations")
         applied = {row["filename"] for row in cur.fetchall()}
 
-    for path in sorted(migrations_dir.glob("*.sql")):
+    # .py migrations (e.g. the platform-fields backfill) run real Python logic —
+    # a lookup a plain .sql file can't express — but apply in the same numbered
+    # order and tracking as .sql ones, so both are globbed and sorted together.
+    paths = sorted(
+        list(migrations_dir.glob("*.sql")) + list(migrations_dir.glob("*.py")),
+        key=lambda p: p.name,
+    )
+    for path in paths:
         if path.name in applied:
             logger.info("Migration: %s already applied, skipping", path.name)
             continue
         logger.info("Migration: applying %s", path.name)
         try:
-            with conn.cursor() as cur:
-                cur.execute(path.read_text())
+            if path.suffix == ".py":
+                _apply_python_migration(path, conn)
+            else:
+                with conn.cursor() as cur:
+                    cur.execute(path.read_text())
             conn.commit()
             with conn.cursor() as cur:
                 cur.execute(

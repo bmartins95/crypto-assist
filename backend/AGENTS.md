@@ -69,7 +69,10 @@ NAT instance (`nat: "ec2"` in `aws-infra/stacks/platform.ts`). Without it every 
 `get_conn()` in `db/postgres_client.py`:
 - Returns a cached `psycopg.Connection` (one per Lambda container)
 - Runs `db/schema.sql` lazily on first call (idempotent `CREATE TABLE IF NOT EXISTS`),
-  then applies pending `db/migrations/*.sql` in sorted order, tracked in `schema_migrations`
+  then applies pending `db/migrations/*.sql` **and** `*.py` files together in sorted-by-filename
+  order, tracked in `schema_migrations`. A `.py` migration must define `migrate(conn)` — use it
+  when a migration needs real Python logic (e.g. a catalog lookup) that plain SQL can't express;
+  it's applied and tracked exactly like a `.sql` file, so it only ever runs once per environment
 - Schema + migration init is serialized across concurrent cold-start containers with a
   Postgres advisory lock (`pg_advisory_lock`) — without it, two containers racing through
   `CREATE TABLE IF NOT EXISTS` can collide and poison the connection

@@ -117,6 +117,45 @@ def test_get_conn_serializes_concurrent_callers_on_a_fresh_process(monkeypatch):
     run_migrations.assert_called_once_with(conn)
 
 
+def test_run_migrations_applies_python_migrations_alongside_sql_in_order(tmp_path):
+    # .py migrations (e.g. the platform-fields backfill) need real Python logic a
+    # plain .sql file can't express, but must apply/track in the same numbered
+    # order as .sql ones.
+    conn, cur = _make_conn()
+    cur.fetchall.return_value = []  # nothing applied yet
+
+    (tmp_path / "001_create_thing.sql").write_text("CREATE TABLE thing (id int);")
+    (tmp_path / "002_python_migration.py").write_text(
+        "def migrate(conn):\n"
+        "    conn.migration_marker()\n"
+    )
+
+    postgres_client._run_migrations(conn, migrations_dir=tmp_path)
+
+    executed = [c.args[0] for c in cur.execute.call_args_list if c.args]
+    assert "CREATE TABLE thing (id int);" in executed
+    conn.migration_marker.assert_called_once_with()
+    inserted = [
+        c.args[1][0] for c in cur.execute.call_args_list
+        if c.args and "INSERT INTO schema_migrations" in c.args[0]
+    ]
+    assert inserted == ["001_create_thing.sql", "002_python_migration.py"]
+
+
+def test_run_migrations_skips_a_python_migration_already_applied(tmp_path):
+    conn, cur = _make_conn()
+    cur.fetchall.return_value = [{"filename": "001_python_migration.py"}]
+
+    (tmp_path / "001_python_migration.py").write_text(
+        "def migrate(conn):\n"
+        "    conn.migration_marker()\n"
+    )
+
+    postgres_client._run_migrations(conn, migrations_dir=tmp_path)
+
+    conn.migration_marker.assert_not_called()
+
+
 def test_get_conn_releases_lock_and_reraises_on_schema_failure(monkeypatch):
     conn, cur = _make_conn()
     monkeypatch.setattr(postgres_client, "_connect", lambda: conn)

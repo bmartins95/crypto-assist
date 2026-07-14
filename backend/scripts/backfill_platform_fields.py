@@ -1,12 +1,10 @@
-"""One-time historical-ops platform backfill (Item 22 / PLAN.md).
+"""Manual diagnostic for the historical-ops platform backfill (Item 22 / PLAN.md).
 
-Resolves every existing ops.platform free-text value into platform_id/
-platform_name via the same resolve_platform() rule used by JSON import
-(FR-010/FR-014). Run locally by a developer with DB_DSN pointed at the
-target environment — never deployed as part of the Lambda bundle.
-
-Requires explicit user approval before running for real against dev/prod
-(CLAUDE.md database rules) — always dry-run first.
+The backfill itself now runs automatically, once, as part of the normal
+migration flow (db/migrations/011_backfill_platform_fields.py) — this script
+is only useful for inspecting counts against a specific environment's DB_DSN
+before or after that migration has run; it is not required to make the
+backfill happen.
 
 Usage:
     cd backend && python scripts/backfill_platform_fields.py --dry-run
@@ -19,47 +17,24 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.db.postgres_client import get_conn  # noqa: E402
-from app.platform_resolve import resolve_platform  # noqa: E402
+from app.platform_resolve import backfill_ops_platforms  # noqa: E402
 
 
 def run(dry_run: bool) -> None:
     conn = get_conn()
-    with conn.cursor() as cur:
-        cur.execute("SELECT id, user_id, platform FROM ops WHERE platform_id IS NULL")
-        rows = cur.fetchall()
+    counts = backfill_ops_platforms(conn, dry_run=dry_run)
 
-    counts = {"catalog": 0, "custom": 0, "blank": 0}
-    updates: list[tuple[str | None, str | None, str]] = []
-    for row in rows:
-        platform_id, platform_name = resolve_platform(row["platform"], row["user_id"], conn)
-        if platform_id is None:
-            counts["blank"] += 1
-        elif platform_id.startswith("custom:"):
-            counts["custom"] += 1
-        else:
-            counts["catalog"] += 1
-        updates.append((platform_id, platform_name, row["id"]))
-
-    print(f"Rows to backfill: {len(updates)}")
+    print(f"Rows to backfill: {counts['total']}")
     print(f"  Catalog matches: {counts['catalog']}")
     print(f"  Custom platforms: {counts['custom']}")
     print(f"  Blank (no platform): {counts['blank']}")
 
     if dry_run:
         print("Dry run — no rows written.")
-        return
-
-    if not updates:
+    elif counts["total"] == 0:
         print("Nothing to backfill.")
-        return
-
-    with conn.cursor() as cur:
-        cur.executemany(
-            "UPDATE ops SET platform_id = %s, platform_name = %s WHERE id = %s",
-            updates,
-        )
-    conn.commit()
-    print(f"Backfilled {len(updates)} row(s).")
+    else:
+        print(f"Backfilled {counts['total']} row(s).")
 
 
 if __name__ == "__main__":

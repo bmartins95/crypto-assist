@@ -56,3 +56,37 @@ def resolve_platform(raw: str | None, user_id: str, conn: psycopg.Connection) ->
         return seed_entry["id"], seed_entry["name"]
 
     return f"custom:{_slugify(trimmed)}", trimmed
+
+
+def backfill_ops_platforms(conn: psycopg.Connection, dry_run: bool = False) -> dict[str, int]:
+    """Resolves every op's legacy platform text into platform_id/platform_name.
+
+    Idempotent — only selects rows where platform_id IS NULL, so it's safe to run
+    on every deploy (db/migrations/011_backfill_platform_fields.py does exactly
+    that) without re-touching rows already resolved or created post-catalog.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, user_id, platform FROM ops WHERE platform_id IS NULL")
+        rows = cur.fetchall()
+
+    counts = {"catalog": 0, "custom": 0, "blank": 0}
+    updates: list[tuple[str | None, str | None, str]] = []
+    for row in rows:
+        platform_id, platform_name = resolve_platform(row["platform"], row["user_id"], conn)
+        if platform_id is None:
+            counts["blank"] += 1
+        elif platform_id.startswith("custom:"):
+            counts["custom"] += 1
+        else:
+            counts["catalog"] += 1
+        updates.append((platform_id, platform_name, row["id"]))
+
+    if not dry_run and updates:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "UPDATE ops SET platform_id = %s, platform_name = %s WHERE id = %s",
+                updates,
+            )
+        conn.commit()
+
+    return {"total": len(updates), **counts}
