@@ -6,6 +6,7 @@ import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { PriceRefreshProvider } from '@/context/PriceRefreshContext';
+import type { Op } from '@/lib/types';
 
 beforeEach(() => {
   localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
@@ -85,6 +86,7 @@ async function renderAt(path: string) {
 describe('AppLayout', () => {
   beforeEach(async () => {
     localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+    sessionStorage.clear();
     vi.clearAllMocks();
     vi.stubGlobal('alert', vi.fn());
     vi.stubGlobal('confirm', vi.fn(() => false));
@@ -326,6 +328,59 @@ describe('AppLayout', () => {
       await testRouter.navigate({ to: '/wallet' });
       fireEvent.click(screen.getByText('fetch-prices'));
       await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(2));
+    });
+  });
+
+  describe('warm-boot skeleton loading', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('still shows the full-screen loader on a cold boot (no prior wallet:entered flag), even if the fetch is slow', async () => {
+      const { api } = await import('@/lib/api/client');
+      let resolveOps: (v: Op[]) => void = () => undefined;
+      vi.mocked(api.getOps).mockReturnValue(new Promise(resolve => { resolveOps = resolve; }));
+      await renderAt('/wallet');
+      await waitFor(() => expect(screen.getByText(/preparando sua carteira/i)).toBeTruthy());
+      expect(screen.queryByTestId('wallet-view')).toBeNull();
+      resolveOps([]);
+      await waitFor(() => expect(screen.getByTestId('wallet-view')).toBeTruthy());
+    });
+
+    it('skips the full-screen loader on a warm boot, showing the matching skeleton in the content area once the delay elapses', async () => {
+      sessionStorage.setItem('wallet:entered', '1');
+      const { api } = await import('@/lib/api/client');
+      let resolveOps: (v: Op[]) => void = () => undefined;
+      vi.mocked(api.getOps).mockReturnValue(new Promise(resolve => { resolveOps = resolve; }));
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      await renderAt('/wallet');
+      await waitFor(() => expect(document.querySelector('.layout')).toBeTruthy());
+      expect(screen.queryByText(/preparando sua carteira/i)).toBeNull();
+
+      await vi.advanceTimersByTimeAsync(150);
+      await waitFor(() => expect(document.querySelector('.tbl .sk')).toBeTruthy());
+      expect(screen.queryByTestId('wallet-view')).toBeNull();
+
+      resolveOps([]);
+      await waitFor(() => expect(screen.getByTestId('wallet-view')).toBeTruthy());
+    });
+
+    it('overlays a compact warming notice on the skeleton after 2.5s on a warm boot, never swapping to the login-branded loader', async () => {
+      sessionStorage.setItem('wallet:entered', '1');
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockReturnValue(new Promise(() => undefined));
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      await renderAt('/wallet');
+      await waitFor(() => expect(document.querySelector('.layout')).toBeTruthy());
+      expect(document.querySelector('.warming-notice')).toBeNull();
+      await vi.advanceTimersByTimeAsync(2500);
+      await waitFor(() => expect(document.querySelector('.warming-notice')).toBeTruthy());
+      expect(document.querySelector('.tbl .sk')).toBeTruthy();
+      expect(document.querySelector('.layout')).toBeTruthy();
+      expect(document.querySelector('.auth-loader')).toBeNull();
+      expect(screen.queryByTestId('wallet-view')).toBeNull();
     });
   });
 

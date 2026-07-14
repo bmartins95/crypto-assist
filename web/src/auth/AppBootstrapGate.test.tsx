@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import AppBootstrapGate from './AppBootstrapGate';
+import AppBootstrapGate, { WALLET_ENTERED_KEY } from './AppBootstrapGate';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { useBootstrapStatus } from './BootstrapStatusContext';
 
 const navigateMock = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
@@ -22,10 +23,26 @@ function renderGate(run: () => Promise<void>) {
   );
 }
 
+function StatusReadout() {
+  const status = useBootstrapStatus();
+  return <div data-testid="app-content">status:{status}</div>;
+}
+
+function renderGateWithStatus(run: () => Promise<void>) {
+  render(
+    <LocaleProvider>
+      <AppBootstrapGate run={run}>
+        <StatusReadout />
+      </AppBootstrapGate>
+    </LocaleProvider>
+  );
+}
+
 describe('AppBootstrapGate', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -124,5 +141,41 @@ describe('AppBootstrapGate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^sair$/i }));
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/' }));
+  });
+
+  describe('warm boot (a refresh in a tab that already showed the wallet once)', () => {
+    it('sets the wallet:entered flag once bootstrap succeeds for the first time', async () => {
+      expect(sessionStorage.getItem(WALLET_ENTERED_KEY)).toBeNull();
+      const run = vi.fn(() => Promise.resolve());
+      renderGate(run);
+      await screen.findByTestId('app-content');
+      expect(sessionStorage.getItem(WALLET_ENTERED_KEY)).toBe('1');
+    });
+
+    it('never shows the full-screen loader, rendering children immediately while bootstrap is still pending', () => {
+      sessionStorage.setItem(WALLET_ENTERED_KEY, '1');
+      const run = vi.fn(() => new Promise<void>(() => undefined));
+      renderGateWithStatus(run);
+      expect(screen.queryByText(/preparando sua carteira/i)).toBeNull();
+      expect(screen.getByTestId('app-content')).toHaveTextContent('status:pending');
+    });
+
+    it('flips the shared status from pending to ready once bootstrap resolves, without ever unmounting children', async () => {
+      sessionStorage.setItem(WALLET_ENTERED_KEY, '1');
+      let resolveRun: () => void = () => undefined;
+      const run = vi.fn(() => new Promise<void>(resolve => { resolveRun = resolve; }));
+      renderGateWithStatus(run);
+      expect(screen.getByTestId('app-content')).toHaveTextContent('status:pending');
+      resolveRun();
+      await waitFor(() => expect(screen.getByTestId('app-content')).toHaveTextContent('status:ready'));
+    });
+
+    it('still falls back to the full-screen error card on a genuine failure, even on warm boot', async () => {
+      sessionStorage.setItem(WALLET_ENTERED_KEY, '1');
+      const run = vi.fn(() => Promise.reject(new Error('boom')));
+      renderGate(run);
+      expect(await screen.findByText(/não foi possível carregar/i)).toBeTruthy();
+      expect(screen.queryByTestId('app-content')).toBeNull();
+    });
   });
 });
