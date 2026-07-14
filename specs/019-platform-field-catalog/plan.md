@@ -24,7 +24,7 @@ Replace the free-text `platform` field on operations with a categorized entity (
 
 **Performance Goals**: N/A explicit beyond SC-001 (≤3 keystrokes to surface a common platform, a client-side filter concern, not a backend latency target). The 24h exchange-cache TTL keeps `/api/platforms/exchanges` fast (DB read, no CoinGecko round-trip) on all but one request per day per environment.
 
-**Constraints**: Must not introduce a new external host the browser talks to directly — platform logo images are proxied through `GET /api/platforms/logo/{id}` (research.md §3), so no CloudFront CSP `connect-src`/image-host change is required. That route is intentionally excluded from `require_auth` (an `<img src>` request cannot carry a Bearer token) but only ever re-serves a small, non-sensitive brand-mark image looked up by a known `platform_cache` id — no user or `ops` data is reachable through it. Migration must be additive-only (constitution/Technology Standards); the historical-row backfill is a separate, explicitly approval-gated step, not part of the auto-applied schema migration.
+**Constraints**: Must not introduce a new external host the browser talks to directly — platform logo images are proxied through `GET /api/platforms/logo/{id}` (research.md §3). **Correction, found via T056 after deploying to dev**: the assumption that this needed no CSP change at all was wrong — the proxy is served from the backend's own Lambda URL, a different origin than the CloudFront-served web app (same as every other API call, already allow-listed in `connect-src`), and CloudFront's `img-src` had never been given that origin, so the browser silently blocked every platform-logo `<img>`. Fixed in `aws-infra` by adding the backend origin to `img-src` too (see spec.md's fourth post-ship correction). That route is intentionally excluded from `require_auth` (an `<img src>` request cannot carry a Bearer token) but only ever re-serves a small, non-sensitive brand-mark image looked up by a known `platform_cache` id — no user or `ops` data is reachable through it. Migration must be additive-only (constitution/Technology Standards); the historical-row backfill runs automatically as part of the migration flow (see spec.md's fourth post-ship correction) rather than as a separate approval-gated step, as originally planned here.
 
 **Scale/Scope**: New `web/src/components/platform/` directory (`PlatformLogo.tsx`, `PlatformChip.tsx`, `PlatformSelect.tsx`, `platformAvatar.ts`, `usePlatformCatalog.ts`). New `shared/src/platforms.ts` + `shared/src/platforms/seed.json`. New `backend/app/routes/platforms.py` (both `GET /api/platforms/exchanges` and the unauthenticated `GET /api/platforms/logo/{id}` proxy), `backend/app/platform_resolve.py`, `backend/scripts/backfill_platform_fields.py`, `backend/db/migrations/008_platform_fields.sql`. Modified: `OpDrawer.tsx`, `HistoryTab.tsx`, `WalletTab.tsx`, `shared/src/types.ts`, `shared/src/i18n/types.ts` + all 10 locale files, `backend/app/models.py`, `backend/app/routes/ops.py`, `backend/app/routes/import_data.py`, `web/src/app/globals.css`.
 
@@ -80,9 +80,10 @@ backend/
 │   └── main.py                     # MODIFY — app.include_router(platforms.router, prefix="/api/platforms/exchanges"); app.include_router(platforms.logo_router, prefix="/api/platforms/logo") (separate router, no require_auth dependency)
 ├── db/
 │   └── migrations/
-│       └── 008_platform_fields.sql  # NEW — additive ops columns + platform_cache table (auto-applied)
+│       ├── 008_platform_fields.sql            # NEW — additive ops columns + platform_cache table (auto-applied)
+│       └── 011_backfill_platform_fields.py    # NEW — historical-ops backfill (auto-applied, .py migration; see spec.md's fourth post-ship correction)
 ├── scripts/
-│   └── backfill_platform_fields.py  # NEW — one-time historical-ops backfill (manual, approval-gated, --dry-run support)
+│   └── backfill_platform_fields.py  # NEW — manual dry-run/diagnostic tool only, not required to make the backfill happen (--dry-run support)
 └── tests/
     ├── test_platforms.py            # NEW
     └── test_import.py               # MODIFY — legacy-shaped op with bare `platform` still imports
