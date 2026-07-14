@@ -69,7 +69,6 @@ export default function PlatformSelect({ id, value, onChange, options }: Props) 
       if (items.length > 0) g.push({ key: kind, label: categoryLabel[kind], items });
     }
     return g;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, trimmedQuery, recent, t]);
 
   const flatItems = useMemo(() => groups.flatMap(g => g.items), [groups]);

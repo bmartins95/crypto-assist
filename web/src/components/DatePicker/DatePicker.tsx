@@ -103,7 +103,6 @@ export default function DatePicker({ id, value, onChange, maxDate, inputRef }: P
 
   useEffect(() => {
     setText(selected ? fmtDate(value, locale) : '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, locale]);
 
   // Outside click both closes the panel and commits whatever was typed — routed
