@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
-import type { Op, Asset } from '@/lib/types';
+import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
@@ -16,6 +16,7 @@ vi.mock('@/lib/api/client', () => ({
     searchCoins: vi.fn(async () => []),
     getPrices: vi.fn(async () => ({})),
     getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
+    getPlatformExchanges: vi.fn(async () => ({ exchanges: [{ id: 'binance', name: 'Binance', kind: 'exchange' }], updatedAt: '2026-01-01T00:00:00Z' })),
   },
 }));
 
@@ -34,6 +35,7 @@ function selectFromAsset(input: HTMLElement, name: string) {
 const baseProps = {
   ops: [] as Op[],
   assets: [],
+  avatarCache: {},
   prices: {},
   onAddOp: vi.fn(),
   onEditOp: vi.fn(),
@@ -51,7 +53,8 @@ const existingOp: Op = {
   price: 200000,
   fee: 5,
   total: 100005,
-  platform: 'Binance',
+  platformId: 'binance',
+  platformName: 'Binance',
 };
 
 const STORAGE_KEY = 'crypto-assist:locale';
@@ -82,6 +85,27 @@ describe('HistoryTab', () => {
     const tag = document.querySelector('.tbl tbody .tag');
     expect(tag).toHaveTextContent('Compra');
     expect(document.querySelector('.drawer')).not.toHaveClass('open');
+  });
+
+  it('shows a catalog-matched platform as plain text, with no logo or tag', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    await waitFor(() => expect(screen.getByText('Binance')).toBeInTheDocument());
+    expect(document.querySelector('.tbl tbody .plogo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Personalizada')).not.toBeInTheDocument();
+  });
+
+  it('shows a custom (non-catalog) platform as plain text too, with no tag', () => {
+    const customOp: Op = { ...existingOp, id: 'op-custom', platformId: 'custom:sodex', platformName: 'Sodex' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[customOp]} />);
+    expect(screen.getByText('Sodex')).toBeInTheDocument();
+    expect(screen.queryByText('Personalizada')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty-state dash for an operation with no platform', () => {
+    const noPlatformOp: Op = { ...existingOp, id: 'op-none', platformId: undefined, platformName: undefined };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[noPlatformOp]} />);
+    const cells = document.querySelectorAll('.tbl tbody td');
+    expect(cells[7]).toHaveTextContent('—');
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {
@@ -134,10 +158,18 @@ describe('HistoryTab', () => {
 
   it('submitting a Trade via the drawer calls onAddOp twice (sell then buy)', async () => {
     const onAddOp = vi.fn();
-    const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
-    renderWithLocale(<HistoryTab {...baseProps} assets={assets} onAddOp={onAddOp} />);
+    const ethOp: Op = {
+      id: 'eth-1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum',
+      type: 'Buy', qty: 2, price: 100, fee: 0, total: 200,
+      platformId: 'custom:kraken', platformName: 'Kraken',
+    };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[ethOp]} onAddOp={onAddOp} />);
     fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const originInput = screen.getByLabelText('Plataforma de origem');
+    fireEvent.focus(originInput);
+    fireEvent.change(originInput, { target: { value: 'Kraken' } });
+    fireEvent.click(screen.getByText('Kraken', { selector: '.n' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
     const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
@@ -147,8 +179,8 @@ describe('HistoryTab', () => {
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(2));
-    expect(onAddOp).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'Sell', coinId: 'ethereum' }));
-    expect(onAddOp).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'Buy', coinId: 'solana' }));
+    expect(onAddOp).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'Sell', coinId: 'ethereum', platformId: 'custom:kraken', platformName: 'Kraken' }));
+    expect(onAddOp).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'Buy', coinId: 'solana', platformId: 'custom:kraken', platformName: 'Kraken' }));
   });
 
   it('shows translated op type labels in es-ES locale', () => {

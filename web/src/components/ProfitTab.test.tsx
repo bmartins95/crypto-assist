@@ -52,7 +52,7 @@ function lastChartConfig(): ChartConfig {
 function op(overrides: Partial<Op>): Op {
   return {
     id: 'op-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
-    type: 'Buy', qty: 1, price: 100, fee: 0, total: 100, platform: '',
+    type: 'Buy', qty: 1, price: 100, fee: 0, total: 100,
     ...overrides,
   };
 }

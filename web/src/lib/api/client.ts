@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/auth/useAuth';
-import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload } from '@/lib/types';
+import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload, Platform, PlatformKind } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
@@ -8,6 +8,9 @@ export interface CoinSearchResult {
   symbol: string;
   name: string;
   market_cap_rank?: number;
+  // CoinGecko's own image URL, rendered directly — same precedent as existing
+  // coin logos elsewhere in the app (price_cache.image_url / WalletTab's CoinBadge).
+  image?: string | null;
 }
 
 async function authHeader(): Promise<Record<string, string>> {
@@ -47,6 +50,24 @@ export const api = {
   getExchangeRates: () => request<ExchangeRatesPayload>('/api/exchange-rates'),
 
   searchCoins: (query: string) => request<CoinSearchResult[]>(`/api/coins/search?q=${encodeURIComponent(query)}`),
+
+  // logoUrl comes back as a same-origin-to-the-backend path (e.g. /api/platforms/logo/binance,
+  // never a raw CoinGecko URL — see backend contracts/platforms-logo.md); prefix it with
+  // BACKEND_URL here, once, so every caller of usePlatformCatalog gets a ready-to-render URL.
+  getPlatformExchanges: async (): Promise<{ exchanges: Platform[]; updatedAt: string }> => {
+    const data = await request<{ exchanges: { id: string; name: string; logoUrl: string | null; kind: PlatformKind }[]; updatedAt: string }>(
+      '/api/platforms/exchanges'
+    );
+    return {
+      updatedAt: data.updatedAt,
+      exchanges: data.exchanges.map(e => ({
+        id: e.id,
+        name: e.name,
+        kind: e.kind,
+        logoUrl: e.logoUrl ? `${BACKEND_URL}${e.logoUrl}` : undefined,
+      })),
+    };
+  },
 
   exportBackup: () => request<BackupPayload>('/api/export'),
   importBackup: (backup: BackupPayload) => request<void>('/api/import', { method: 'POST', body: JSON.stringify(backup) }),

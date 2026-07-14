@@ -29,17 +29,18 @@ export function collectAssets(ops: Op[], exitPrices: ExitPrices): Asset[] {
 }
 
 export function computePositionsByAssetAndPlatform(ops: Op[]): AssetWithPlatform[] {
-  const map: Record<string, { coinId: string; symbol: string; name: string; platform: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
+  const map: Record<string, { coinId: string; symbol: string; name: string; platformId: string; platformName: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
   ops.forEach(o => {
     if (!o.coinId) return;
-    const plat = o.platform || '';
-    const key = o.coinId + '||' + plat;
-    if (!map[key]) map[key] = { coinId: o.coinId, symbol: o.symbol, name: o.name, platform: plat, buyQty: 0, buyTotal: 0, sellQty: 0 };
+    const platformId = o.platformId || '';
+    const platformName = o.platformName || '';
+    const key = o.coinId + '||' + platformId;
+    if (!map[key]) map[key] = { coinId: o.coinId, symbol: o.symbol, name: o.name, platformId, platformName, buyQty: 0, buyTotal: 0, sellQty: 0 };
     if (o.type === 'Buy') { map[key].buyQty += o.qty; map[key].buyTotal += o.qty * o.price; }
     else { map[key].sellQty += o.qty; }
   });
   return Object.values(map).map(m => ({
-    coinId: m.coinId, symbol: m.symbol, name: m.name, platform: m.platform,
+    coinId: m.coinId, symbol: m.symbol, name: m.name, platformId: m.platformId, platformName: m.platformName,
     qty: +(m.buyQty - m.sellQty).toFixed(10),
     avgPrice: m.buyQty > 0 ? m.buyTotal / m.buyQty : 0,
   })).filter(a => a.qty > 1e-9);

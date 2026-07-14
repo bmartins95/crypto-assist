@@ -1,24 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import { Op, NewOp, Asset, Prices } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { Op, NewOp, Asset, AvatarCache, Prices } from '@/lib/types';
 import { fmtQty, fmtDate } from '@/lib/format';
+import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
+import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
   ops: Op[];
   assets: Asset[];
+  avatarCache: AvatarCache;
   prices: Prices;
   onAddOp: (op: NewOp) => Promise<void>;
   onEditOp: (id: string, op: NewOp) => Promise<void>;
   onRemoveOp: (id: string) => void;
 }
 
-export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onRemoveOp }: Props) {
+export default function HistoryTab({ ops, assets, avatarCache, prices, onAddOp, onEditOp, onRemoveOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, fmtFromCurrency } = useCurrency();
@@ -26,6 +29,9 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
+  const { resolveOpPlatform } = usePlatformCatalog();
+
+  const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops), [ops]);
 
   const openForNew = () => { setEditingOp(undefined); setDrawerOpen(true); };
   const openForEdit = (o: Op) => { setEditingOp(o); setDrawerOpen(true); };
@@ -67,7 +73,9 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
               </tr>
             </thead>
             <tbody>
-              {ops.map(o => (
+              {ops.map(o => {
+                const platform = resolveOpPlatform(o.platformId, o.platformName);
+                return (
                 <tr key={o.id}>
                   <td style={{ color: 'var(--s-text-dim)' }}>{fmtDate(o.date, locale)}</td>
                   <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
@@ -76,7 +84,7 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
                   <td className="num">{mask(fmtOp(o.price, o))}</td>
                   <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>
                   <td className="num" style={{ color: 'var(--s-text-dim)' }}>{o.fee > 0 ? mask(fmtOp(o.fee, o)) : '—'}</td>
-                  <td style={{ color: 'var(--s-text-dim)' }}>{o.platform || '—'}</td>
+                  <td style={{ color: 'var(--s-text-dim)' }}>{platform ? platform.name : '—'}</td>
                   <td className="num">
                     <span className="op-actions">
                       <button className="icon-btn" onClick={() => openForEdit(o)} title={t.history_form_editOp}><i className="ti ti-pencil" /></button>
@@ -84,7 +92,8 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
                     </span>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -97,6 +106,8 @@ export default function HistoryTab({ ops, assets, prices, onAddOp, onEditOp, onR
         onSubmitTrade={handleSubmitTrade}
         editingOp={editingOp}
         assets={assets}
+        platformAssets={platformAssets}
+        avatarCache={avatarCache}
         prices={prices}
       />
     </div>

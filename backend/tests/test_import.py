@@ -18,7 +18,8 @@ def _op(**overrides):
         "price": 100000.0,
         "fee": 0,
         "total": 50000.0,
-        "platform": "Binance",
+        "platformId": "binance",
+        "platformName": "Binance",
     }
     op.update(overrides)
     return op
@@ -62,7 +63,9 @@ def test_import_accepts_fully_portuguese_legacy_field_names(client_with_db):
     assert res.status_code == 204
     cur = pg_conn.cursor.return_value
     row = cur.executemany.call_args_list[0].args[1][0]
-    assert row == ("user-abc-123", "2026-06-15", "bitcoin", "BTC", "Bitcoin", "Buy", 0.5, 100000.0, 0, 50000.0, "Binance", "BRL")
+    # No platform_cache/seed match for "Binance" in this test's empty DB stub, so the
+    # legacy plataforma value resolves to a custom platform (FR-014, resolve_platform()).
+    assert row == ("user-abc-123", "2026-06-15", "bitcoin", "BTC", "Bitcoin", "Buy", 0.5, 100000.0, 0, 50000.0, "custom:binance", "Binance", "BRL")
 
 
 def test_import_preserves_op_currency(client_with_db):
