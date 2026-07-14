@@ -20,7 +20,9 @@ export interface NewOp {
   price: number;
   fee: number;
   total: number;
-  platform: string;
+  // Both set together, or both absent (no platform selected) — see Platform in ./platforms.
+  platformId?: string;
+  platformName?: string;
   // Denomination of price/fee/total; absent means BRL (pre-multi-currency ops).
   currency?: Currency;
 }
@@ -40,7 +42,8 @@ export interface Asset {
 }
 
 export interface AssetWithPlatform extends Omit<Asset, 'exitPrice'> {
-  platform: string;
+  platformId: string;
+  platformName: string;
 }
 
 export type Prices = Record<string, number>;

@@ -160,7 +160,7 @@ describe('AppLayout', () => {
     const { api } = await import('@/lib/api/client');
     const storageMod = await import('@/lib/storage');
     vi.mocked(storageMod.getLegacyOps).mockReturnValue([
-      { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy', qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platform: 'Binance' },
+      { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy', qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' },
     ]);
     vi.stubGlobal('confirm', vi.fn(() => true));
     await renderAt('/wallet');
@@ -226,7 +226,7 @@ describe('AppLayout', () => {
   it('auto-fetches prices once when assets exist', async () => {
     const { api } = await import('@/lib/api/client');
     vi.mocked(api.getOps).mockResolvedValue([
-      { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy', qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platform: 'Binance' },
+      { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy', qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' },
     ]);
     const testRouter = await renderAt('/wallet');
     await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
@@ -249,7 +249,7 @@ describe('AppLayout', () => {
   });
 
   describe('price auto-refresh', () => {
-    const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platform: 'Binance' };
+    const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' };
 
     afterEach(() => {
       vi.useRealTimers();
@@ -385,7 +385,7 @@ describe('AppLayout', () => {
   });
 
   describe('portfolio handlers', () => {
-    const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platform: 'Binance' };
+    const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' };
 
     it('creates an op via HistoryTab and surfaces failures with an alert', async () => {
       const { api } = await import('@/lib/api/client');

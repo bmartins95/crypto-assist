@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS ops (
     fee         numeric(30,10) NOT NULL DEFAULT 0,
     total       numeric(30,10) NOT NULL,
     platform    text        NOT NULL DEFAULT '',
+    platform_id   text,
+    platform_name text,
     currency    varchar(8)  NOT NULL DEFAULT 'BRL' CHECK (currency IN ('BRL', 'USD', 'EUR', 'GBP', 'JPY')),
     created_at  timestamptz DEFAULT now()
 );
@@ -49,4 +51,18 @@ CREATE TABLE IF NOT EXISTS price_history (
     price_usd   numeric(30,10) NOT NULL,
     symbol      text,
     PRIMARY KEY (coin_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS platform_cache (
+    id          text        PRIMARY KEY,
+    name        text        NOT NULL,
+    logo_url    text,
+    kind        text        NOT NULL DEFAULT 'exchange',
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS coin_search_cache (
+    query       text        PRIMARY KEY,
+    results     jsonb       NOT NULL,
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );

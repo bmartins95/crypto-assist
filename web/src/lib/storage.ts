@@ -28,6 +28,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
 }
 
+// Mirrors backend/app/platform_resolve.py's _slugify — a browser-side legacy op has
+// no catalog access at normalization time, so its free-text platform becomes a
+// custom platform directly (same treatment a manually-typed custom platform gets).
+function slugify(name: string): string {
+  const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || 'platform';
+}
+
 function normalizeLegacyOp(raw: unknown): NewOp[] {
   if (!isRecord(raw)) return [];
   const type = LEGACY_TYPE_MAP[String(raw.type ?? raw.tipo)];
@@ -44,7 +52,9 @@ function normalizeLegacyOp(raw: unknown): NewOp[] {
   ) return [];
   return [{
     date, coinId: raw.coinId, symbol: String(raw.symbol ?? ''), name: String(raw.name ?? ''),
-    type, qty, price, fee, total, platform,
+    type, qty, price, fee, total,
+    platformId: platform ? `custom:${slugify(platform)}` : undefined,
+    platformName: platform || undefined,
   }];
 }
 

@@ -771,8 +771,8 @@ Additive only, per this repo's migration rules — the existing `platform` colum
 - `shared/src/i18n/types.ts` + all 10 locale files — add `platform_kind_exchange/wallet/defi/custom`, `platform_search_placeholder`, `platform_use_custom`, `platform_group_recent/exchanges/wallets/defi`.
 - `backend/app/models.py` — add `platform_id: str`, `platform_name: str` to `NewOp`/`Op`.
 - `backend/app/routes/ops.py` — read/write the new columns instead of `platform`.
-- `web/src/components/OpDrawer.tsx` — swap both platform text inputs (single-op and trade forms) for `<PlatformSelect>`.
-- `web/src/components/HistoryTab.tsx` — platform cell → `<PlatformChip platform={op.platform} showCustomTag />`.
+- `web/src/components/OpDrawer.tsx` — swap both platform text inputs (single-op and trade forms) for `<PlatformSelect>`. **Scope addition, requested by the user and folded into this branch (see spec.md Assumptions, second post-ship follow-up)**: the Trade block's single top-level platform field was split into a "Plataforma de origem" field (inside "Você vende", gates and filters the asset field to that platform's holdings via `computePositionsByAssetAndPlatform`, shows a balance line with a "Máx" quick-fill) and an optional "Plataforma de destino" field (inside "Você recebe", defaults to the origin platform, shows a cross-platform-transfer warning when different). No schema change — the existing per-op `platformId`/`platformName` already support this; the trade's `Sell` leg now records the origin platform and the `Buy` leg records the destination.
+- `web/src/components/HistoryTab.tsx` — platform cell → resolved platform name as plain text (no logo, no `personalizada` tag — corrected during implementation per user feedback; that richer treatment stays exclusive to the Wallet views below).
 - `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />`; "Ativo + plataforma" group headers → replace the fixed `ti-building-bank` icon with the real `PlatformLogo`, add the category badge, and move the group total + return to the right of the header (per the design doc — today the user sums the sub-table mentally).
 - `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm/md`, `.cat.*`, `.dd*`, `.dd-custom`, `.plus`, `.sel-logo`, `.inp.withlogo`, `.grp-hd` per the design reference's tokens.
 
@@ -781,7 +781,7 @@ Additive only, per this repo's migration rules — the existing `platform` colum
 - `PlatformSelect` filters as you type, groups results by category, shows the platform logo inline in the input once selected, and supports ↑/↓/Enter/Esc plus full combobox ARIA roles (`combobox`, `listbox`, `option`).
 - A name not in the catalog offers `Usar "<texto>" como personalizada` and produces a stable initials avatar (same name → same color across every screen).
 - A broken/missing `logoUrl` silently falls back to the initials avatar — no broken-image icon anywhere.
-- History shows logo + name; custom platforms carry the `personalizada` tag.
+- History shows each operation's resolved platform name as plain text (no logo, no `personalizada` tag — corrected during implementation).
 - "Por plataforma" rows and "Ativo + plataforma" group headers show the real logo; group headers show the group total + return on the right.
 - Existing operations still render correctly after the migration (their backfilled `platform_id`/`platform_name` resolve to a sensible chip, custom or otherwise).
 - Mobile still builds and the ops-related screens still render (this item's redesign is web-only; `shared/` type changes must not break the mobile type contract).

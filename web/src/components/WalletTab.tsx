@@ -1,6 +1,6 @@
 'use client';
 
-import { Asset, AssetWithPlatform, GroupMode, Prices } from '@/lib/types';
+import { Asset, AssetWithPlatform, GroupMode, Prices, PlatformKind } from '@/lib/types';
 import { fmtPct, fmtQty } from '@/lib/format';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op } from '@/lib/types';
@@ -9,6 +9,9 @@ import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
+import PlatformChip from '@/components/platform/PlatformChip';
+import PlatformLogo from '@/components/platform/PlatformLogo';
+import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
   ops: Op[];
@@ -31,10 +34,18 @@ function CoinBadge({ coinId, symbol, avatarCache }: { coinId: string; symbol: st
   );
 }
 
+const CATEGORY_LABEL_KEY: Record<PlatformKind, 'platform_kind_exchange' | 'platform_kind_wallet' | 'platform_kind_defi' | 'platform_kind_custom'> = {
+  exchange: 'platform_kind_exchange',
+  wallet: 'platform_kind_wallet',
+  defi: 'platform_kind_defi',
+  custom: 'platform_kind_custom',
+};
+
 export default function WalletTab({ ops, assets, prices, avatarCache, groupMode, onGroupMode, statusMsg, onFetchPrices, onExitPriceChange }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, rates, ratesStatus, fmtMoney } = useCurrency();
+  const { resolveOpPlatform } = usePlatformCatalog();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
   const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
@@ -51,17 +62,19 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
     );
   } else if (groupMode === 'platform') {
     const byAssetPlat = computePositionsByAssetAndPlatform(ops);
-    const platMap: Record<string, AssetWithPlatform[]> = {};
-    byAssetPlat.forEach(p => { (platMap[p.platform] ||= []).push(p); });
-    const groups = Object.entries(platMap);
-    const rows = groups.map(([plat, positions]) => {
+    const platMap: Record<string, { platformId: string; platformName: string; positions: AssetWithPlatform[] }> = {};
+    byAssetPlat.forEach(p => {
+      (platMap[p.platformId] ||= { platformId: p.platformId, platformName: p.platformName, positions: [] }).positions.push(p);
+    });
+    const rows = Object.values(platMap).map(({ platformId, platformName, positions }) => {
       const inv = positions.reduce((s, p) => s + p.qty * p.avgPrice, 0);
       const atual = positions.reduce((s, p) => s + p.qty * (prices[p.coinId] || 0), 0);
       const lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
       const hasPrice = positions.some(p => prices[p.coinId] > 0);
       const symbols = [...new Set(positions.map(p => p.symbol))].join(', ');
       totalInv += inv; if (hasPrice) totalAtual += atual;
-      return { plat, inv, atual, lucro, pct, hasPrice, symbols };
+      const platform = resolveOpPlatform(platformId, platformName);
+      return { platform, inv, atual, lucro, pct, hasPrice, symbols };
     });
     content = (
       <div className="tbl scroll">
@@ -73,9 +86,9 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
             <th className="num">{t.wallet_col_pnl}</th>
             <th className="num">{t.wallet_col_pnlPct}</th>
           </tr></thead>
-          <tbody>{rows.map(({ plat, inv, atual, lucro, pct, hasPrice, symbols }) => (
-            <tr key={plat || '__none__'}>
-              <td style={{ fontWeight: 500 }}>{plat || t.wallet_noPlatform}</td>
+          <tbody>{rows.map(({ platform, inv, atual, lucro, pct, hasPrice, symbols }) => (
+            <tr key={platform?.id || '__none__'}>
+              <td>{platform ? <PlatformChip platform={platform} size="md" bold /> : <span style={{ fontWeight: 500 }}>{t.wallet_noPlatform}</span>}</td>
               <td style={{ color: 'var(--s-text-dim)', fontSize: 12 }}>{symbols}</td>
               <td className="num">{mask(fmtMoney(inv))}</td>
               <td className="num">{hasPrice ? mask(fmtMoney(atual)) : <span className="muted">—</span>}</td>
@@ -89,8 +102,10 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
 
   } else if (groupMode === 'both') {
     const positions = computePositionsByAssetAndPlatform(ops);
-    const platMap: Record<string, AssetWithPlatform[]> = {};
-    positions.forEach(p => { (platMap[p.platform] ||= []).push(p); });
+    const platMap: Record<string, { platformId: string; platformName: string; rows: AssetWithPlatform[] }> = {};
+    positions.forEach(p => {
+      (platMap[p.platformId] ||= { platformId: p.platformId, platformName: p.platformName, rows: [] }).rows.push(p);
+    });
     const tableHeader = (
       <thead><tr>
         <th>{t.wallet_col_asset}</th>
@@ -103,12 +118,23 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
     );
     content = (
       <>
-        {Object.entries(platMap).map(([plat, rows]) => {
+        {Object.values(platMap).map(({ platformId, platformName, rows }) => {
+          const platform = resolveOpPlatform(platformId, platformName);
+          let groupInv = 0, groupAtual = 0;
+          rows.forEach(p => { const price = prices[p.coinId] || 0; groupInv += p.qty * p.avgPrice; if (price) groupAtual += p.qty * price; });
+          const groupHasPrice = rows.some(p => prices[p.coinId] > 0);
+          const groupPct = groupInv > 0 ? ((groupAtual - groupInv) / groupInv) * 100 : 0;
           return (
-            <div key={plat || '__none__'} style={{ marginBottom: '1rem' }}>
-              <div className="topbar-title" style={{ marginBottom: 6, padding: '0 2px' }}>
-                <i className="ti ti-building-bank" style={{ fontSize: 12, verticalAlign: 'middle', marginRight: 4 }} />
-                {plat || t.wallet_noPlatform}
+            <div key={platformId || '__none__'} style={{ marginBottom: '1rem' }}>
+              <div className="grp-hd">
+                {platform && <PlatformLogo platform={platform} size="md" />}
+                <span className="gname">{platform ? platform.name : t.wallet_noPlatform}</span>
+                {platform && <span className={`cat ${platform.kind}`}>{t[CATEGORY_LABEL_KEY[platform.kind]]}</span>}
+                {groupHasPrice && (
+                  <span className="gsum">
+                    {mask(fmtMoney(groupAtual))} · <span className={groupPct >= 0 ? 'pos' : 'neg'}>{fmtPct(groupPct)}</span>
+                  </span>
+                )}
               </div>
               <div className="tbl scroll">
                 <table>
@@ -118,7 +144,7 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
                     const inv = p.qty * p.avgPrice, atual = p.qty * price, lucro = atual - inv, pct = inv > 0 ? (lucro / inv) * 100 : 0;
                     totalInv += inv; if (price) totalAtual += atual;
                     return (
-                      <tr key={p.coinId + p.platform}>
+                      <tr key={p.coinId + p.platformId}>
                         <td><div className="asset">
                           <CoinBadge coinId={p.coinId} symbol={p.symbol} avatarCache={avatarCache} />
                           <div><div className="nm">{p.name}</div><div className="tk">{p.symbol} · {mask(fmtQty(p.qty, locale))}</div></div>

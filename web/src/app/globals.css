@@ -137,6 +137,11 @@ body {
 
 .topbar-title { font-size: 13px; font-weight: 500; color: var(--text2); }
 
+.grp-hd { display: flex; align-items: center; gap: 10px; margin: 22px 0 9px; padding: 0 2px; }
+.grp-hd:first-child { margin-top: 0; }
+.grp-hd .gname { font-size: 13.5px; font-weight: 600; }
+.grp-hd .gsum { margin-left: auto; font-size: 12px; color: var(--s-text-dim); font-variant-numeric: tabular-nums; }
+
 .chead {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
@@ -210,12 +215,29 @@ body {
   overflow: hidden;
 }
 .coin img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.coin.coin-sm { width: 20px; height: 20px; font-size: 8px; }
 .asset .nm { font-weight: 600; font-size: 13px; color: var(--text); }
 .asset .tk { font-size: 11px; color: var(--s-text-dim); }
 .pill.up, .pill.down { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
 .pill.up { background: rgba(52, 211, 153, .14); color: var(--success); }
 .pill.down { background: var(--s-danger-dim); color: var(--danger); }
 .muted { color: var(--s-text-dim); }
+
+/* Platform identity — rounded squares, deliberately distinct from the circular .coin logos. */
+.plat { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.plat .pn { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plogo {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  overflow: hidden; color: #fff; font-weight: 700; background: var(--s-surface-hover);
+}
+.plogo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.plogo-sm { width: 22px; height: 22px; border-radius: 6px; font-size: 9.5px; }
+.plogo-md { width: 26px; height: 26px; border-radius: 7px; font-size: 10.5px; }
+.cat { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
+.cat.exchange { background: var(--s-accent-dim); color: var(--s-accent); }
+.cat.wallet { background: rgba(247, 147, 26, .12); color: #f7931a; }
+.cat.defi { background: rgba(153, 69, 255, .14); color: #b78bff; }
+.cat.custom { background: var(--s-surface-hover); color: var(--s-text-dim); }
 
 button {
   font-family: inherit; cursor: pointer; border: 0.5px solid var(--border2);
@@ -292,7 +314,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .coin-name { font-weight: 500; font-size: 13px; }
 .coin-sym { font-size: 11px; color: var(--text2); }
 
-.search-wrap { position: relative; flex: 1; }
+.search-wrap { position: relative; }
 .search-dropdown {
   position: absolute; z-index: 99; top: calc(100% + 4px); left: 0; right: 0;
   background: var(--bg); border: 0.5px solid var(--border2);
@@ -306,10 +328,50 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .search-dropdown::-webkit-scrollbar-thumb:hover { background: var(--s-surface-hover); }
 .search-item {
   padding: 9px 12px; cursor: pointer; font-size: 13px;
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; align-items: center; gap: 9px;
 }
 .search-item:hover { background: var(--bg2); }
-.search-item-rank { font-size: 11px; color: var(--text3); }
+.search-item .meta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-item-rank { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.inp.withcoin { padding-left: 38px; }
+.inp.err { border-color: var(--danger); }
+
+.dd {
+  position: absolute; z-index: 99; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg); border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg); max-height: 290px; overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  scrollbar-width: thin; scrollbar-color: var(--s-border) var(--bg);
+}
+.dd::-webkit-scrollbar { width: 10px; }
+.dd::-webkit-scrollbar-track { background: var(--bg); }
+.dd::-webkit-scrollbar-thumb { background: var(--s-border); border-radius: 6px; border: 2px solid var(--bg); }
+.dd-grp {
+  position: sticky; top: 0; background: var(--bg);
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--s-text-dim); padding: 9px 12px 5px;
+}
+.dd-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; }
+.dd-item:hover { background: var(--bg2); }
+.dd-item .meta { flex: 1; min-width: 0; }
+.dd-item .n { font-size: 13px; font-weight: 600; }
+.dd-item .s { font-size: 11px; color: var(--s-text-dim); margin-top: 1px; }
+.dd-custom {
+  display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer;
+  border-top: 0.5px solid var(--border2); background: var(--s-surface-2);
+}
+.dd-custom:hover { background: var(--bg2); }
+.dd-custom .n { font-size: 12.5px; color: var(--s-text-dim); }
+.plus {
+  width: 22px; height: 22px; border-radius: 6px; border: 1px dashed var(--border2);
+  display: flex; align-items: center; justify-content: center; color: var(--s-text-dim); flex-shrink: 0;
+}
+.sel-logo { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); z-index: 2; }
+.inp.withlogo { padding-left: 38px; padding-right: 30px; }
+.plat-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  padding: 2px; min-width: 0; border: none; background: transparent;
+}
 
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
@@ -418,13 +480,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.drawer-grid .fld, .drawer-body > .fld { display: flex; flex-direction: column; gap: 7px; position: relative; }
-.drawer-grid .fld label, .drawer-body > .fld label { font-size: 12px; color: var(--s-text-dim); font-weight: 500; }
+.drawer-grid .fld, .drawer-body > .fld, .trade-block > .fld { display: flex; flex-direction: column; gap: 7px; position: relative; }
+.drawer-grid .fld label, .drawer-body > .fld label, .trade-block > .fld label { font-size: 12px; color: var(--s-text-dim); font-weight: 500; }
 .drawer-grid .fld input, .drawer-grid .fld select,
-.drawer-body > .fld input, .drawer-body > .fld select {
+.drawer-body > .fld input, .drawer-body > .fld select,
+.trade-block > .fld input, .trade-block > .fld select {
   width: 100%; background: var(--s-surface-2); border-color: var(--s-border);
 }
 .drawer-body > .fld:first-child { padding-bottom: 22px; border-bottom: 1px solid var(--s-border-soft); }
+.drawer-body > .fld.tr-date { max-width: 50%; }
 
 .seg-tipo { width: 100%; }
 .seg-tipo .seg-btn { flex: 1; justify-content: center; }
@@ -449,6 +513,108 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--s-text-dim);
 }
 .trade-arrow svg { width: 14px; height: 14px; }
+
+.xfer-warn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 11px; color: var(--warning, #fbbf24); background: rgba(251, 191, 36, .1);
+  border: 1px solid rgba(251, 191, 36, .22); border-radius: 6px; padding: 4px 10px; margin: -4px auto 0;
+}
+
+.fhint .bal-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.fhint .bal-row.err { color: var(--danger); }
+.fhint .bal-row .max {
+  background: transparent; border: 0; color: var(--s-accent); font: inherit;
+  font-size: 10.5px; font-weight: 600; cursor: pointer; padding: 0;
+}
+.fhint .bal-row .max:hover { text-decoration: underline; }
+
+.trade-block .inp:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── DatePicker ───────────────────────────────────────────────── */
+.date-wrap { position: relative; }
+.date-wrap input { padding-right: 34px; width: 100%; cursor: text; }
+.date-wrap input::placeholder { color: var(--s-text-dim); }
+/* Purely decorative — pointer-events:none lets clicks fall through to the input
+   underneath, which owns the actual open/close behavior. It only ever changes
+   color; it must never itself be a clickable target or animate. */
+.date-icon {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  color: var(--s-text-dim); pointer-events: none;
+}
+.date-icon svg { width: 15px; height: 15px; }
+.date-wrap.open .date-icon,
+.date-wrap input:focus ~ .date-icon { color: var(--s-accent); }
+
+/* Date/platform/coin fields share the .inp class but, unlike NumericField's own
+   .nf .inp:focus, were falling back to the generic input:focus rule's dim ring
+   (--s-accent-dim). Match the brighter, crisper ring used everywhere else. */
+.inp:focus {
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 1px var(--s-accent);
+}
+
+.cal-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: 270px;
+  background: var(--s-surface); border: 1px solid var(--s-border); border-radius: var(--radius-lg); padding: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .45);
+  animation: cal-pop .14s cubic-bezier(.2, .8, .2, 1);
+}
+/* This app has no global box-sizing:border-box reset, and the base `button{}`
+   rule sets padding/border that would otherwise inflate every button below past
+   its intended size (e.g. .day's 32px), overflowing the grid cell it sits in. */
+.cal-pop, .cal-pop * { box-sizing: border-box; }
+@keyframes cal-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cal-pop { animation: none; } }
+
+.cal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-hd .mon { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+.navb { display: flex; gap: 2px; }
+.navb button {
+  width: 26px; height: 26px; padding: 0; border-radius: 7px; background: transparent; border: 0;
+  color: var(--s-text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .13s;
+}
+.navb button:hover { background: var(--s-surface-hover); color: var(--text); }
+.navb svg { width: 14px; height: 14px; }
+
+.dows { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
+.dows span {
+  font-size: 10px; font-weight: 600; color: var(--s-text-dim); text-align: center;
+  padding: 5px 0; text-transform: uppercase; letter-spacing: .03em;
+}
+
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.day {
+  height: 32px; padding: 0; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 12.5px; font-weight: 500; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; position: relative;
+  transition: background .12s, color .12s;
+}
+.day:hover { background: var(--s-surface-hover); }
+.day.out { color: var(--s-text-dim); opacity: .45; }
+.day:disabled { opacity: .25; cursor: not-allowed; }
+.day:disabled:hover { background: transparent; }
+
+.day.today { color: var(--s-accent); font-weight: 700; }
+.day.today::after {
+  content: ''; position: absolute; bottom: 4px; width: 3px; height: 3px;
+  border-radius: 50%; background: var(--s-accent);
+}
+.day.selected { background: var(--s-accent); color: #04201c; font-weight: 700; }
+.day.selected::after { background: #04201c; }
+.day.selected:hover { background: var(--s-accent); filter: brightness(1.08); }
+
+.cal-ft {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--s-border-soft);
+}
+.lnk {
+  background: transparent; border: 0; color: var(--s-text-dim); font: inherit;
+  font-size: 11.5px; font-weight: 500; cursor: pointer; padding: 4px 6px; border-radius: 6px;
+}
+.lnk:hover { color: var(--text); background: var(--s-surface-hover); }
+.lnk.accent { color: var(--s-accent); }
+.lnk.accent:hover { background: var(--s-accent-dim); }
 
 .exit-input {
   width: 100%; font-size: 12px; padding: 4px 8px;

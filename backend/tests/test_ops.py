@@ -40,7 +40,8 @@ _DB_ROW = {
     "price": "250000",
     "fee": "5",
     "total": "2505",
-    "platform": "Binance",
+    "platform_id": "binance",
+    "platform_name": "Binance",
     "currency": "BRL",
 }
 
@@ -55,7 +56,8 @@ _API_OP = {
     "price": 250000.0,
     "fee": 5.0,
     "total": 2505.0,
-    "platform": "Binance",
+    "platformId": "binance",
+    "platformName": "Binance",
     "currency": "BRL",
 }
 
@@ -69,7 +71,8 @@ _NEW_OP_BODY = {
     "price": 250000.0,
     "fee": 5.0,
     "total": 2505.0,
-    "platform": "Binance",
+    "platformId": "binance",
+    "platformName": "Binance",
 }
 
 
@@ -144,6 +147,35 @@ def test_update_op(client_with_db):
     res = client.put("/api/ops/op-1", json=_NEW_OP_BODY)
     assert res.status_code == 200
     assert res.json() == _API_OP
+
+
+_DB_ROW_NO_PLATFORM = {**_DB_ROW, "platform_id": None, "platform_name": None}
+_NEW_OP_BODY_NO_PLATFORM = {k: v for k, v in _NEW_OP_BODY.items() if k not in ("platformId", "platformName")}
+
+
+@pytest.mark.pgdata(_DB_ROW_NO_PLATFORM)
+def test_create_op_without_platform_leaves_it_null(client_with_db):
+    client, _ = client_with_db
+    res = client.post("/api/ops", json=_NEW_OP_BODY_NO_PLATFORM)
+    assert res.status_code == 201
+    assert res.json()["platformId"] is None
+    assert res.json()["platformName"] is None
+
+
+@pytest.mark.pgdata({})
+def test_create_op_platform_id_without_name_rejected(client_with_db):
+    client, _ = client_with_db
+    body = {**_NEW_OP_BODY_NO_PLATFORM, "platformId": "binance"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 422
+
+
+@pytest.mark.pgdata({})
+def test_create_op_platform_name_without_id_rejected(client_with_db):
+    client, _ = client_with_db
+    body = {**_NEW_OP_BODY_NO_PLATFORM, "platformName": "Binance"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 422
 
 
 @pytest.mark.pgdata({})

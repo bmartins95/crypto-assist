@@ -5,7 +5,7 @@ from app.models import Op, NewOp, DeleteAllOpsResponse
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency"
 
 
 def _row_to_op(row: dict) -> Op:
@@ -20,9 +20,18 @@ def _row_to_op(row: dict) -> Op:
         price=float(row["price"]),
         fee=float(row["fee"]),
         total=float(row["total"]),
-        platform=row["platform"],
+        platformId=row["platform_id"],
+        platformName=row["platform_name"],
         currency=row["currency"],
     )
+
+
+def _validate_platform_pair(op: NewOp) -> None:
+    if (op.platformId is None) != (op.platformName is None):
+        raise HTTPException(
+            status_code=422,
+            detail="platformId and platformName must both be set or both be absent.",
+        )
 
 
 @router.get("", response_model=list[Op])
@@ -41,19 +50,22 @@ def list_ops(auth: AuthContext = Depends(require_auth)):
 
 @router.post("", response_model=Op, status_code=status.HTTP_201_CREATED)
 def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
+    _validate_platform_pair(op)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform, currency)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platform, op.currency),
+                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency),
             )
             row = cur.fetchone()
         conn.commit()
         return _row_to_op(row)
+    except HTTPException:
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -61,16 +73,17 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
 
 @router.put("/{op_id}", response_model=Op)
 def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
+    _validate_platform_pair(op)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"  # nosec B608
-                f" qty=%s, price=%s, fee=%s, total=%s, platform=%s, currency=%s"
+                f" qty=%s, price=%s, fee=%s, total=%s, platform_id=%s, platform_name=%s, currency=%s"
                 f" WHERE id=%s AND user_id=%s"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platform, op.currency,
+                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency,
                  op_id, auth.user_id),
             )
             row = cur.fetchone()

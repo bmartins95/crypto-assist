@@ -56,6 +56,10 @@ export interface UIText {
   history_form_addOp: string;
   history_form_editOp: string;
   history_form_date: string;
+  date_clear: string;
+  date_today: string;
+  date_prevMonth: string;
+  date_nextMonth: string;
   history_form_assetBought: string;
   history_form_assetSold: string;
   history_form_type: string;
@@ -82,6 +86,17 @@ export interface UIText {
   trade_form_fee: string;
   trade_form_totalHint: string;
   trade_form_sameAsset: string;
+  trade_form_platformFrom: string;
+  trade_form_platformTo: string;
+  trade_form_platformToHint: string;
+  trade_form_transferWarning: string;
+  trade_form_balance: string;
+  trade_form_balanceExceeded: string;
+  trade_form_max: string;
+  trade_form_choosePlatformFirst: string;
+  trade_form_noAssetsInPlatform: string;
+  trade_form_noAssetsOnPlatform: string;
+  trade_form_yourAssetsOn: string;
   settings_title: string;
   settings_language: string;
   nav_settings: string;
@@ -179,6 +194,7 @@ export interface UIText {
   common_save: string;
   common_cancel: string;
   common_delete: string;
+  common_clear: string;
   common_increase: string;
   common_decrease: string;
   dashboard_subtitle: string;
@@ -238,4 +254,14 @@ export interface UIText {
   timeframe_1y: string;
   timeframe_all: string;
   profit_emptyTimeframe: string;
+  platform_kind_exchange: string;
+  platform_kind_wallet: string;
+  platform_kind_defi: string;
+  platform_kind_custom: string;
+  platform_search_placeholder: string;
+  platform_use_custom: string;
+  platform_group_recent: string;
+  platform_group_exchanges: string;
+  platform_group_wallets: string;
+  platform_group_defi: string;
 }
