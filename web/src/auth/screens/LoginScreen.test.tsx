@@ -4,8 +4,10 @@ import LoginScreen from './LoginScreen';
 import { LocaleProvider } from '@/context/LocaleContext';
 
 const navigateMock = vi.fn();
+const searchMock = vi.fn(() => ({ intent: undefined as 'signup' | 'signin' | undefined }));
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
+  useSearch: () => searchMock(),
 }));
 
 vi.mock('../useAuth', () => ({
@@ -32,10 +34,17 @@ describe('LoginScreen', () => {
     expect(screen.getByRole('button', { name: /e-mail/i })).toBeTruthy();
   });
 
-  it('routes to /login/email when the e-mail button is clicked', () => {
+  it('routes to /login/email when the e-mail button is clicked with signin intent', () => {
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: /e-mail/i }));
     expect(navigateMock).toHaveBeenCalledWith({ to: '/login/email' });
+  });
+
+  it('routes to /signup when the e-mail button is clicked with signup intent', () => {
+    searchMock.mockReturnValueOnce({ intent: 'signup' });
+    renderScreen();
+    fireEvent.click(screen.getByRole('button', { name: /e-mail/i }));
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/signup' });
   });
 
   it('calls signInWithRedirect("Google") when the Google button is clicked', async () => {

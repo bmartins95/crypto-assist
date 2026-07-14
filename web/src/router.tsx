@@ -67,9 +67,14 @@ const indexRoute = createRoute({
   component: HeroPage,
 });
 
+export type LoginIntent = 'signup' | 'signin';
+
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
+  validateSearch: (search: Record<string, unknown>): { intent?: LoginIntent } => ({
+    intent: search.intent === 'signup' ? 'signup' : undefined,
+  }),
   beforeLoad: redirectIfAuthenticated,
   component: LoginScreen,
 });

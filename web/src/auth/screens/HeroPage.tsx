@@ -15,7 +15,11 @@ export default function HeroPage() {
             <BrandMark size={34} />
             <span>{t.app_title}</span>
           </div>
-          <button type="button" className="auth-ghost" onClick={() => navigate({ to: '/login' })}>
+          <button
+            type="button"
+            className="auth-ghost"
+            onClick={() => navigate({ to: '/login', search: { intent: 'signin' } })}
+          >
             {t.hero_topbar_cta}
           </button>
         </div>
@@ -29,10 +33,18 @@ export default function HeroPage() {
             </h1>
             <p className="auth-hero-sub">{t.hero_subtitle}</p>
             <div className="auth-hero-ctas">
-              <button type="button" className="auth-btn auth-btn-primary" onClick={() => navigate({ to: '/login' })}>
+              <button
+                type="button"
+                className="auth-btn auth-btn-primary"
+                onClick={() => navigate({ to: '/login', search: { intent: 'signup' } })}
+              >
                 {t.hero_cta_start}
               </button>
-              <button type="button" className="auth-btn" onClick={() => navigate({ to: '/login/email' })}>
+              <button
+                type="button"
+                className="auth-btn"
+                onClick={() => navigate({ to: '/login', search: { intent: 'signin' } })}
+              >
                 {t.hero_cta_email}
               </button>
             </div>
