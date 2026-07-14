@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -13,6 +14,19 @@ logger = logging.getLogger(__name__)
 _conn: psycopg.Connection | None = None
 _schema_ready = False
 _migrations_ready = False
+# Guards the connect + schema/migration init below. FastAPI runs sync route
+# handlers in a threadpool, so concurrent requests against a fresh process (e.g.
+# the frontend's concurrent getOps()/getExitPrices() calls on boot) race the
+# `_conn is None` check: each opens its own connection and each assignment
+# overwrites the global. Since every later statement re-reads the global, one
+# thread would take pg_advisory_lock on its own connection, lose the global to
+# another thread's assignment, and then run the rest of the init — including
+# the unlock, a silent no-op on a session that doesn't hold the lock — on that
+# *other* connection. The orphaned session sat `idle in transaction` holding
+# the advisory lock forever, blocking every later get_conn() in any process.
+# (psycopg3 connections serialize their own operations internally; the race
+# here is purely in this module's check-then-assign on the shared global.)
+_init_lock = threading.Lock()
 
 # Aurora Serverless v2 at min=0 ACU pauses when idle and refuses connections
 # until it wakes (~15-20s). connect_timeout caps each attempt; the retry loop
@@ -77,26 +91,27 @@ def get_conn() -> psycopg.Connection:
     Aurora wakes from its 0 ACU pause, causing an init timeout.
     """
     global _conn, _schema_ready, _migrations_ready
-    if _conn is None or _conn.closed:
-        _conn = _connect()
-    if not _schema_ready or not _migrations_ready:
-        with _conn.cursor() as cur:
-            cur.execute("SELECT pg_advisory_lock(%s)", (_INIT_LOCK_KEY,))
-        try:
-            if not _schema_ready:
-                _ensure_schema(_conn)
-                _schema_ready = True
-            if not _migrations_ready:
-                _run_migrations(_conn)
-                _migrations_ready = True
-        finally:
-            # A failed schema/migration statement leaves the transaction aborted; roll back
-            # first so the unlock statement below can still run on this same connection.
-            _conn.rollback()
+    with _init_lock:
+        if _conn is None or _conn.closed:
+            _conn = _connect()
+        if not _schema_ready or not _migrations_ready:
             with _conn.cursor() as cur:
-                cur.execute("SELECT pg_advisory_unlock(%s)", (_INIT_LOCK_KEY,))
-            _conn.commit()
-    return _conn
+                cur.execute("SELECT pg_advisory_lock(%s)", (_INIT_LOCK_KEY,))
+            try:
+                if not _schema_ready:
+                    _ensure_schema(_conn)
+                    _schema_ready = True
+                if not _migrations_ready:
+                    _run_migrations(_conn)
+                    _migrations_ready = True
+            finally:
+                # A failed schema/migration statement leaves the transaction aborted; roll back
+                # first so the unlock statement below can still run on this same connection.
+                _conn.rollback()
+                with _conn.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_unlock(%s)", (_INIT_LOCK_KEY,))
+                _conn.commit()
+        return _conn
 
 
 def _ensure_schema(conn: psycopg.Connection) -> None:
