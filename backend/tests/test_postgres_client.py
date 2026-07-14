@@ -1,3 +1,5 @@
+import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -69,6 +71,50 @@ def test_ensure_schema_executes_schema_sql_and_commits():
     ).read_text()
     assert executed == [schema_sql]
     conn.commit.assert_called_once()
+
+
+def test_get_conn_serializes_concurrent_callers_on_a_fresh_process(monkeypatch):
+    # Reproduces the bug directly: FastAPI runs sync routes in a threadpool, so
+    # concurrent requests against a fresh process (e.g. the frontend's own
+    # concurrent getOps()/getExitPrices() calls on boot) used to race into
+    # get_conn() at the same time and interleave cursor calls on the shared
+    # connection. With the lock in place, exactly one thread does the real
+    # connect/init work and every other thread just waits for it and reuses it.
+    conn, _ = _make_conn()
+    connect_calls = []
+
+    def slow_connect():
+        connect_calls.append(1)
+        time.sleep(0.05)  # widens the race window a naive implementation would fall into
+        return conn
+
+    monkeypatch.setattr(postgres_client, "_connect", slow_connect)
+    ensure_schema = MagicMock()
+    run_migrations = MagicMock()
+    monkeypatch.setattr(postgres_client, "_ensure_schema", ensure_schema)
+    monkeypatch.setattr(postgres_client, "_run_migrations", run_migrations)
+
+    results: list[object] = []
+    errors: list[BaseException] = []
+
+    def call():
+        try:
+            results.append(postgres_client.get_conn())
+        except BaseException as exc:  # noqa: BLE001 — surface any thread failure to the test
+            errors.append(exc)
+
+    threads = [threading.Thread(target=call) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors
+    assert len(results) == 8
+    assert all(r is conn for r in results)
+    assert len(connect_calls) == 1
+    ensure_schema.assert_called_once_with(conn)
+    run_migrations.assert_called_once_with(conn)
 
 
 def test_get_conn_releases_lock_and_reraises_on_schema_failure(monkeypatch):
