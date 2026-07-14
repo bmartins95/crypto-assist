@@ -120,7 +120,7 @@ function HistoryRoute() {
   return (
     <div className="app">
       <HistoryTab
-        ops={p.ops} assets={p.assets} prices={p.prices}
+        ops={p.ops} assets={p.assets} avatarCache={p.avatarCache} prices={p.prices}
         onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp}
       />
     </div>
