@@ -678,7 +678,7 @@ No component code changes in this branch. Implementation follows after proposal 
 **Branch:** `docs/feature-roadmap`
 **Depends on:** nothing
 
-- [ ] Done
+- [x] Won't do
 
 ### Output
 `docs/roadmap.md` with a scored/ranked table of future features not in this plan:
@@ -725,7 +725,7 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 **Branch:** `feat/platform-field-catalog`
 **Depends on:** items 7, 9 (Wallet and History views must be in their redesigned form), item 13 (price provider abstraction — the new platform-exchange proxy endpoint follows the same provider/caching pattern as `routes/coins.py`)
 
-- [ ] Done
+- [x] Done
 
 ### Design reference
 `docs/design/platform-field-redesign.html` — pixel source of truth (combobox, chips, category badges, group headers). `docs/design/platform-field-implementation.md` — accompanying implementation notes (component contracts, CSS, file list).
@@ -777,6 +777,11 @@ Additive only, per this repo's migration rules — the existing `platform` colum
 - `web/src/components/HistoryTab.tsx` — platform cell → resolved platform name as plain text (no logo, no `personalizada` tag — corrected during implementation per user feedback; that richer treatment stays exclusive to the Wallet views below).
 - `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />`; "Ativo + plataforma" group headers → replace the fixed `ti-building-bank` icon with the real `PlatformLogo`, add the category badge, and move the group total + return to the right of the header (per the design doc — today the user sums the sub-table mentally).
 - `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm/md`, `.cat.*`, `.dd*`, `.dd-custom`, `.plus`, `.sel-logo`, `.inp.withlogo`, `.grp-hd` per the design reference's tokens.
+
+### Corrections learned during implementation
+- **Trade origin platform picker showed the full catalog regardless of holdings.** A live bug report ("the coin input for the you sell section should only show coins you already have," clarified on follow-up to mean the *platform* field, not the coin field) led to restricting "Plataforma de origem" to only platforms with a current balance, via a new `PlatformSelect` `options` prop fed by `heldPlatforms` (derived from `platformAssets`). The destination platform field and the plain Buy/Sell platform field stay unrestricted on purpose — you can deposit/receive onto any platform, held or not. This also surfaced a real, previously-latent gap: `PlatformSelect`'s category grouping never included `kind: 'custom'` (only `exchange`/`wallet`/`defi`), so a held platform that only exists as a user-typed custom entry would have silently vanished from the restricted list — fixed alongside it.
+- **Platform logos never rendered on dev.** The CloudFront `Content-Security-Policy`'s `img-src` only allowed `'self'` and `coin-images.coingecko.com` — the backend's own Lambda URL, where `/api/platforms/logo/{id}` is actually served from (a different origin than the CloudFront-served web app), was never added, so the browser silently blocked every platform-logo `<img>`. Fixed in the `aws-infra` repo (`stacks/app-stack.ts`, branch `fix/csp-allow-platform-logo-proxy`) by adding the backend origin to `img-src`, mirroring how it was already present in `connect-src`.
+- **First prod deploy of this item caused a brief, self-resolving outage.** Migrations 008–011 had never run on prod before — all four landed in a single release. `get_conn()`'s cross-container `pg_advisory_lock` has no timeout; when the wallet page's own concurrent boot requests (`getOps()`, `getExitPrices()`, etc.) cold-started several Lambda containers simultaneously against a paused (0 ACU) Aurora, the containers waiting on the lock while one container woke Aurora and ran all four migrations exceeded Lambda's 30s timeout and failed (7 requests, ~20:37 UTC on 2026-07-14). Once the migration-holding container finished (~25–30s) and released the lock, every subsequent request succeeded normally — not a data or logic bug, but a known, still-unaddressed gap (no timeout on the advisory lock acquisition) that could recur on any future deploy stacking up multiple migrations against a cold Aurora under concurrent traffic.
 
 ### Done when
 - Platform logos are rounded squares; coin logos stay circles.

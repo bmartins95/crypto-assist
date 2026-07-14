@@ -6,15 +6,13 @@ Manual verification steps once the implementation is in place. Backend: `cd back
 
 1. Start the backend fresh against an empty local DB — confirm `ops.platform_id`, `ops.platform_name`, and the new `platform_cache` table exist afterward (`\d ops`, `\d platform_cache` in `psql`). This part of `008_platform_fields.sql` is additive/idempotent and runs automatically like every other migration — no approval gate.
 
-## 2. Historical-data backfill (manual, requires approval before running for real)
+## 2. Historical-data backfill (auto-applied)
 
-1. Warm the exchange cache first: sign in and load any screen that hits `GET /api/platforms/exchanges` at least once (or curl it directly with a valid bearer token), so `platform_cache` has data for the backfill to match against.
-2. **Do not run this against dev/prod without explicit sign-off** — it rewrites `platform_id`/`platform_name` on every existing row. Dry-run locally first:
-   ```bash
-   cd backend && python scripts/backfill_platform_fields.py --dry-run
-   ```
-   Confirm it prints how many rows would resolve to a catalog match vs. a custom platform, with zero rows left `NULL` unless their original `platform` was already blank.
-3. Run for real locally (`--dry-run` omitted) and confirm re-running it is a no-op (idempotent — already-backfilled rows are skipped or produce the same result).
+**Correction, found via dev QA:** this was originally a manual, approval-gated script — but since the new UI reads only `platform_id`/`platform_name` and never falls back to the legacy `platform` column, every pre-catalog op would silently show no platform until someone remembered to run the script by hand. The backfill now runs automatically, once, as `db/migrations/011_backfill_platform_fields.py` (idempotent, tracked in `schema_migrations` like any other migration — see PLAN.md Item 22's "Corrections learned during implementation").
+
+1. Start the backend fresh against a DB with pre-existing `ops` rows that have a legacy `platform` value and `platform_id IS NULL` — confirm they resolve automatically on first request (check `schema_migrations` for `011_backfill_platform_fields.py`, or query `ops` directly).
+2. `backend/scripts/backfill_platform_fields.py` still exists, but only as a manual dry-run/diagnostic tool (`--dry-run` reports counts without writing) — it is not required to make the backfill happen.
+3. Confirm re-running the migration (or the script without `--dry-run`) is a no-op once every row is backfilled (idempotent — only rows with `platform_id IS NULL` are touched).
 
 ## 3. Register an operation with the new platform picker
 
@@ -26,8 +24,9 @@ Manual verification steps once the implementation is in place. Backend: `cd back
 
 ## 4. History view
 
-1. Open `/history` with a mix of catalog and custom platforms among past operations — confirm every row shows a logo or initials avatar next to the platform name, and custom ones carry a visible "personalizada" tag.
-2. Temporarily break a cached `logo_url` (e.g. edit it to a 404 URL in the DB) — confirm the row falls back to the initials avatar with no broken-image icon.
+**Correction, per user feedback during implementation:** History deliberately shows the resolved platform name as plain text — no logo, no "personalizada" tag. That richer treatment (logo/avatar + tag) is exclusive to the Wallet grouped views below.
+
+1. Open `/history` with a mix of catalog and custom platforms among past operations — confirm every row shows the resolved platform name as plain text (an em-dash for ops with no platform), with no logo and no tag.
 
 ## 5. Wallet grouped views
 
