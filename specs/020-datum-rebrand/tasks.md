@@ -1,4 +1,4 @@
-﻿# Tasks: Datum Rebrand
+# Tasks: Datum Rebrand
 
 **Input**: Design documents from `specs/020-datum-rebrand/` (spec.md, plan.md, research.md, quickstart.md; brand delivery in `assets/`)
 
@@ -38,11 +38,11 @@
 
 **Independent test**: quickstart.md steps 2–8 against `assets/datum-brand-guide.html`.
 
-- [ ] T012 [P] [US2] Typography pass in `web/src/app/globals.css`: `--font-display` on h1–h3, KPI/metric values, numeric table cells, wordmark; `font-variant-numeric: tabular-nums` on `.tbl` and metric cards; body stays Inter
-- [ ] T013 [P] [US2] Sidebar active-item treatment in `web/src/app/globals.css` (+ `web/src/components/Sidebar.tsx` if markup needed): teal pill bg `--s-accent-dim`, teal text, 3px edge bar, 7px `--brand-orange` datum dot before active label; refresh success check teal
-- [ ] T014 [P] [US2] Hero/auth restyle in `web/src/app/globals.css`: primary CTA teal bg with `#062a26` text, ghost secondary, remove `.auth-grad` gradient rule (no gradients anywhere), loading dots teal
-- [ ] T015 [US2] Carteira/drawer surface audit: KPI cards, table headers (11px uppercase muted), `atual`/`manual` badge to teal-dim/teal, submit check teal — adjust `web/src/app/globals.css` (and `web/src/components/OpDrawer.tsx` only if a class must change); platform chips stay rounded-square, coins circular
-- [ ] T016 [US2] Verify both themes against the color rules (orange only in datum-point contexts; gain/loss untouched); fix any leakage found; update component tests touched by class changes
+- [X] T012 [P] [US2] Typography pass in `web/src/app/globals.css`: `--font-display` on h1–h3, KPI/metric values, numeric table cells, wordmark; `font-variant-numeric: tabular-nums` on `.tbl` and metric cards; body stays Inter
+- [X] T013 [P] [US2] Sidebar active-item treatment in `web/src/app/globals.css` (+ `web/src/components/Sidebar.tsx` if markup needed): teal pill bg `--s-accent-dim`, teal text, 3px edge bar, 7px `--brand-orange` datum dot before active label; refresh success check teal
+- [X] T014 [P] [US2] Hero/auth restyle in `web/src/app/globals.css`: primary CTA teal bg with `#062a26` text, ghost secondary, remove `.auth-grad` gradient rule (no gradients anywhere), loading dots teal
+- [X] T015 [US2] Carteira/drawer surface audit: KPI cards, table headers (11px uppercase muted), `atual`/`manual` badge to teal-dim/teal, submit check teal — adjust `web/src/app/globals.css` (and `web/src/components/OpDrawer.tsx` only if a class must change); platform chips stay rounded-square, coins circular
+- [X] T016 [US2] Verify both themes against the color rules (orange only in datum-point contexts; gain/loss untouched); fix any leakage found; update component tests touched by class changes
 
 **Checkpoint**: Visual sweep passes in dark and light; `npm test` green.
 
@@ -52,18 +52,18 @@
 
 **Independent test**: quickstart.md steps 1 and 3; 16px favicon crispness; manifest metadata.
 
-- [ ] T017 [P] [US3] Replace `web/public/favicon.svg` with `specs/020-datum-rebrand/assets/datum-favicon.svg` content; copy `datum-icon.svg` to `web/public/datum-icon.svg`
-- [ ] T018 [US3] Rasterize PNGs per research.md R4 into `web/public/icons/` (favicon-16, favicon-32, apple-touch-icon 180, icon-192, icon-512) via throwaway `npx` resvg/sharp run; commit binaries; no package.json changes
-- [ ] T019 [US3] Create `web/public/manifest.json` (name/short_name "Datum", background `#101013`, theme `#17171a`, icons 192/512) and link it + apple-touch-icon + PNG favicons in `web/index.html`
-- [ ] T020 [US3] Delete dead Next-era assets `web/public/{next,vercel,file,globe,window}.svg` after grep-verifying zero references
+- [X] T017 [P] [US3] Replace `web/public/favicon.svg` with `specs/020-datum-rebrand/assets/datum-favicon.svg` content; copy `datum-icon.svg` to `web/public/datum-icon.svg`
+- [X] T018 [US3] Rasterize PNGs per research.md R4 into `web/public/icons/` (favicon-16, favicon-32, apple-touch-icon 180, icon-192, icon-512) via throwaway `npx` resvg/sharp run; commit binaries; no package.json changes
+- [X] T019 [US3] Create `web/public/manifest.json` (name/short_name "Datum", background `#101013`, theme `#17171a`, icons 192/512) and link it + apple-touch-icon + PNG favicons in `web/index.html`
+- [X] T020 [US3] Delete dead Next-era assets `web/public/{next,vercel,file,globe,window}.svg` after grep-verifying zero references
 
 **Checkpoint**: Install metadata + tab identity fully Datum.
 
 ## Phase 6: Polish & verification
 
-- [ ] T021 Old-identity + orange audits per quickstart.md steps 8–9; fix stragglers
-- [ ] T022 Run `cd web && npm test && npm run coverage` (paste summary in PR), `cd backend && pytest` (must stay green), and mobile typecheck (`cd mobile && npx tsc --noEmit`) to confirm the shared i18n change keeps the mobile contract intact
-- [ ] T023 Manual visual sweep per quickstart.md with the dev server, dark + light, all routes
+- [X] T021 Old-identity + orange audits per quickstart.md steps 8–9; fix stragglers
+- [X] T022 Run `cd web && npm test && npm run coverage` (paste summary in PR), `cd backend && pytest` (must stay green), and mobile typecheck (`cd mobile && npx tsc --noEmit`) to confirm the shared i18n change keeps the mobile contract intact
+- [X] T023 Manual visual sweep per quickstart.md with the dev server, dark + light, all routes
 
 ## Dependencies & execution order
 
