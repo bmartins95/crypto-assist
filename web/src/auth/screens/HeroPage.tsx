@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router';
 import AuthShell from '../AuthShell';
 import BrandMark from '../BrandMark';
+import Wordmark from '@/components/Wordmark';
 import { useLocale } from '@/context/LocaleContext';
 
 export default function HeroPage() {
@@ -13,7 +14,7 @@ export default function HeroPage() {
         <div className="auth-topbar">
           <div className="auth-brandrow">
             <BrandMark size={34} />
-            <span>{t.app_title}</span>
+            <Wordmark size={19} />
           </div>
           <button
             type="button"
@@ -29,7 +30,7 @@ export default function HeroPage() {
             <h1>
               {t.hero_title_line1}
               <br />
-              <span className="auth-grad">{t.hero_title_line2}</span>
+              <span className="auth-em">{t.hero_title_line2}</span>
             </h1>
             <p className="auth-hero-sub">{t.hero_subtitle}</p>
             <div className="auth-hero-ctas">
@@ -125,6 +126,11 @@ export default function HeroPage() {
             <h3>{t.hero_feature3_title}</h3>
             <p>{t.hero_feature3_desc}</p>
           </div>
+        </div>
+
+        <div className="auth-attrib">
+          <Wordmark size={13} />
+          <span>· {t.hero_footer_attribution}</span>
         </div>
       </div>
     </AuthShell>

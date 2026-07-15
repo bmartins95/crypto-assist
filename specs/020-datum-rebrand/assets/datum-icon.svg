@@ -1,0 +1,6 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Datum app icon">
+  <rect width="512" height="512" rx="115" fill="#17171a"/>
+  <path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z"
+        fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/>
+  <circle cx="263" cy="256" r="31" fill="#f97316"/>
+</svg>

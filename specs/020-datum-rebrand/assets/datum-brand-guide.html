@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>datum. — guia de marca e redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#101013; --bg-1:#17171a; --bg-2:#1d1d20; --bg-3:#232328;
+    --border:#26262b; --border-strong:#323238;
+    --teal:#2dd4bf; --teal-strong:#14b8a6; --teal-dim:rgba(45,212,191,.12);
+    --orange:#f97316; --orange-dim:rgba(249,115,22,.14);
+    --text-1:#f4f4f5; --text-2:#a1a1aa; --text-3:#71717a;
+    --gain:#34d399; --gain-dim:rgba(52,211,153,.13);
+    --loss:#f87171; --loss-dim:rgba(248,113,113,.13);
+    --font-display:'Space Grotesk',sans-serif; --font-ui:'Inter',sans-serif;
+    --r-sm:8px; --r-md:12px; --r-lg:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg-0);color:var(--text-1);font-family:var(--font-ui);line-height:1.6}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 32px}
+  section{padding:72px 0;border-bottom:1px solid var(--border)}
+  .eyebrow{font-family:var(--font-display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:14px}
+  h2{font-family:var(--font-display);font-size:30px;font-weight:500;margin-bottom:10px}
+  .lead{color:var(--text-2);max-width:620px;margin-bottom:40px}
+
+  .hero{padding:110px 0 90px;text-align:center;border-bottom:1px solid var(--border)}
+  .hero .mark{width:104px;height:104px;margin:0 auto 34px;display:block}
+  .wordmark{font-family:var(--font-display);font-weight:700;font-size:74px;letter-spacing:-.03em;line-height:1}
+  .wordmark .dot{color:var(--orange)}
+  .tagline{margin-top:16px;color:var(--text-2);font-size:19px}
+  .tagline strong{color:var(--teal);font-weight:500}
+
+  .grid{display:grid;gap:20px}
+  .g-scale{grid-template-columns:repeat(4,auto);align-items:end;justify-content:start;gap:44px}
+  .scale-cell{text-align:center}
+  .scale-cell span{display:block;margin-top:12px;font-size:12px;color:var(--text-3);font-family:var(--font-display)}
+
+  .g-swatch{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .swatch{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+  .swatch .chip{height:76px}
+  .swatch .meta{padding:12px 14px;background:var(--bg-1)}
+  .swatch .meta b{display:block;font-size:13px;font-weight:600}
+  .swatch .meta code{font-size:12px;color:var(--text-3);font-family:var(--font-display)}
+
+  .type-row{display:grid;grid-template-columns:180px 1fr;gap:24px;padding:22px 0;border-top:1px solid var(--border);align-items:baseline}
+  .type-row:first-of-type{border-top:none}
+  .type-label{font-size:12px;color:var(--text-3);font-family:var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+
+  .g-comp{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+  .card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px}
+  .card h3{font-family:var(--font-display);font-weight:500;font-size:15px;color:var(--text-2);margin-bottom:18px}
+  .btn{font-family:var(--font-ui);font-weight:600;font-size:14px;border-radius:var(--r-sm);padding:11px 20px;border:none;cursor:pointer;margin:0 10px 10px 0}
+  .btn-primary{background:var(--teal);color:#062a26}
+  .btn-primary:hover{background:var(--teal-strong)}
+  .btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border-strong)}
+  .btn-ghost:hover{color:var(--text-1);border-color:var(--text-3)}
+  .field label{display:block;font-size:13px;color:var(--text-2);margin-bottom:7px}
+  .field input{width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:11px 14px;font-size:14px;font-family:var(--font-ui)}
+  .field input:focus{outline:none;border-color:var(--teal)}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:4px 11px}
+  .pill-gain{background:var(--gain-dim);color:var(--gain)}
+  .pill-loss{background:var(--loss-dim);color:var(--loss)}
+  .pill-teal{background:var(--teal-dim);color:var(--teal)}
+  .chip-plat{display:inline-flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 12px;font-size:13px;margin:0 8px 8px 0}
+  .chip-plat i{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;font-weight:700;font-family:var(--font-display)}
+
+  .screen{background:var(--bg-0);border:1px solid var(--border-strong);border-radius:var(--r-lg);overflow:hidden;margin-top:28px}
+  .screen-bar{display:flex;gap:6px;padding:11px 14px;background:var(--bg-1);border-bottom:1px solid var(--border)}
+  .screen-bar i{width:10px;height:10px;border-radius:50%;background:var(--bg-3)}
+  .auth-body{padding:64px 40px;text-align:center}
+  .auth-body .mark{width:60px;height:60px;margin:0 auto 22px;display:block}
+  .auth-body h1{font-family:var(--font-display);font-weight:700;font-size:36px;letter-spacing:-.02em}
+  .auth-body h1 em{font-style:normal;color:var(--orange)}
+  .auth-body p{color:var(--text-2);margin:12px auto 30px;max-width:400px}
+  .auth-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+  .app-shell{display:grid;grid-template-columns:198px 1fr;min-height:420px}
+  .sidebar{background:var(--bg-1);border-right:1px solid var(--border);padding:18px 12px}
+  .side-brand{display:flex;align-items:center;gap:9px;padding:6px 10px 20px}
+  .side-brand svg{width:26px;height:26px}
+  .side-brand b{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:-.02em}
+  .side-brand b i{font-style:normal;color:var(--orange)}
+  .nav-item{position:relative;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-sm);color:var(--text-2);font-size:13.5px;font-weight:500;margin-bottom:3px;cursor:pointer}
+  .nav-item.active{color:var(--teal);background:var(--teal-dim)}
+  .nav-item.active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--teal)}
+  .nav-item:hover:not(.active){color:var(--text-1)}
+  .main{padding:24px 26px}
+  .main h4{font-family:var(--font-display);font-weight:500;font-size:19px;margin-bottom:18px}
+  .cards-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .kpi{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--r-md);padding:15px 16px}
+  .kpi small{display:block;font-size:11.5px;color:var(--text-3);margin-bottom:5px}
+  .kpi b{font-family:var(--font-display);font-size:18px;font-weight:500;letter-spacing:-.01em}
+  .kpi .sub{font-size:12px;margin-top:4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600}
+  td{padding:12px;border-bottom:1px solid var(--border);color:var(--text-1)}
+  td.mono,th.mono{font-family:var(--font-display)}
+  .asset{display:flex;align-items:center;gap:10px;font-weight:600}
+  .asset i{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:10px;font-weight:700;font-family:var(--font-display)}
+  .dot-datum{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--orange);margin-right:8px;vertical-align:middle}
+  footer{padding:48px 0;color:var(--text-3);font-size:13px;text-align:center}
+  @media(max-width:840px){.cards-4{grid-template-columns:repeat(2,1fr)}.app-shell{grid-template-columns:1fr}.sidebar{display:none}.wordmark{font-size:52px}}
+</style>
+</head>
+<body>
+
+<div class="hero wrap">
+  <svg class="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b"/><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/><circle cx="263" cy="256" r="31" fill="#f97316"/></svg>
+  <div class="wordmark">datum<span class="dot">.</span></div>
+  <div class="tagline">Para saber aonde ir, você precisa saber <strong>onde está</strong>.</div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">01 · Símbolo</div>
+    <h2>O monograma e o ponto</h2>
+    <p class="lead">O D em contorno teal é o instrumento; o ponto laranja é o datum — a sua posição, fixada. O ponto final do wordmark repete o motivo: <b>datum.</b> termina sempre no ponto laranja.</p>
+    <div class="grid g-scale">
+      <div class="scale-cell"><svg width="128" height="128" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b"/><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/><circle cx="263" cy="256" r="31" fill="#f97316"/></svg><span>128 px</span></div>
+      <div class="scale-cell"><svg width="64" height="64" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b"/><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/><circle cx="263" cy="256" r="31" fill="#f97316"/></svg><span>64 px</span></div>
+      <div class="scale-cell"><svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#17171a" stroke="#26262b"/><path d="M18 14 L18 50 L29 50 C44 50 52 42.5 52 32 C52 21.5 44 14 29 14 Z" fill="none" stroke="#2dd4bf" stroke-width="6" stroke-linejoin="round"/><circle cx="33" cy="32" r="6" fill="#f97316"/></svg><span>32 px · favicon</span></div>
+      <div class="scale-cell"><svg width="16" height="16" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#17171a"/><path d="M18 14 L18 50 L29 50 C44 50 52 42.5 52 32 C52 21.5 44 14 29 14 Z" fill="none" stroke="#2dd4bf" stroke-width="6" stroke-linejoin="round"/><circle cx="33" cy="32" r="6" fill="#f97316"/></svg><span>16 px</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">02 · Cor</div>
+    <h2>Teal estrutura, laranja aponta</h2>
+    <p class="lead">Teal é a cor do instrumento: ações, navegação ativa, marca. Laranja é reservado ao ponto datum — destaques raros e intencionais. Verde e vermelho seguem exclusivos de ganho e perda.</p>
+    <div class="grid g-swatch">
+      <div class="swatch"><div class="chip" style="background:#101013"></div><div class="meta"><b>Fundo</b><code>#101013</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#17171a"></div><div class="meta"><b>Superfície</b><code>#17171a</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#1d1d20"></div><div class="meta"><b>Elevado</b><code>#1d1d20</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#2dd4bf"></div><div class="meta"><b>Teal</b><code>#2dd4bf</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#f97316"></div><div class="meta"><b>Ponto</b><code>#f97316</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#34d399"></div><div class="meta"><b>Ganho</b><code>#34d399</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#f87171"></div><div class="meta"><b>Perda</b><code>#f87171</code></div></div>
+      <div class="swatch"><div class="chip" style="background:#a1a1aa"></div><div class="meta"><b>Texto 2º</b><code>#a1a1aa</code></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">03 · Tipografia</div>
+    <h2>Space Grotesk fala, Inter trabalha</h2>
+    <p class="lead">Space Grotesk assina títulos, números e o wordmark — voz técnica de instrumento de medição. Inter cuida do corpo e da interface, invisível de tão funcional.</p>
+    <div class="type-row"><div class="type-label">Display · 700</div><div style="font-family:var(--font-display);font-weight:700;font-size:34px;letter-spacing:-.02em">Sua posição, consolidada.</div></div>
+    <div class="type-row"><div class="type-label">Números · 500</div><div style="font-family:var(--font-display);font-weight:500;font-size:26px">R$ 48.263,90 <span class="pill pill-gain">▲ 12,4%</span></div></div>
+    <div class="type-row"><div class="type-label">Corpo · Inter 400</div><div style="color:var(--text-2);max-width:560px">Acompanhe todos os seus ativos, em todas as plataformas, num único ponto de referência. Registre aportes, defina metas de saída e veja o retorno real da carteira.</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">04 · Componentes</div>
+    <h2>O kit no novo padrão</h2>
+    <p class="lead">Decisões já travadas foram preservadas: inputs elevados em <code style="font-family:var(--font-display)">#1d1d20</code>, chips de plataforma quadrados, moedas circulares, pílulas de retorno coloridas.</p>
+    <div class="grid g-comp">
+      <div class="card">
+        <h3>Ações</h3>
+        <button class="btn btn-primary">Registrar operação</button>
+        <button class="btn btn-ghost">Cancelar</button>
+      </div>
+      <div class="card">
+        <h3>Campo elevado</h3>
+        <div class="field"><label>Preço unitário</label><input value="R$ 512.480,00" readonly></div>
+        <div style="margin-top:10px"><span class="pill pill-teal">atual</span></div>
+      </div>
+      <div class="card">
+        <h3>Pílulas e chips</h3>
+        <span class="pill pill-gain">+18,2%</span>
+        <span class="pill pill-loss">−4,7%</span>
+        <div style="margin-top:14px">
+          <span class="chip-plat"><i style="background:#2a2440;color:#b3a2f5">MM</i>MetaMask</span>
+          <span class="chip-plat"><i style="background:#20303f;color:#7fc2ff">PH</i>Phantom</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">05 · Telas</div>
+    <h2>Entrada</h2>
+    <p class="lead">A landing pública troca o herói genérico pelo argumento da marca. O AuthShell mantém o fluxo Google, Facebook e e-mail — recolorido nos tokens novos.</p>
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i></div>
+      <div class="auth-body">
+        <svg class="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b"/><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/><circle cx="263" cy="256" r="31" fill="#f97316"/></svg>
+        <h1>Você está <em>aqui</em>.</h1>
+        <p>Todos os seus ativos, todas as suas plataformas, um único ponto de referência. O Datum consolida sua carteira pra você decidir o próximo passo.</p>
+        <div class="auth-actions">
+          <button class="btn btn-primary">Entrar com Google</button>
+          <button class="btn btn-ghost">Entrar com e-mail</button>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:64px">Carteira</h2>
+    <p class="lead">Sidebar com pílula ativa em teal e o ponto datum marcando o item corrente. Cards de resumo em Space Grotesk. Cores de ganho e perda intocadas.</p>
+    <div class="screen">
+      <div class="screen-bar"><i></i><i></i><i></i></div>
+      <div class="app-shell">
+        <div class="sidebar">
+          <div class="side-brand">
+            <svg viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b"/><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="31" stroke-linejoin="round"/><circle cx="263" cy="256" r="31" fill="#f97316"/></svg>
+            <b>datum<i>.</i></b>
+          </div>
+          <div class="nav-item active"><span class="dot-datum"></span>Carteira</div>
+          <div class="nav-item">Lucro</div>
+          <div class="nav-item">Histórico</div>
+        </div>
+        <div class="main">
+          <h4>Carteira · Por ativo</h4>
+          <div class="cards-4">
+            <div class="kpi"><small>Investido</small><b>R$ 42.960,00</b></div>
+            <div class="kpi"><small>Valor atual</small><b>R$ 48.263,90</b><div class="sub" style="color:var(--gain)">▲ R$ 5.303,90</div></div>
+            <div class="kpi"><small>Lucro/Prejuízo</small><b style="color:var(--gain)">+R$ 5.303,90</b></div>
+            <div class="kpi"><small>Retorno</small><b><span class="pill pill-gain">+12,4%</span></b></div>
+          </div>
+          <table>
+            <thead><tr><th>Ativo</th><th class="mono">Preço atual</th><th class="mono">Quantidade</th><th class="mono">Meta de saída</th><th>Retorno</th></tr></thead>
+            <tbody>
+              <tr><td><span class="asset"><i style="background:#3a2b17;color:#f7931a">₿</i>CBBTC</span></td><td class="mono">R$ 512.480</td><td class="mono">0,0412</td><td class="mono">R$ 690.000</td><td><span class="pill pill-gain">+18,2%</span></td></tr>
+              <tr><td><span class="asset"><i style="background:#1c2f3a;color:#5ac8fa">S</i>SOL</span></td><td class="mono">R$ 812,40</td><td class="mono">14,80</td><td class="mono">R$ 1.100</td><td><span class="pill pill-loss">−4,7%</span></td></tr>
+              <tr><td><span class="asset"><i style="background:#17313a;color:#2dd4bf">$</i>USDC</span></td><td class="mono">R$ 5,42</td><td class="mono">2.240,00</td><td class="mono">—</td><td><span class="pill pill-gain">+1,1%</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>datum. · um produto Buma Labs · guia de marca v1</footer>
+</body>
+</html>

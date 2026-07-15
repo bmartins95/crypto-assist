@@ -1,10 +1,10 @@
 :root {
   --bg: #ffffff;
-  --bg2: #f5f5f5;
-  --bg3: #ebebeb;
-  --text: #1a1a1a;
-  --text2: #666666;
-  --text3: #999999;
+  --bg2: #f4f4f5;
+  --bg3: #f4f4f5;
+  --text: #18181b;
+  --text2: #52525b;
+  --text3: #71717a;
   --border: rgba(0, 0, 0, 0.12);
   --border2: rgba(0, 0, 0, 0.2);
   --success: #27500A;
@@ -18,37 +18,41 @@
   --s-surface-hover: #e4e4e7;
   --s-border: rgba(0, 0, 0, 0.12);
   --s-border-soft: rgba(0, 0, 0, 0.06);
-  --s-accent: #14b8a6;
-  --s-accent-dim: rgba(20, 184, 166, .12);
+  --s-accent: #0d9488;
+  --s-accent-dim: rgba(13, 148, 136, .12);
+  --s-accent-strong: #0f766e;
   --s-text-muted: #52525b;
   --s-text-dim: #71717a;
   --s-danger-dim: rgba(239, 68, 68, .08);
   --s-danger-border: rgba(239, 68, 68, .25);
-  --brand-a: #f7931a;
+  --brand-orange: #f97316;
+  --brand-orange-dim: rgba(249, 115, 22, .14);
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
   accent-color: var(--s-accent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
-    --bg: #0a0a0b;
-    --bg2: #242424;
-    --bg3: #0a0a0b;
-    --text: #e8e8e8;
-    --text2: #aaaaaa;
-    --text3: #666666;
-    --border: rgba(255, 255, 255, 0.1);
-    --border2: rgba(255, 255, 255, 0.18);
+    --bg: #101013;
+    --bg2: #232328;
+    --bg3: #101013;
+    --text: #f4f4f5;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --border: #26262b;
+    --border2: #323238;
     --success: #34d399;
     --success-bg: #085041;
     --danger: #f87171;
     --danger-bg: #501313;
-    --s-surface: #161618;
+    --s-surface: #17171a;
     --s-surface-2: #1d1d20;
-    --s-surface-hover: #222226;
-    --s-border: #27272a;
+    --s-surface-hover: #232328;
+    --s-border: #26262b;
     --s-border-soft: #1f1f22;
     --s-accent: #2dd4bf;
     --s-accent-dim: rgba(45, 212, 191, .12);
+    --s-accent-strong: #14b8a6;
     --s-text-muted: #a1a1aa;
     --s-text-dim: #71717a;
     --s-danger-dim: rgba(248, 113, 113, .14);
@@ -58,25 +62,26 @@
 }
 
 html[data-theme="dark"] {
-  --bg: #0a0a0b;
-  --bg2: #242424;
-  --bg3: #0a0a0b;
-  --text: #e8e8e8;
-  --text2: #aaaaaa;
-  --text3: #666666;
-  --border: rgba(255, 255, 255, 0.1);
-  --border2: rgba(255, 255, 255, 0.18);
+  --bg: #101013;
+  --bg2: #232328;
+  --bg3: #101013;
+  --text: #f4f4f5;
+  --text2: #a1a1aa;
+  --text3: #71717a;
+  --border: #26262b;
+  --border2: #323238;
   --success: #34d399;
   --success-bg: #085041;
   --danger: #f87171;
   --danger-bg: #501313;
-  --s-surface: #161618;
+  --s-surface: #17171a;
   --s-surface-2: #1d1d20;
-  --s-surface-hover: #222226;
-  --s-border: #27272a;
+  --s-surface-hover: #232328;
+  --s-border: #26262b;
   --s-border-soft: #1f1f22;
   --s-accent: #2dd4bf;
   --s-accent-dim: rgba(45, 212, 191, .12);
+  --s-accent-strong: #14b8a6;
   --s-text-muted: #a1a1aa;
   --s-text-dim: #71717a;
   --s-danger-dim: rgba(248, 113, 113, .14);
@@ -92,6 +97,8 @@ body {
   color: var(--text);
   min-height: 100vh;
 }
+
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.02em; }
 
 .app { max-width: 1152px; margin: 0 auto; padding: 2rem 1rem; }
 
@@ -129,8 +136,11 @@ body {
   border-radius: var(--radius); padding: 14px 16px;
 }
 .metric-label { font-size: 12px; color: var(--s-text-dim); margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
-.metric-value { font-size: 20px; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
-.metric-sub { font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+.metric-value {
+  font-family: var(--font-display); font-size: 20px; font-weight: 500;
+  letter-spacing: -.01em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.metric-sub { font-size: 12.5px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 .pos { color: var(--success); }
 .neg { color: var(--danger); }
@@ -146,7 +156,7 @@ body {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
 }
-.chead .ct { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.chead .ct { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 .chead .cs { font-size: 12.5px; color: var(--s-text-dim); margin-top: 2px; }
 .refresh { display: flex; align-items: center; gap: 12px; }
 .refresh .ts { font-size: 12px; color: var(--s-text-dim); }
@@ -162,12 +172,12 @@ body {
 .btn i { opacity: .85; }
 
 .btn-accent {
-  background: var(--s-accent); border-color: var(--s-accent); color: #04201c;
+  background: var(--s-accent); border-color: var(--s-accent); color: #062a26;
 }
-.btn-accent:hover { background: var(--s-accent); filter: brightness(1.08); }
+.btn-accent:hover { background: var(--s-accent-strong); border-color: var(--s-accent-strong); }
 
 .btn-submit {
-  background: var(--s-accent); border: 1px solid var(--s-accent); color: #04201c; font-weight: 600;
+  background: var(--s-accent); border: 1px solid var(--s-accent); color: #062a26; font-weight: 600;
   font: inherit; font-size: 13px; position: relative; overflow: hidden;
   min-width: 190px; padding: 9px 18px; border-radius: 9px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -175,11 +185,11 @@ body {
 }
 .btn-submit:active { transform: scale(.97); }
 .btn-submit:disabled { cursor: default; }
-.btn-submit.done { background: var(--success); border-color: var(--success); }
+.btn-submit.done { background: var(--s-accent); border-color: var(--s-accent); }
 .btn-submit .lbl { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
 .btn-submit .spinner {
   display: inline-block; width: 16px; height: 16px; flex-shrink: 0;
-  border: 2px solid rgba(4, 32, 28, .3); border-top-color: #04201c; border-radius: 50%;
+  border: 2px solid rgba(6, 42, 38, .35); border-top-color: #062a26; border-radius: 50%;
   animation: btn-submit-spin .6s linear infinite;
 }
 @keyframes btn-submit-spin { to { transform: rotate(360deg); } }
@@ -201,9 +211,10 @@ body {
 
 .tbl { background: var(--s-surface); border: 1px solid var(--s-border); border-radius: var(--radius); overflow: hidden; }
 .tbl.scroll { overflow-x: auto; }
-.tbl table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl thead th { text-align: left; padding: 12px 16px; font-size: 11.5px; font-weight: 500; color: var(--s-text-dim); background: var(--s-surface); border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tbl thead th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--s-text-dim); background: var(--s-surface); border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
 .tbl th.num, .tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl td.num { font-family: var(--font-display); }
 .tbl tbody td { padding: 12px 16px; border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
 .tbl tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr:hover { background: var(--s-surface-hover); }
@@ -223,7 +234,7 @@ body {
 .pill.down { background: var(--s-danger-dim); color: var(--danger); }
 .muted { color: var(--s-text-dim); }
 
-/* Platform identity — rounded squares, deliberately distinct from the circular .coin logos. */
+/* Platform identity â€” rounded squares, deliberately distinct from the circular .coin logos. */
 .plat { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .plat .pn { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plogo {
@@ -235,7 +246,7 @@ body {
 .plogo-md { width: 26px; height: 26px; border-radius: 7px; font-size: 10.5px; }
 .cat { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 5px; flex-shrink: 0; }
 .cat.exchange { background: var(--s-accent-dim); color: var(--s-accent); }
-.cat.wallet { background: rgba(247, 147, 26, .12); color: #f7931a; }
+.cat.wallet { background: var(--brand-orange-dim); color: var(--brand-orange); }
 .cat.defi { background: rgba(153, 69, 255, .14); color: #b78bff; }
 .cat.custom { background: var(--s-surface-hover); color: var(--s-text-dim); }
 
@@ -530,11 +541,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .trade-block .inp:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ── DatePicker ───────────────────────────────────────────────── */
+/* â”€â”€ DatePicker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .date-wrap { position: relative; }
 .date-wrap input { padding-right: 34px; width: 100%; cursor: text; }
 .date-wrap input::placeholder { color: var(--s-text-dim); }
-/* Purely decorative — pointer-events:none lets clicks fall through to the input
+/* Purely decorative â€” pointer-events:none lets clicks fall through to the input
    underneath, which owns the actual open/close behavior. It only ever changes
    color; it must never itself be a clickable target or animate. */
 .date-icon {
@@ -600,8 +611,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   content: ''; position: absolute; bottom: 4px; width: 3px; height: 3px;
   border-radius: 50%; background: var(--s-accent);
 }
-.day.selected { background: var(--s-accent); color: #04201c; font-weight: 700; }
-.day.selected::after { background: #04201c; }
+.day.selected { background: var(--s-accent); color: #062a26; font-weight: 700; }
+.day.selected::after { background: #062a26; }
 .day.selected:hover { background: var(--s-accent); filter: brightness(1.08); }
 
 .cal-ft {
@@ -636,7 +647,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .chart-btn { flex: 1; justify-content: center; }
 }
 
-/* ── Settings page ───────────────────────────────────────────── */
+/* â”€â”€ Settings page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .settings-page { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 
 .settings-card {
@@ -667,7 +678,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .settings-row-label { font-size: 14px; font-weight: 500; color: var(--text); }
 .settings-row-hint { font-size: 12.5px; color: var(--s-text-dim); margin-top: 2px; }
 
-/* Custom select — overrides the global select rule */
+/* Custom select â€” overrides the global select rule */
 .settings-select {
   background: var(--s-surface-2);
   border: 1px solid var(--border);
@@ -770,7 +781,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .settings-btn--danger:hover { background: var(--s-danger-dim); }
 
-/* ── App shell / collapsible sidebar ─────────────────────────── */
+/* â”€â”€ App shell / collapsible sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .layout {
   display: grid; grid-template-columns: 288px 1fr;
   min-height: 100vh; transition: grid-template-columns .22s ease;
@@ -788,12 +799,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   display: flex; align-items: center; gap: 10px; font-weight: 700;
   font-size: 15px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden;
 }
-.brand .logo {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(135deg, #f7931a, #2dd4bf);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0; color: #fff;
-}
+.brand .auth-logo { flex-shrink: 0; display: block; }
 .collapse-btn {
   margin-left: auto; width: 26px; height: 26px; border-radius: 7px;
   background: transparent; border: 1px solid var(--border); color: var(--s-text-dim);
@@ -818,7 +824,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .navi + .navi { margin-top: 4px; }
 .navi i { font-size: 18px; opacity: .75; flex-shrink: 0; }
 .navi .lbl { overflow: hidden; }
-.navi:hover, .navi.active { background: var(--s-surface-hover); color: var(--text); }
+.navi:hover { background: var(--s-surface-hover); color: var(--text); }
+.navi.active { background: var(--s-accent-dim); color: var(--s-accent); }
+.navi.active::before {
+  content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--s-accent);
+}
+.navi.active .lbl::before {
+  content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-orange); margin-right: 8px; vertical-align: 1px;
+}
 .navi.active i { opacity: 1; color: var(--s-accent); }
 .sb-foot {
   margin-top: auto; padding-top: 12px; border-top: 1px solid var(--s-border-soft);
@@ -837,6 +852,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .layout.collapsed .collapse-btn i { transform: rotate(180deg); }
 .layout.collapsed .navlbl { opacity: 0; height: 8px; margin: 4px 0; }
 .layout.collapsed .navi { justify-content: center; padding: 11px; width: 44px; }
+.layout.collapsed .navi.active::before { display: none; }
 .layout.collapsed .navi .lbl { display: none; }
 .layout.collapsed .userchip { justify-content: center; padding: 8px 0; }
 .layout.collapsed .userchip .ue { display: none; }
@@ -861,7 +877,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   content: ''; position: absolute; width: 640px; height: 640px; border-radius: 50%;
   filter: blur(130px); opacity: .15;
 }
-.auth-glow::before { background: var(--brand-a); top: -180px; left: -140px; animation: auth-drift1 16s ease-in-out infinite; }
+.auth-glow::before { background: var(--s-accent); top: -180px; left: -140px; animation: auth-drift1 16s ease-in-out infinite; }
 .auth-glow::after { background: var(--s-accent); bottom: -220px; right: -160px; animation: auth-drift2 18s ease-in-out infinite; }
 @keyframes auth-drift1 { 50% { transform: translate(60px, 50px); } }
 @keyframes auth-drift2 { 50% { transform: translate(-50px, -40px); } }
@@ -881,7 +897,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-card > *:nth-child(6), .auth-hero-page > *:nth-child(6) { animation-delay: .33s; }
 .auth-card > *:nth-child(7), .auth-hero-page > *:nth-child(7) { animation-delay: .39s; }
 /* Loading/error states: per auth-flow-prototype.html, the outer .loader block itself
-   isn't animated — each inner element (logo, title, message, dots) fades/rises in
+   isn't animated â€” each inner element (logo, title, message, dots) fades/rises in
    individually, on the same rise timing as everything else in the card. */
 .auth-card > .auth-loader, .auth-card > .auth-error-state { opacity: 1; animation: none; }
 .auth-loader > *, .auth-error-state > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
@@ -944,7 +960,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 /* No-op keyframe used purely as a JS-visible signal: an onAnimationStart listener on
    the input fires exactly when Chrome autofills it, which is the standard workaround
-   for Chrome autofill sometimes not reliably dispatching an 'input' event — without
+   for Chrome autofill sometimes not reliably dispatching an 'input' event â€” without
    this, React's controlled value can stay stale and empty while the field visibly
    shows the autofilled password, which then flip-flops when React next re-renders. */
 @keyframes auth-autofill-detect { from {} to {} }
@@ -963,12 +979,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-btn:hover { background: var(--s-surface-hover); }
 .auth-btn:active { transform: scale(.985); }
 .auth-btn:disabled { cursor: default; opacity: .6; }
-.auth-btn-primary { background: var(--s-accent); border-color: var(--s-accent); color: #04201c; font-weight: 600; }
-.auth-btn-primary:hover { background: var(--s-accent); filter: brightness(1.08); }
+.auth-btn-primary { background: var(--s-accent); border-color: var(--s-accent); color: #062a26; font-weight: 600; }
+.auth-btn-primary:hover { background: var(--s-accent-strong); border-color: var(--s-accent-strong); }
 
 .auth-loader { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
 /* Two animations on the same element: the one-shot entrance rise (matching the other
-   loader children) and the continuous pulse. Both must be named here together — a
+   loader children) and the continuous pulse. Both must be named here together â€” a
    higher-specificity `animation` shorthand fully replaces a lower-specificity one
    rather than merging, so splitting these across two rules silently drops the rise
    (and its opacity: 0 -> 1) while the pulse keeps running invisibly at opacity: 0. */
@@ -1002,7 +1018,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .auth-error-icon-wrap {
   /* A translucent tint (matching .auth-check-wrap's own rgba(52,211,153,.14) pattern),
-     not the solid --danger-bg used for banners/pills — a solid fill here reads as much
+     not the solid --danger-bg used for banners/pills â€” a solid fill here reads as much
      more alarming/heavy than the subtle badge the design calls for. */
   width: 64px; height: 64px; border-radius: 50%; background: rgba(248, 113, 113, .12);
   display: flex; align-items: center; justify-content: center;
@@ -1010,7 +1026,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-error-icon-wrap svg { width: 28px; height: 28px; stroke: var(--danger); }
 /* auth-pop already carries its own opacity 0 -> 1, so this fully replaces (by source
    order, at equal specificity) the generic `.auth-error-state > *:nth-child(1)` rise
-   rather than needing to merge with it — the icon pops in on its own, siblings rise. */
+   rather than needing to merge with it â€” the icon pops in on its own, siblings rise. */
 .auth-error-state > .auth-error-icon-wrap {
   opacity: 0;
   animation: auth-pop .35s cubic-bezier(.2,.8,.2,1) .03s forwards;
@@ -1042,9 +1058,17 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-ghost:hover { background: var(--s-surface-hover); }
 .auth-hero-main { display: grid; grid-template-columns: 1.02fr .98fr; gap: 44px; align-items: center; width: 100%; }
 .auth-hero-main h1 { font-size: 40px; line-height: 1.07; letter-spacing: -.03em; font-weight: 800; }
-.auth-grad {
-  background: linear-gradient(120deg, var(--brand-a), var(--s-accent)); -webkit-background-clip: text;
-  background-clip: text; color: transparent;
+.auth-em { color: var(--brand-orange); }
+
+.wordmark {
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -.03em; line-height: 1;
+  color: var(--text);
+}
+.wordmark .wm-dot { color: var(--brand-orange); }
+
+.auth-attrib {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 56px; font-size: 12.5px; color: var(--s-text-dim);
 }
 .auth-hero-sub { font-size: 16px; color: var(--s-text-muted); margin-top: 20px; line-height: 1.55; max-width: 450px; }
 .auth-hero-ctas { display: flex; align-items: center; gap: 12px; margin-top: 30px; }
@@ -1056,7 +1080,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .auth-pv-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 .auth-pv-label { font-size: 12px; color: var(--s-text-dim); }
-.auth-pv-value { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
+.auth-pv-value { font-family: var(--font-display); font-size: 24px; font-weight: 500; letter-spacing: -.01em; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .auth-spark { width: 100%; height: 70px; display: block; margin: 6px 0 14px; }
 .auth-pv-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-top: 1px solid var(--s-border-soft); }
 .auth-pv-nm { font-size: 13px; font-weight: 600; flex: 1; }
@@ -1078,7 +1102,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .auth-topbar { margin-bottom: 40px; }
 }
 
-/* ── Skeleton loading (refresh) ──────────────────────────────── */
+/* â”€â”€ Skeleton loading (refresh) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .sk {
   background: var(--s-surface-2);
   border-radius: 6px;

@@ -7,7 +7,7 @@ export default function DataDeletionPage() {
   return (
     <div style={wrap}>
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 16 }}>Exclusão de Dados</h1>
-      <p>Você pode excluir seus dados do Carteira de Criptoativos a qualquer momento.</p>
+      <p>Você pode excluir seus dados do Datum a qualquer momento.</p>
 
       <h2 style={h2}>Excluir suas operações</h2>
       <p>

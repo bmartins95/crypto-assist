@@ -23,7 +23,7 @@ describe('HeroPage', () => {
 
   it('renders the headline, product preview, and three feature cards', () => {
     renderHero();
-    expect(screen.getByText(/clara como nunca/i)).toBeTruthy();
+    expect(screen.getByText('aqui.')).toHaveClass('auth-em');
     expect(screen.getByText('Valor atual')).toBeTruthy();
     expect(screen.getByText('Tempo real')).toBeTruthy();
     expect(screen.getByText('Multiplataforma')).toBeTruthy();

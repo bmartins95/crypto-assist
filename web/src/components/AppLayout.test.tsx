@@ -244,7 +244,7 @@ describe('AppLayout', () => {
     const { isAuthenticated } = await import('@/auth/useAuth');
     vi.mocked(isAuthenticated).mockResolvedValue(false);
     await renderAt('/');
-    await waitFor(() => expect(screen.getByText(/clara como nunca/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('aqui.')).toBeTruthy());
     expect(screen.queryByTestId('wallet-view')).toBeNull();
   });
 
