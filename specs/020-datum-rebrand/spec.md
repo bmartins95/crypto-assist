@@ -22,7 +22,7 @@
 
 - Q: What happens to the light ("Claro") theme, given the brand delivery is dark-only? → A: Derive a Datum light palette — keep the Claro/Escuro/Sistema toggle and design light-mode equivalents of the Datum tokens (light surfaces, darker teal `#0d9488` where contrast demands, same orange/gain/loss semantics).
 - Q: Is the mobile (Expo) app part of this pass? → A: No — web only. Mobile rebrand is a follow-up item; shared-code changes must still not break the mobile build.
-- Q: Font delivery given the CloudFront CSP has no Google Fonts origins? → A: Google Fonts, per the brand spec — requires adding `fonts.googleapis.com` (style-src) and `fonts.gstatic.com` (font-src) to the CSP in `aws-infra` as a companion PR; that infra change is prepared but not merged without explicit approval.
+- Q: Font delivery given the CloudFront CSP? → A: Google Fonts, per the brand spec. Post-clarification verification: the deployed CSP in `aws-infra/stacks/app-stack.ts` already allows `https://fonts.googleapis.com` (style-src) and `https://fonts.gstatic.com` (font-src) — the app loads Inter from Google Fonts today — so **no infra change is required**; Space Grotesk is added to the existing font link.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -106,12 +106,12 @@ The Datum icon set replaces the old favicon/PWA assets: SVG favicon for the tab,
 - **FR-013**: Lucro and Histórico views MUST receive the token/typography pass only — no layout changes.
 - **FR-014**: Existing UX flows, routes, state, APIs, and locked component behaviors MUST remain unchanged; this feature is a reskin + rename only. The theme setting (Claro / Escuro / Sistema) remains available and functional.
 - **FR-015**: A Datum light theme MUST be derived and applied behind the existing theme toggle: light equivalents of every surface/border/text token, teal deepened to `#0d9488` where contrast on light backgrounds requires it, orange reserved-usage and gain/loss colors semantically unchanged.
-- **FR-016**: The CloudFront Content-Security-Policy MUST be extended (in the infrastructure repo, as a companion change requiring explicit approval before merge/deploy) to allow the Google Fonts stylesheet and font origins; the web app must not ship the font links before that CSP change is deployed to the target stage.
+- **FR-016**: Fonts MUST load from Google Fonts through the already-deployed CSP allowances (`fonts.googleapis.com` in style-src, `fonts.gstatic.com` in font-src — verified present in the infrastructure repo); no infrastructure change is part of this feature.
 
 ### Out of Scope (per `datum-rebrand-spec.md` §7)
 
 - No route, state, or API changes.
-- No Cognito/infra domain changes (the future `datum.bumalabs.net` domain is a separate infra task; no env values change in this pass). The only infra touch is the CSP font-origins change from FR-016.
+- No Cognito/infra domain changes (the future `datum.bumalabs.net` domain is a separate infra task; no env values change in this pass). No infra changes at all — the CSP already permits Google Fonts (FR-016).
 - Mobile (Expo) rebrand — follow-up item per clarification; this pass must not break the mobile build.
 - No layout redesign of Lucro and Histórico beyond tokens/typography.
 
