@@ -302,7 +302,6 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
 
   const handleTypeChange = (next: 'buy' | 'sell' | 'trade') => {
     if (phase !== 'idle') return;
-    if (opType === 'trade' && next !== 'trade') resetTrade();
     setOpType(next);
     setError(null);
   };
@@ -327,9 +326,13 @@ export default function OpDrawer({ open, onClose, onSubmit, onSubmitTrade, editi
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
+  // Keeps the drawer open with the just-submitted values still filled in, so
+  // registering several similar ops in a row doesn't require reopening and
+  // re-filling the form each time. The drawer only clears/closes when the
+  // user explicitly does so via requestClose.
   const finishAfterSave = () => {
     setPhase('done');
-    setTimeout(() => { setPhase('idle'); onClose(); }, DONE_DISPLAY_MS);
+    setTimeout(() => { setPhase('idle'); }, DONE_DISPLAY_MS);
   };
 
   const handleSubmit = async () => {

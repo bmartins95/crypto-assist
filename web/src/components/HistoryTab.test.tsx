@@ -142,7 +142,7 @@ describe('HistoryTab', () => {
     expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'bitcoin' }));
     expect(onEditOp).not.toHaveBeenCalled();
     await new Promise(r => setTimeout(r, 1350));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('submitting an edited operation via the drawer calls onEditOp with the original id', () => {
