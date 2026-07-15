@@ -16,6 +16,14 @@
 - `datum-favicon.svg` — small-size-optimized favicon variant (use this for ≤32px, not the master icon).
 - `datum-symbol-light.svg` — tile-less symbol for light backgrounds; not used in-app.
 
+## Clarifications
+
+### Session 2026-07-15
+
+- Q: What happens to the light ("Claro") theme, given the brand delivery is dark-only? → A: Derive a Datum light palette — keep the Claro/Escuro/Sistema toggle and design light-mode equivalents of the Datum tokens (light surfaces, darker teal `#0d9488` where contrast demands, same orange/gain/loss semantics).
+- Q: Is the mobile (Expo) app part of this pass? → A: No — web only. Mobile rebrand is a follow-up item; shared-code changes must still not break the mobile build.
+- Q: Font delivery given the CloudFront CSP has no Google Fonts origins? → A: Google Fonts, per the brand spec — requires adding `fonts.googleapis.com` (style-src) and `fonts.gstatic.com` (font-src) to the CSP in `aws-infra` as a companion PR; that infra change is prepared but not merged without explicit approval.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The product is called Datum everywhere (Priority: P1)
@@ -51,6 +59,7 @@ A user navigating the app experiences the new Datum look: near-black layered sur
 4. **Given** gain/loss values anywhere in the app, **When** rendered, **Then** their colors are byte-identical to the specified gain/loss values (`#34d399` / `#f87171` and their dim variants) and are never teal or orange.
 5. **Given** the sidebar, **When** a nav item is active, **Then** it shows the teal pill + teal edge bar and a 7px orange dot before the label (the datum point motif), preserving the existing sliding-pill mechanic.
 6. **Given** the operation drawer, **When** rendered, **Then** all locked decisions are preserved (elevated inputs, dark dropdown scrollbar, `atual`/`manual` badge now in teal-dim/teal, spinner→check submit with check in teal).
+7. **Given** the theme setting switched to "Claro", **When** any surface renders, **Then** the derived Datum light tokens apply (light neutrals, teal `#0d9488` for actions where needed), the brand color rules still hold, and switching themes remains instant with no reload.
 
 ---
 
@@ -72,7 +81,7 @@ The Datum icon set replaces the old favicon/PWA assets: SVG favicon for the tab,
 
 ### Edge Cases
 
-- **Light theme**: the user-facing theme setting offers Claro / Escuro / Sistema, but the Datum brand guide defines only a dark palette. The rebrand must decide what "Claro" means post-rebrand (see Clarifications/Assumptions) rather than leaving a half-branded light mode.
+- **Light theme**: the user-facing theme setting offers Claro / Escuro / Sistema, and the Datum brand guide defines only the dark palette. Per clarification, a Datum light palette is derived in this pass: light surface/border/text equivalents, teal deepened to `#0d9488` where contrast requires, orange/gain/loss semantics unchanged. Both themes must satisfy the brand color-usage rules.
 - **Non-Portuguese locales**: the hero/headline copy is specified in PT-BR, but the UI ships in 10 locales. All new/changed brand copy must flow through the i18n layer with translations for every locale; the wordmark `datum.` itself is never translated.
 - **Orange leakage**: orange is reserved for the datum point motif (wordmark period, sidebar active dot, hero "aqui", specified orange-dim badges). Any pre-existing orange usage outside that list must be re-mapped to teal or a neutral.
 - **Old-asset stragglers**: cached favicons, unused template SVGs in the public folder, and OAuth-flow interstitials must not surface the old identity.
@@ -85,7 +94,7 @@ The Datum icon set replaces the old favicon/PWA assets: SVG favicon for the tab,
 - **FR-001**: All user-facing occurrences of "crypto-assist" / "Crypto Assist" MUST be replaced with "Datum" (prose) or the `datum.` wordmark (brand contexts); the document title MUST read "Datum — Sua carteira, consolidada" (per-route variants allowed).
 - **FR-002**: The global design token layer MUST adopt the exact palette, typography, and radii values defined in `datum-rebrand-spec.md` §2, including the locked elevated-input value `#1d1d20`.
 - **FR-003**: Color usage MUST follow the brand rules: teal for structure/action, orange only for the datum-point motif, green/red exclusively for gain/loss, no gradients anywhere in the new identity.
-- **FR-004**: Space Grotesk (400/500/700) and Inter (400/500/600) MUST be loaded and applied per role — display font on wordmark, titles h1–h3, KPI numbers, numeric table cells and numeric badges (with tabular numerals); UI font everywhere else.
+- **FR-004**: Space Grotesk (400/500/700) and Inter (400/500/600) MUST be loaded from Google Fonts (with preconnect) and applied per role — display font on wordmark, titles h1–h3, KPI numbers, numeric table cells and numeric badges (with tabular numerals); UI font everywhere else.
 - **FR-005**: A reusable Wordmark primitive MUST render `datum` in the display font with the trailing orange period, sized via a prop, and be used in the sidebar brand, auth hero, and footer attribution; the period is never omitted in brand contexts.
 - **FR-006**: The new icon set MUST replace the old favicon and app-install assets: SVG favicon (small-size variant), rasterized PNG sizes (32/16, touch icon 180, install icons 512/192) generated from the SVGs, and install metadata renamed with the specified background/theme colors.
 - **FR-007**: The boot splash MUST center the Datum mark at 64px on the page background, keeping the existing pulse + three-dots loader with dots recolored to teal.
@@ -95,12 +104,15 @@ The Datum icon set replaces the old favicon/PWA assets: SVG favicon for the tab,
 - **FR-011**: The operation drawer MUST keep every locked interaction decision, recolored: `atual` badge in teal-dim/teal, submit check in teal, elevated inputs unchanged at `#1d1d20`.
 - **FR-012**: All new or changed user-visible copy MUST go through the i18n layer with entries for all 10 supported locales; the wordmark itself is locale-invariant.
 - **FR-013**: Lucro and Histórico views MUST receive the token/typography pass only — no layout changes.
-- **FR-014**: Existing UX flows, routes, state, APIs, and locked component behaviors MUST remain unchanged; this feature is a reskin + rename only.
+- **FR-014**: Existing UX flows, routes, state, APIs, and locked component behaviors MUST remain unchanged; this feature is a reskin + rename only. The theme setting (Claro / Escuro / Sistema) remains available and functional.
+- **FR-015**: A Datum light theme MUST be derived and applied behind the existing theme toggle: light equivalents of every surface/border/text token, teal deepened to `#0d9488` where contrast on light backgrounds requires it, orange reserved-usage and gain/loss colors semantically unchanged.
+- **FR-016**: The CloudFront Content-Security-Policy MUST be extended (in the infrastructure repo, as a companion change requiring explicit approval before merge/deploy) to allow the Google Fonts stylesheet and font origins; the web app must not ship the font links before that CSP change is deployed to the target stage.
 
 ### Out of Scope (per `datum-rebrand-spec.md` §7)
 
 - No route, state, or API changes.
-- No Cognito/infra domain changes (the future `datum.bumalabs.net` domain is a separate infra task; no env values change in this pass).
+- No Cognito/infra domain changes (the future `datum.bumalabs.net` domain is a separate infra task; no env values change in this pass). The only infra touch is the CSP font-origins change from FR-016.
+- Mobile (Expo) rebrand — follow-up item per clarification; this pass must not break the mobile build.
 - No layout redesign of Lucro and Histórico beyond tokens/typography.
 
 ## Success Criteria *(mandatory)*
@@ -116,9 +128,7 @@ The Datum icon set replaces the old favicon/PWA assets: SVG favicon for the tab,
 
 ## Assumptions
 
-- The brand delivery defines a dark identity only; the in-app "Claro" theme option's post-rebrand treatment needs a product decision (kept-and-adapted vs. removed) — to be settled in clarification before planning.
-- The mobile app (Expo) is assumed out of scope for this pass — the brand spec's surfaces (tab title, favicon, manifest, sidebar, drawer) are web-only; mobile rebrand would be a follow-up item. Shared-code changes must still not break the mobile build (constitution I).
 - Hero and brand copy are authored in PT-BR; translations for the other 9 locales will be produced as part of this feature using accurate financial-product tone, since all UI strings flow through the i18n layer.
-- `package.json` name changes to `datum-app` are internal-only and carry no user impact or deploy risk.
+- `package.json` name changes to `datum-app` are internal-only and carry no user impact or deploy risk. Internal identifiers that never reach the user — the `@crypto-assist/shared` path alias, repo name, SSM parameter paths, backend package metadata — are NOT renamed in this pass.
 - No `manifest.json` / PWA manifest may currently exist; if absent, creating one with the specified Datum metadata satisfies the manifest requirement (the requirement is about install/branding metadata, not about preserving a specific file).
-- Google Fonts is an acceptable font delivery mechanism for this pass (self-hosting is explicitly deferred by the brand spec).
+- The Datum light palette (FR-015) is our derivation, not part of the brand delivery: it reuses the delivery's semantics (teal = action, orange = datum point, green/red = gain/loss) on light neutrals, with `#0d9488` as the light-mode teal where the bright teal fails contrast on white.
