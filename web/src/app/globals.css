@@ -793,12 +793,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   display: flex; align-items: center; gap: 10px; font-weight: 700;
   font-size: 15px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden;
 }
-.brand .logo {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: linear-gradient(135deg, #f7931a, #2dd4bf);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; flex-shrink: 0; color: #fff;
-}
+.brand .auth-logo { flex-shrink: 0; display: block; }
 .collapse-btn {
   margin-left: auto; width: 26px; height: 26px; border-radius: 7px;
   background: transparent; border: 1px solid var(--border); color: var(--s-text-dim);
@@ -1048,6 +1043,17 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-hero-main { display: grid; grid-template-columns: 1.02fr .98fr; gap: 44px; align-items: center; width: 100%; }
 .auth-hero-main h1 { font-size: 40px; line-height: 1.07; letter-spacing: -.03em; font-weight: 800; }
 .auth-em { color: var(--brand-orange); }
+
+.wordmark {
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -.03em; line-height: 1;
+  color: var(--text);
+}
+.wordmark .wm-dot { color: var(--brand-orange); }
+
+.auth-attrib {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 56px; font-size: 12.5px; color: var(--s-text-dim);
+}
 .auth-hero-sub { font-size: 16px; color: var(--s-text-muted); margin-top: 20px; line-height: 1.55; max-width: 450px; }
 .auth-hero-ctas { display: flex; align-items: center; gap: 12px; margin-top: 30px; }
 .auth-hero-ctas .auth-btn { width: auto; padding: 12px 22px; margin-top: 0; }

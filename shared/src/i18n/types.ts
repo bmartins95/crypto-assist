@@ -125,6 +125,7 @@ export interface UIText {
   hero_feature2_desc: string;
   hero_feature3_title: string;
   hero_feature3_desc: string;
+  hero_footer_attribution: string;
   auth_welcome: string;
   auth_legal_prefix: string;
   auth_legal_and: string;

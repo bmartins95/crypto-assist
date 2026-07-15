@@ -7,11 +7,11 @@ export default function TermsPage() {
   return (
     <div style={wrap}>
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 16 }}>Termos de Uso</h1>
-      <p>Ao criar uma conta ou usar o Carteira de Criptoativos, você concorda com estes termos.</p>
+      <p>Ao criar uma conta ou usar o Datum, você concorda com estes termos.</p>
 
       <h2 style={h2}>Descrição do serviço</h2>
       <p>
-        O Carteira de Criptoativos é uma ferramenta para você registrar manualmente suas operações de
+        o Datum é uma ferramenta para você registrar manualmente suas operações de
         criptoativos e acompanhar preços, lucro e histórico. O aplicativo não executa ordens de compra
         ou venda em nenhuma corretora ou exchange, não custodia ativos e não tem acesso às suas
         carteiras ou contas externas.

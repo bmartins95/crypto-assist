@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { fetchUserAttributes, signOut } from '@/auth/useAuth';
 import { useLocale } from '@/context/LocaleContext';
+import BrandMark from '@/auth/BrandMark';
+import Wordmark from '@/components/Wordmark';
 
 interface Props {
   collapsed: boolean;
@@ -46,8 +48,8 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
     <aside className="sb">
       <div className="sb-top">
         <div className="brand">
-          <span className="logo" aria-hidden="true">₿</span>
-          <span className="txt">{t.app_title}</span>
+          <BrandMark size={26} />
+          <span className="txt"><Wordmark size={17} /></span>
         </div>
         <button
           type="button"

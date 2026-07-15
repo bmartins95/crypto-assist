@@ -7,7 +7,7 @@ export default function PrivacyPage() {
   return (
     <div style={wrap}>
       <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 16 }}>Política de Privacidade</h1>
-      <p>Esta página descreve como o Carteira de Criptoativos coleta, usa e protege seus dados.</p>
+      <p>Esta página descreve como o Datum coleta, usa e protege seus dados.</p>
 
       <h2 style={h2}>Dados coletados</h2>
       <p>
