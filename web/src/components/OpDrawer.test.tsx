@@ -132,7 +132,7 @@ describe('OpDrawer', () => {
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
   });
 
-  it('submits a valid Buy with an auto-calculated total, then closes after the loading/done animation', async () => {
+  it('submits a valid Buy with an auto-calculated total, then stays open with fields intact after the done animation', async () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
@@ -149,7 +149,10 @@ describe('OpDrawer', () => {
       date: '2024-03-10', platformId: 'custom:binance', platformName: 'Binance',
     }));
     await waitForClose();
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect((screen.getByLabelText('Quantidade') as HTMLInputElement).value).toBe('2');
+    expect((screen.getByLabelText('Plataforma') as HTMLInputElement).value).toBe('Binance');
   });
 
   it('switches to Sell and submits with type Sell', async () => {
@@ -224,7 +227,7 @@ describe('OpDrawer', () => {
     expect(document.getElementById('drawer-tr-date')?.closest('.fld')).toHaveClass('tr-date');
   });
 
-  it('submits a valid Trade as one Sell and one Buy sharing the same date, then closes', async () => {
+  it('submits a valid Trade as one Sell and one Buy sharing the same date, then stays open with fields intact', async () => {
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
@@ -245,7 +248,9 @@ describe('OpDrawer', () => {
       expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5, fee: 2, total: 502, date: '2024-03-10', platformId: 'custom:kraken', platformName: 'Kraken' }),
     );
     await waitForClose();
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('1');
   });
 
   it('submits a Trade with a different destination platform, tagging the sell with the origin and the buy with the destination', async () => {
@@ -474,7 +479,7 @@ describe('OpDrawer', () => {
     expect(document.querySelector('.badge')).not.toBeInTheDocument();
   });
 
-  it('discards Trade-only fields but keeps platform when switching away from Trade', () => {
+  it('keeps Trade-only fields (and the Buy/Sell platform) filled when switching tabs', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
     selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Kraken');
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
@@ -482,7 +487,18 @@ describe('OpDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
     expect((screen.getByLabelText('Plataforma') as HTMLInputElement).value).toBe('Kraken');
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('');
+    expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('3');
+  });
+
+  it('clears fields for the next new-op session once the drawer has actually been closed and reopened', () => {
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
+    const rerenderWith = (open: boolean) => rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open={open} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+    rerenderWith(false);
+    rerenderWith(true);
+    expect((screen.getByLabelText('Quantidade') as HTMLInputElement).value).toBe('');
   });
 
   it('uses the same dropdown styling as the other coin fields and only shows owned assets for "Você vende"', () => {
@@ -531,7 +547,7 @@ describe('OpDrawer', () => {
     expect(screen.getByRole('button', { name: 'Trade' })).toBeDisabled();
   });
 
-  it('submits updated fields via onSubmit when editing, not onSubmitTrade, then closes', async () => {
+  it('submits updated fields via onSubmit when editing, not onSubmitTrade, then stays open with the edited values', async () => {
     const onSubmit = vi.fn();
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
@@ -541,7 +557,9 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ qty: 3, type: 'Sell', coinId: 'ethereum' }));
     expect(onSubmitTrade).not.toHaveBeenCalled();
     await waitForClose();
-    expect(onClose).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect((screen.getByLabelText('Quantidade') as HTMLInputElement).value).toBe('3');
   });
 
   it('leaves the operation untouched when closing an edit session without submitting', () => {
