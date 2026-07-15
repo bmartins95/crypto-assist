@@ -1,4 +1,4 @@
-# Tasks: Datum Rebrand
+﻿# Tasks: Datum Rebrand
 
 **Input**: Design documents from `specs/020-datum-rebrand/` (spec.md, plan.md, research.md, quickstart.md; brand delivery in `assets/`)
 
@@ -8,13 +8,13 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Add Space Grotesk 400/500/700 to the existing Google Fonts `<link>` in `web/index.html` (keep Inter weights and preconnects unchanged)
+- [X] T001 Add Space Grotesk 400/500/700 to the existing Google Fonts `<link>` in `web/index.html` (keep Inter weights and preconnects unchanged)
 
 ## Phase 2: Foundational (blocks US2; US1 partially depends via new tokens)
 
-- [ ] T002 Re-value dark tokens in `web/src/app/globals.css` per research.md R2 mapping (both the `prefers-color-scheme` block and `html[data-theme="dark"]` block): page `#101013`, surface `#17171a`, hover `#232328`, borders `#26262b`/`#323238`, text `#f4f4f5`/`#a1a1aa`/`#71717a`; add `--s-accent-strong: #14b8a6`, `--brand-orange: #f97316`, `--font-display: 'Space Grotesk', sans-serif`; keep `--s-surface-2: #1d1d20` and gain/loss values byte-identical
-- [ ] T003 Re-value light tokens in `web/src/app/globals.css` per research.md R3 (accent `#0d9488`, accent-dim `rgba(13,148,136,.12)`, neutrals per mapping; gain/loss light values unchanged); update `web/index.html` pre-paint script backgrounds to `#101013` (dark) / `#f4f4f5` (light)
-- [ ] T004 Audit every `--brand-a` / brand-orange usage in `web/src` and re-map to `--brand-orange` or teal per the color rules (coin-badge literals like Bitcoin `#f7931a` stay); delete the `--brand-a` token
+- [X] T002 Re-value dark tokens in `web/src/app/globals.css` per research.md R2 mapping (both the `prefers-color-scheme` block and `html[data-theme="dark"]` block): page `#101013`, surface `#17171a`, hover `#232328`, borders `#26262b`/`#323238`, text `#f4f4f5`/`#a1a1aa`/`#71717a`; add `--s-accent-strong: #14b8a6`, `--brand-orange: #f97316`, `--font-display: 'Space Grotesk', sans-serif`; keep `--s-surface-2: #1d1d20` and gain/loss values byte-identical
+- [X] T003 Re-value light tokens in `web/src/app/globals.css` per research.md R3 (accent `#0d9488`, accent-dim `rgba(13,148,136,.12)`, neutrals per mapping; gain/loss light values unchanged); update `web/index.html` pre-paint script backgrounds to `#101013` (dark) / `#f4f4f5` (light)
+- [X] T004 Audit every `--brand-a` / brand-orange usage in `web/src` and re-map to `--brand-orange` or teal per the color rules (coin-badge literals like Bitcoin `#f7931a` stay); delete the `--brand-a` token
 
 ## Phase 3: User Story 1 — The product is called Datum everywhere (P1) 🎯 MVP
 
@@ -22,13 +22,13 @@
 
 **Independent test**: quickstart.md steps 1–2 + old-identity grep audit (step 9).
 
-- [ ] T005 [P] [US1] Create `web/src/components/Wordmark.tsx` (`datum` + orange period, `size` prop, `.wordmark`/`.wm-dot` classes in globals.css) with test `web/src/components/Wordmark.test.tsx`
-- [ ] T006 [P] [US1] Replace `web/src/auth/BrandMark.tsx` body with the Datum tile mark from `specs/020-datum-rebrand/assets/datum-icon.svg` (no gradient defs), aria-label "Datum"
-- [ ] T007 [US1] Update brand strings in all 10 `shared/src/i18n/locales/*.ts`: `app_title: 'Datum'`; hero copy per research.md R6 (`hero_title_line1`/`hero_title_line2`/`hero_subtitle` — pt-BR from the delivery, translated for the other 9); add `hero_footer_attribution` key to `shared/src/i18n/types.ts` and every locale
-- [ ] T008 [US1] Update `web/src/auth/screens/HeroPage.tsx`: orange emphasis span (class, no gradient — replace/retire `.auth-grad` usage here) on `hero_title_line2`, footer attribution row (`<Wordmark>` + `hero_footer_attribution`), topbar uses `<Wordmark>` next to BrandMark
-- [ ] T009 [US1] Update `web/src/components/Sidebar.tsx` brand block: replace `₿` glyph with the Datum mark (BrandMark at 26px or inline SVG) + `<Wordmark size={17}>`; keep collapse behavior
-- [ ] T010 [US1] Set `<title>Datum — Sua carteira, consolidada</title>` in `web/index.html`; rename `web/package.json` name to `datum-app`
-- [ ] T011 [US1] Update tests asserting old identity: `web/src/auth/screens/HeroPage.test.tsx`, `web/src/components/AppLayout.test.tsx` (sidebar brand), `web/src/lib/i18n.test.ts`, any test matching "Carteira de Criptoativos"
+- [X] T005 [P] [US1] Create `web/src/components/Wordmark.tsx` (`datum` + orange period, `size` prop, `.wordmark`/`.wm-dot` classes in globals.css) with test `web/src/components/Wordmark.test.tsx`
+- [X] T006 [P] [US1] Replace `web/src/auth/BrandMark.tsx` body with the Datum tile mark from `specs/020-datum-rebrand/assets/datum-icon.svg` (no gradient defs), aria-label "Datum"
+- [X] T007 [US1] Update brand strings in all 10 `shared/src/i18n/locales/*.ts`: `app_title: 'Datum'`; hero copy per research.md R6 (`hero_title_line1`/`hero_title_line2`/`hero_subtitle` — pt-BR from the delivery, translated for the other 9); add `hero_footer_attribution` key to `shared/src/i18n/types.ts` and every locale
+- [X] T008 [US1] Update `web/src/auth/screens/HeroPage.tsx`: orange emphasis span (class, no gradient — replace/retire `.auth-grad` usage here) on `hero_title_line2`, footer attribution row (`<Wordmark>` + `hero_footer_attribution`), topbar uses `<Wordmark>` next to BrandMark
+- [X] T009 [US1] Update `web/src/components/Sidebar.tsx` brand block: replace `₿` glyph with the Datum mark (BrandMark at 26px or inline SVG) + `<Wordmark size={17}>`; keep collapse behavior
+- [X] T010 [US1] Set `<title>Datum — Sua carteira, consolidada</title>` in `web/index.html`; rename `web/package.json` name to `datum-app`
+- [X] T011 [US1] Update tests asserting old identity: `web/src/auth/screens/HeroPage.test.tsx`, `web/src/components/AppLayout.test.tsx` (sidebar brand), `web/src/lib/i18n.test.ts`, any test matching "Carteira de Criptoativos"
 
 **Checkpoint**: App renders fully as Datum; `npm test` green.
 

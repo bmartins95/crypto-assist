@@ -98,6 +98,8 @@ body {
   min-height: 100vh;
 }
 
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.02em; }
+
 .app { max-width: 1152px; margin: 0 auto; padding: 2rem 1rem; }
 
 .header { margin-bottom: 1.5rem; }
@@ -134,8 +136,11 @@ body {
   border-radius: var(--radius); padding: 14px 16px;
 }
 .metric-label { font-size: 12px; color: var(--s-text-dim); margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
-.metric-value { font-size: 20px; font-weight: 700; letter-spacing: -.01em; line-height: 1; }
-.metric-sub { font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+.metric-value {
+  font-family: var(--font-display); font-size: 20px; font-weight: 500;
+  letter-spacing: -.01em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.metric-sub { font-size: 12.5px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 .pos { color: var(--success); }
 .neg { color: var(--danger); }
@@ -151,7 +156,7 @@ body {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: 20px; gap: 16px; flex-wrap: wrap;
 }
-.chead .ct { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.chead .ct { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 .chead .cs { font-size: 12.5px; color: var(--s-text-dim); margin-top: 2px; }
 .refresh { display: flex; align-items: center; gap: 12px; }
 .refresh .ts { font-size: 12px; color: var(--s-text-dim); }
@@ -167,12 +172,12 @@ body {
 .btn i { opacity: .85; }
 
 .btn-accent {
-  background: var(--s-accent); border-color: var(--s-accent); color: #04201c;
+  background: var(--s-accent); border-color: var(--s-accent); color: #062a26;
 }
-.btn-accent:hover { background: var(--s-accent); filter: brightness(1.08); }
+.btn-accent:hover { background: var(--s-accent-strong); border-color: var(--s-accent-strong); }
 
 .btn-submit {
-  background: var(--s-accent); border: 1px solid var(--s-accent); color: #04201c; font-weight: 600;
+  background: var(--s-accent); border: 1px solid var(--s-accent); color: #062a26; font-weight: 600;
   font: inherit; font-size: 13px; position: relative; overflow: hidden;
   min-width: 190px; padding: 9px 18px; border-radius: 9px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -180,11 +185,11 @@ body {
 }
 .btn-submit:active { transform: scale(.97); }
 .btn-submit:disabled { cursor: default; }
-.btn-submit.done { background: var(--success); border-color: var(--success); }
+.btn-submit.done { background: var(--s-accent); border-color: var(--s-accent); }
 .btn-submit .lbl { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
 .btn-submit .spinner {
   display: inline-block; width: 16px; height: 16px; flex-shrink: 0;
-  border: 2px solid rgba(4, 32, 28, .3); border-top-color: #04201c; border-radius: 50%;
+  border: 2px solid rgba(6, 42, 38, .35); border-top-color: #062a26; border-radius: 50%;
   animation: btn-submit-spin .6s linear infinite;
 }
 @keyframes btn-submit-spin { to { transform: rotate(360deg); } }
@@ -206,9 +211,10 @@ body {
 
 .tbl { background: var(--s-surface); border: 1px solid var(--s-border); border-radius: var(--radius); overflow: hidden; }
 .tbl.scroll { overflow-x: auto; }
-.tbl table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tbl thead th { text-align: left; padding: 12px 16px; font-size: 11.5px; font-weight: 500; color: var(--s-text-dim); background: var(--s-surface); border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
+.tbl table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tbl thead th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--s-text-dim); background: var(--s-surface); border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
 .tbl th.num, .tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl td.num { font-family: var(--font-display); }
 .tbl tbody td { padding: 12px 16px; border-bottom: 1px solid var(--s-border-soft); white-space: nowrap; }
 .tbl tbody tr:last-child td { border-bottom: 0; }
 .tbl tbody tr:hover { background: var(--s-surface-hover); }
@@ -228,7 +234,7 @@ body {
 .pill.down { background: var(--s-danger-dim); color: var(--danger); }
 .muted { color: var(--s-text-dim); }
 
-/* Platform identity — rounded squares, deliberately distinct from the circular .coin logos. */
+/* Platform identity â€” rounded squares, deliberately distinct from the circular .coin logos. */
 .plat { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .plat .pn { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plogo {
@@ -535,11 +541,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .trade-block .inp:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ── DatePicker ───────────────────────────────────────────────── */
+/* â”€â”€ DatePicker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .date-wrap { position: relative; }
 .date-wrap input { padding-right: 34px; width: 100%; cursor: text; }
 .date-wrap input::placeholder { color: var(--s-text-dim); }
-/* Purely decorative — pointer-events:none lets clicks fall through to the input
+/* Purely decorative â€” pointer-events:none lets clicks fall through to the input
    underneath, which owns the actual open/close behavior. It only ever changes
    color; it must never itself be a clickable target or animate. */
 .date-icon {
@@ -605,8 +611,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   content: ''; position: absolute; bottom: 4px; width: 3px; height: 3px;
   border-radius: 50%; background: var(--s-accent);
 }
-.day.selected { background: var(--s-accent); color: #04201c; font-weight: 700; }
-.day.selected::after { background: #04201c; }
+.day.selected { background: var(--s-accent); color: #062a26; font-weight: 700; }
+.day.selected::after { background: #062a26; }
 .day.selected:hover { background: var(--s-accent); filter: brightness(1.08); }
 
 .cal-ft {
@@ -641,7 +647,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .chart-btn { flex: 1; justify-content: center; }
 }
 
-/* ── Settings page ───────────────────────────────────────────── */
+/* â”€â”€ Settings page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .settings-page { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 
 .settings-card {
@@ -672,7 +678,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .settings-row-label { font-size: 14px; font-weight: 500; color: var(--text); }
 .settings-row-hint { font-size: 12.5px; color: var(--s-text-dim); margin-top: 2px; }
 
-/* Custom select — overrides the global select rule */
+/* Custom select â€” overrides the global select rule */
 .settings-select {
   background: var(--s-surface-2);
   border: 1px solid var(--border);
@@ -775,7 +781,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .settings-btn--danger:hover { background: var(--s-danger-dim); }
 
-/* ── App shell / collapsible sidebar ─────────────────────────── */
+/* â”€â”€ App shell / collapsible sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .layout {
   display: grid; grid-template-columns: 288px 1fr;
   min-height: 100vh; transition: grid-template-columns .22s ease;
@@ -818,7 +824,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .navi + .navi { margin-top: 4px; }
 .navi i { font-size: 18px; opacity: .75; flex-shrink: 0; }
 .navi .lbl { overflow: hidden; }
-.navi:hover, .navi.active { background: var(--s-surface-hover); color: var(--text); }
+.navi:hover { background: var(--s-surface-hover); color: var(--text); }
+.navi.active { background: var(--s-accent-dim); color: var(--s-accent); }
+.navi.active::before {
+  content: ''; position: absolute; left: -12px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--s-accent);
+}
+.navi.active .lbl::before {
+  content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-orange); margin-right: 8px; vertical-align: 1px;
+}
 .navi.active i { opacity: 1; color: var(--s-accent); }
 .sb-foot {
   margin-top: auto; padding-top: 12px; border-top: 1px solid var(--s-border-soft);
@@ -837,6 +852,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .layout.collapsed .collapse-btn i { transform: rotate(180deg); }
 .layout.collapsed .navlbl { opacity: 0; height: 8px; margin: 4px 0; }
 .layout.collapsed .navi { justify-content: center; padding: 11px; width: 44px; }
+.layout.collapsed .navi.active::before { display: none; }
 .layout.collapsed .navi .lbl { display: none; }
 .layout.collapsed .userchip { justify-content: center; padding: 8px 0; }
 .layout.collapsed .userchip .ue { display: none; }
@@ -881,7 +897,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-card > *:nth-child(6), .auth-hero-page > *:nth-child(6) { animation-delay: .33s; }
 .auth-card > *:nth-child(7), .auth-hero-page > *:nth-child(7) { animation-delay: .39s; }
 /* Loading/error states: per auth-flow-prototype.html, the outer .loader block itself
-   isn't animated — each inner element (logo, title, message, dots) fades/rises in
+   isn't animated â€” each inner element (logo, title, message, dots) fades/rises in
    individually, on the same rise timing as everything else in the card. */
 .auth-card > .auth-loader, .auth-card > .auth-error-state { opacity: 1; animation: none; }
 .auth-loader > *, .auth-error-state > * { opacity: 0; animation: auth-rise .55s cubic-bezier(.4,0,.2,1) forwards; }
@@ -944,7 +960,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 /* No-op keyframe used purely as a JS-visible signal: an onAnimationStart listener on
    the input fires exactly when Chrome autofills it, which is the standard workaround
-   for Chrome autofill sometimes not reliably dispatching an 'input' event — without
+   for Chrome autofill sometimes not reliably dispatching an 'input' event â€” without
    this, React's controlled value can stay stale and empty while the field visibly
    shows the autofilled password, which then flip-flops when React next re-renders. */
 @keyframes auth-autofill-detect { from {} to {} }
@@ -963,12 +979,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-btn:hover { background: var(--s-surface-hover); }
 .auth-btn:active { transform: scale(.985); }
 .auth-btn:disabled { cursor: default; opacity: .6; }
-.auth-btn-primary { background: var(--s-accent); border-color: var(--s-accent); color: #04201c; font-weight: 600; }
-.auth-btn-primary:hover { background: var(--s-accent); filter: brightness(1.08); }
+.auth-btn-primary { background: var(--s-accent); border-color: var(--s-accent); color: #062a26; font-weight: 600; }
+.auth-btn-primary:hover { background: var(--s-accent-strong); border-color: var(--s-accent-strong); }
 
 .auth-loader { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 14px 0 6px; }
 /* Two animations on the same element: the one-shot entrance rise (matching the other
-   loader children) and the continuous pulse. Both must be named here together — a
+   loader children) and the continuous pulse. Both must be named here together â€” a
    higher-specificity `animation` shorthand fully replaces a lower-specificity one
    rather than merging, so splitting these across two rules silently drops the rise
    (and its opacity: 0 -> 1) while the pulse keeps running invisibly at opacity: 0. */
@@ -1002,7 +1018,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .auth-error-icon-wrap {
   /* A translucent tint (matching .auth-check-wrap's own rgba(52,211,153,.14) pattern),
-     not the solid --danger-bg used for banners/pills — a solid fill here reads as much
+     not the solid --danger-bg used for banners/pills â€” a solid fill here reads as much
      more alarming/heavy than the subtle badge the design calls for. */
   width: 64px; height: 64px; border-radius: 50%; background: rgba(248, 113, 113, .12);
   display: flex; align-items: center; justify-content: center;
@@ -1010,7 +1026,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-error-icon-wrap svg { width: 28px; height: 28px; stroke: var(--danger); }
 /* auth-pop already carries its own opacity 0 -> 1, so this fully replaces (by source
    order, at equal specificity) the generic `.auth-error-state > *:nth-child(1)` rise
-   rather than needing to merge with it — the icon pops in on its own, siblings rise. */
+   rather than needing to merge with it â€” the icon pops in on its own, siblings rise. */
 .auth-error-state > .auth-error-icon-wrap {
   opacity: 0;
   animation: auth-pop .35s cubic-bezier(.2,.8,.2,1) .03s forwards;
@@ -1064,7 +1080,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .auth-pv-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 .auth-pv-label { font-size: 12px; color: var(--s-text-dim); }
-.auth-pv-value { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin-top: 2px; }
+.auth-pv-value { font-family: var(--font-display); font-size: 24px; font-weight: 500; letter-spacing: -.01em; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .auth-spark { width: 100%; height: 70px; display: block; margin: 6px 0 14px; }
 .auth-pv-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-top: 1px solid var(--s-border-soft); }
 .auth-pv-nm { font-size: 13px; font-weight: 600; flex: 1; }
@@ -1086,7 +1102,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .auth-topbar { margin-bottom: 40px; }
 }
 
-/* ── Skeleton loading (refresh) ──────────────────────────────── */
+/* â”€â”€ Skeleton loading (refresh) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .sk {
   background: var(--s-surface-2);
   border-radius: 6px;
