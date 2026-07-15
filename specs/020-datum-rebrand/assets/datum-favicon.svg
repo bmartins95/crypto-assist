@@ -1,0 +1,6 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Datum favicon">
+  <rect width="64" height="64" rx="13" fill="#17171a"/>
+  <path d="M18 14 L18 50 L29 50 C44 50 52 42.5 52 32 C52 21.5 44 14 29 14 Z"
+        fill="none" stroke="#2dd4bf" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="33" cy="32" r="6" fill="#f97316"/>
+</svg>
