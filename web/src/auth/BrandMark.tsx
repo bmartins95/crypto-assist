@@ -12,7 +12,13 @@ export default function BrandMark({ size = 60 }: BrandMarkProps) {
       role="img"
       aria-label="Datum"
     >
-      <rect width="512" height="512" rx="115" fill="#17171a" stroke="#26262b" />
+      <rect
+        width="512"
+        height="512"
+        rx="115"
+        fill="var(--brand-tile-bg)"
+        stroke="var(--brand-tile-border)"
+      />
       <path
         d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z"
         fill="none"
