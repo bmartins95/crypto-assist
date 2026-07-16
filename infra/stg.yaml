@@ -1,12 +1,14 @@
-name: crypto-assist
+name: datum
 cognito:
-  domain: crypto-assist-stg
+  domain: datum-stg
   googleEnabled: false
   web:
     callbackUrls:
+      - https://stg.datum.bumalabs.net/auth/callback
       - https://d2xhrsd3sjdaob.cloudfront.net/auth/callback
       - http://localhost:5173/auth/callback
     logoutUrls:
+      - https://stg.datum.bumalabs.net
       - https://d2xhrsd3sjdaob.cloudfront.net
       - http://localhost:5173
   mobile:
@@ -17,3 +19,8 @@ cognito:
 
 web:
   cloudFront: true
+  domains:
+    - stg.datum.bumalabs.net
+  # Gated by HTTP Basic Auth (credentials in SSM at /datum/stg/BasicAuthUsername
+  # and /BasicAuthPassword) until stg.datum.bumalabs.net is confirmed working.
+  basicAuth: true

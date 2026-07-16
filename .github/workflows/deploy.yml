@@ -44,7 +44,7 @@ jobs:
     needs: test
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: dev
     secrets: inherit
 
@@ -53,7 +53,7 @@ jobs:
     needs: register-dev
     uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: dev
       stack: python-sst
     secrets: inherit
@@ -73,7 +73,7 @@ jobs:
     needs: approve-stg
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: stg
     secrets: inherit
 
@@ -82,7 +82,7 @@ jobs:
     needs: register-stg
     uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: stg
       stack: python-sst
       promote_branch: staging
@@ -103,7 +103,7 @@ jobs:
     needs: approve-prod
     uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: prod
     secrets: inherit
 
@@ -112,7 +112,7 @@ jobs:
     needs: register-prod
     uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
     with:
-      app_name: crypto-assist
+      app_name: datum
       stage: prod
       stack: python-sst
       promote_branch: master

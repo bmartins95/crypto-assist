@@ -1,14 +1,18 @@
-name: crypto-assist
+name: datum
 
 cognito:
-  domain: crypto-assist
+  domain: datum
   googleEnabled: true
   facebookEnabled: true
   web:
     callbackUrls:
+      - https://datum.bumalabs.net/auth/callback
+      - https://datum.bumalabs.com.br/auth/callback
       - https://d3nab81epd8vp1.cloudfront.net/auth/callback
       - http://localhost:5173/auth/callback
     logoutUrls:
+      - https://datum.bumalabs.net
+      - https://datum.bumalabs.com.br
       - https://d3nab81epd8vp1.cloudfront.net
       - http://localhost:5173
   mobile:
@@ -22,3 +26,9 @@ storage:
 
 web:
   cloudFront: true
+  domains:
+    - datum.bumalabs.net
+    - datum.bumalabs.com.br
+  geoRedirect:
+    defaultDomain: datum.bumalabs.net
+    brDomain: datum.bumalabs.com.br

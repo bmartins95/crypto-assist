@@ -21,11 +21,21 @@ class Settings(BaseSettings):
         v = v.strip()
         if not v:
             raise ValueError("FRONTEND_ORIGIN must not be empty")
-        if not (v.startswith("http://") or v.startswith("https://")):
-            raise ValueError("FRONTEND_ORIGIN must include a scheme (http:// or https://)")
-        if v.endswith("/"):
-            raise ValueError("FRONTEND_ORIGIN must not have a trailing slash")
-        return v
+        # Comma-separated to allow multiple regional domains in prod (e.g. the
+        # .net and .com.br domains) — a single origin is just a one-entry list.
+        origins = [o.strip() for o in v.split(",")]
+        for o in origins:
+            if not o:
+                raise ValueError("FRONTEND_ORIGIN must not contain an empty entry")
+            if not (o.startswith("http://") or o.startswith("https://")):
+                raise ValueError("FRONTEND_ORIGIN must include a scheme (http:// or https://)")
+            if o.endswith("/"):
+                raise ValueError("FRONTEND_ORIGIN must not have a trailing slash")
+        return ",".join(origins)
+
+    @property
+    def frontend_origins(self) -> list[str]:
+        return self.frontend_origin.split(",")
 
 
 @lru_cache

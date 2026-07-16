@@ -32,3 +32,27 @@ def test_missing_scheme_raises():
 def test_trailing_slash_raises():
     with pytest.raises(ValidationError, match="must not have a trailing slash"):
         Settings(frontend_origin="https://example.com/")
+
+
+def test_single_origin_list_has_one_entry():
+    s = Settings(frontend_origin="https://datum.bumalabs.net")
+    assert s.frontend_origins == ["https://datum.bumalabs.net"]
+
+
+def test_comma_separated_origins_are_split_and_stripped():
+    s = Settings(frontend_origin="https://datum.bumalabs.net, https://datum.bumalabs.com.br")
+    assert s.frontend_origin == "https://datum.bumalabs.net,https://datum.bumalabs.com.br"
+    assert s.frontend_origins == [
+        "https://datum.bumalabs.net",
+        "https://datum.bumalabs.com.br",
+    ]
+
+
+def test_empty_entry_between_commas_raises():
+    with pytest.raises(ValidationError, match="must not contain an empty entry"):
+        Settings(frontend_origin="https://a.com,,https://b.com")
+
+
+def test_malformed_entry_in_list_raises():
+    with pytest.raises(ValidationError, match="must include a scheme"):
+        Settings(frontend_origin="https://a.com,b.com")
