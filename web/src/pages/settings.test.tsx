@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { BalanceProvider } from '@/context/BalanceContext';
@@ -167,21 +167,58 @@ describe('SettingsPage', () => {
       await waitFor(() => expect(exportData).toHaveBeenCalledTimes(1));
     });
 
-    it('Clear Wallet button shows confirm dialog and calls clearOps on confirm', async () => {
-      const { api } = await import('@/lib/api/client');
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
-      vi.spyOn(window, 'alert').mockImplementation(() => {});
+    it('Export failure shows an in-app error message, not a native alert', async () => {
+      const { exportData } = await import('@/lib/dataHandlers');
+      vi.mocked(exportData).mockRejectedValueOnce(new Error('network error'));
+      const alertSpy = vi.spyOn(window, 'alert');
       renderSettings();
-      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
-      if (!clearBtn) throw new Error('Clear wallet button not found');
-      fireEvent.click(clearBtn);
+      fireEvent.click(screen.getByRole('button', { name: /exportar/i }));
+      expect(await screen.findByRole('status')).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toContain('Erro ao exportar backup.');
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('Clicking Clear Wallet opens an in-app confirm dialog, not a native confirm', () => {
+      renderSettings();
+      const confirmSpy = vi.spyOn(window, 'confirm');
+      fireEvent.click(screen.getByRole('button', { name: /limpar dados/i }));
+      expect(screen.getByRole('alertdialog')).toBeTruthy();
+      expect(confirmSpy).not.toHaveBeenCalled();
+    });
+
+    it('Confirming the Clear Wallet dialog calls clearOps, reloads, and shows an in-app success message', async () => {
+      const { api } = await import('@/lib/api/client');
+      renderSettings();
+      fireEvent.click(screen.getByRole('button', { name: /limpar dados/i }));
+      const dialog = screen.getByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /limpar dados/i }));
       await waitFor(() => expect(api.clearOps).toHaveBeenCalledTimes(1));
       await waitFor(() => expect(reloadMock).toHaveBeenCalledTimes(1));
+      expect(await screen.findByRole('status')).toBeTruthy();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('Cancelling the Clear Wallet dialog does not call clearOps and leaves no message', () => {
+      renderSettings();
+      fireEvent.click(screen.getByRole('button', { name: /limpar dados/i }));
+      const dialog = screen.getByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /cancelar/i }));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('Clear Wallet failure shows an in-app error message', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.clearOps).mockRejectedValueOnce(new Error('fail'));
+      renderSettings();
+      fireEvent.click(screen.getByRole('button', { name: /limpar dados/i }));
+      const dialog = screen.getByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /limpar dados/i }));
+      expect(await screen.findByRole('status')).toBeTruthy();
     });
 
     it('Import file selection calls importData with the file and portfolio reload', async () => {
       const { importData } = await import('@/lib/dataHandlers');
-      vi.spyOn(window, 'alert').mockImplementation(() => {});
       renderSettings();
       const file = new File(['{"version":1,"ops":[]}'], 'backup.json', { type: 'application/json' });
       const input = screen.getByLabelText('Importar') as HTMLInputElement;
@@ -197,38 +234,38 @@ describe('SettingsPage', () => {
       expect(clickSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('Import failure shows an alert including the error detail', async () => {
+    it('Import success shows a dedicated import message, never the wallet-cleared message', async () => {
+      renderSettings();
+      const file = new File(['{"version":1,"ops":[]}'], 'backup.json', { type: 'application/json' });
+      const input = screen.getByLabelText('Importar') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      expect(await screen.findByRole('status')).toBeTruthy();
+      const message = screen.getByRole('status').textContent;
+      expect(message).toContain('importada');
+      expect(message).not.toContain('limpa');
+    });
+
+    it('Dismissing the toast via its close button hides it', async () => {
+      renderSettings();
+      const file = new File(['{"version":1,"ops":[]}'], 'backup.json', { type: 'application/json' });
+      const input = screen.getByLabelText('Importar') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [file] } });
+      expect(await screen.findByRole('status')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: /fechar/i }));
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('Import failure shows an in-app error message including the error detail', async () => {
       const { importData } = await import('@/lib/dataHandlers');
       vi.mocked(importData).mockRejectedValueOnce(new Error('violates check constraint'));
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      const alertSpy = vi.spyOn(window, 'alert');
       renderSettings();
       const file = new File(['nonsense'], 'backup.json', { type: 'application/json' });
       const input = screen.getByLabelText('Importar') as HTMLInputElement;
       fireEvent.change(input, { target: { files: [file] } });
-      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(1));
-      expect(alertSpy.mock.calls[0][0]).toContain('violates check constraint');
-    });
-
-    it('Clear Wallet failure shows an alert', async () => {
-      const { api } = await import('@/lib/api/client');
-      vi.mocked(api.clearOps).mockRejectedValueOnce(new Error('fail'));
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
-      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
-      renderSettings();
-      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
-      if (!clearBtn) throw new Error('Clear wallet button not found');
-      fireEvent.click(clearBtn);
-      await waitFor(() => expect(alertSpy).toHaveBeenCalledTimes(1));
-    });
-
-    it('Clear Wallet button does not call clearOps on cancel', async () => {
-      const { api } = await import('@/lib/api/client');
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
-      renderSettings();
-      const clearBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('Limpar'));
-      if (!clearBtn) throw new Error('Clear wallet button not found');
-      fireEvent.click(clearBtn);
-      expect(api.clearOps).not.toHaveBeenCalled();
+      expect(await screen.findByRole('status')).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toContain('violates check constraint');
+      expect(alertSpy).not.toHaveBeenCalled();
     });
   });
 });

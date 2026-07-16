@@ -9,6 +9,8 @@ import { usePriceRefresh } from '@/context/PriceRefreshContext';
 import { exportData, importData } from '@/lib/dataHandlers';
 import { api } from '@/lib/api/client';
 import { usePortfolio } from '@/components/AppLayout';
+import Toast, { ToastKind } from '@/components/Toast';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'pt-BR': 'Português (Brasil)',
@@ -41,6 +43,8 @@ export default function SettingsPage(): React.ReactElement {
   const { interval, setInterval: setRefreshInterval } = usePriceRefresh();
   const { reload } = usePortfolio();
   const importRef = React.useRef<HTMLInputElement>(null);
+  const [toast, setToast] = React.useState<{ kind: ToastKind; message: string } | null>(null);
+  const [confirmClearOpen, setConfirmClearOpen] = React.useState(false);
 
   function refreshIntervalLabel(value: number | null): string {
     if (value === 30000) return t.settings_refresh_option_30s;
@@ -50,7 +54,7 @@ export default function SettingsPage(): React.ReactElement {
   }
 
   function handleExport(): void {
-    exportData().catch(() => alert(t.dashboard_error_export));
+    exportData().catch(() => setToast({ kind: 'error', message: t.dashboard_error_export }));
   }
 
   function handleImportClick(): void {
@@ -61,18 +65,22 @@ export default function SettingsPage(): React.ReactElement {
     const file = e.target.files?.[0];
     if (!file) return;
     importData(file, reload)
-      .then(() => { e.target.value = ''; alert(t.settings_clear_wallet_success); })
+      .then(() => { e.target.value = ''; setToast({ kind: 'success', message: t.settings_import_success }); })
       .catch((err: unknown) => {
         const detail = err instanceof Error && err.message ? `\n${err.message}` : '';
-        alert(t.dashboard_error_import + detail);
+        setToast({ kind: 'error', message: t.dashboard_error_import + detail });
       });
   }
 
-  function handleClearWallet(): void {
-    if (!window.confirm(t.settings_clear_wallet_confirm)) return;
+  function handleClearWalletClick(): void {
+    setConfirmClearOpen(true);
+  }
+
+  function confirmClearWallet(): void {
+    setConfirmClearOpen(false);
     api.clearOps()
-      .then(async () => { await reload(); alert(t.settings_clear_wallet_success); })
-      .catch(() => alert(t.common_error));
+      .then(async () => { await reload(); setToast({ kind: 'success', message: t.settings_clear_wallet_success }); })
+      .catch(() => setToast({ kind: 'error', message: t.common_error }));
   }
 
   function themeLabel(m: ThemeMode): string {
@@ -238,13 +246,25 @@ export default function SettingsPage(): React.ReactElement {
               <div className="settings-row-label">{t.settings_clear_wallet}</div>
               <div className="settings-row-hint">{t.settings_clear_hint}</div>
             </div>
-            <button type="button" className="settings-btn settings-btn--danger" onClick={handleClearWallet}>
+            <button type="button" className="settings-btn settings-btn--danger" onClick={handleClearWalletClick}>
               <i className="ti ti-trash" aria-hidden="true" /> {t.settings_clear_data}
             </button>
           </div>
         </div>
       </div>
 
+      {toast && (
+        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
+      )}
+      <ConfirmDialog
+        open={confirmClearOpen}
+        title={t.settings_clear_wallet}
+        message={t.settings_clear_wallet_confirm}
+        confirmLabel={t.settings_clear_data}
+        cancelLabel={t.common_cancel}
+        onConfirm={confirmClearWallet}
+        onCancel={() => setConfirmClearOpen(false)}
+      />
     </div>
   );
 }
