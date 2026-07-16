@@ -66,6 +66,28 @@ export default function AppLayout() {
     const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
     setOps(remoteOps);
     setExitPrices(remoteExitPrices);
+
+    const ids = [...new Set(remoteOps.map(o => o.coinId))];
+    if (ids.length === 0) return;
+    // Covers the same "first price fetch" job as the mount-time auto-fetch effect below,
+    // so that effect doesn't also fire and double up this request right after an import.
+    didAutoFetchPrices.current = true;
+    try {
+      const market = await api.getPrices(ids);
+      setPrices(prev => {
+        const next = { ...prev };
+        for (const [coinId, info] of Object.entries(market)) next[coinId] = info.price;
+        return next;
+      });
+      setAvatarCache(prev => {
+        const next = { ...prev };
+        for (const [coinId, info] of Object.entries(market)) if (info.image) next[coinId] = { url: info.image };
+        return next;
+      });
+    } catch {
+      // Best-effort top-up: leave existing prices in place. The manual refresh
+      // button or the auto-refresh interval will retry.
+    }
   }, []);
 
   // Deliberately lets a failure here propagate instead of catching it: AppBootstrapGate

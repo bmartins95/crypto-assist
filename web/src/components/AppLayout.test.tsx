@@ -454,4 +454,47 @@ describe('AppLayout', () => {
     });
   });
 
+  describe('reload() price freshness after import', () => {
+    it('fetches prices for newly-imported coins immediately, with no manual refresh', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps)
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([
+          { id: '1', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 2, price: 1000, fee: 0, total: 2000, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' },
+        ]);
+      vi.mocked(api.getPrices).mockResolvedValue({ ethereum: { price: 3000, image: 'https://img' } });
+
+      await renderAt('/settings');
+      const file = new File(
+        [JSON.stringify({ version: 1, exportedAt: '', ops: [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 2, price: 1000, fee: 0, total: 2000, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' }] })],
+        'backup.json',
+        { type: 'application/json' }
+      );
+      const input = (await screen.findByLabelText(/importar/i)) as HTMLInputElement;
+      await fireEvent.change(input, { target: { files: [file] } });
+
+      await waitFor(() => expect(api.importBackup).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledWith(['ethereum']));
+      expect(api.getPrices).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-fetch prices when reload() loads an empty ops list (e.g. importing an empty backup)', async () => {
+      const { api } = await import('@/lib/api/client');
+      const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' };
+      vi.mocked(api.getOps).mockResolvedValueOnce([oneOp]).mockResolvedValue([]);
+      vi.mocked(api.getPrices).mockResolvedValue({ bitcoin: { price: 50 } });
+
+      const testRouter = await renderAt('/wallet');
+      await waitFor(() => expect(api.getPrices).toHaveBeenCalledTimes(1));
+
+      await testRouter.navigate({ to: '/settings' });
+      const file = new File([JSON.stringify({ version: 1, exportedAt: '', ops: [] })], 'empty.json', { type: 'application/json' });
+      const input = (await screen.findByLabelText(/importar/i)) as HTMLInputElement;
+      await fireEvent.change(input, { target: { files: [file] } });
+
+      await waitFor(() => expect(api.importBackup).toHaveBeenCalledTimes(1));
+      expect(api.getPrices).toHaveBeenCalledTimes(1);
+    });
+  });
+
 });
