@@ -11,7 +11,7 @@ export default $config({
   },
   async run() {
     const stage = $app.stage;
-    const appName = "crypto-assist";
+    const appName = "datum";
     const paramBase = `/${appName}/${stage}`;
     const platformBase = `/platform/${stage}`;
 
@@ -23,7 +23,7 @@ export default $config({
     const cognitoUserPoolId = aws.ssm.getParameterOutput({
       name: `${paramBase}/CognitoUserPoolId`,
     });
-    const webUrl = aws.ssm.getParameterOutput({ name: `${paramBase}/WebUrl` });
+    const webOrigins = aws.ssm.getParameterOutput({ name: `${paramBase}/WebOrigins` });
 
     // Platform VPC + DB params (set by aws-infra platform stack)
     const dbSecretArn = aws.ssm.getParameterOutput({ name: `${platformBase}/DbSecretArn` });
@@ -64,7 +64,7 @@ export default $config({
         COGNITO_USER_POOL_ID: cognitoUserPoolId.value,
         COGNITO_REGION: "us-east-1",
         COINGECKO_API_KEY: coingeckoApiKey.value,
-        FRONTEND_ORIGIN: webUrl.value,
+        FRONTEND_ORIGIN: webOrigins.value,
       },
     });
 

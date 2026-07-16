@@ -135,12 +135,13 @@ pytest
 
 `sst.config.ts` deploys a Python Lambda with a Function URL inside the platform VPC.
 Credentials are read from SSM at deploy time and injected as env vars. The Lambda URL
-is written back to SSM as `/crypto-assist/{stage}/BackendApiUrl`.
+is written back to SSM as `/datum/{stage}/BackendApiUrl`.
 
-Required SSM params (one-time setup per stage, under `/crypto-assist/{stage}/`):
+Required SSM params (one-time setup per stage, under `/datum/{stage}/`):
 - `CoingeckoApiKey` (SecureString)
 - `CognitoUserPoolId`
 - `WebUrl`
+- `WebOrigins` — comma-separated, injected as `FRONTEND_ORIGIN` for CORS
 
 Platform SSM params (set by `aws-infra` deploy, under `/platform/{stage}/`):
 - `DbHost`, `DbPort`, `DbSecretArn`, `VpcPrivateSubnetIds`, `LambdaSgId`

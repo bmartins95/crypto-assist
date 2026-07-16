@@ -24,7 +24,7 @@ app = FastAPI(title="crypto-assist backend", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[get_settings().frontend_origin],
+    allow_origins=get_settings().frontend_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -7,7 +7,7 @@ This repo has four projects sharing the same `backend/` API, deployed on AWS:
 - **`backend/`** — Python FastAPI + Mangum API, deployed to AWS Lambda via SST. Validates Cognito JWTs and queries RDS Aurora. Has its own `AGENTS.md`.
 - **`mobile/`** — Expo SDK 54 + React Native. Has its own `AGENTS.md`.
 
-Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-registers by pushing YAML configs to `aws-infra/apps/crypto-assist/`.
+Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-registers by pushing YAML configs to `aws-infra/apps/datum/` (renamed from `crypto-assist/` — see PLAN.md's domain/rebrand item; the old `apps/crypto-assist/` folder is stale once the cutover is confirmed working).
 
 ## Language convention
 
@@ -58,10 +58,13 @@ Branch promotion: after deploy-stg → force-push to `staging`; after deploy-pro
 Copy `backend/.env.example` to `backend/.env` for local dev. Never commit real values.
 
 Backend SSM params (stored in AWS SSM, injected at Lambda deploy time):
-- `/crypto-assist/{stage}/CoingeckoApiKey` (SecureString)
-- `/crypto-assist/{stage}/CognitoUserPoolId`
-- `/crypto-assist/{stage}/WebUrl`
-- `/crypto-assist/{stage}/BackendApiUrl` — written automatically after each deploy
+- `/datum/{stage}/CoingeckoApiKey` (SecureString)
+- `/datum/{stage}/CognitoUserPoolId`
+- `/datum/{stage}/WebUrl`
+- `/datum/{stage}/WebOrigins` — comma-separated list of every origin the web app is
+  reachable at for this stage (prod has two, dev/stg have one); consumed by the
+  backend's CORS config
+- `/datum/{stage}/BackendApiUrl` — written automatically after each deploy
 
 Platform SSM params (set by `aws-infra` deploy, under `/platform/{stage}/`):
 - `DbHost`, `DbPort`, `DbSecretArn`, `VpcPrivateSubnetIds`, `LambdaSgId`
