@@ -793,3 +793,52 @@ Additive only, per this repo's migration rules — the existing `platform` colum
 - Existing operations still render correctly after the migration (their backfilled `platform_id`/`platform_name` resolve to a sensible chip, custom or otherwise).
 - Mobile still builds and the ops-related screens still render (this item's redesign is web-only; `shared/` type changes must not break the mobile type contract).
 - `pytest` covers the new `platforms.py` route (cache hit, cache miss, refresh) and the ops migration backfill. `npm test` passes, including new tests for `PlatformSelect`, `PlatformLogo`, and `PlatformChip`.
+
+---
+
+## Item 23 — Signup password validation UX
+**Branch:** `fix/signup-password-feedback`
+**Depends on:** nothing
+
+### Current state
+`web/src/auth/screens/SignupScreen.tsx`'s client-side `validate()` only checks `password.length < 8` (`t.auth_error_password_short`). Cognito's actual User Pool password policy (configured in `aws-infra`, not mirrored here) is expected to require more than length — e.g. mixed case, a number, a symbol — so a password that satisfies the client check can still be rejected server-side. When that happens, `handleSubmit`'s catch block only special-cases `UsernameExistsException` (`t.auth_error_email_taken`); every other error, including Cognito's `InvalidPasswordException` (which carries a specific message naming the failed rule), falls through to the generic `t.auth_error_generic` ("Something went wrong. Please try again."). The user gets no indication their password was too weak or which rule to fix. `PasswordField.tsx` has no live requirements/strength indicator — the only hint is the static placeholder "Minimum 8 characters" (`auth_signup_min_password`), which understates the real policy. The same generic-error fallback likely applies to `confirmResetPassword` in `web/src/auth/screens/EmailLoginScreen.tsx` (forgot-password flow), which submits a new password through the same Cognito policy.
+
+### Goal
+Design and implement clear, actionable password feedback: show the real policy rules to the user before/while they type, and map password-specific Cognito errors (`InvalidPasswordException` and any others found in practice) to specific, translated messages instead of the generic fallback. Confirm the exact Cognito password policy (`aws-infra/stacks/app-stack.ts` User Pool config) before designing copy, so displayed rules match what the server enforces.
+
+### Files likely involved
+- `web/src/auth/screens/SignupScreen.tsx`, `web/src/auth/screens/EmailLoginScreen.tsx` — submit error handling.
+- `web/src/auth/PasswordField.tsx` — requirements/strength UI.
+- `shared/src/i18n/types.ts` + all locale files — new requirement/error copy keys.
+
+### Done when
+- The signup and reset-password forms display the actual password requirements enforced by Cognito, not just "minimum 8 characters".
+- A password rejected by Cognito's policy shows a specific message naming what's missing, not the generic error.
+- `npm test` passes.
+
+---
+
+## Item 24 — Fix import-wallet messaging and stale state after import
+**Branch:** `fix/import-wallet-feedback`
+**Depends on:** nothing
+
+### Current state
+`web/src/pages/settings.tsx`'s `handleImportChange` shows `alert(t.settings_clear_wallet_success)` on a successful import — reusing the "wallet cleared" success string from `handleClearWallet` for a completely different action. Importing loads a new wallet; it does not clear one. This is misleading, placeholder-quality copy, not a dedicated import-success message. More broadly, export/import/clear-wallet feedback in `settings.tsx` all uses native `window.alert`/`window.confirm`, which is below the app's own component styling (see [[feedback-design-template]]: Settings controls must use custom components, not native browser elements).
+
+Separately, `handleImportChange` does call `importData(file, reload)`, and `reload()` (`web/src/components/AppLayout.tsx`) does refetch `ops`/`exitPrices` and update state, so imported operations do show up without a manual page reload. However `reload()` never calls `fetchPrices()`. Market prices (`prices` state) are fetched automatically only once per session, gated by a `didAutoFetchPrices` ref already consumed at initial load, and otherwise only via the manual refresh button or the auto-refresh interval. Any newly imported coin the wallet didn't previously hold has no price shown until the user manually refreshes prices or reloads the page — this is the concrete cause of "the new wallet state is not loaded until the user refreshes."
+
+### Goal
+1. Replace the reused "wallet cleared" message on import with a dedicated, accurate import-success message, and replace native `alert`/`confirm` feedback for export, import, and clear-wallet with proper in-app UI consistent with the rest of Settings.
+2. Make the import success path also fetch prices for the newly loaded ops so imported holdings show correct data immediately, with no manual refresh or page reload required.
+
+### Files likely involved
+- `web/src/pages/settings.tsx` — `handleImportChange`, `handleExport`, `handleClearWallet`.
+- `web/src/components/AppLayout.tsx` — `reload()` / `fetchPrices()`; wire price fetching into the post-import path.
+- `shared/src/i18n/types.ts` + locale files — add a dedicated `settings_import_success` key (and any new toast/dialog copy) instead of reusing `settings_clear_wallet_success`.
+- Reuse an existing toast/dialog component if one exists in `web/src/components/`; only add a new one if none fits (avoid a speculative component for a single use case).
+
+### Done when
+- Import success shows a message describing that a wallet was imported/loaded, not that it was cleared.
+- Export, import, and clear-wallet feedback use the app's own UI components, not native `alert`/`confirm`.
+- After a successful import, the Wallet/Profit/History views show the imported ops with correct market prices without a manual price-refresh click or a page reload.
+- `npm test` passes.
