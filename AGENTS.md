@@ -7,7 +7,7 @@ This repo has four projects sharing the same `backend/` API, deployed on AWS:
 - **`backend/`** — Python FastAPI + Mangum API, deployed to AWS Lambda via SST. Validates Cognito JWTs and queries RDS Aurora. Has its own `AGENTS.md`.
 - **`mobile/`** — Expo SDK 54 + React Native. Has its own `AGENTS.md`.
 
-Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-registers by pushing YAML configs to `aws-infra/apps/datum/` (renamed from `crypto-assist/` — see PLAN.md's domain/rebrand item; the old `apps/crypto-assist/` folder is stale once the cutover is confirmed working).
+Infrastructure (VPC, RDS, Cognito, S3) is in `aws-infra` repo. This repo self-registers by pushing YAML configs to `aws-infra/apps/datum/` (renamed from `crypto-assist/` — see docs/PLAN.md's domain/rebrand item; the old `apps/crypto-assist/` folder is stale once the cutover is confirmed working).
 
 ## Language convention
 

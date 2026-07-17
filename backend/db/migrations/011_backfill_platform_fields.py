@@ -1,5 +1,5 @@
 """Backfills platform_id/platform_name for every op recorded before the
-platform catalog existed (Item 22 / PLAN.md).
+platform catalog existed (Item 22 / docs/PLAN.md).
 
 Runs automatically, once, as part of the normal migration flow — a manual
 approval step here would mean every pre-catalog op silently loses its platform

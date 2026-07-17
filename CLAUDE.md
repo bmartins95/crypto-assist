@@ -1,5 +1,5 @@
 @AGENTS.md
-@PLAN.md
+@docs/PLAN.md
 
 ## Implementation rules
 
@@ -8,7 +8,7 @@
 - Branch naming: `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/` + a short descriptive slug.
 - One branch per plan item. If an item is large, split it into sequential branches (e.g. `feat/i18n-shared`, `feat/i18n-web`, `feat/i18n-mobile`).
 - Open a PR to `develop` when the item is done. Do not start the next plan item until the current PR is merged.
-- When a plan item's PR merges, tick its checkbox in `PLAN.md` in the same commit or a follow-up `chore:` commit on `develop`.
+- When a plan item's PR merges, tick its checkbox in `docs/PLAN.md` in the same commit or a follow-up `chore:` commit on `develop`.
 
 ### Commits
 - Single line only, 72 characters max.
@@ -62,7 +62,7 @@
 - Do not merge a change that breaks the mobile type contract even if the web side compiles cleanly.
 
 ### Plan tracking
-- Before starting any plan item, read its entry in `PLAN.md` in full — current state, files, done criteria.
+- Before starting any plan item, read its entry in `docs/PLAN.md` in full — current state, files, done criteria.
 - Do not skip ahead or combine plan items unless explicitly told to.
 - If a plan item's dependencies are not yet merged, say so and stop rather than working around them.
 

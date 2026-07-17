@@ -120,7 +120,7 @@ All changes flow through feature branches. Direct commits to `develop`, `staging
   plus a short descriptive slug. One branch per plan item; split large items into
   sequential branches.
 - **PRs**: Open to `develop` when the item is complete. Do not start the next plan item
-  until the current PR merges. Tick the plan item checkbox in `PLAN.md` in the same or
+  until the current PR merges. Tick the plan item checkbox in `docs/PLAN.md` in the same or
   a follow-up `chore:` commit on `develop`.
 - **Commits**: Single line, ≤72 characters, Conventional Commit prefix required
   (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `style:`). No body

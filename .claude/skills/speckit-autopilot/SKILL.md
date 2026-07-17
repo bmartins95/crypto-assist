@@ -51,7 +51,7 @@ Check whether `.specify/memory/constitution.md` exists.
 
 Invoke the **speckit-specify** skill, passing `$ARGUMENTS` verbatim as the feature description.
 
-Auto-resolve all `[NEEDS CLARIFICATION]` markers using context from the codebase, `AGENTS.md`, `PLAN.md`, and the constitution. Do not stop to ask the user. If the sub-skill pauses or surfaces a clarification question, answer it autonomously and continue.
+Auto-resolve all `[NEEDS CLARIFICATION]` markers using context from the codebase, `AGENTS.md`, `docs/PLAN.md`, and the constitution. Do not stop to ask the user. If the sub-skill pauses or surfaces a clarification question, answer it autonomously and continue.
 
 Wait for the skill to complete and confirm the spec file and feature directory are created before proceeding.
 
