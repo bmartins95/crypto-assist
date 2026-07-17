@@ -5,10 +5,12 @@ import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
 import PasswordField from '../PasswordField';
+import PasswordRequirements from '../PasswordRequirements';
 import ConfirmSignUpCard from '../ConfirmSignUpCard';
 import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
 import { signIn, resetPassword, confirmResetPassword } from '../useAuth';
+import { isPasswordValid } from '../passwordPolicy';
 import { useLocale } from '@/context/LocaleContext';
 
 type Mode = 'login' | 'confirm-signup' | 'forgot-request' | 'forgot-confirm' | 'forgot-done';
@@ -60,13 +62,18 @@ export default function EmailLoginScreen() {
   const handleForgotConfirm = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!isPasswordValid(newPassword)) {
+      setError(t.auth_error_password_short);
+      return;
+    }
     setSubmitting(true);
     try {
       await confirmResetPassword(email, code, newPassword);
       await storePasswordCredential(email, newPassword);
       setMode('forgot-done');
-    } catch {
-      setError(t.auth_error_code_invalid);
+    } catch (err) {
+      const errName = err instanceof Error ? err.name : '';
+      setError(errName === 'InvalidPasswordException' ? t.auth_error_password_rejected : t.auth_error_code_invalid);
     } finally {
       setSubmitting(false);
     }
@@ -131,6 +138,7 @@ export default function EmailLoginScreen() {
               onChange={setNewPassword}
               autoComplete="new-password"
             />
+            <PasswordRequirements password={newPassword} />
             {error && <p className="auth-field-error" role="alert">{error}</p>}
             <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
               {t.auth_forgot_submit_confirm}

@@ -980,7 +980,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .auth-field label { font-size: 12.5px; color: var(--s-text-muted); }
 .auth-inp {
   background: var(--s-surface-2); border: 1px solid var(--s-border); color: var(--text);
-  font: inherit; font-size: 14px; padding: 11px 13px; border-radius: 10px; width: 100%;
+  font: inherit; font-size: 14px; padding: 11px 40px 11px 13px; border-radius: 10px; width: 100%;
 }
 .auth-inp:focus { outline: none; border-color: var(--s-accent); box-shadow: 0 0 0 1px var(--s-accent); }
 /* Visual password masking for the text-typed state PasswordField switches into on
@@ -1008,6 +1008,28 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
    shows the autofilled password, which then flip-flops when React next re-renders. */
 @keyframes auth-autofill-detect { from {} to {} }
 .auth-field-error { font-size: 12px; color: var(--danger); margin: 10px 0 16px; }
+
+.auth-inp-wrap { position: relative; }
+.auth-eye-toggle {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0; color: var(--s-text-dim); cursor: pointer;
+}
+.auth-eye-toggle:hover { color: var(--text); }
+.auth-eye-toggle svg { width: 18px; height: 18px; }
+
+.auth-password-requirements { margin: -6px 0 14px; }
+.auth-strength-bars { display: flex; gap: 4px; margin-bottom: 8px; }
+.auth-strength-bar { height: 4px; flex: 1; border-radius: 2px; background: var(--s-border); }
+.auth-strength-label { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+.auth-password-rules { display: flex; flex-direction: column; gap: 5px; }
+.auth-rule { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--s-text-dim); }
+.auth-rule-met { color: var(--s-text-muted); }
+.auth-rule-icon { color: var(--s-border); }
+.auth-rule-met .auth-rule-icon { color: var(--s-accent); }
+
+.auth-password-match { color: var(--s-accent); font-size: 12px; margin-bottom: 18px; display: flex; align-items: center; gap: 5px; }
+.auth-password-mismatch { color: var(--danger); font-size: 12px; margin-bottom: 18px; }
 
 .auth-row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 12.5px; }
 .auth-row-between a { color: var(--s-accent); text-decoration: none; cursor: pointer; }

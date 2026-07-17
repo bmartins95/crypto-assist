@@ -5,10 +5,12 @@ import AuthCard from '../AuthCard';
 import BrandMark from '../BrandMark';
 import AuthField from '../AuthField';
 import PasswordField from '../PasswordField';
+import PasswordRequirements from '../PasswordRequirements';
 import ConfirmSignUpCard from '../ConfirmSignUpCard';
 import { storePasswordCredential } from '../credentials';
 import BackButton from '../BackButton';
 import { signUp, signIn } from '../useAuth';
+import { isPasswordValid } from '../passwordPolicy';
 import { useLocale } from '@/context/LocaleContext';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,7 +33,7 @@ export default function SignupScreen() {
     if (!email.trim()) errors.email = t.auth_error_required_field;
     else if (!EMAIL_RE.test(email)) errors.email = t.auth_error_email_invalid;
     if (!password) errors.password = t.auth_error_required_field;
-    else if (password.length < 8) errors.password = t.auth_error_password_short;
+    else if (!isPasswordValid(password)) errors.password = t.auth_error_password_short;
     if (!confirmPassword) errors.confirmPassword = t.auth_error_required_field;
     // Both operands are plain-text form input already visible to the user typing them,
     // not a secret comparison — not a timing-attack surface.
@@ -56,6 +58,7 @@ export default function SignupScreen() {
       const errName = err instanceof Error ? err.name : '';
       const errMessage = err instanceof Error ? err.message : '';
       if (errName === 'UsernameExistsException') setError(t.auth_error_email_taken);
+      else if (errName === 'InvalidPasswordException') setError(t.auth_error_password_rejected);
       // Thrown by the Pre Sign-up Lambda (aws-infra/functions/cognito-pre-signup) when this
       // email already belongs to a confirmed Google/Facebook account — Cognito wraps it as
       // UserLambdaValidationException, the reason string is only reachable via .message.
@@ -110,6 +113,7 @@ export default function SignupScreen() {
             autoComplete="new-password"
             error={fieldErrors.password}
           />
+          <PasswordRequirements password={password} />
           <PasswordField
             label={t.auth_field_confirm_password}
             value={confirmPassword}
@@ -117,6 +121,12 @@ export default function SignupScreen() {
             autoComplete="new-password"
             error={fieldErrors.confirmPassword}
           />
+          {confirmPassword !== '' && confirmPassword === password && (
+            <p className="auth-password-match" role="status">✓ {t.auth_password_match}</p>
+          )}
+          {confirmPassword !== '' && confirmPassword !== password && (
+            <p className="auth-password-mismatch" role="status">{t.auth_password_mismatch}</p>
+          )}
           {error && <p className="auth-field-error" role="alert">{error}</p>}
           <button type="submit" className="auth-btn auth-btn-primary" disabled={submitting}>
             {t.auth_signup_submit}

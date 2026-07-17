@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { useLocale } from '@/context/LocaleContext';
 
 interface PasswordFieldProps {
   label: string;
@@ -7,6 +8,25 @@ interface PasswordFieldProps {
   placeholder?: string;
   autoComplete?: string;
   error?: string;
+}
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.2A11 11 0 0 1 12 5c7 0 11 7 11 7a17.7 17.7 0 0 1-3.2 3.9M6.6 6.6C3.9 8.3 2 12 2 12s4 7 11 7a10 10 0 0 0 4.4-1" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
+  );
 }
 
 function supportsMasking(): boolean {
@@ -26,11 +46,13 @@ function supportsMasking(): boolean {
 // switch below. The save prompt for REAL logins is then triggered explicitly with
 // storePasswordCredential() — never by Chrome's heuristics.
 export default function PasswordField({ label, value, onChange, placeholder, autoComplete, error }: PasswordFieldProps) {
+  const { t } = useLocale();
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const caretRef = useRef<number | null>(null);
   const prevMaskedRef = useRef(false);
   const [masked, setMasked] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     if (masked) return;
@@ -83,31 +105,44 @@ export default function PasswordField({ label, value, onChange, placeholder, aut
   return (
     <div className="auth-field">
       <label htmlFor={id}>{label}</label>
-      <input
-        // The key switch forces React to build a NEW DOM element on each transition:
-        // reusing the node would carry Blink's permanent has_been_password_field flag
-        // into the masked state and defeat the whole mechanism.
-        key={masked ? 'masked' : 'plain'}
-        ref={inputRef}
-        id={id}
-        className={masked ? 'auth-inp auth-inp-masked' : 'auth-inp'}
-        type={masked ? 'text' : 'password'}
-        value={value}
-        onChange={handleChange}
-        // Chrome's autofill doesn't always reliably fire a plain 'input' event; the
-        // auth-autofill-detect keyframe (globals.css) only runs while
-        // :-webkit-autofill is active, so this catches it and syncs React's value.
-        onAnimationStart={e => {
-          if (e.animationName === 'auth-autofill-detect') onChange(e.currentTarget.value);
-        }}
-        placeholder={placeholder}
-        autoComplete={masked ? 'off' : autoComplete}
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck={false}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${id}-error` : undefined}
-      />
+      <div className="auth-inp-wrap">
+        <input
+          // The key switch forces React to build a NEW DOM element on each transition:
+          // reusing the node would carry Blink's permanent has_been_password_field flag
+          // into the masked state and defeat the whole mechanism. Toggling `revealed`
+          // deliberately does NOT affect this key — it only flips CSS masking (once
+          // `masked`) or the `type` of this same, already-flagged node (before `masked`),
+          // never causing a remount.
+          key={masked ? 'masked' : 'plain'}
+          ref={inputRef}
+          id={id}
+          className={masked && !revealed ? 'auth-inp auth-inp-masked' : 'auth-inp'}
+          type={masked ? 'text' : revealed ? 'text' : 'password'}
+          value={value}
+          onChange={handleChange}
+          // Chrome's autofill doesn't always reliably fire a plain 'input' event; the
+          // auth-autofill-detect keyframe (globals.css) only runs while
+          // :-webkit-autofill is active, so this catches it and syncs React's value.
+          onAnimationStart={e => {
+            if (e.animationName === 'auth-autofill-detect') onChange(e.currentTarget.value);
+          }}
+          placeholder={placeholder}
+          autoComplete={masked ? 'off' : autoComplete}
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+        />
+        <button
+          type="button"
+          className="auth-eye-toggle"
+          onClick={() => setRevealed(r => !r)}
+          aria-label={revealed ? t.auth_password_hide : t.auth_password_show}
+        >
+          {revealed ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
       {error && (
         <p id={`${id}-error`} className="auth-field-error" role="alert">
           {error}
