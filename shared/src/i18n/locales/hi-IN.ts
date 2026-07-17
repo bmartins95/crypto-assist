@@ -156,6 +156,7 @@ const hiIN: UIText = {
   auth_error_password_mismatch: 'पासवर्ड मेल नहीं खाते।',
   auth_error_required_field: 'यह फ़ील्ड आवश्यक है।',
   auth_error_email_taken: 'इस ईमेल से पहले से एक खाता मौजूद है।',
+  auth_error_email_linked_provider: 'यह ईमेल किसी Google या Facebook खाते से जुड़ा है। कृपया उसी प्रदाता से लॉगिन करें।',
   auth_error_code_invalid: 'कोड अमान्य है या समाप्त हो गया है।',
   auth_callback_title: 'प्रमाणीकरण हो रहा है',
   auth_callback_message: 'आपकी पहुँच सत्यापित की जा रही है…',

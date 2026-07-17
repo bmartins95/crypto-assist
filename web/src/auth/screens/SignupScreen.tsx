@@ -54,7 +54,14 @@ export default function SignupScreen() {
       setStep('confirm');
     } catch (err) {
       const errName = err instanceof Error ? err.name : '';
-      setError(errName === 'UsernameExistsException' ? t.auth_error_email_taken : t.auth_error_generic);
+      const errMessage = err instanceof Error ? err.message : '';
+      if (errName === 'UsernameExistsException') setError(t.auth_error_email_taken);
+      // Thrown by the Pre Sign-up Lambda (aws-infra/functions/cognito-pre-signup) when this
+      // email already belongs to a confirmed Google/Facebook account — Cognito wraps it as
+      // UserLambdaValidationException, the reason string is only reachable via .message.
+      else if (errName === 'UserLambdaValidationException' && errMessage.includes('linked-to-provider')) {
+        setError(t.auth_error_email_linked_provider);
+      } else setError(t.auth_error_generic);
     } finally {
       setSubmitting(false);
     }

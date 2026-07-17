@@ -100,6 +100,19 @@ describe('SignupScreen', () => {
     expect(await screen.findByText(/já possui uma conta/i)).toBeTruthy();
   });
 
+  it('shows a specific error when the email is linked to a social provider', async () => {
+    const { signUp } = await import('../useAuth');
+    vi.mocked(signUp).mockRejectedValueOnce(
+      Object.assign(new Error('PreSignUp failed with error linked-to-provider.'), {
+        name: 'UserLambdaValidationException',
+      })
+    );
+    renderScreen();
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    expect(await screen.findByText(/vinculado a uma conta do Google ou Facebook/i)).toBeTruthy();
+  });
+
   it('confirms the code, signs in, and navigates to /wallet', async () => {
     const { confirmSignUp, signIn } = await import('../useAuth');
     renderScreen();
