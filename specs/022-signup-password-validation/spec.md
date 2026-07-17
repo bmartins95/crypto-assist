@@ -86,6 +86,7 @@ A user typing into the "confirm password" field on signup sees, as they type, wh
 - **FR-009**: The password-reset form's new-password submission MUST continue to show the invalid/expired-code message when the failure is actually due to the code, not the password.
 - **FR-010**: The signup form's confirm-password field MUST show a live indicator of whether its current value matches the password field, once the user has entered a non-empty value into it, updating on every change to either field.
 - **FR-011**: All new user-facing copy (requirement labels, strength levels, specific error messages) MUST be delivered through the application's existing i18n layer, translated for every supported locale, not hardcoded in one language.
+- **FR-012**: Every password entry field on the signup and password-reset forms MUST offer a visible control to reveal the typed password as plain text and to re-mask it, without disrupting the field's existing autofill behavior.
 
 ### Key Entities
 
