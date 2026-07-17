@@ -156,6 +156,7 @@ const jaJP: UIText = {
   auth_error_password_mismatch: 'パスワードが一致しません。',
   auth_error_required_field: 'この項目は必須です。',
   auth_error_email_taken: 'このメールアドレスは既に登録されています。',
+  auth_error_email_linked_provider: 'このメールアドレスは Google または Facebook アカウントに連携されています。そちらでログインしてください。',
   auth_error_code_invalid: 'コードが無効または期限切れです。',
   auth_error_password_rejected: 'このパスワードは使用できません。要件を満たしていないか、既知のデータ漏えいで見つかった可能性があります。別のパスワードを選択してください。',
   auth_password_rule_length: '8文字以上',

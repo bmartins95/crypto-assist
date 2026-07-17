@@ -156,6 +156,7 @@ const esES: UIText = {
   auth_error_password_mismatch: 'Las contraseñas no coinciden.',
   auth_error_required_field: 'Este campo es obligatorio.',
   auth_error_email_taken: 'Ya existe una cuenta con este correo.',
+  auth_error_email_linked_provider: 'Este correo está vinculado a una cuenta de Google o Facebook. Inicia sesión con ese proveedor.',
   auth_error_code_invalid: 'Código inválido o expirado.',
   auth_error_password_rejected: 'No se puede usar esta contraseña: puede que no cumpla los requisitos o que haya aparecido en una filtración de datos conocida. Elige otra contraseña.',
   auth_password_rule_length: 'Mínimo 8 caracteres',

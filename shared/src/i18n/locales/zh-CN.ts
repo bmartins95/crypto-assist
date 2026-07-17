@@ -156,6 +156,7 @@ const zhCN: UIText = {
   auth_error_password_mismatch: '两次输入的密码不一致。',
   auth_error_required_field: '此字段为必填项。',
   auth_error_email_taken: '该邮箱已注册账户。',
+  auth_error_email_linked_provider: '该邮箱已关联 Google 或 Facebook 账户，请使用该方式登录。',
   auth_error_code_invalid: '验证码无效或已过期。',
   auth_error_password_rejected: '无法使用此密码：可能不符合要求，或已出现在已知的数据泄露中。请选择其他密码。',
   auth_password_rule_length: '至少 8 个字符',

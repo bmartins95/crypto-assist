@@ -156,6 +156,7 @@ const frFR: UIText = {
   auth_error_password_mismatch: 'Les mots de passe ne correspondent pas.',
   auth_error_required_field: 'Ce champ est obligatoire.',
   auth_error_email_taken: 'Un compte existe déjà avec cet e-mail.',
+  auth_error_email_linked_provider: 'Cet e-mail est lié à un compte Google ou Facebook. Connectez-vous avec ce fournisseur.',
   auth_error_code_invalid: 'Code invalide ou expiré.',
   auth_error_password_rejected: "Ce mot de passe ne peut pas être utilisé : il se peut qu'il ne respecte pas les critères requis ou qu'il ait été trouvé dans une fuite de données connue. Choisissez un autre mot de passe.",
   auth_password_rule_length: 'Au moins 8 caractères',

@@ -156,6 +156,7 @@ const deDE: UIText = {
   auth_error_password_mismatch: 'Die Passwörter stimmen nicht überein.',
   auth_error_required_field: 'Dieses Feld ist erforderlich.',
   auth_error_email_taken: 'Für diese E-Mail-Adresse existiert bereits ein Konto.',
+  auth_error_email_linked_provider: 'Diese E-Mail-Adresse ist mit einem Google- oder Facebook-Konto verknüpft. Bitte melden Sie sich damit an.',
   auth_error_code_invalid: 'Ungültiger oder abgelaufener Code.',
   auth_error_password_rejected: 'Dieses Passwort kann nicht verwendet werden: Es erfüllt möglicherweise nicht die Anforderungen oder wurde in einem bekannten Datenleck gefunden. Bitte wählen Sie ein anderes Passwort.',
   auth_password_rule_length: 'Mindestens 8 Zeichen',

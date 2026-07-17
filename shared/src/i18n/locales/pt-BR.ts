@@ -156,6 +156,7 @@ const ptBR: UIText = {
   auth_error_password_mismatch: 'As senhas não coincidem.',
   auth_error_required_field: 'Preencha este campo.',
   auth_error_email_taken: 'Este e-mail já possui uma conta.',
+  auth_error_email_linked_provider: 'Este e-mail está vinculado a uma conta do Google ou Facebook. Entre usando esse provedor.',
   auth_error_code_invalid: 'Código inválido ou expirado.',
   auth_error_password_rejected: 'Não foi possível usar esta senha: ela pode não atender aos requisitos ou ter sido encontrada em um vazamento de dados conhecido. Escolha outra senha.',
   auth_password_rule_length: 'Mínimo de 8 caracteres',
