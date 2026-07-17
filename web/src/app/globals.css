@@ -787,6 +787,43 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .settings-btn--danger:hover { background: var(--s-danger-dim); }
 
+/* Toast */
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 220;
+  display: flex; align-items: center; gap: 10px;
+  max-width: 420px; padding: 13px 14px;
+  background: var(--s-surface); border: 1px solid var(--s-border); border-left: 3px solid var(--s-accent);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  font-size: 13px; color: var(--text);
+  animation: toast-in .18s ease-out;
+}
+.toast--success { border-left-color: var(--s-accent); }
+.toast--success i.ti-circle-check { color: var(--s-accent); }
+.toast--error { border-left-color: var(--danger); }
+.toast--error i.ti-alert-circle { color: var(--danger); }
+.toast-msg { flex: 1; }
+.toast-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; color: var(--s-text-dim);
+  cursor: pointer; padding: 2px; flex-shrink: 0;
+}
+.toast-close:hover { color: var(--text); }
+
+/* Confirm dialog */
+.confirm-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 210;
+}
+.confirm-dialog {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 211; width: 380px; max-width: 90vw;
+  background: var(--s-surface); border: 1px solid var(--s-border); border-radius: 12px;
+  padding: 22px; box-shadow: 0 12px 32px rgba(0, 0, 0, .24);
+}
+.confirm-dialog-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.confirm-dialog-msg { font-size: 13px; color: var(--s-text-muted); line-height: 1.5; }
+.confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
 /* â”€â”€ App shell / collapsible sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .layout {
   display: grid; grid-template-columns: 288px 1fr;

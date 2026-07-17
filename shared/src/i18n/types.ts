@@ -194,6 +194,7 @@ export interface UIText {
   common_error: string;
   common_save: string;
   common_cancel: string;
+  common_close: string;
   common_delete: string;
   common_clear: string;
   common_increase: string;
@@ -247,6 +248,7 @@ export interface UIText {
   settings_export_hint: string;
   settings_import_label: string;
   settings_import_hint: string;
+  settings_import_success: string;
   settings_clear_hint: string;
   settings_clear_data: string;
   timeframe_1d: string;
