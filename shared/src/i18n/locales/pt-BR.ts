@@ -156,6 +156,7 @@ const ptBR: UIText = {
   auth_error_password_mismatch: 'As senhas não coincidem.',
   auth_error_required_field: 'Preencha este campo.',
   auth_error_email_taken: 'Este e-mail já possui uma conta.',
+  auth_error_email_linked_provider: 'Este e-mail está vinculado a uma conta do Google ou Facebook. Entre usando esse provedor.',
   auth_error_code_invalid: 'Código inválido ou expirado.',
   auth_callback_title: 'Autenticando',
   auth_callback_message: 'Validando seu acesso…',

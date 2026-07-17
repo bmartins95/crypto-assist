@@ -168,6 +168,7 @@ export interface UIText {
   auth_error_password_mismatch: string;
   auth_error_required_field: string;
   auth_error_email_taken: string;
+  auth_error_email_linked_provider: string;
   auth_error_code_invalid: string;
   auth_callback_title: string;
   auth_callback_message: string;

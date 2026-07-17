@@ -156,6 +156,7 @@ const ruRU: UIText = {
   auth_error_password_mismatch: 'Пароли не совпадают.',
   auth_error_required_field: 'Это поле обязательно для заполнения.',
   auth_error_email_taken: 'Аккаунт с этим email уже существует.',
+  auth_error_email_linked_provider: 'Этот email привязан к аккаунту Google или Facebook. Войдите через этого провайдера.',
   auth_error_code_invalid: 'Неверный или истёкший код.',
   auth_callback_title: 'Аутентификация',
   auth_callback_message: 'Проверяем ваш доступ…',

@@ -156,6 +156,7 @@ const arSA: UIText = {
   auth_error_password_mismatch: 'كلمتا المرور غير متطابقتين.',
   auth_error_required_field: 'هذا الحقل مطلوب.',
   auth_error_email_taken: 'يوجد حساب بالفعل بهذا البريد الإلكتروني.',
+  auth_error_email_linked_provider: 'هذا البريد الإلكتروني مرتبط بحساب Google أو Facebook. يرجى تسجيل الدخول باستخدام ذلك المزوّد.',
   auth_error_code_invalid: 'الرمز غير صالح أو منتهي الصلاحية.',
   auth_callback_title: 'جارٍ التحقق',
   auth_callback_message: 'جارٍ التحقق من وصولك…',

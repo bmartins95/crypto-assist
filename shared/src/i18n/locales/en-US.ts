@@ -156,6 +156,7 @@ const enUS: UIText = {
   auth_error_password_mismatch: 'Passwords do not match.',
   auth_error_required_field: 'This field is required.',
   auth_error_email_taken: 'An account already exists for this email.',
+  auth_error_email_linked_provider: 'This email is linked to a Google or Facebook account. Please sign in with that provider instead.',
   auth_error_code_invalid: 'Invalid or expired code.',
   auth_callback_title: 'Authenticating',
   auth_callback_message: 'Verifying your access…',
