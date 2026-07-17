@@ -26,8 +26,8 @@ function renderScreen() {
 function fillValidForm() {
   fireEvent.change(screen.getByLabelText(/nome/i), { target: { value: 'Bruno' } });
   fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'bruno@example.com' } });
-  fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
-  fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'password123' } });
+  fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Password123!' } });
+  fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'Password123!' } });
 }
 
 async function elapseResendCooldown() {
@@ -75,9 +75,10 @@ describe('SignupScreen', () => {
   it('shows an error when passwords do not match', () => {
     renderScreen();
     fillValidForm();
-    fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'different1' } });
+    fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'Different1!' } });
     fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    expect(screen.getByText(/não coincidem/i)).toBeTruthy();
+    const fieldError = screen.getAllByRole('alert').find(el => el.className === 'auth-field-error');
+    expect(fieldError?.textContent).toMatch(/não coincidem/i);
   });
 
   it('submits a valid form and shows the confirmation-code step', async () => {
@@ -86,7 +87,7 @@ describe('SignupScreen', () => {
     fillValidForm();
     fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
     await vi.waitFor(() =>
-      expect(signUp).toHaveBeenCalledWith('Bruno', 'bruno@example.com', 'password123')
+      expect(signUp).toHaveBeenCalledWith('Bruno', 'bruno@example.com', 'Password123!')
     );
     expect(await screen.findByLabelText(/código/i)).toBeTruthy();
   });
@@ -100,6 +101,53 @@ describe('SignupScreen', () => {
     expect(await screen.findByText(/já possui uma conta/i)).toBeTruthy();
   });
 
+  it('shows a specific error when the server rejects the password', async () => {
+    const { signUp } = await import('../useAuth');
+    vi.mocked(signUp).mockRejectedValueOnce(Object.assign(new Error('bad password'), { name: 'InvalidPasswordException' }));
+    renderScreen();
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    expect(await screen.findByText(/vazamento de dados conhecido/i)).toBeTruthy();
+  });
+
+  it('shows the generic error for an unrecognized server failure', async () => {
+    const { signUp } = await import('../useAuth');
+    vi.mocked(signUp).mockRejectedValueOnce(new Error('network down'));
+    renderScreen();
+    fillValidForm();
+    fireEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    expect(await screen.findByText(/algo deu errado/i)).toBeTruthy();
+  });
+
+  it('shows the live requirements checklist once the user starts typing a password', () => {
+    renderScreen();
+    expect(screen.queryByText('Mínimo de 8 caracteres')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'a' } });
+    expect(screen.getByText('Mínimo de 8 caracteres')).toBeTruthy();
+  });
+
+  it('shows a live match indicator once the confirm field matches the password', () => {
+    renderScreen();
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Password123!' } });
+    fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'Password123!' } });
+    expect(screen.getByText(/senhas coincidem/i)).toBeTruthy();
+    expect(screen.queryByText('As senhas não coincidem')).toBeNull();
+  });
+
+  it('shows a live mismatch indicator once the confirm field differs from the password', () => {
+    renderScreen();
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Password123!' } });
+    fireEvent.change(screen.getByLabelText(/confirmar senha/i), { target: { value: 'Password123' } });
+    expect(screen.getByText('As senhas não coincidem')).toBeTruthy();
+  });
+
+  it('shows neither match nor mismatch indicator while the confirm field is empty', () => {
+    renderScreen();
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'Password123!' } });
+    expect(screen.queryByText('As senhas coincidem')).toBeNull();
+    expect(screen.queryByText('As senhas não coincidem')).toBeNull();
+  });
+
   it('confirms the code, signs in, and navigates to /wallet', async () => {
     const { confirmSignUp, signIn } = await import('../useAuth');
     renderScreen();
@@ -109,7 +157,7 @@ describe('SignupScreen', () => {
     fireEvent.change(screen.getByLabelText(/código/i), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: /^confirmar$/i }));
     await vi.waitFor(() => expect(confirmSignUp).toHaveBeenCalledWith('bruno@example.com', '123456'));
-    await vi.waitFor(() => expect(signIn).toHaveBeenCalledWith('bruno@example.com', 'password123'));
+    await vi.waitFor(() => expect(signIn).toHaveBeenCalledWith('bruno@example.com', 'Password123!'));
     await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/wallet' }));
   });
 

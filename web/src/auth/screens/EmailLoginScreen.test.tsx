@@ -33,7 +33,7 @@ describe('EmailLoginScreen', () => {
     const { signIn } = await import('../useAuth');
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     await vi.waitFor(() => expect(signIn).toHaveBeenCalledWith('user@example.com', 'password123'));
     await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/wallet' }));
@@ -42,7 +42,7 @@ describe('EmailLoginScreen', () => {
   it('never navigates to the Cognito Hosted UI domain when signing in', async () => {
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     const originalHref = window.location.href;
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     await vi.waitFor(() => expect(window.location.href).toBe(originalHref));
@@ -53,7 +53,7 @@ describe('EmailLoginScreen', () => {
     vi.mocked(signIn).mockRejectedValueOnce(new Error('NotAuthorizedException'));
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'wrong' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect((screen.getByLabelText(/e-mail/i) as HTMLInputElement).value).toBe('user@example.com');
@@ -70,10 +70,10 @@ describe('EmailLoginScreen', () => {
 
     await screen.findByLabelText(/código/i);
     fireEvent.change(screen.getByLabelText(/código/i), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'newPassword1' } });
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'NewPassword1!' } });
     fireEvent.click(screen.getByRole('button', { name: /redefinir senha/i }));
     await vi.waitFor(() =>
-      expect(confirmResetPassword).toHaveBeenCalledWith('user@example.com', '123456', 'newPassword1')
+      expect(confirmResetPassword).toHaveBeenCalledWith('user@example.com', '123456', 'NewPassword1!')
     );
     expect(await screen.findByText(/sucesso/i)).toBeTruthy();
   });
@@ -88,9 +88,53 @@ describe('EmailLoginScreen', () => {
     await screen.findByLabelText(/código/i);
 
     fireEvent.change(screen.getByLabelText(/código/i), { target: { value: 'bad' } });
-    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'newPassword1' } });
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'NewPassword1!' } });
     fireEvent.click(screen.getByRole('button', { name: /redefinir senha/i }));
-    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(await screen.findByText(/código inválido/i)).toBeTruthy();
+  });
+
+  it('shows a specific error when the server rejects the new password', async () => {
+    const { confirmResetPassword } = await import('../useAuth');
+    vi.mocked(confirmResetPassword).mockRejectedValueOnce(
+      Object.assign(new Error('bad password'), { name: 'InvalidPasswordException' })
+    );
+    renderScreen();
+    fireEvent.click(screen.getByText(/esqueci a senha/i));
+    fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /enviar código/i }));
+    await screen.findByLabelText(/código/i);
+
+    fireEvent.change(screen.getByLabelText(/código/i), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'NewPassword1!' } });
+    fireEvent.click(screen.getByRole('button', { name: /redefinir senha/i }));
+    expect(await screen.findByText(/vazamento de dados conhecido/i)).toBeTruthy();
+  });
+
+  it('blocks submission client-side and shows a length error for a weak new password', async () => {
+    const { confirmResetPassword } = await import('../useAuth');
+    renderScreen();
+    fireEvent.click(screen.getByText(/esqueci a senha/i));
+    fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /enviar código/i }));
+    await screen.findByLabelText(/código/i);
+
+    fireEvent.change(screen.getByLabelText(/código/i), { target: { value: '123456' } });
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'short' } });
+    fireEvent.click(screen.getByRole('button', { name: /redefinir senha/i }));
+    expect(await screen.findByText(/pelo menos 8 caracteres/i)).toBeTruthy();
+    expect(confirmResetPassword).not.toHaveBeenCalled();
+  });
+
+  it('shows the live requirements checklist once the user starts typing a new password', async () => {
+    renderScreen();
+    fireEvent.click(screen.getByText(/esqueci a senha/i));
+    fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
+    fireEvent.click(screen.getByRole('button', { name: /enviar código/i }));
+    await screen.findByLabelText(/código/i);
+
+    expect(screen.queryByText('Mínimo de 8 caracteres')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'a' } });
+    expect(screen.getByText('Mínimo de 8 caracteres')).toBeTruthy();
   });
 
   it('routes an unconfirmed account to the confirmation-code step and resends a code', async () => {
@@ -98,7 +142,7 @@ describe('EmailLoginScreen', () => {
     vi.mocked(signIn).mockResolvedValueOnce('confirm-signup');
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     expect(await screen.findByLabelText(/código/i)).toBeTruthy();
     await vi.waitFor(() => expect(resendSignUpCode).toHaveBeenCalledWith('user@example.com'));
@@ -110,7 +154,7 @@ describe('EmailLoginScreen', () => {
     vi.mocked(signIn).mockResolvedValueOnce('confirm-signup');
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     await screen.findByLabelText(/código/i);
 
@@ -126,7 +170,7 @@ describe('EmailLoginScreen', () => {
     vi.mocked(signIn).mockResolvedValueOnce('confirm-signup');
     renderScreen();
     fireEvent.change(screen.getByLabelText(/e-mail/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/senha/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar/i }));
     await screen.findByLabelText(/código/i);
 
@@ -173,10 +217,10 @@ describe('EmailLoginScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /enviar código/i }));
     await screen.findByLabelText(/código/i);
     fireEvent.change(screen.getByLabelText(/código/i), { target: { value: '123456' } });
-    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'newPassword1' } });
+    fireEvent.change(screen.getByLabelText(/nova senha/i), { target: { value: 'NewPassword1!' } });
     fireEvent.click(screen.getByRole('button', { name: /redefinir senha/i }));
     await screen.findByText(/sucesso/i);
     fireEvent.click(screen.getByRole('button', { name: /^entrar$/i }));
-    expect(await screen.findByLabelText(/senha/i)).toBeTruthy();
+    expect(await screen.findByLabelText('Senha')).toBeTruthy();
   });
 });

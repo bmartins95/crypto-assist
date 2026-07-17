@@ -2,10 +2,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import PasswordField from './PasswordField';
+import { LocaleProvider } from '@/context/LocaleContext';
 
 function Harness({ autoComplete = 'current-password' }: { autoComplete?: string }) {
   const [value, setValue] = useState('');
   return <PasswordField label="Senha" value={value} onChange={setValue} autoComplete={autoComplete} />;
+}
+
+function renderHarness(props?: { autoComplete?: string }) {
+  return render(
+    <LocaleProvider>
+      <Harness {...props} />
+    </LocaleProvider>
+  );
 }
 
 function getInput(): HTMLInputElement {
@@ -32,14 +41,14 @@ describe('PasswordField', () => {
   });
 
   it('starts as a real password input so browser autofill works', () => {
-    render(<Harness />);
+    renderHarness();
     const input = getInput();
     expect(input.type).toBe('password');
     expect(input.getAttribute('autocomplete')).toBe('current-password');
   });
 
   it('replaces the password element with a fresh masked text element on the first keystroke', () => {
-    render(<Harness />);
+    renderHarness();
     const before = getInput();
     fireBeforeInput(before, 's');
     const after = getInput();
@@ -51,7 +60,7 @@ describe('PasswordField', () => {
   });
 
   it('never lets the intercepted character land in the password element', () => {
-    render(<Harness />);
+    renderHarness();
     const input = getInput();
     const event = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: 's', inputType: 'insertText' });
     fireEvent(input, event);
@@ -59,7 +68,7 @@ describe('PasswordField', () => {
   });
 
   it('accepts continued typing through the masked element', () => {
-    render(<Harness />);
+    renderHarness();
     fireBeforeInput(getInput(), 's');
     fireEvent.change(getInput(), { target: { value: 'secret123' } });
     const input = getInput();
@@ -68,7 +77,7 @@ describe('PasswordField', () => {
   });
 
   it('inserts pasted text via the masked element', () => {
-    render(<Harness />);
+    renderHarness();
     fireBeforeInput(getInput(), 'pasted-secret', 'insertFromPaste');
     const input = getInput();
     expect(input.type).toBe('text');
@@ -76,7 +85,7 @@ describe('PasswordField', () => {
   });
 
   it('returns to a fresh password element when the value is fully cleared', () => {
-    render(<Harness />);
+    renderHarness();
     fireBeforeInput(getInput(), 's');
     const masked = getInput();
     fireEvent.change(masked, { target: { value: '' } });
@@ -88,7 +97,11 @@ describe('PasswordField', () => {
 
   it('clears an autofilled value instead of editing it in place on deletion', () => {
     const onChange = vi.fn();
-    render(<PasswordField label="Senha" value="Autofilled1" onChange={onChange} />);
+    render(
+      <LocaleProvider>
+        <PasswordField label="Senha" value="Autofilled1" onChange={onChange} />
+      </LocaleProvider>
+    );
     const input = getInput();
     fireEvent(input, new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' }));
     expect(onChange).toHaveBeenCalledWith('');
@@ -97,7 +110,7 @@ describe('PasswordField', () => {
 
   it('leaves the password element untouched when masking is unsupported', () => {
     stubMaskingSupport(false);
-    render(<Harness />);
+    renderHarness();
     const before = getInput();
     const event = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: 's', inputType: 'insertText' });
     fireEvent(before, event);
@@ -107,7 +120,7 @@ describe('PasswordField', () => {
   });
 
   it('lets IME composition fall through to the password element', () => {
-    render(<Harness />);
+    renderHarness();
     const input = getInput();
     const event = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: 'あ', inputType: 'insertCompositionText' });
     fireEvent(input, event);
@@ -116,7 +129,7 @@ describe('PasswordField', () => {
   });
 
   it('syncs React state when Chrome autofills without an input event', () => {
-    render(<Harness />);
+    renderHarness();
     const input = getInput();
     input.value = 'Autofilled1';
     fireEvent.animationStart(input, { animationName: 'auth-autofill-detect' });
@@ -125,9 +138,37 @@ describe('PasswordField', () => {
   });
 
   it('renders an error message associated with the input', () => {
-    render(<PasswordField label="Senha" value="" onChange={() => {}} error="Campo obrigatório" />);
+    render(
+      <LocaleProvider>
+        <PasswordField label="Senha" value="" onChange={() => {}} error="Campo obrigatório" />
+      </LocaleProvider>
+    );
     const input = getInput();
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByRole('alert').textContent).toBe('Campo obrigatório');
+  });
+
+  it('reveals the value as plain text without replacing the DOM node, then re-masks it', () => {
+    renderHarness();
+    const before = getInput();
+    fireEvent.click(screen.getByRole('button', { name: /mostrar senha/i }));
+    expect(getInput()).toBe(before);
+    expect(getInput().type).toBe('text');
+
+    fireBeforeInput(before, 's');
+    const masked = getInput();
+    expect(masked.classList.contains('auth-inp-masked')).toBe(false);
+    expect(masked.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('button', { name: /ocultar senha/i }));
+    expect(getInput()).toBe(masked);
+    expect(getInput().classList.contains('auth-inp-masked')).toBe(true);
+  });
+
+  it('flips the toggle button aria-label between show and hide', () => {
+    renderHarness();
+    expect(screen.getByRole('button', { name: 'Mostrar senha' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar senha' }));
+    expect(screen.getByRole('button', { name: 'Ocultar senha' })).toBeTruthy();
   });
 });
