@@ -1,4 +1,4 @@
-"""Manual diagnostic for the historical-ops platform backfill (Item 22 / PLAN.md).
+"""Manual diagnostic for the historical-ops platform backfill (Item 22 / docs/PLAN.md).
 
 The backfill itself now runs automatically, once, as part of the normal
 migration flow (db/migrations/011_backfill_platform_fields.py) — this script
