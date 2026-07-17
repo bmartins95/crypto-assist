@@ -822,6 +822,8 @@ Design and implement clear, actionable password feedback: show the real policy r
 **Branch:** `fix/import-wallet-feedback`
 **Depends on:** nothing
 
+- [x] Done
+
 ### Current state
 `web/src/pages/settings.tsx`'s `handleImportChange` shows `alert(t.settings_clear_wallet_success)` on a successful import — reusing the "wallet cleared" success string from `handleClearWallet` for a completely different action. Importing loads a new wallet; it does not clear one. This is misleading, placeholder-quality copy, not a dedicated import-success message. More broadly, export/import/clear-wallet feedback in `settings.tsx` all uses native `window.alert`/`window.confirm`, which is below the app's own component styling (see [[feedback-design-template]]: Settings controls must use custom components, not native browser elements).
 
