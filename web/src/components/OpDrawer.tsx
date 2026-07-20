@@ -9,6 +9,7 @@ import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
 import PlatformSelect from '@/components/platform/PlatformSelect';
+import PlatformLogo from '@/components/platform/PlatformLogo';
 import DatePicker from '@/components/DatePicker/DatePicker';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 import CoinLogo from '@/components/CoinLogo';
@@ -190,7 +191,7 @@ export default function OpDrawer({
   editingOp, closingOp, closures = [], assets, platformAssets, avatarCache, prices,
 }: Props) {
   const { t, locale } = useLocale();
-  const { currency, rates } = useCurrency();
+  const { currency, rates, fmtFromCurrency } = useCurrency();
   const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
@@ -274,6 +275,20 @@ export default function OpDrawer({
   const closingPlatform = closingOp ? resolveOpPlatform(closingOp.platformId, closingOp.platformName) : null;
   const closingName = closingOp?.name ?? '';
   const closingSymbol = closingOp?.symbol ?? '';
+  const closingCoinId = closingOp?.coinId ?? '';
+
+  const renderStaticPlatform = (p: typeof closingPlatform) => (
+    <div className="static-field">
+      {p && <PlatformLogo platform={p} size="sm" />}
+      <span>{p?.name ?? '—'}</span>
+    </div>
+  );
+  const renderStaticCoin = (coinId: string, symbol: string, name: string) => (
+    <div className="static-field">
+      <CoinLogo image={avatarCache[coinId]?.url} symbol={symbol} size="sm" />
+      <span>{name} ({symbol})</span>
+    </div>
+  );
 
   useEffect(() => {
     if (open) {
@@ -576,7 +591,7 @@ export default function OpDrawer({
                 <div className="fld">
                   <label htmlFor="drawer-platform">{t.history_form_platform}</label>
                   {closingOp ? (
-                    <div className="static-field">{closingPlatform?.name ?? '—'}</div>
+                    renderStaticPlatform(closingPlatform)
                   ) : (
                     <PlatformSelect id="drawer-platform" value={platform} onChange={setPlatform} />
                   )}
@@ -585,7 +600,7 @@ export default function OpDrawer({
               <div className="fld">
                 <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
                 {closingOp ? (
-                  <div className="static-field">{closingOp.name} ({closingOp.symbol})</div>
+                  renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
                 ) : (
                   <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." seed={assetSeed}
                     value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
@@ -619,14 +634,17 @@ export default function OpDrawer({
                 <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
                   value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
               </div>
-              {closingOp && (
-                <div className="pnl-preview">
-                  <span>{t.history_pnl_estimated}</span>
-                  <span className={estimateClosePnl(closingOp, { price: priceNum }, Math.min(qtyNum, remainingQty)) >= 0 ? 'pnl-pos' : 'pnl-neg'}>
-                    {estimateClosePnl(closingOp, { price: priceNum }, Math.min(qtyNum, remainingQty)).toFixed(2)}
-                  </span>
-                </div>
-              )}
+              {closingOp && (() => {
+                const estimatedPnl = estimateClosePnl(closingOp, { price: priceNum }, Math.min(qtyNum, remainingQty));
+                return (
+                  <div className="pnl-preview">
+                    <span>{t.history_pnl_estimated}</span>
+                    <span className={estimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
+                      {fmtFromCurrency(estimatedPnl, closingOp.currency ?? 'BRL')}
+                    </span>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <>
@@ -640,7 +658,7 @@ export default function OpDrawer({
                 <div className="fld">
                   <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
                   {closeRole === 'sell' ? (
-                    <div className="static-field">{closingPlatform?.name ?? '—'}</div>
+                    renderStaticPlatform(closingPlatform)
                   ) : (
                     <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
                       options={heldPlatforms} />
@@ -650,7 +668,7 @@ export default function OpDrawer({
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
                     {closeRole === 'sell' ? (
-                      <div className="static-field">{closingName} ({closingSymbol})</div>
+                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
                     ) : (
                       <CoinSearch id="drawer-tr-from"
                         placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
@@ -694,7 +712,7 @@ export default function OpDrawer({
                 <div className="fld">
                   <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
                   {closeRole === 'buy' ? (
-                    <div className="static-field">{closingPlatform?.name ?? '—'}</div>
+                    renderStaticPlatform(closingPlatform)
                   ) : (
                     <>
                       <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
@@ -706,7 +724,7 @@ export default function OpDrawer({
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     {closeRole === 'buy' ? (
-                      <div className="static-field">{closingName} ({closingSymbol})</div>
+                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
                     ) : (
                       <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
                         value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}

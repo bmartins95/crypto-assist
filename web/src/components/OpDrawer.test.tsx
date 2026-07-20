@@ -880,6 +880,20 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('shows a platform and coin logo (or initials fallback) on the pre-filled static fields when closing', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const staticFields = document.querySelectorAll('.static-field');
+    expect(staticFields[0].querySelector('.plogo')).toBeInTheDocument();
+    expect(staticFields[1].querySelector('.coin')).toBeInTheDocument();
+  });
+
+  it('shows the currency symbol on the estimated P/L preview', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    const pnlValue = document.querySelector('.pnl-preview span:last-child');
+    expect(pnlValue).toHaveTextContent('R$');
+  });
+
   it('restores focus to the element that triggered the drawer after it closes', () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);

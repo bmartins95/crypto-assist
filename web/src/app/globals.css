@@ -1256,7 +1256,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .static-field {
-  width: 100%; padding: 11px 12px; border-radius: var(--radius);
+  width: 100%; padding: 8px 10px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px;
   background: var(--s-surface); border: 1px solid var(--s-border); color: var(--s-text-dim); font-size: 14px;
 }
 
