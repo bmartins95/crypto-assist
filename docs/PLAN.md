@@ -887,3 +887,59 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 - The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
 - `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
 - A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.
+
+---
+
+## Item 26 — Position closing, leverage, and history day-grouping
+**Branch:** `feat/position-closing`
+**Depends on:** item 9 (History view + entry drawer), item 22 (PlatformSelect / platform catalog)
+
+- [ ] Done
+
+### Design reference
+`docs/design/history-position-closing.html` — interaction source of truth: day-grouped history rows (date section headers), Aberta/Parcial/Fechada status chips, a per-row "Fechar operação" action, a drawer type-tab switcher (Compra/Venda/Trade) with a sliding animation between panels and tabs restricted to whichever types can legally close the row being closed, leverage chips (1x/2x/3x/5x/10x) on the buy fieldset, and an estimated P/L preview footer in the drawer while closing a position.
+
+### Current state
+- `Op`/`NewOp` (`shared/src/types.ts`) have no lot-linking or leverage fields; `type` is only `'Buy'|'Sell'` and a "trade" is just two independent, unlinked `NewOp`s created back to back by `HistoryTab.tsx`'s `handleSubmitTrade`.
+- `backend/db/schema.sql`'s `ops` table has no self-reference/FK column and no leverage column.
+- `shared/src/portfolio.ts`'s `computeProfitByAsset` is a simple weighted-average-cost model per coin (a sell just clamps to the available qty and reduces it; there is no per-lot or per-op realized P/L, no FIFO, and no record of which specific op closed which).
+- `web/src/components/HistoryTab.tsx` renders a flat, ungrouped list of ops (no day sections); rows only support edit/delete, no "close" action, no open/closed indicator.
+- `web/src/components/OpDrawer.tsx` already has a working buy/sell/trade segmented tab and a two-block trade fieldset with origin/destination platform selection (Item 22), but: switching tabs is instant (no animation), editing a trade-derived op is unsupported, there is no leverage field, no "closing" pre-fill mode (only `editingOp` exists today), and no P/L preview.
+- Confirmed via a repo-wide grep for leverage/position-linking/open-closed-status terms: this is fully greenfield, nothing existing to extend.
+
+### Goal
+Give every buy/sell op an explicit Aberta/Parcial/Fechada status derived from which later ops have been linked as "closing" it (fully or partially), support a close spanning multiple source ops or a source op being closed across multiple later ops, support an optional leverage multiplier per op, and redesign History to show day-grouped operations with status chips, a "Fechar operação" action that opens the drawer pre-filled from that row (restricted to only the types that can legally close it), an animated bidirectional buy/sell/trade toggle, and a live estimated P/L preview.
+
+### Approach
+Model closing as an explicit many-to-many link (`op_closures`) rather than a single parent-op column on `ops`, since a partial close can span multiple source lots and a single source lot can later be closed again for its remainder. Realized P/L is computed and frozen per link at creation time, not recomputed live from current prices.
+
+### Database migration (additive only)
+1. `ALTER TABLE ops ADD COLUMN leverage SMALLINT` — nullable; absent/`NULL` means 1x.
+2. New table `op_closures`: `id uuid PRIMARY KEY DEFAULT gen_random_uuid(), source_op_id uuid NOT NULL REFERENCES ops(id), closing_op_id uuid NOT NULL REFERENCES ops(id), qty_closed numeric(30,10) NOT NULL, realized_pnl numeric(30,10) NOT NULL, created_at timestamptz DEFAULT now()`, indexed on both `source_op_id` and `closing_op_id`.
+3. No backfill needed — every pre-existing op has zero closure rows, which correctly represents "no closure was ever recorded" rather than requiring a synthetic status.
+
+### Files to create
+- `backend/db/migrations/0NN_add_leverage_and_op_closures.sql`
+- `backend/app/routes/op_closures.py` — `POST /api/ops/{id}/close`, auth-gated and scoped to `user_id`: creates the closing op, walks the coin/platform's open source ops oldest-first to record one or more `op_closures` rows (splitting across source ops when the closing qty exceeds a single one's open remainder), computes and freezes `realized_pnl` server-side, returns the created op plus the closure rows. Rejects (400) closing more than the total open qty available.
+- `shared/src/positions.ts` — `computeOpStatus(op, closures): 'open' | 'partial' | 'closed'`, `openQtyRemaining(op, closures): number`, `estimateClosePnl(sourceOp, closingOp): number` for the drawer's live preview before submission.
+- `docs/design/history-position-closing.html` (design reference, copied in verbatim).
+
+### Files to modify
+- `shared/src/types.ts` — `NewOp`/`Op` gain `leverage?: number`. Add `OpClosure { id, sourceOpId, closingOpId, qtyClosed, realizedPnl }`.
+- `backend/app/models.py` — mirror `leverage: int | None`, add an `OpClosure` model.
+- `backend/app/routes/ops.py` — `GET /api/ops` (or a sibling `GET /api/op-closures`) exposes closure rows so the frontend can derive status client-side; avoid a speculative combined/joined endpoint if two plain fetches are enough.
+- `web/src/components/HistoryTab.tsx` — group ops by `date` into day sections (label + rows); add a status chip column (Aberta/Parcial/Fechada) via `computeOpStatus`; add a "Fechar operação" icon action (hidden once a row is fully closed) that opens `OpDrawer` with a new `closingOp` prop (distinct from `editingOp`).
+- `web/src/components/OpDrawer.tsx` — accept `closingOp?: Op`: when set, restrict the type tabs to whichever types can close it, pre-fill platform/asset/qty-remaining from it, show a closing banner, and submit through the new `POST /api/ops/{id}/close` endpoint instead of a plain create. Replace the instant tab swap with a CSS slide-transition between panels. Add leverage chips (1x/2x/3x/5x/10x) to the buy fieldset. Add a P/L preview footer, live-estimated via `estimateClosePnl` while typing.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `history_status_open/partial/closed`, `history_action_close`, `history_closing_banner`, `history_pnl_estimated`, `op_leverage_label`.
+- `web/src/app/globals.css` — day-group header styles, status chip styles, drawer slide-transition classes, leverage chip styles.
+
+### Done when
+- Every op in History shows an Aberta/Parcial/Fechada status chip, correctly derived from `op_closures` rows referencing it.
+- Clicking "Fechar operação" on an open or partial row opens the drawer pre-filled with that row's asset/platform/remaining qty, restricted to only the types that can legally close it.
+- Submitting a close creates the closing op, records the `op_closures` link(s) with a frozen `realized_pnl`, and updates the source row(s)' status without a page reload.
+- Partially closing a row (qty less than its open remainder) sets it to "Parcial", and the remainder can be closed again later.
+- A single close can span multiple source ops when the closing qty exceeds one source op's remaining open qty (oldest-open-first); closing more than the total available open qty is rejected with 400.
+- Buy ops can record an optional leverage multiplier (2x/3x/5x/10x); Wallet/Profit P/L math is unaffected by leverage in this item (leverage is stored and displayed only — feeding it into `computeProfitByAsset`'s average-cost model is a follow-up, not blocking this item).
+- Switching between Compra/Venda/Trade tabs in the drawer animates (slide) instead of snapping.
+- Operations in the History table are grouped by day with a date-section header.
+- `pytest` covers `op_closures.py` (full close, partial close, close spanning multiple source ops, over-close rejected with 400, auth required). `npm test` covers `computeOpStatus`/`estimateClosePnl`, the day-grouping, and `OpDrawer`'s closing-mode pre-fill and restricted tabs.
