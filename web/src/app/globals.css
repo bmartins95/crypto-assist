@@ -1273,6 +1273,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .pnl-preview span:last-child { font-weight: 700; font-size: 15px; }
 
-.type-panel { animation: type-panel-in .22s ease; }
+/* Mirrors .drawer-body's own flex/gap rhythm — this wrapper (added only for the
+   tab-switch animation) sits between .drawer-body and its fields/grids, so without
+   repeating the gap here every field inside it would lose the spacing .drawer-body
+   otherwise only applies between its own direct children. */
+.type-panel { display: flex; flex-direction: column; gap: 22px; animation: type-panel-in .22s ease; }
 @keyframes type-panel-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .type-panel { animation: none; } }
