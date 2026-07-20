@@ -1,5 +1,7 @@
 export type Currency = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
+export type Leverage = 2 | 3 | 5 | 10;
+
 // Units of each currency per 1 USD; USD is always 1.
 export type ExchangeRates = Record<Currency, number>;
 
@@ -25,12 +27,27 @@ export interface NewOp {
   platformName?: string;
   // Denomination of price/fee/total; absent means BRL (pre-multi-currency ops).
   currency?: Currency;
+  // Only settable on a brand-new, non-closing Buy or Sell; absent means 1x (unleveraged).
+  leverage?: Leverage;
 }
 
 // An operation as stored/returned by the backend (always has an id).
 export interface Op extends NewOp {
   id: string;
 }
+
+// Links a later operation (closingOpId) to an earlier one (sourceOpId) it fully or
+// partially closes. qtyClosed/realizedPnl are frozen at creation time — see
+// shared/src/positions.ts for how status and P/L are derived from these.
+export interface OpClosure {
+  id: string;
+  sourceOpId: string;
+  closingOpId: string;
+  qtyClosed: number;
+  realizedPnl: number;
+}
+
+export type PositionStatus = 'open' | 'partial' | 'closed';
 
 export interface Asset {
   coinId: string;

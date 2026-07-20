@@ -51,6 +51,15 @@ export interface UIText {
   history_col_fee: string;
   history_col_total: string;
   history_col_platform: string;
+  history_col_status: string;
+  history_col_pnl: string;
+  history_status_open: string;
+  history_status_partial: string;
+  history_status_closed: string;
+  history_action_close: string;
+  history_closing_banner: string;
+  history_pnl_estimated: string;
+  op_leverage_label: string;
   history_opType_buy: string;
   history_opType_sell: string;
   history_form_addOp: string;
