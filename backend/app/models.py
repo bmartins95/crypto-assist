@@ -6,6 +6,8 @@ OpType = Literal["Buy", "Sell"]
 
 CurrencyCode = Literal["BRL", "USD", "EUR", "GBP", "JPY"]
 
+LeverageValue = Literal[2, 3, 5, 10]
+
 _LEGACY_TYPE_MAP = {"Compra": "Buy", "Venda": "Sell"}
 
 # Backups written before the app's fields were themselves translated to English
@@ -33,10 +35,29 @@ class NewOp(BaseModel):
     platformId: str | None = None
     platformName: str | None = None
     currency: CurrencyCode = "BRL"
+    leverage: LeverageValue | None = None
 
 
 class Op(NewOp):
     id: str
+
+
+class OpClosure(BaseModel):
+    id: str
+    sourceOpId: str
+    closingOpId: str
+    qtyClosed: float
+    realizedPnl: float
+
+
+class CloseOpRequest(BaseModel):
+    closingOp: NewOp
+    qtyToClose: float
+
+
+class CloseOpResponse(BaseModel):
+    closingOp: Op
+    closures: list[OpClosure]
 
 
 class ExitPriceUpdate(BaseModel):

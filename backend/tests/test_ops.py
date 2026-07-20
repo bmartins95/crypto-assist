@@ -43,6 +43,7 @@ _DB_ROW = {
     "platform_id": "binance",
     "platform_name": "Binance",
     "currency": "BRL",
+    "leverage": None,
 }
 
 _API_OP = {
@@ -59,6 +60,7 @@ _API_OP = {
     "platformId": "binance",
     "platformName": "Binance",
     "currency": "BRL",
+    "leverage": None,
 }
 
 _NEW_OP_BODY = {
@@ -122,7 +124,7 @@ def test_create_op_records_entry_currency(client_with_db):
     assert res.status_code == 201
     assert res.json()["currency"] == "USD"
     insert_params = conn.cursor.return_value.execute.call_args[0][1]
-    assert insert_params[-1] == "USD"
+    assert insert_params[-2] == "USD"
 
 
 @pytest.mark.pgdata({})
@@ -247,3 +249,32 @@ def test_delete_all_ops_db_error(error_client):
     res = client.delete("/api/ops")
     assert res.status_code == 500
     conn.rollback.assert_called_once()
+
+
+@pytest.mark.pgdata(None)
+def test_update_op_blocked_when_closure_exists(client_with_db):
+    # First fetchone (UPDATE ... WHERE NOT EXISTS (...) RETURNING ...) finds no row
+    # because the closure-guard subquery excluded it; second fetchone (the plain
+    # existence check) finds a closure row, so the op is reported as blocked, not
+    # missing.
+    client, conn = client_with_db
+    conn.cursor.return_value.fetchone.side_effect = [None, {"exists": 1}]
+    res = client.put("/api/ops/op-1", json=_NEW_OP_BODY)
+    assert res.status_code == 409
+    assert "closure" in res.json()["detail"].lower()
+
+
+@pytest.mark.pgdata(_DB_ROW)
+def test_create_op_with_leverage(client_with_db):
+    client, conn = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 3})
+    assert res.status_code == 201
+    insert_params = conn.cursor.return_value.execute.call_args[0][1]
+    assert insert_params[-1] == 3
+
+
+@pytest.mark.pgdata({})
+def test_create_op_invalid_leverage_rejected(client_with_db):
+    client, _ = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 4})
+    assert res.status_code == 422
