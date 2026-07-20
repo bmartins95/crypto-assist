@@ -103,11 +103,11 @@ describe('HistoryTab', () => {
     expect(screen.queryByText('Personalizada')).not.toBeInTheDocument();
   });
 
-  it('shows the empty-state dash for an operation with no platform', () => {
+  it('shows the empty-state dash for an operation with no platform, in the expanded detail', () => {
     const noPlatformOp: Op = { ...existingOp, id: 'op-none', platformId: undefined, platformName: undefined };
     renderWithLocale(<HistoryTab {...baseProps} ops={[noPlatformOp]} />);
-    const cells = document.querySelectorAll('.tbl tbody td');
-    expect(cells[7]).toHaveTextContent('—');
+    const platformCell = document.querySelectorAll('.history-detail-grid > div')[2];
+    expect(platformCell).toHaveTextContent('—');
   });
 
   it('opens the drawer when clicking "Registrar operação"', () => {
@@ -205,7 +205,7 @@ describe('HistoryTab', () => {
   it('shows an "open" status with no P/L figure for an operation with no closures', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
     expect(screen.getByText('Aberta')).toBeInTheDocument();
-    const pnlCell = document.querySelectorAll('.tbl tbody td')[9];
+    const pnlCell = document.querySelectorAll('.history-row td')[4];
     expect(pnlCell).toHaveTextContent('—');
   });
 
@@ -276,7 +276,35 @@ describe('HistoryTab', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, day2, day2b]} />);
     const headers = document.querySelectorAll('.history-group-header');
     expect(headers).toHaveLength(2);
-    const rows = document.querySelectorAll('.tbl tbody tr:not(.history-group-row)');
+    const rows = document.querySelectorAll('.history-row');
     expect(rows).toHaveLength(3);
+  });
+
+  it('collapses row detail by default and expands it on click, showing price/fee/platform', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    const detail = document.querySelector('.history-detail');
+    expect(detail).not.toHaveClass('expanded');
+    fireEvent.click(document.querySelector('.history-row')!);
+    expect(detail).toHaveClass('expanded');
+    const [priceCell, feeCell, platformCell] = document.querySelectorAll('.history-detail-grid > div');
+    expect(priceCell).toHaveTextContent('R$');
+    expect(feeCell).toHaveTextContent('R$');
+    expect(platformCell).toHaveTextContent('Binance');
+    fireEvent.click(document.querySelector('.history-row')!);
+    expect(detail).not.toHaveClass('expanded');
+  });
+
+  it('does not toggle row expansion when clicking a row action (close/edit/delete)', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    const detail = document.querySelector('.history-detail');
+    fireEvent.click(screen.getByTitle('Editar operação'));
+    expect(detail).not.toHaveClass('expanded');
+  });
+
+  it('shows no per-row date column in the main row (the day-group header already shows it)', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    const headerCells = document.querySelectorAll('.tbl thead th');
+    const headerTexts = Array.from(headerCells).map(c => c.textContent);
+    expect(headerTexts).not.toContain('Data');
   });
 });

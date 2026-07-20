@@ -552,7 +552,7 @@ export default function OpDrawer({
             </div>
           )}
 
-          <div className="fld">
+          <div className="fld drawer-type-fld">
             <label htmlFor="drawer-type">{t.history_form_type}</label>
             <div className="seg-ctrl seg-tipo" id="drawer-type">
               {allowedTypes.includes('buy') && (
@@ -598,12 +598,6 @@ export default function OpDrawer({
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
                   value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
               </div>
-              <div className="drawer-grid">
-                <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
-                  value={fee} onChange={setFee} prefix="R$" />
-                <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
-                  value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
-              </div>
               {!editingOp && !closingOp && (
                 <div className="fld">
                   <label>{t.op_leverage_label}</label>
@@ -619,6 +613,12 @@ export default function OpDrawer({
                   </div>
                 </div>
               )}
+              <div className="drawer-grid">
+                <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
+                  value={fee} onChange={setFee} prefix="R$" />
+                <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
+                  value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
+              </div>
               {closingOp && (
                 <div className="pnl-preview">
                   <span>{t.history_pnl_estimated}</span>
