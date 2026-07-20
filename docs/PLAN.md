@@ -802,6 +802,8 @@ Additive only, per this repo's migration rules — the existing `platform` colum
 **Branch:** `fix/signup-password-feedback`
 **Depends on:** nothing
 
+- [x] Done
+
 ### Design reference
 `docs/design/signup-password-validation.html` — visual source of truth for the signup password field: live strength meter (4 segments, Fraca/Razoável/Boa/Forte), a 5-rule live checklist (min 8 chars, uppercase, lowercase, number, special char), confirm-password match/mismatch feedback, and a server-error banner with distinct copy for a weak/leaked password vs. an already-registered email.
 
