@@ -185,6 +185,7 @@ const DONE_DISPLAY_MS = 1300;
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
 
 type OpTypeOption = 'buy' | 'sell' | 'trade';
+const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'trade'];
 
 export default function OpDrawer({
   open, onClose, onSubmit, onSubmitTrade, onSubmitClose, onSubmitTradeClose,
@@ -225,6 +226,9 @@ export default function OpDrawer({
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const priorOverflow = useRef('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const slideDirRef = useRef<'fwd' | 'back'>('fwd');
+  const pendingSlideRef = useRef(false);
 
   const resetBuySell = () => {
     setDate(today()); setPlatform(null); setCoin(null); setCoinText('');
@@ -375,10 +379,25 @@ export default function OpDrawer({
   const requestClose = () => { if (phase === 'idle') onClose(); };
 
   const handleTypeChange = (next: OpTypeOption) => {
-    if (phase !== 'idle' || !allowedTypes.includes(next)) return;
+    if (phase !== 'idle' || !allowedTypes.includes(next) || next === opType) return;
+    slideDirRef.current = TYPE_ORDER.indexOf(next) > TYPE_ORDER.indexOf(opType) ? 'fwd' : 'back';
+    pendingSlideRef.current = true;
     setOpType(next);
     setError(null);
   };
+
+  // Restart the directional slide keyframe on each user-initiated tab switch. The
+  // panel content swaps synchronously (no remount), so the class is toggled
+  // imperatively and a reflow is forced to replay the animation even when the
+  // direction is unchanged. Prefill/open changes don't set the flag, so they don't slide.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || !pendingSlideRef.current) return;
+    pendingSlideRef.current = false;
+    el.classList.remove('slide-fwd', 'slide-back');
+    void el.offsetWidth;
+    el.classList.add(slideDirRef.current === 'fwd' ? 'slide-fwd' : 'slide-back');
+  }, [opType]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') { requestClose(); return; }
@@ -580,7 +599,7 @@ export default function OpDrawer({
             </div>
           </div>
 
-          <div className="type-panel" key={opType}>
+          <div className="type-panel" ref={panelRef}>
           {opType !== 'trade' ? (
             <>
               <div className="drawer-grid">

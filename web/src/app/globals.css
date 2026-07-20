@@ -497,11 +497,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.drawer-grid .fld, .drawer-body .fld, .trade-block > .fld { display: flex; flex-direction: column; gap: 7px; position: relative; }
-.drawer-grid .fld label, .drawer-body .fld label, .trade-block > .fld label { font-size: 12px; color: var(--s-text-dim); font-weight: 500; }
-.drawer-grid .fld input, .drawer-grid .fld select,
-.drawer-body .fld input, .drawer-body .fld select,
-.trade-block > .fld input, .trade-block > .fld select {
+.drawer-body .fld { display: flex; flex-direction: column; gap: 7px; position: relative; }
+.drawer-body .fld label { font-size: 12px; color: var(--s-text-dim); font-weight: 500; }
+.drawer-body .fld input, .drawer-body .fld select {
   width: 100%; background: var(--s-surface-2); border-color: var(--s-border);
 }
 /* Nesting-depth-agnostic: the type selector's own .fld is targeted directly via
@@ -1276,10 +1274,18 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .pnl-preview span:last-child { font-weight: 700; font-size: 15px; }
 
-/* Mirrors .drawer-body's own flex/gap rhythm — this wrapper (added only for the
-   tab-switch animation) sits between .drawer-body and its fields/grids, so without
-   repeating the gap here every field inside it would lose the spacing .drawer-body
-   otherwise only applies between its own direct children. */
-.type-panel { display: flex; flex-direction: column; gap: 22px; animation: type-panel-in .22s ease; }
-@keyframes type-panel-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .type-panel { animation: none; } }
+/* Mirrors .drawer-body's own flex/gap rhythm — this wrapper (added for the tab-switch
+   slide animation) sits between .drawer-body and its fields/grids, so without repeating
+   the gap here every field inside it would lose the spacing .drawer-body otherwise only
+   applies between its own direct children. The slide-fwd/slide-back classes are toggled
+   imperatively in OpDrawer on each user tab switch; direction matches the tab order
+   (Compra → Venda → Trade slides in from the right, the reverse from the left), per
+   docs/design/history-position-closing.html. */
+.type-panel { display: flex; flex-direction: column; gap: 22px; }
+.type-panel.slide-fwd { animation: type-slide-fwd .24s cubic-bezier(.2, .8, .2, 1); }
+.type-panel.slide-back { animation: type-slide-back .24s cubic-bezier(.2, .8, .2, 1); }
+@keyframes type-slide-fwd { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes type-slide-back { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .type-panel.slide-fwd, .type-panel.slide-back { animation: none; }
+}

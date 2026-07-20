@@ -831,13 +831,16 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
   });
 
-  it('re-renders the type panel on every type switch so the transition replays', () => {
+  it('slides the type panel directionally on switch without remounting it', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
     const before = document.querySelector('.type-panel');
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
     const after = document.querySelector('.type-panel');
-    expect(after).toBeInTheDocument();
-    expect(after).not.toBe(before);
+    // Same DOM node (no remount) — the animation is driven by a directional class, not a key.
+    expect(after).toBe(before);
+    expect(after).toHaveClass('slide-fwd');
+    fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
+    expect(document.querySelector('.type-panel')).toHaveClass('slide-back');
   });
 
   const closingBuyOp: Op = {
