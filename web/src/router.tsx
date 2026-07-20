@@ -183,8 +183,8 @@ function HistoryRoute() {
   return (
     <div className="app content-enter">
       <HistoryTab
-        ops={p.ops} assets={p.assets} avatarCache={p.avatarCache} prices={p.prices}
-        onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp}
+        ops={p.ops} assets={p.assets} avatarCache={p.avatarCache} prices={p.prices} closures={p.closures}
+        onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp} onCloseOp={p.closeOp}
       />
     </div>
   );

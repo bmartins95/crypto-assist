@@ -1,5 +1,5 @@
 import { getAccessToken } from '@/auth/useAuth';
-import type { Op, NewOp, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload, Platform, PlatformKind } from '@/lib/types';
+import type { Op, NewOp, OpClosure, ExitPrices, ExchangeRatesPayload, MarketPrices, BackupPayload, Platform, PlatformKind } from '@/lib/types';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3001';
 
@@ -37,6 +37,10 @@ export const api = {
   createOp: (op: NewOp) => request<Op>('/api/ops', { method: 'POST', body: JSON.stringify(op) }),
   updateOp: (id: string, op: NewOp) => request<Op>(`/api/ops/${id}`, { method: 'PUT', body: JSON.stringify(op) }),
   deleteOp: (id: string) => request<void>(`/api/ops/${id}`, { method: 'DELETE' }),
+
+  closeOp: (id: string, body: { closingOp: NewOp; qtyToClose: number }) =>
+    request<{ closingOp: Op; closures: OpClosure[] }>(`/api/ops/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),
+  getOpClosures: () => request<OpClosure[]>('/api/op-closures'),
 
   getExitPrices: () => request<ExitPrices>('/api/exit-prices'),
   setExitPrice: (coinId: string, exitPrice: number) =>

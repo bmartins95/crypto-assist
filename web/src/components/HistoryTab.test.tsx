@@ -37,9 +37,11 @@ const baseProps = {
   assets: [],
   avatarCache: {},
   prices: {},
+  closures: [] as import('@crypto-assist/shared').OpClosure[],
   onAddOp: vi.fn(),
   onEditOp: vi.fn(),
   onRemoveOp: vi.fn(),
+  onCloseOp: vi.fn(),
 };
 
 const existingOp: Op = {
@@ -198,5 +200,83 @@ describe('HistoryTab', () => {
     renderWithLocale(<HistoryTab {...baseProps} />);
     expect(screen.getByText(/· GBP/)).toBeInTheDocument();
     expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
+  });
+
+  it('shows an "open" status with no P/L figure for an operation with no closures', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    expect(screen.getByText('Aberta')).toBeInTheDocument();
+    const pnlCell = document.querySelectorAll('.tbl tbody td')[9];
+    expect(pnlCell).toHaveTextContent('—');
+  });
+
+  it('shows a "partial" status and a realized P/L figure for a partially-closed operation', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.2, realizedPnl: 10 }];
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} closures={closures} />);
+    expect(screen.getByText('Parcial')).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*10,00/)).toBeInTheDocument();
+  });
+
+  it('shows a "closed" status for a fully-closed operation and hides its close action', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.5, realizedPnl: 25 }];
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} closures={closures} />);
+    expect(screen.getByText('Fechada')).toBeInTheDocument();
+    expect(screen.queryByTitle('Fechar operação')).not.toBeInTheDocument();
+  });
+
+  it('shows the close action for an open row, opening the drawer pre-filled and restricted', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    fireEvent.click(screen.getByTitle('Fechar operação'));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
+    expect(screen.queryByRole('button', { name: 'Compra' })).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('0.5')).toBeInTheDocument();
+  });
+
+  it('closes a Buy via Trade: calls onCloseOp for the sell leg and onAddOp for the new leg', async () => {
+    const onCloseOp = vi.fn();
+    const onAddOp = vi.fn();
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={onCloseOp} onAddOp={onAddOp} />);
+    fireEvent.click(screen.getByTitle('Fechar operação'));
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    // The "sell" side is fixed to the row being closed (a static display, not a
+    // labeled field), so only the "receive" side's asset/quantity fields exist.
+    await selectCoin(screen.getByLabelText('Ativo'), { id: 'solana', symbol: 'sol', name: 'Solana' });
+    fireEvent.change(screen.getAllByLabelText('Quantidade')[1], { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith(
+      'op-1', expect.objectContaining({ type: 'Sell', coinId: 'bitcoin', qty: 0.5 }), 0.5,
+    ));
+    expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5 }));
+  });
+
+  it('calls onCloseOp with the source op id when submitting a close', async () => {
+    const onCloseOp = vi.fn();
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={onCloseOp} />);
+    fireEvent.click(screen.getByTitle('Fechar operação'));
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '250000' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith('op-1', expect.objectContaining({ type: 'Sell', qty: 0.5 }), 0.5));
+  });
+
+  it('shows a leverage badge next to the type chip when the operation has one', () => {
+    const leveraged: Op = { ...existingOp, leverage: 3 };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[leveraged]} />);
+    expect(document.querySelector('.tbl .lev-badge')).toHaveTextContent('3x');
+  });
+
+  it('shows no leverage badge for a plain (unleveraged) operation', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    expect(document.querySelector('.lev-badge')).not.toBeInTheDocument();
+  });
+
+  it('groups operations by day with a date-section header per distinct day', () => {
+    const day2: Op = { ...existingOp, id: 'op-2', date: '2024-01-16' };
+    const day2b: Op = { ...existingOp, id: 'op-3', date: '2024-01-16' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, day2, day2b]} />);
+    const headers = document.querySelectorAll('.history-group-header');
+    expect(headers).toHaveLength(2);
+    const rows = document.querySelectorAll('.tbl tbody tr:not(.history-group-row)');
+    expect(rows).toHaveLength(3);
   });
 });

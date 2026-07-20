@@ -56,6 +56,36 @@ describe('api request error extraction', () => {
   });
 });
 
+describe('api.closeOp / api.getOpClosures', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('posts to /api/ops/{id}/close with the closing op and quantity, returning the result', async () => {
+    const closingOp = { id: 'op-2', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Sell' as const, qty: 0.5, price: 100, fee: 0, total: 50 };
+    const closure = { id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.5, realizedPnl: 5 };
+    vi.mocked(fetch).mockResolvedValue(mockResponse(201, { closingOp, closures: [closure] }));
+    const body = { closingOp: { date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Sell' as const, qty: 0.5, price: 100, fee: 0, total: 50 }, qtyToClose: 0.5 };
+    const result = await api.closeOp('op-1', body);
+    expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/ops/op-1/close', expect.objectContaining({
+      method: 'POST', body: JSON.stringify(body),
+    }));
+    expect(result).toEqual({ closingOp, closures: [closure] });
+  });
+
+  it('fetches every closure link for the current user', async () => {
+    const closure = { id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.5, realizedPnl: 5 };
+    vi.mocked(fetch).mockResolvedValue(mockResponse(200, [closure]));
+    const result = await api.getOpClosures();
+    expect(fetch).toHaveBeenCalledWith('http://localhost:3001/api/op-closures', expect.anything());
+    expect(result).toEqual([closure]);
+  });
+});
+
 describe('api.getPlatformExchanges', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet } from '@tanstack/react-router';
-import { Op, NewOp, Prices, AvatarCache, GroupMode, ChartType, BackupPayload, Asset } from '@/lib/types';
+import { Op, NewOp, OpClosure, Prices, AvatarCache, GroupMode, ChartType, BackupPayload, Asset } from '@/lib/types';
 import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, declineMigration, clearLegacyData } from '@/lib/storage';
 import { api } from '@/lib/api/client';
 import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
@@ -16,6 +16,7 @@ interface PortfolioContextValue {
   assets: Asset[];
   prices: Prices;
   avatarCache: AvatarCache;
+  closures: OpClosure[];
   statusMsg: string;
   groupMode: GroupMode;
   setGroupMode: (mode: GroupMode) => void;
@@ -25,6 +26,7 @@ interface PortfolioContextValue {
   addOp: (op: NewOp) => Promise<void>;
   editOp: (id: string, op: NewOp) => Promise<void>;
   removeOp: (id: string) => Promise<void>;
+  closeOp: (sourceOpId: string, op: NewOp, qtyToClose: number) => Promise<void>;
   setExitPrice: (coinId: string, value: string) => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -43,6 +45,7 @@ export default function AppLayout() {
   const { interval } = usePriceRefresh();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar:collapsed') === '1');
   const [ops, setOps] = useState<Op[]>([]);
+  const [closures, setClosures] = useState<OpClosure[]>([]);
   const [exitPrices, setExitPrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Prices>({});
   const [avatarCache, setAvatarCache] = useState<AvatarCache>({});
@@ -63,9 +66,10 @@ export default function AppLayout() {
   const assets = useMemo(() => collectAssets(usdOps, exitPrices), [usdOps, exitPrices]);
 
   const reload = useCallback(async () => {
-    const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+    const [remoteOps, remoteExitPrices, remoteClosures] = await Promise.all([api.getOps(), api.getExitPrices(), api.getOpClosures()]);
     setOps(remoteOps);
     setExitPrices(remoteExitPrices);
+    setClosures(remoteClosures);
 
     const ids = [...new Set(remoteOps.map(o => o.coinId))];
     if (ids.length === 0) return;
@@ -98,7 +102,7 @@ export default function AppLayout() {
   // it" — since AppBootstrapGate never saw the failure and always moved on to 'ready'.
   const bootstrap = useCallback(async () => {
     setAvatarCache(storage.getAvatars());
-    const [remoteOps, remoteExitPrices] = await Promise.all([api.getOps(), api.getExitPrices()]);
+    const [remoteOps, remoteExitPrices, remoteClosures] = await Promise.all([api.getOps(), api.getExitPrices(), api.getOpClosures()]);
 
     if (remoteOps.length === 0) {
       const legacyOps = getLegacyOps();
@@ -118,6 +122,7 @@ export default function AppLayout() {
 
     setOps(remoteOps);
     setExitPrices(remoteExitPrices);
+    setClosures(remoteClosures);
   }, [reload, t]);
 
   const addOp = useCallback(async (op: NewOp) => {
@@ -144,6 +149,16 @@ export default function AppLayout() {
       setOps(prev => prev.filter(o => o.id !== id));
     } catch {
       alert(t.dashboard_error_delete_op);
+    }
+  }, [t]);
+
+  const closeOp = useCallback(async (sourceOpId: string, op: NewOp, qtyToClose: number) => {
+    try {
+      const { closingOp, closures: newClosures } = await api.closeOp(sourceOpId, { closingOp: op, qtyToClose });
+      setOps(prev => [...prev, closingOp]);
+      setClosures(prev => [...prev, ...newClosures]);
+    } catch {
+      alert(t.dashboard_error_add_op);
     }
   }, [t]);
 
@@ -210,10 +225,10 @@ export default function AppLayout() {
   }, [interval]);
 
   const portfolio = useMemo<PortfolioContextValue>(() => ({
-    ops, usdOps, assets, prices, avatarCache, statusMsg,
+    ops, usdOps, assets, prices, avatarCache, closures, statusMsg,
     groupMode, setGroupMode, activeChart, setActiveChart,
-    fetchPrices, addOp, editOp, removeOp, setExitPrice, reload,
-  }), [ops, usdOps, assets, prices, avatarCache, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, setExitPrice, reload]);
+    fetchPrices, addOp, editOp, removeOp, closeOp, setExitPrice, reload,
+  }), [ops, usdOps, assets, prices, avatarCache, closures, statusMsg, groupMode, activeChart, fetchPrices, addOp, editOp, removeOp, closeOp, setExitPrice, reload]);
 
   return (
     <AppBootstrapGate run={bootstrap}>

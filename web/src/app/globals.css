@@ -1202,3 +1202,54 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .content-enter { animation: content-fade-in .22s ease; }
 @keyframes content-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Item 26 — position closing, leverage, history day-grouping */
+
+.history-group-row .history-group-header {
+  text-align: left; padding: 8px 16px; font-size: 12.5px; font-weight: 600;
+  color: var(--s-text-dim); background: var(--s-surface-2); border-bottom: 1px solid var(--s-border-soft);
+  text-transform: none; letter-spacing: normal;
+}
+
+.status-chip {
+  display: inline-block; padding: 3px 9px; border-radius: 5px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+.status-chip.open { background: transparent; border: 1px solid var(--s-border); color: var(--s-text-dim); }
+.status-chip.partial { background: rgba(234, 179, 8, .12); border: 1px solid rgba(234, 179, 8, .35); color: #eab308; }
+.status-chip.closed { background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .35); color: var(--s-accent); }
+
+.lev-badge {
+  margin-left: 6px; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700;
+  background: rgba(249, 115, 22, .12); border: 1px solid rgba(249, 115, 22, .35); color: #f97316;
+}
+
+.pnl-pos { color: var(--success); font-weight: 600; }
+.pnl-neg { color: var(--danger); font-weight: 600; }
+
+.closing-banner {
+  background: rgba(45, 212, 191, .08); border: 1px solid rgba(45, 212, 191, .3); border-radius: var(--radius);
+  padding: 10px 12px; margin-bottom: 18px; color: var(--s-accent); font-size: 12px; line-height: 1.5;
+}
+
+.static-field {
+  width: 100%; padding: 11px 12px; border-radius: var(--radius);
+  background: var(--s-surface); border: 1px solid var(--s-border); color: var(--s-text-dim); font-size: 14px;
+}
+
+.leverage-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.lev-chip {
+  padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--s-border); background: var(--s-surface-2); color: var(--s-text-dim);
+}
+.lev-chip.active { border-color: var(--s-accent); background: rgba(45, 212, 191, .12); color: var(--s-accent); }
+
+.pnl-preview {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--s-border-soft);
+  display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--s-text-dim);
+}
+.pnl-preview span:last-child { font-weight: 700; font-size: 15px; }
+
+.type-panel { animation: type-panel-in .22s ease; }
+@keyframes type-panel-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .type-panel { animation: none; } }

@@ -805,6 +805,81 @@ describe('OpDrawer', () => {
     expect(document.body.style.overflow).toBe('auto');
   });
 
+  it('leverage chips appear only for a brand-new Buy/Sell, and are omitted from the submitted op when unset', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(document.querySelector('.leverage-chips')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: undefined }));
+  });
+
+  it('selecting a leverage chip includes it in the submitted op; clicking it again deselects it', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).toHaveClass('active');
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
+  });
+
+  it('re-renders the type panel on every type switch so the transition replays', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const before = document.querySelector('.type-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
+    const after = document.querySelector('.type-panel');
+    expect(after).toBeInTheDocument();
+    expect(after).not.toBe(before);
+  });
+
+  const closingBuyOp: Op = {
+    id: 'buy-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
+    type: 'Buy', qty: 1, price: 100, fee: 0, total: 100,
+    platformId: 'binance', platformName: 'Binance',
+  };
+
+  it('pre-fills asset/platform/quantity when opened with closingOp, and restricts type tabs to the opposite type + Trade', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
+    expect(screen.queryByRole('button', { name: 'Compra' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trade' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByText('Bitcoin (BTC)')).toBeInTheDocument();
+    expect(screen.getByText('Binance')).toBeInTheDocument();
+    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
+  });
+
+  it('restricts tabs to Compra + Trade when closing a Sell', () => {
+    const closingSellOp: Op = { ...closingBuyOp, id: 'sell-1', type: 'Sell' };
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingSellOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Compra' })).toHaveClass('active');
+    expect(screen.queryByRole('button', { name: 'Venda' })).not.toBeInTheDocument();
+  });
+
+  it('accounts for closures already recorded against the position when pre-filling the remaining quantity', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'buy-1', closingOpId: 'other', qtyClosed: 0.4, realizedPnl: 5 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();
+  });
+
+  it('submits a simple close via onSubmitClose, not onSubmit, with the requested quantity', async () => {
+    const onSubmitClose = vi.fn();
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onSubmitClose).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 150 }), 1));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('restores focus to the element that triggered the drawer after it closes', () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
