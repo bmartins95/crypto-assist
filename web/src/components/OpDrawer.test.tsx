@@ -880,6 +880,14 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('marks a long pre-filled platform/coin name for single-line truncation instead of wrapping', () => {
+    const longOp: Op = { ...closingBuyOp, name: 'Coinbase Wrapped Bitcoin Extremely Long Name', platformName: 'A Very Long Custom Platform Name' };
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={longOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const [platformText, coinText] = document.querySelectorAll('.static-field-text');
+    expect(platformText).toHaveTextContent('A Very Long Custom Platform Name');
+    expect(coinText).toHaveTextContent('Coinbase Wrapped Bitcoin Extremely Long Name');
+  });
+
   it('shows a platform and coin logo (or initials fallback) on the pre-filled static fields when closing', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
     const staticFields = document.querySelectorAll('.static-field');

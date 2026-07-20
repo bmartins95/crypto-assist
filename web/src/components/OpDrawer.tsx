@@ -280,13 +280,13 @@ export default function OpDrawer({
   const renderStaticPlatform = (p: typeof closingPlatform) => (
     <div className="static-field">
       {p && <PlatformLogo platform={p} size="sm" />}
-      <span>{p?.name ?? '—'}</span>
+      <span className="static-field-text">{p?.name ?? '—'}</span>
     </div>
   );
   const renderStaticCoin = (coinId: string, symbol: string, name: string) => (
     <div className="static-field">
       <CoinLogo image={avatarCache[coinId]?.url} symbol={symbol} size="sm" />
-      <span>{name} ({symbol})</span>
+      <span className="static-field-text">{name} ({symbol})</span>
     </div>
   );
 

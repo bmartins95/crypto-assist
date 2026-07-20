@@ -1259,6 +1259,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   width: 100%; padding: 8px 10px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px;
   background: var(--s-surface); border: 1px solid var(--s-border); color: var(--s-text-dim); font-size: 14px;
 }
+.static-field-text {
+  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .leverage-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .lev-chip {
