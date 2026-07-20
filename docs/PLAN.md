@@ -643,39 +643,6 @@ No component code changes in this branch. Implementation follows after proposal 
 
 ---
 
-## Item 19 — New investment types (Phase 1: Brazilian stocks)
-**Branch:** `feat/br-stocks`
-**Depends on:** items 4, 10, 13 (i18n, USD prices, provider abstraction)
-
-- [ ] Done
-
-### Current state
-`Op.type` is `'Compra' | 'Venda'`. `Op.coinId` references CoinGecko IDs. The entire data model assumes crypto. No other asset class is supported.
-
-### Files to modify
-
-**Shared:**
-- `shared/src/types.ts` — add `AssetType = 'crypto' | 'br-stock'`. Add `assetType: AssetType` to `NewOp` (default `'crypto'`). Add to `Asset`.
-
-**Backend:**
-- `backend/db/schema.sql` — add `asset_type VARCHAR(20) NOT NULL DEFAULT 'crypto'` to `ops` table.
-- `backend/app/models.py` — add `asset_type: str = 'crypto'` to Op models.
-- `backend/app/providers/brapi.py` — `BrapiProvider` implementing `search_coins(query)` and `get_prices(ids)` using `brapi.dev/api/v2/quote/{ticker}` and `brapi.dev/api/v2/asset/search?search={query}`. No history in Phase 1.
-- `backend/app/price_provider.py` — `get_provider(asset_type: str)` returns `BrapiProvider()` when `asset_type == 'br-stock'`, else the configured crypto provider.
-- `backend/app/routes/prices.py` — accept optional `asset_type` query param; route to correct provider.
-- `backend/app/routes/coins.py` — accept optional `type` query param (`crypto` or `br-stock`); route search to correct provider.
-
-**Web:**
-- `web/src/components/HistoryTab.tsx` — add an asset type toggle (Cripto / Ações BR) above the coin search. When "Ações BR" is selected, `CoinSearch` calls `/api/coins/search?q=...&type=br-stock`, and the new op is created with `assetType: 'br-stock'`. Trade form is disabled for non-crypto (stocks don't trade between each other in this model).
-
-### Done when
-- User can register a buy/sell for PETR4, VALE3, etc.
-- Wallet tab shows correct current price from brapi.dev for BR stock positions.
-- Crypto and stock positions coexist in the portfolio without conflict.
-- `pytest` covers brapi provider (mock HTTP) and mixed asset_type price fetching.
-
----
-
 ## Item 20 — Feature roadmap document
 **Branch:** `docs/feature-roadmap`
 **Depends on:** nothing
@@ -696,30 +663,6 @@ Each entry: description, estimated effort (S/M/L/XL), estimated user value (low/
 
 ### Done when
 - `docs/roadmap.md` committed to `develop`.
-
----
-
-## Item 21 — Extract auth kit to a standalone reusable repository
-**Branch:** `chore/extract-auth-kit`
-**Depends on:** item 17 (custom auth UI must exist first)
-
-- [ ] Done
-
-### Current state
-Item 17 builds the branded hero/login/signup/callback/bootstrap-gate auth flow directly inside `web/src/auth/` for this app only (per Item 17's clarification: no reuse-specific packaging in that item, since this repo forbids speculative abstraction). The components are already token-driven (CSS custom properties for brand colors) and cleanly boundaried, which is what makes a later extraction realistic.
-
-### Goal
-Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `AuthField`, `LoadingState`, `SuccessState`, `AuthCallback`, `AppBootstrapGate`, `RequireAuth`, `useAuth`, and the login/signup screen shells) into its own standalone, versioned GitHub repository, published so other apps (starting with any future `bmartins95` project) can install it and get a fully working, brandable auth flow by swapping a token file, a logo, and an auth-backend adapter — without touching crypto-assist-specific code.
-
-### Scope notes (to refine when this item is actually planned)
-- Needs a decision on the package's auth-backend abstraction boundary — Item 17's `useAuth()` hook was already designed as the seam for this (per `auth-flow-implementation.md`'s "Reusing the kit in another app" section), but generalizing it beyond Cognito/Amplify is new work.
-- `crypto-assist`'s own `web/src/auth/` would become a thin consumer of the published package rather than the source of truth.
-- Out of scope: any change to this app's actual auth behavior, screens, or copy — this item is a pure extraction/refactor, not a redesign.
-
-### Done when
-- The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
-- `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
-- A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.
 
 ---
 
@@ -853,3 +796,94 @@ Separately, `handleImportChange` does call `importData(file, reload)`, and `relo
 - Export, import, and clear-wallet feedback use the app's own UI components, not native `alert`/`confirm`.
 - After a successful import, the Wallet/Profit/History views show the imported ops with correct market prices without a manual price-refresh click or a page reload.
 - `npm test` passes.
+
+---
+
+## Item 25 — Fix Pre Sign-up Lambda: block duplicate accounts on native signup
+**Branch:** `aws-infra` `fix/pre-signup-block-duplicate-native` (against master); `crypto-assist` `fix/signup-linked-account-error`, `fix/auth-error-message-spacing`, `chore/tick-plan-item-23`, `chore/fix-stale-env-example`
+**Depends on:** item 16
+
+- [x] Done
+
+### Current state
+Discovered live while chasing a local-dev breakage caused by the Datum rebrand (item off-plan, PR #81): the rebrand's `apps/datum/dev.yaml` config-name change created a **brand-new** dev Cognito User Pool (`datum-dev`, `us-east-1_LuXTFzSuR`) rather than renaming the old `crypto-assist-dev` one, since SST derives resource names from `config.name`. Both `web/.env.local` and `backend/.env` still pointed at the dead pool (`DNS_PROBE_FINISHED_NXDOMAIN` on Google login, then 401s on every backend call once the frontend was fixed) — fixed directly, plus the tracked `web/.env.local.example` (crypto-assist#93).
+
+Testing against the fresh pool surfaced a real, previously-undiscovered gap in item 16: the Pre Sign-up Lambda (`aws-infra/functions/cognito-pre-signup/`) only ever handled `PreSignUp_ExternalProvider` (a federated sign-in linking to an existing account) — `PreSignUp_SignUp` (a native email/password signup) was silently ignored. Signing up natively with an email that already had a confirmed Google/Facebook account created a second, disconnected Cognito user with its own empty wallet, no error shown.
+
+### Goal
+Reject a native signup when its email already belongs to a confirmed, verified-email federated account, instead of silently creating a duplicate. `AdminLinkProviderForUser` can't merge two already-persisted accounts (same hard constraint discovered during item 16's original build), so true linking isn't possible in this direction — rejection with a clear message is the correct fix.
+
+### Files modified
+- `aws-infra/functions/cognito-pre-signup/decide.ts` — new `decideNativeSignup()`.
+- `aws-infra/functions/cognito-pre-signup/index.ts` — new `PreSignUp_SignUp` branch; extracted shared `findMatchingUsers()` helper used by both trigger paths. ([aws-infra#11](https://github.com/bmartins95/aws-infra/pull/11))
+- `shared/src/i18n/types.ts` + all 10 locale files — new `auth_error_email_linked_provider` key.
+- `web/src/auth/screens/SignupScreen.tsx` — maps `UserLambdaValidationException` (message contains `linked-to-provider`) to the new message. ([crypto-assist#91](https://github.com/bmartins95/crypto-assist/pull/91))
+- `web/src/app/globals.css` — unrelated but bundled fix found in the same session: `.auth-field-error` had no margin (the global `* { margin: 0 }` reset zeroed it out), sitting flush against neighboring elements on the forgot-password/signup/login forms. ([crypto-assist#90](https://github.com/bmartins95/crypto-assist/pull/90))
+- `docs/PLAN.md` — correction note added to item 16's section; item 23's missing `- [ ] Done` line fixed. ([crypto-assist#92](https://github.com/bmartins95/crypto-assist/pull/92))
+- `web/.env.local.example` — stale pre-rebrand Cognito values fixed. ([crypto-assist#93](https://github.com/bmartins95/crypto-assist/pull/93))
+
+### Corrections learned during implementation
+- One dev duplicate account (from live testing) was deleted; stg and prod were checked directly and had none.
+- Deploy verification: dev via manual `repository_dispatch`; stg and prod ended up deployed as a side effect of a later, unrelated PR (#89)'s `register-stg`/`register-prod` steps redeploying the whole `aws-infra` stack — confirmed via each stage's Lambda `LastModified` timestamp, not just trusting a deploy log.
+- Discovered a pipeline behavior worth remembering generally: every push to `develop` starts its own full-repo deploy pipeline run, not a diff-only one. When two earlier PRs' runs were still stuck at their own `Approve stg` gate and a later, larger PR was merged on top and fully approved to prod, the later run's deploy already included the earlier PRs' changes (built from the cumulative `develop` HEAD). The two earlier stuck runs became pure duplicates and were cancelled rather than approved.
+
+### Done when
+- A native signup for an email already linked to a confirmed federated account is rejected with a specific, translated message, not silently duplicated. ✅ Verified via `decide.test.ts` (9/9 passing) and confirmed the fix's Lambda code is live in dev, stg, and prod.
+- `npm test` (532/532), `npm run lint`, `tsc --noEmit` all clean on the crypto-assist side; `npx tsx --test decide.test.ts` clean on the aws-infra side.
+
+---
+
+## Item 19 — New investment types (Phase 1: Brazilian stocks)
+**Branch:** `feat/br-stocks`
+**Depends on:** items 4, 10, 13 (i18n, USD prices, provider abstraction)
+
+- [ ] Done
+
+### Current state
+`Op.type` is `'Compra' | 'Venda'`. `Op.coinId` references CoinGecko IDs. The entire data model assumes crypto. No other asset class is supported.
+
+### Files to modify
+
+**Shared:**
+- `shared/src/types.ts` — add `AssetType = 'crypto' | 'br-stock'`. Add `assetType: AssetType` to `NewOp` (default `'crypto'`). Add to `Asset`.
+
+**Backend:**
+- `backend/db/schema.sql` — add `asset_type VARCHAR(20) NOT NULL DEFAULT 'crypto'` to `ops` table.
+- `backend/app/models.py` — add `asset_type: str = 'crypto'` to Op models.
+- `backend/app/providers/brapi.py` — `BrapiProvider` implementing `search_coins(query)` and `get_prices(ids)` using `brapi.dev/api/v2/quote/{ticker}` and `brapi.dev/api/v2/asset/search?search={query}`. No history in Phase 1.
+- `backend/app/price_provider.py` — `get_provider(asset_type: str)` returns `BrapiProvider()` when `asset_type == 'br-stock'`, else the configured crypto provider.
+- `backend/app/routes/prices.py` — accept optional `asset_type` query param; route to correct provider.
+- `backend/app/routes/coins.py` — accept optional `type` query param (`crypto` or `br-stock`); route search to correct provider.
+
+**Web:**
+- `web/src/components/HistoryTab.tsx` — add an asset type toggle (Cripto / Ações BR) above the coin search. When "Ações BR" is selected, `CoinSearch` calls `/api/coins/search?q=...&type=br-stock`, and the new op is created with `assetType: 'br-stock'`. Trade form is disabled for non-crypto (stocks don't trade between each other in this model).
+
+### Done when
+- User can register a buy/sell for PETR4, VALE3, etc.
+- Wallet tab shows correct current price from brapi.dev for BR stock positions.
+- Crypto and stock positions coexist in the portfolio without conflict.
+- `pytest` covers brapi provider (mock HTTP) and mixed asset_type price fetching.
+
+---
+
+## Item 21 — Extract auth kit to a standalone reusable repository
+**Branch:** `chore/extract-auth-kit`
+**Depends on:** item 17 (custom auth UI must exist first)
+
+- [ ] Done
+
+### Current state
+Item 17 builds the branded hero/login/signup/callback/bootstrap-gate auth flow directly inside `web/src/auth/` for this app only (per Item 17's clarification: no reuse-specific packaging in that item, since this repo forbids speculative abstraction). The components are already token-driven (CSS custom properties for brand colors) and cleanly boundaried, which is what makes a later extraction realistic.
+
+### Goal
+Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `AuthField`, `LoadingState`, `SuccessState`, `AuthCallback`, `AppBootstrapGate`, `RequireAuth`, `useAuth`, and the login/signup screen shells) into its own standalone, versioned GitHub repository, published so other apps (starting with any future `bmartins95` project) can install it and get a fully working, brandable auth flow by swapping a token file, a logo, and an auth-backend adapter — without touching crypto-assist-specific code.
+
+### Scope notes (to refine when this item is actually planned)
+- Needs a decision on the package's auth-backend abstraction boundary — Item 17's `useAuth()` hook was already designed as the seam for this (per `auth-flow-implementation.md`'s "Reusing the kit in another app" section), but generalizing it beyond Cognito/Amplify is new work.
+- `crypto-assist`'s own `web/src/auth/` would become a thin consumer of the published package rather than the source of truth.
+- Out of scope: any change to this app's actual auth behavior, screens, or copy — this item is a pure extraction/refactor, not a redesign.
+
+### Done when
+- The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
+- `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
+- A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.
