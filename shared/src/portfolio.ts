@@ -38,9 +38,16 @@ export function convertOpsToUsd(ops: Op[], rates: ExchangeRates): Op[] {
   });
 }
 
+// Trade (leveraged) positions never represent real held assets, so they're excluded
+// from every Wallet/Profit view calculation — a short with zero balance is the clearest
+// case of why counting it as a holding would misrepresent the portfolio.
+export function walletOnly(ops: Op[]): Op[] {
+  return ops.filter(o => (o.kind ?? 'wallet') === 'wallet');
+}
+
 export function computePositions(ops: Op[], closures: OpClosure[] = []): Omit<Asset, 'exitPrice'>[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
-  withClosureAdjustments(ops, closures).forEach(o => {
+  withClosureAdjustments(walletOnly(ops), closures).forEach(o => {
     if (!o.coinId) return;
     if (!map[o.coinId]) map[o.coinId] = { coinId: o.coinId, symbol: o.symbol, name: o.name, buyQty: 0, buyTotal: 0, sellQty: 0 };
     if (o.type === 'Buy') { map[o.coinId].buyQty += o.qty; map[o.coinId].buyTotal += o.qty * o.price; }
@@ -59,7 +66,7 @@ export function collectAssets(ops: Op[], exitPrices: ExitPrices, closures: OpClo
 
 export function computePositionsByAssetAndPlatform(ops: Op[], closures: OpClosure[] = []): AssetWithPlatform[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; platformId: string; platformName: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
-  withClosureAdjustments(ops, closures).forEach(o => {
+  withClosureAdjustments(walletOnly(ops), closures).forEach(o => {
     if (!o.coinId) return;
     const platformId = o.platformId || '';
     const platformName = o.platformName || '';
@@ -89,7 +96,7 @@ export interface AssetProfit {
 }
 
 export function computeProfitByAsset(ops: Op[], prices: Prices, closures: OpClosure[] = []): AssetProfit[] {
-  const sorted = [...withClosureAdjustments(ops, closures)].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const sorted = [...withClosureAdjustments(walletOnly(ops), closures)].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const map: Record<string, { symbol: string; name: string; qty: number; avgCost: number; realizedPnl: number }> = {};
   sorted.forEach(o => {
     if (!o.coinId) return;
@@ -178,7 +185,7 @@ export function computeTimeline(
   to?: string,
   closures: OpClosure[] = [],
 ): TimelinePoint[] {
-  const sorted = [...withClosureAdjustments(ops, closures)].filter(o => o.coinId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const sorted = [...withClosureAdjustments(walletOnly(ops), closures)].filter(o => o.coinId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const rangeFrom = from ?? sorted[0]?.date ?? todayISO();
   const rangeTo = to ?? todayISO();
 

@@ -45,6 +45,9 @@ _DB_ROW = {
     "currency": "BRL",
     "leverage": None,
     "trade_group_id": None,
+    "op_kind": "wallet",
+    "side": None,
+    "created_at": "2024-01-15T00:00:00+00:00",
 }
 
 _API_OP = {
@@ -63,6 +66,8 @@ _API_OP = {
     "currency": "BRL",
     "leverage": None,
     "tradeGroupId": None,
+    "kind": "wallet",
+    "side": None,
 }
 
 _NEW_OP_BODY = {
@@ -126,7 +131,7 @@ def test_create_op_records_entry_currency(client_with_db):
     assert res.status_code == 201
     assert res.json()["currency"] == "USD"
     insert_params = conn.cursor.return_value.execute.call_args[0][1]
-    assert insert_params[-3] == "USD"
+    assert insert_params[-5] == "USD"
 
 
 @pytest.mark.pgdata({})
@@ -184,7 +189,8 @@ def test_create_op_platform_name_without_id_rejected(client_with_db):
 
 @pytest.mark.pgdata(_DB_ROW)
 def test_delete_op(client_with_db):
-    client, _ = client_with_db
+    client, conn = client_with_db
+    conn.cursor.return_value.fetchall.side_effect = [[], [{"id": "op-1"}]]
     res = client.delete("/api/ops/op-1")
     assert res.status_code == 200
     assert res.json() == {"deletedIds": ["op-1"]}
@@ -200,8 +206,11 @@ def test_delete_op_not_found(client_with_db):
 def test_delete_op_deletes_the_whole_trade_group(client_with_db):
     client, conn = client_with_db
     cur = conn.cursor.return_value
-    cur.fetchone.return_value = {"trade_group_id": "grp-1"}
-    cur.fetchall.side_effect = [[{"id": "op-1"}, {"id": "op-2"}]]
+    cur.fetchone.return_value = {
+        "trade_group_id": "grp-1", "op_kind": "wallet",
+        "coin_id": "bitcoin", "platform_id": "binance", "currency": "BRL",
+    }
+    cur.fetchall.side_effect = [[], [{"id": "op-1"}, {"id": "op-2"}]]
     res = client.delete("/api/ops/op-1")
     assert res.status_code == 200
     assert set(res.json()["deletedIds"]) == {"op-1", "op-2"}
@@ -271,30 +280,124 @@ def test_delete_all_ops_db_error(error_client):
     conn.rollback.assert_called_once()
 
 
-@pytest.mark.pgdata(None)
 def test_update_op_blocked_when_closure_exists(client_with_db):
-    # First fetchone (UPDATE ... WHERE NOT EXISTS (...) RETURNING ...) finds no row
-    # because the closure-guard subquery excluded it; second fetchone (the plain
-    # existence check) finds a closure row, so the op is reported as blocked, not
-    # missing.
+    # fetchone #1: current-row lookup (kind/side/group unchanged from the PUT body,
+    # so both the immutability and balance checks pass); fetchone #2: the
+    # UPDATE...WHERE NOT EXISTS(...) RETURNING finds no row because the closure-guard
+    # subquery excluded it; fetchone #3: the plain existence check finds a closure row.
     client, conn = client_with_db
-    conn.cursor.return_value.fetchone.side_effect = [None, {"exists": 1}]
+    cur = conn.cursor.return_value
+    cur.fetchone.side_effect = [_DB_ROW, None, {"exists": 1}]
+    cur.fetchall.side_effect = [[]]
     res = client.put("/api/ops/op-1", json=_NEW_OP_BODY)
     assert res.status_code == 409
     assert "closure" in res.json()["detail"].lower()
 
 
+def test_update_op_classification_change_rejected(client_with_db):
+    client, conn = client_with_db
+    conn.cursor.return_value.fetchone.return_value = _DB_ROW
+    res = client.put("/api/ops/op-1", json={**_NEW_OP_BODY, "kind": "trade", "side": "long"})
+    assert res.status_code == 400
+    assert "classification" in res.json()["detail"].lower()
+
+
 @pytest.mark.pgdata(_DB_ROW)
 def test_create_op_with_leverage(client_with_db):
     client, conn = client_with_db
-    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 3})
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 3, "kind": "trade"})
     assert res.status_code == 201
     insert_params = conn.cursor.return_value.execute.call_args[0][1]
-    assert insert_params[-2] == 3
+    assert insert_params[-4] == 3
 
 
 @pytest.mark.pgdata({})
 def test_create_op_invalid_leverage_rejected(client_with_db):
     client, _ = client_with_db
-    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 4})
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 4, "kind": "trade"})
     assert res.status_code == 422
+
+
+@pytest.mark.pgdata({})
+def test_create_op_leverage_on_wallet_rejected(client_with_db):
+    client, _ = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 3})
+    assert res.status_code == 400
+    assert "leverage" in res.json()["detail"].lower()
+
+
+@pytest.mark.pgdata({})
+def test_create_op_side_on_wallet_rejected(client_with_db):
+    client, _ = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "side": "long"})
+    assert res.status_code == 400
+
+
+def test_create_op_trade_derives_side_from_type(client_with_db):
+    client, conn = client_with_db
+    conn.cursor.return_value.fetchone.return_value = {**_DB_ROW, "op_kind": "trade", "side": "long", "leverage": 3}
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "kind": "trade", "leverage": 3, "side": "short"})
+    assert res.status_code == 201
+    insert_params = conn.cursor.return_value.execute.call_args[0][1]
+    # side is derived from type ('Buy' -> 'long'), never trusting the client's 'short'.
+    assert insert_params[-1] == "long"
+
+
+def test_create_op_trade_sell_no_balance_check(client_with_db):
+    # A trade Sell (short) never checks wallet balance, unlike a wallet Sell.
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = {**_DB_ROW, "op_kind": "trade", "side": "short", "type": "Sell"}
+    body = {**_NEW_OP_BODY, "type": "Sell", "kind": "trade", "leverage": 5}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 201
+    cur.fetchall.assert_not_called()
+
+
+def test_create_op_wallet_sell_exceeds_balance_rejected(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchall.side_effect = [[]]  # no prior wallet buys for this coin/platform/currency
+    body = {**_NEW_OP_BODY, "type": "Sell", "qty": 5}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 400
+    assert "negative balance" in res.json()["detail"].lower()
+    cur.execute.assert_called_once()  # the SELECT for the balance check, no INSERT reached
+
+
+def test_create_op_wallet_sell_within_balance_succeeds(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    prior_buy = {"id": "buy-1", "date": "2024-01-01", "created_at": "2024-01-01T00:00:00+00:00", "type": "Buy", "qty": "1"}
+    cur.fetchall.side_effect = [[prior_buy]]
+    cur.fetchone.return_value = {**_DB_ROW, "type": "Sell", "qty": "0.5"}
+    body = {**_NEW_OP_BODY, "type": "Sell", "qty": 0.5}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 201
+
+
+def test_update_op_wallet_negative_balance_rejected(client_with_db):
+    # Editing the buy's quantity down below what a later sell already consumed.
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = _DB_ROW
+    later_sell = {"id": "sell-1", "date": "2024-01-20", "created_at": "2024-01-20T00:00:00+00:00", "type": "Sell", "qty": "0.01"}
+    cur.fetchall.side_effect = [[later_sell]]
+    body = {**_NEW_OP_BODY, "qty": 0.005}
+    res = client.put("/api/ops/op-1", json=body)
+    assert res.status_code == 400
+    assert "negative balance" in res.json()["detail"].lower()
+
+
+def test_delete_op_wallet_negative_balance_rejected(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = {
+        "trade_group_id": None, "op_kind": "wallet",
+        "coin_id": "bitcoin", "platform_id": "binance", "currency": "BRL",
+    }
+    later_sell = {"id": "sell-1", "date": "2024-01-20", "created_at": "2024-01-20T00:00:00+00:00", "type": "Sell", "qty": "0.01"}
+    cur.fetchall.side_effect = [[later_sell]]
+    res = client.delete("/api/ops/op-1")
+    assert res.status_code == 400
+    assert "negative balance" in res.json()["detail"].lower()

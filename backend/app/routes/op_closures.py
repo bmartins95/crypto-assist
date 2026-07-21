@@ -45,40 +45,43 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
             if source is None:
                 raise HTTPException(status_code=404, detail="Operation not found.")
 
-            # A cross-asset trade-close (e.g. closing a BTC long by receiving Solana) records
-            # only the received op as the closer, so its coin/type/platform legitimately
-            # differ from the source; the source's realized P/L is the trade value received.
-            # A same-asset close keeps the original opposite-type / same-coin / same-platform
-            # rules and prices the P/L off the closing op's own unit price.
-            is_cross_asset = closing_op.coinId != source["coin_id"]
+            # Wallet operations have no close action at all (spec FR-014) — balance and
+            # realized P/L for wallet ops are derived via FIFO instead (see wallet_fifo.py).
+            if source["op_kind"] == "wallet":
+                raise HTTPException(status_code=400, detail="A wallet operation cannot be closed.")
+
+            if closing_op.coinId != source["coin_id"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A trade position can only be closed with a plain Buy or Sell of the same asset, not a swap.",
+                )
             if closing_op.currency != source["currency"]:
                 raise HTTPException(
                     status_code=400,
                     detail="A close must use the same currency as the position being closed.",
                 )
-            if is_cross_asset:
-                if body.qtyToClose <= 0:
-                    raise HTTPException(status_code=400, detail="Quantity to close must be positive.")
-                proceeds_per_unit = (closing_op.total - closing_op.fee) / body.qtyToClose
-            else:
-                if closing_op.type == source["type"]:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="A closing operation must be the opposite type of the position being closed.",
-                    )
-                if closing_op.platformId != source["platform_id"]:
-                    raise HTTPException(
-                        status_code=400,
-                        detail="A close must use the same platform as the position being closed.",
-                    )
-                proceeds_per_unit = closing_op.price
+            # The closing type is locked to whichever side resolves the position — a
+            # short (side='short') closes only via Buy, a long only via Sell (spec
+            # FR-015). The UI locks this choice, but the server does not trust it.
+            required_type = "Buy" if source["side"] == "short" else "Sell"
+            if closing_op.type != required_type:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"A {source['side']} position can only be closed with a {required_type}.",
+                )
+            if closing_op.platformId != source["platform_id"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A close must use the same platform as the position being closed.",
+                )
+            proceeds_per_unit = closing_op.price
 
             # Locks every open op in this coin/type/platform/currency group so a
             # concurrent close against the same rows can't over-allocate past what's
             # actually available (see specs/023-position-closing/research.md).
             cur.execute(
                 "SELECT id, qty, price FROM ops"
-                " WHERE user_id = %s AND coin_id = %s AND type = %s"
+                " WHERE user_id = %s AND coin_id = %s AND type = %s AND op_kind = 'trade'"
                 " AND platform_id IS NOT DISTINCT FROM %s AND currency = %s"
                 " ORDER BY date ASC, created_at ASC"
                 " FOR UPDATE",
@@ -108,14 +111,18 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
                     detail="Requested quantity exceeds the outstanding balance available to close.",
                 )
 
+            # The closing leg is itself a trade-kind op (it resolves this position, it
+            # isn't a new independent one) — kind/side are derived server-side, never
+            # trusting whatever the client sent on closing_op.
+            closing_side = "long" if closing_op.type == "Buy" else "short"
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id, op_kind, side)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, closing_op.date, closing_op.coinId, closing_op.symbol, closing_op.name, closing_op.type,
                  closing_op.qty, closing_op.price, closing_op.fee, closing_op.total,
                  closing_op.platformId, closing_op.platformName, closing_op.currency, closing_op.leverage,
-                 closing_op.tradeGroupId),
+                 closing_op.tradeGroupId, "trade", closing_side),
             )
             closing_row = cur.fetchone()
 

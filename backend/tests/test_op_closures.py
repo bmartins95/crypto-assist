@@ -20,8 +20,10 @@ _SOURCE_ROW = {
     "platform_id": "binance",
     "platform_name": "Binance",
     "currency": "BRL",
-    "leverage": None,
+    "leverage": 3,
     "trade_group_id": None,
+    "op_kind": "trade",
+    "side": "long",
 }
 
 _CLOSING_OP_BODY = {
@@ -55,6 +57,8 @@ _CLOSING_ROW = {
     "currency": "BRL",
     "leverage": None,
     "trade_group_id": None,
+    "op_kind": "trade",
+    "side": "short",
 }
 
 
@@ -93,42 +97,9 @@ def close_client():
 _CROSS_ASSET_SOL_BODY = {
     "date": "2024-02-01",
     "coinId": "solana", "symbol": "SOL", "name": "Solana",
-    "type": "Buy", "qty": 5, "price": 12, "fee": 0, "total": 60,
+    "type": "Sell", "qty": 5, "price": 12, "fee": 0, "total": 60,
     "platformId": "phantom", "platformName": "Phantom", "currency": "BRL",
 }
-
-_CROSS_ASSET_SOL_ROW = {
-    "id": "sol-1", "date": "2024-02-01", "coin_id": "solana", "symbol": "SOL", "name": "Solana",
-    "type": "Buy", "qty": "5", "price": "12", "fee": "0", "total": "60",
-    "platform_id": "phantom", "platform_name": "Phantom", "currency": "BRL",
-    "leverage": None, "trade_group_id": None,
-}
-
-
-def test_close_op_cross_asset_prices_pnl_from_trade_value(close_client):
-    # Close 0.5 BTC (source price 100 → cost 50) by receiving 5 SOL worth 60 → realized 10.
-    # A different coin, same type (Buy), and different platform are all accepted here.
-    client, conn, cur = close_client
-    cur.fetchone.side_effect = [_SOURCE_ROW, _CROSS_ASSET_SOL_ROW, _closure_row("c1", "buy-1", 0.5, 10)]
-    cur.fetchall.side_effect = [[_SOURCE_ROW], []]
-
-    res = client.post("/api/ops/buy-1/close", json={"closingOp": _CROSS_ASSET_SOL_BODY, "qtyToClose": 0.5})
-
-    assert res.status_code == 201
-    assert res.json()["closingOp"]["coinId"] == "solana"
-    closure_insert = next(c for c in cur.execute.call_args_list if "INSERT INTO op_closures" in c.args[0])
-    assert closure_insert.args[1][3] == 10.0  # params: (source_id, closing_id, qty_alloc, computed pnl)
-    conn.commit.assert_called_once()
-
-
-def test_close_op_cross_asset_rejects_currency_mismatch(close_client):
-    client, conn, cur = close_client
-    cur.fetchone.side_effect = [_SOURCE_ROW]
-    res = client.post(
-        "/api/ops/buy-1/close",
-        json={"closingOp": {**_CROSS_ASSET_SOL_BODY, "currency": "USD"}, "qtyToClose": 0.5},
-    )
-    assert res.status_code == 400
 
 
 def test_close_op_full_close(close_client):
@@ -145,6 +116,10 @@ def test_close_op_full_close(close_client):
     assert body["closures"][0]["qtyClosed"] == 1
     assert body["closures"][0]["realizedPnl"] == 50
     conn.commit.assert_called_once()
+    # The closing leg is stored as a trade op with a server-derived side, never trusting
+    # whatever the client sent on closingOp (spec FR-015).
+    insert_params = next(c for c in cur.execute.call_args_list if "INSERT INTO ops" in c.args[0]).args[1]
+    assert insert_params[-2:] == ("trade", "short")
 
 
 def test_close_op_partial_close(close_client):
@@ -204,8 +179,8 @@ def test_close_op_over_close_rejected(close_client):
 
 def test_close_op_sell_closed_by_buy(close_client):
     client, conn, cur = close_client
-    sell_source = {**_SOURCE_ROW, "type": "Sell", "price": "150"}
-    buy_closing = {**_CLOSING_ROW, "type": "Buy", "price": "100"}
+    sell_source = {**_SOURCE_ROW, "type": "Sell", "price": "150", "side": "short"}
+    buy_closing = {**_CLOSING_ROW, "type": "Buy", "price": "100", "side": "long"}
     cur.fetchone.side_effect = [sell_source, buy_closing, _closure_row("c1", "buy-1", 1, 50)]
     cur.fetchall.side_effect = [[sell_source], []]
 
@@ -277,7 +252,47 @@ def test_close_op_same_type_rejected(close_client):
     )
 
     assert res.status_code == 400
-    assert "opposite type" in res.json()["detail"].lower()
+    assert "long position can only be closed with a sell" in res.json()["detail"].lower()
+
+
+def test_close_op_short_closed_with_sell_rejected(close_client):
+    # side='short' can only be closed with a Buy — a Sell (the source's own type) is
+    # rejected for the same locked-side reason, not treated as "same type" generically.
+    client, conn, cur = close_client
+    short_source = {**_SOURCE_ROW, "type": "Sell", "side": "short"}
+    cur.fetchone.side_effect = [short_source]
+
+    res = client.post(
+        "/api/ops/buy-1/close",
+        json={"closingOp": {**_CLOSING_OP_BODY, "type": "Sell"}, "qtyToClose": 1},
+    )
+
+    assert res.status_code == 400
+    assert "short position can only be closed with a buy" in res.json()["detail"].lower()
+
+
+def test_close_op_wallet_kind_rejected(close_client):
+    client, conn, cur = close_client
+    wallet_source = {**_SOURCE_ROW, "op_kind": "wallet", "side": None, "leverage": None}
+    cur.fetchone.side_effect = [wallet_source]
+
+    res = client.post("/api/ops/buy-1/close", json={"closingOp": _CLOSING_OP_BODY, "qtyToClose": 1})
+
+    assert res.status_code == 400
+    assert "wallet operation cannot be closed" in res.json()["detail"].lower()
+
+
+def test_close_op_cross_asset_swap_rejected(close_client):
+    # Trade positions can only be closed with a plain same-asset Buy/Sell — the
+    # swap-based close path item 26 built no longer applies to trades (spec: contracts
+    # delta "Removed capability").
+    client, conn, cur = close_client
+    cur.fetchone.side_effect = [_SOURCE_ROW]
+
+    res = client.post("/api/ops/buy-1/close", json={"closingOp": _CROSS_ASSET_SOL_BODY, "qtyToClose": 1})
+
+    assert res.status_code == 400
+    assert "swap" in res.json()["detail"].lower()
 
 
 def test_close_op_not_found(close_client):

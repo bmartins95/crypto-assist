@@ -71,6 +71,8 @@ def test_export_populated_account_matches_backup_payload_shape(export_client):
             "currency": "BRL",
             "leverage": None,
             "tradeGroupId": None,
+            "kind": "wallet",
+            "side": None,
         }
     ]
     assert body["exitPrices"] == {"bitcoin": 500000.0}

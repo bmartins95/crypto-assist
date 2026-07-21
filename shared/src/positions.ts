@@ -59,13 +59,16 @@ export function isClosedSource(opId: string, closures: OpClosure[]): boolean {
 
 // Price-only realized P/L for closing `qty` of sourceOp against a same-asset closing
 // price — matches backend/app/routes/op_closures.py's same-asset formula, used for the
-// drawer's live preview before submission.
+// drawer's live preview before submission. Keying off `type` (rather than `side`)
+// already produces the correct sign for both directions: a short's source is a Sell, so
+// profit (entryPrice > closePrice) falls out of the same subtraction a long uses — no
+// separate sign-inversion is needed, only the leverage scale-up (spec FR-017).
 export function estimateClosePnl(
-  sourceOp: Pick<Op, 'type' | 'price'>,
+  sourceOp: Pick<Op, 'type' | 'price' | 'leverage'>,
   closingOp: Pick<Op, 'price'>,
   qty: number,
 ): number {
   const [sellPrice, buyPrice] =
     sourceOp.type === 'Buy' ? [closingOp.price, sourceOp.price] : [sourceOp.price, closingOp.price];
-  return qty * (sellPrice - buyPrice);
+  return qty * (sellPrice - buyPrice) * (sourceOp.leverage ?? 1);
 }

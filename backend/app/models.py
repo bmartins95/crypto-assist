@@ -8,6 +8,10 @@ CurrencyCode = Literal["BRL", "USD", "EUR", "GBP", "JPY"]
 
 LeverageValue = Literal[2, 3, 5, 10]
 
+OpKind = Literal["wallet", "trade"]
+
+Side = Literal["long", "short"]
+
 _LEGACY_TYPE_MAP = {"Compra": "Buy", "Venda": "Sell"}
 
 # Backups written before the app's fields were themselves translated to English
@@ -37,6 +41,11 @@ class NewOp(BaseModel):
     currency: CurrencyCode = "BRL"
     leverage: LeverageValue | None = None
     tradeGroupId: str | None = None
+    kind: OpKind = "wallet"
+    # Client-supplied side is never trusted for a new trade op — the route derives it
+    # from `type` server-side. Present here only so PUT's immutability check has a
+    # value to compare against the stored row.
+    side: Side | None = None
 
 
 class Op(NewOp):
