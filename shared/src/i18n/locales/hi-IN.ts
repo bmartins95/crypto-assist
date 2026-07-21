@@ -47,6 +47,7 @@ const hiIN: UIText = {
   history_action_close: 'पोज़िशन बंद करें',
   history_closing_banner: 'पोज़िशन बंद की जा रही है: {coin} · {platform} · शेष मात्रा {qty}',
   history_pnl_estimated: 'अनुमानित लाभ/हानि',
+  history_close_success: 'पोज़िशन सफलतापूर्वक बंद हुई',
   op_leverage_label: 'लीवरेज',
   history_opType_buy: 'खरीदें',
   history_opType_sell: 'बेचें',

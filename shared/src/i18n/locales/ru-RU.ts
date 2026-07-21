@@ -47,6 +47,7 @@ const ruRU: UIText = {
   history_action_close: 'Закрыть позицию',
   history_closing_banner: 'Закрытие позиции: {coin} · {platform} · оставшееся количество {qty}',
   history_pnl_estimated: 'Расчётная прибыль/убыток',
+  history_close_success: 'Позиция успешно закрыта',
   op_leverage_label: 'Кредитное плечо',
   history_opType_buy: 'Покупка',
   history_opType_sell: 'Продажа',

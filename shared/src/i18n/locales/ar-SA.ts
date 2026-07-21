@@ -47,6 +47,7 @@ const arSA: UIText = {
   history_action_close: 'إغلاق المركز',
   history_closing_banner: 'إغلاق المركز: {coin} · {platform} · الكمية المتبقية {qty}',
   history_pnl_estimated: 'الربح/الخسارة المقدرة',
+  history_close_success: 'تم إغلاق المركز بنجاح',
   op_leverage_label: 'الرافعة المالية',
   history_opType_buy: 'شراء',
   history_opType_sell: 'بيع',

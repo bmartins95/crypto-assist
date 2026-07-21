@@ -47,6 +47,7 @@ const frFR: UIText = {
   history_action_close: 'Clôturer la position',
   history_closing_banner: 'Clôture de la position : {coin} · {platform} · quantité restante {qty}',
   history_pnl_estimated: 'Profit/perte estimé',
+  history_close_success: 'Position clôturée avec succès',
   op_leverage_label: 'Effet de levier',
   history_opType_buy: 'Achat',
   history_opType_sell: 'Vente',

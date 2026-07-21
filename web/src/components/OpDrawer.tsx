@@ -419,16 +419,15 @@ export default function OpDrawer({
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
-  // After the success state: a normal create/edit keeps the drawer open with the
-  // just-submitted values still filled in, so registering several similar ops in a
-  // row doesn't require reopening and re-filling the form. Closing a position is a
-  // one-shot action with nothing to repeat, so it auto-dismisses the drawer instead.
+  // A normal create/edit shows the inline "done" checkmark and keeps the drawer open
+  // with the just-submitted values still filled in, so registering several similar ops
+  // in a row doesn't require reopening and re-filling the form. Closing a position is a
+  // one-shot action with nothing to repeat, so it dismisses the drawer at once (no
+  // checkmark) — the parent surfaces a success toast instead.
   const finishAfterSave = () => {
+    if (closingOp) { onClose(); return; }
     setPhase('done');
-    setTimeout(() => {
-      if (closingOp) onClose();
-      else setPhase('idle');
-    }, DONE_DISPLAY_MS);
+    setTimeout(() => setPhase('idle'), DONE_DISPLAY_MS);
   };
 
   const handleSubmit = async () => {

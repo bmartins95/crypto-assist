@@ -9,6 +9,7 @@ import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
+import Toast, { ToastKind } from '@/components/Toast';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
@@ -47,6 +48,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
   const [closingOp, setClosingOp] = useState<Op | undefined>(undefined);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
   const { resolveOpPlatform } = usePlatformCatalog();
 
   const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops), [ops]);
@@ -68,14 +70,17 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     await onAddOp(buy);
   };
 
-  const handleSubmitClose = (op: NewOp, qtyToClose: number): Promise<void> => (
-    closingOp ? onCloseOp(closingOp.id, op, qtyToClose) : Promise.resolve()
-  );
+  const handleSubmitClose = async (op: NewOp, qtyToClose: number): Promise<void> => {
+    if (!closingOp) return;
+    await onCloseOp(closingOp.id, op, qtyToClose);
+    setToast({ kind: 'success', message: t.history_close_success });
+  };
 
   const handleSubmitTradeClose = async (closingLeg: NewOp, qtyToClose: number, newLeg: NewOp): Promise<void> => {
     if (!closingOp) return;
     await onCloseOp(closingOp.id, closingLeg, qtyToClose);
     await onAddOp(newLeg);
+    setToast({ kind: 'success', message: t.history_close_success });
   };
 
   const statusLabel = (status: 'open' | 'partial' | 'closed'): string => (
@@ -192,6 +197,10 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
         avatarCache={avatarCache}
         prices={prices}
       />
+
+      {toast && (
+        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
+      )}
     </div>
   );
 }

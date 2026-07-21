@@ -883,14 +883,13 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('auto-closes the drawer after a close finishes (unlike a normal op, which stays open)', async () => {
+  it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
-    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
-    await waitForClose();
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(document.querySelector('.btn-submit.done')).not.toBeInTheDocument();
   });
 
   it('marks a long pre-filled platform/coin name for single-line truncation instead of wrapping', () => {

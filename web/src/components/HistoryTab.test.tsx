@@ -259,6 +259,14 @@ describe('HistoryTab', () => {
     await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith('op-1', expect.objectContaining({ type: 'Sell', qty: 0.5 }), 0.5));
   });
 
+  it('shows a success toast after a close completes', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Fechar operação'));
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '250000' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(screen.getByText('Operação fechada com sucesso')).toBeInTheDocument());
+  });
+
   it('shows a leverage badge next to the type chip when the operation has one', () => {
     const leveraged: Op = { ...existingOp, leverage: 3 };
     renderWithLocale(<HistoryTab {...baseProps} ops={[leveraged]} />);

@@ -47,6 +47,7 @@ const ptBR: UIText = {
   history_action_close: 'Fechar operação',
   history_closing_banner: 'Fechando posição: {coin} · {platform} · quantidade restante {qty}',
   history_pnl_estimated: 'Lucro/prejuízo estimado',
+  history_close_success: 'Operação fechada com sucesso',
   op_leverage_label: 'Alavancagem',
   history_opType_buy: 'Compra',
   history_opType_sell: 'Venda',

@@ -59,6 +59,7 @@ export interface UIText {
   history_action_close: string;
   history_closing_banner: string;
   history_pnl_estimated: string;
+  history_close_success: string;
   op_leverage_label: string;
   history_opType_buy: string;
   history_opType_sell: string;

@@ -47,6 +47,7 @@ const esES: UIText = {
   history_action_close: 'Cerrar operación',
   history_closing_banner: 'Cerrando posición: {coin} · {platform} · cantidad restante {qty}',
   history_pnl_estimated: 'Ganancia/pérdida estimada',
+  history_close_success: 'Posición cerrada con éxito',
   op_leverage_label: 'Apalancamiento',
   history_opType_buy: 'Compra',
   history_opType_sell: 'Venta',

@@ -47,6 +47,7 @@ const jaJP: UIText = {
   history_action_close: 'ポジションを決済',
   history_closing_banner: 'ポジションを決済中: {coin} · {platform} · 残数量 {qty}',
   history_pnl_estimated: '推定損益',
+  history_close_success: 'ポジションを正常にクローズしました',
   op_leverage_label: 'レバレッジ',
   history_opType_buy: '買い',
   history_opType_sell: '売り',

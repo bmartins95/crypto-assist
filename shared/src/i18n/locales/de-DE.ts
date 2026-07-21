@@ -47,6 +47,7 @@ const deDE: UIText = {
   history_action_close: 'Position schließen',
   history_closing_banner: 'Position wird geschlossen: {coin} · {platform} · verbleibende Menge {qty}',
   history_pnl_estimated: 'Geschätzter Gewinn/Verlust',
+  history_close_success: 'Position erfolgreich geschlossen',
   op_leverage_label: 'Hebel',
   history_opType_buy: 'Kauf',
   history_opType_sell: 'Verkauf',

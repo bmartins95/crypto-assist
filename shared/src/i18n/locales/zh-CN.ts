@@ -47,6 +47,7 @@ const zhCN: UIText = {
   history_action_close: '平仓',
   history_closing_banner: '正在平仓：{coin} · {platform} · 剩余数量 {qty}',
   history_pnl_estimated: '预计盈亏',
+  history_close_success: '持仓已成功平仓',
   op_leverage_label: '杠杆',
   history_opType_buy: '买入',
   history_opType_sell: '卖出',
