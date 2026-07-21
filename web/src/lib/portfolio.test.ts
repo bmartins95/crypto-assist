@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
-import type { Op } from './types';
+import type { Op, OpClosure } from './types';
 
 function op(overrides: Partial<Op>): Op {
   return {
@@ -17,6 +17,35 @@ function op(overrides: Partial<Op>): Op {
     ...overrides,
   };
 }
+
+describe('closure-aware holdings (cross-asset trade-close)', () => {
+  // Closing 0.5 BTC by receiving 5 SOL, stored as one op: the SOL Buy, linked to the BTC Buy.
+  const btc = op({ id: 'btc', coinId: 'bitcoin', symbol: 'BTC', qty: 1, price: 100, total: 100 });
+  const sol = op({ id: 'sol', coinId: 'solana', symbol: 'SOL', qty: 5, price: 12, fee: 0, total: 60, date: '2024-02-01' });
+  const closure: OpClosure = { id: 'c1', sourceOpId: 'btc', closingOpId: 'sol', qtyClosed: 0.5, realizedPnl: 10 };
+
+  it('reduces the source coin by the closed amount and keeps the received coin', () => {
+    const positions = computePositions([btc, sol], [closure]);
+    expect(positions.find(p => p.coinId === 'bitcoin')?.qty).toBeCloseTo(0.5);
+    expect(positions.find(p => p.coinId === 'solana')?.qty).toBeCloseTo(5);
+  });
+
+  it('does not reduce holdings without the closures argument (backwards-compatible)', () => {
+    expect(computePositions([btc, sol]).find(p => p.coinId === 'bitcoin')?.qty).toBeCloseTo(1);
+  });
+
+  it('does not double-count a same-asset close (a real Sell op already reduces it)', () => {
+    const sell = op({ id: 'sell', coinId: 'bitcoin', symbol: 'BTC', type: 'Sell', qty: 0.5, price: 120, total: 60 });
+    const sameAsset: OpClosure = { id: 'c2', sourceOpId: 'btc', closingOpId: 'sell', qtyClosed: 0.5, realizedPnl: 10 };
+    expect(computePositions([btc, sell], [sameAsset]).find(p => p.coinId === 'bitcoin')?.qty).toBeCloseTo(0.5);
+  });
+
+  it('books the cross-asset trade value as realized P/L on the source coin', () => {
+    const profit = computeProfitByAsset([btc, sol], {}, [closure]);
+    // proceeds = sol.total - sol.fee = 60; cost of 0.5 BTC = 0.5 * 100 = 50 → realized 10.
+    expect(profit.find(p => p.coinId === 'bitcoin')?.realizedPnl).toBeCloseTo(10);
+  });
+});
 
 describe('computePositions', () => {
   it('aggregates buys into a position with the weighted average price', () => {

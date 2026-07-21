@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Op, NewOp, OpClosure, Asset, AvatarCache, Prices } from '@/lib/types';
 import { fmtQty, fmtDate } from '@/lib/format';
-import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlFor, hasClosure } from '@/lib/portfolio';
+import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlForSource, isClosedSource } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -51,7 +51,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
   const { resolveOpPlatform } = usePlatformCatalog();
 
-  const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops), [ops]);
+  const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops, closures), [ops, closures]);
   const dateGroups = useMemo(() => groupOpsByDate(ops), [ops]);
 
   const toggleExpand = (id: string) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -126,8 +126,8 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
                   </tr>
                   {group.ops.map(o => {
                     const platform = resolveOpPlatform(o.platformId, o.platformName);
-                    const status = computeOpStatus(o, closures);
-                    const pnl = hasClosure(o.id, closures) ? realizedPnlFor(o.id, closures) : null;
+                    const status = computeOpStatus(o, closures, ops);
+                    const pnl = isClosedSource(o.id, closures) ? realizedPnlForSource(o.id, closures) : null;
                     const expanded = !!expandedRows[o.id];
                     return (
                       <Fragment key={o.id}>

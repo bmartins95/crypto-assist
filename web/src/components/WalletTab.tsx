@@ -3,7 +3,7 @@
 import { Asset, AssetWithPlatform, GroupMode, Prices, PlatformKind } from '@/lib/types';
 import { fmtPct, fmtQty } from '@/lib/format';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
-import { Op } from '@/lib/types';
+import { Op, OpClosure } from '@/lib/types';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -15,6 +15,7 @@ import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
   ops: Op[];
+  closures: OpClosure[];
   assets: Asset[];
   prices: Prices;
   avatarCache: Record<string, { url: string }>;
@@ -41,7 +42,7 @@ const CATEGORY_LABEL_KEY: Record<PlatformKind, 'platform_kind_exchange' | 'platf
   custom: 'platform_kind_custom',
 };
 
-export default function WalletTab({ ops, assets, prices, avatarCache, groupMode, onGroupMode, statusMsg, onFetchPrices, onExitPriceChange }: Props) {
+export default function WalletTab({ ops, closures, assets, prices, avatarCache, groupMode, onGroupMode, statusMsg, onFetchPrices, onExitPriceChange }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, rates, ratesStatus, fmtMoney } = useCurrency();
@@ -61,7 +62,7 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
       </div>
     );
   } else if (groupMode === 'platform') {
-    const byAssetPlat = computePositionsByAssetAndPlatform(ops);
+    const byAssetPlat = computePositionsByAssetAndPlatform(ops, closures);
     const platMap: Record<string, { platformId: string; platformName: string; positions: AssetWithPlatform[] }> = {};
     byAssetPlat.forEach(p => {
       (platMap[p.platformId] ||= { platformId: p.platformId, platformName: p.platformName, positions: [] }).positions.push(p);
@@ -101,7 +102,7 @@ export default function WalletTab({ ops, assets, prices, avatarCache, groupMode,
     );
 
   } else if (groupMode === 'both') {
-    const positions = computePositionsByAssetAndPlatform(ops);
+    const positions = computePositionsByAssetAndPlatform(ops, closures);
     const platMap: Record<string, { platformId: string; platformName: string; rows: AssetWithPlatform[] }> = {};
     positions.forEach(p => {
       (platMap[p.platformId] ||= { platformId: p.platformId, platformName: p.platformName, rows: [] }).rows.push(p);

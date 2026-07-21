@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeOpStatus, openQtyRemaining, realizedPnlFor, hasClosure, estimateClosePnl } from '@crypto-assist/shared';
+import { computeOpStatus, openQtyRemaining, realizedPnlForSource, isClosedSource, estimateClosePnl } from '@crypto-assist/shared';
 import type { Op, OpClosure } from '@crypto-assist/shared';
 
 function op(overrides: Partial<Op>): Op {
@@ -76,6 +76,15 @@ describe('computeOpStatus', () => {
     ];
     expect(computeOpStatus(op({ id: 'op-2', qty: 0.05 }), closures)).toBe('closed');
   });
+
+  it('stays open for a cross-asset received leg (its closing role is in the source\'s units, not its own)', () => {
+    // op-2 (Solana) received to close op-1 (BTC): qtyClosed is BTC, unrelated to op-2's SOL qty.
+    const source = op({ id: 'op-1', coinId: 'bitcoin', symbol: 'BTC', qty: 0.01 });
+    const received = op({ id: 'op-2', coinId: 'solana', symbol: 'SOL', qty: 5 });
+    const closures = [closure({ sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.005 })];
+    expect(computeOpStatus(received, closures, [source, received])).toBe('open');
+    expect(computeOpStatus(source, closures, [source, received])).toBe('partial');
+  });
 });
 
 describe('openQtyRemaining', () => {
@@ -88,39 +97,39 @@ describe('openQtyRemaining', () => {
     expect(openQtyRemaining(op({ id: 'op-1', qty: 1 }), [])).toBe(1);
   });
 
-  it('also subtracts quantity the op consumed as a closing leg', () => {
+  it('ignores the closing-leg role — a position\'s closable remainder is only reduced by closing it as a source', () => {
     const closures = [closure({ sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.4 })];
-    expect(openQtyRemaining(op({ id: 'op-2', qty: 1 }), closures)).toBeCloseTo(0.6);
+    expect(openQtyRemaining(op({ id: 'op-2', qty: 1 }), closures)).toBe(1);
   });
 });
 
-describe('realizedPnlFor', () => {
-  it('sums realized P/L across closures where the op is the source', () => {
+describe('realizedPnlForSource', () => {
+  it('sums realized P/L across closures where the op is the source (the closed position)', () => {
     const closures = [closure({ sourceOpId: 'op-1', realizedPnl: 3 })];
-    expect(realizedPnlFor('op-1', closures)).toBe(3);
+    expect(realizedPnlForSource('op-1', closures)).toBe(3);
   });
 
-  it('sums realized P/L across closures where the op is the closing leg', () => {
+  it('is zero for an op that is only a closing leg (P/L belongs to the closed position)', () => {
     const closures = [closure({ closingOpId: 'op-2', realizedPnl: 3 })];
-    expect(realizedPnlFor('op-2', closures)).toBe(3);
+    expect(realizedPnlForSource('op-2', closures)).toBe(0);
   });
 
   it('is zero for an op referenced by no closures', () => {
-    expect(realizedPnlFor('op-1', [])).toBe(0);
+    expect(realizedPnlForSource('op-1', [])).toBe(0);
   });
 });
 
-describe('hasClosure', () => {
-  it('is true when the op is a source', () => {
-    expect(hasClosure('op-1', [closure({ sourceOpId: 'op-1' })])).toBe(true);
+describe('isClosedSource', () => {
+  it('is true when the op is the source of a closure', () => {
+    expect(isClosedSource('op-1', [closure({ sourceOpId: 'op-1' })])).toBe(true);
   });
 
-  it('is true when the op is a closing leg', () => {
-    expect(hasClosure('op-2', [closure({ closingOpId: 'op-2' })])).toBe(true);
+  it('is false when the op is only a closing leg', () => {
+    expect(isClosedSource('op-2', [closure({ closingOpId: 'op-2' })])).toBe(false);
   });
 
   it('is false when the op has no closures', () => {
-    expect(hasClosure('op-1', [])).toBe(false);
+    expect(isClosedSource('op-1', [])).toBe(false);
   });
 });
 

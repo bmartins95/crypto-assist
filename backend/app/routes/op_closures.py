@@ -45,26 +45,33 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
             if source is None:
                 raise HTTPException(status_code=404, detail="Operation not found.")
 
-            if closing_op.type == source["type"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail="A closing operation must be the opposite type of the position being closed.",
-                )
-            if closing_op.coinId != source["coin_id"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail="A close must be for the same asset as the position being closed.",
-                )
-            if closing_op.platformId != source["platform_id"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail="A close must use the same platform as the position being closed.",
-                )
+            # A cross-asset trade-close (e.g. closing a BTC long by receiving Solana) records
+            # only the received op as the closer, so its coin/type/platform legitimately
+            # differ from the source; the source's realized P/L is the trade value received.
+            # A same-asset close keeps the original opposite-type / same-coin / same-platform
+            # rules and prices the P/L off the closing op's own unit price.
+            is_cross_asset = closing_op.coinId != source["coin_id"]
             if closing_op.currency != source["currency"]:
                 raise HTTPException(
                     status_code=400,
                     detail="A close must use the same currency as the position being closed.",
                 )
+            if is_cross_asset:
+                if body.qtyToClose <= 0:
+                    raise HTTPException(status_code=400, detail="Quantity to close must be positive.")
+                proceeds_per_unit = (closing_op.total - closing_op.fee) / body.qtyToClose
+            else:
+                if closing_op.type == source["type"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="A closing operation must be the opposite type of the position being closed.",
+                    )
+                if closing_op.platformId != source["platform_id"]:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="A close must use the same platform as the position being closed.",
+                    )
+                proceeds_per_unit = closing_op.price
 
             # Locks every open op in this coin/type/platform/currency group so a
             # concurrent close against the same rows can't over-allocate past what's
@@ -121,7 +128,7 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
                 if available <= _EPSILON:
                     continue
                 qty_alloc = min(available, remaining_to_allocate)
-                pnl = _realized_pnl(source["type"], float(c["price"]), closing_op.price, qty_alloc)
+                pnl = _realized_pnl(source["type"], float(c["price"]), proceeds_per_unit, qty_alloc)
                 cur.execute(
                     "INSERT INTO op_closures (source_op_id, closing_op_id, qty_closed, realized_pnl)"
                     " VALUES (%s, %s, %s, %s)"

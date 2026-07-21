@@ -540,7 +540,11 @@ export default function OpDrawer({
     };
     setPhase('loading');
     try {
-      if (closingOp && closeRole === 'sell') {
+      if (closingOp && closeRole === 'sell' && buyOp.coinId !== closingOp.coinId) {
+        // Cross-asset close: the received asset alone is the closer of the source long —
+        // no separate same-asset Sell leg (the source drop is derived from the closure).
+        await onSubmitClose?.(buyOp, fromQtyNum);
+      } else if (closingOp && closeRole === 'sell') {
         await onSubmitTradeClose?.(sellOp, fromQtyNum, buyOp);
       } else if (closingOp && closeRole === 'buy') {
         await onSubmitTradeClose?.(buyOp, toQtyNum, sellOp);

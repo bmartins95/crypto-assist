@@ -90,6 +90,47 @@ def close_client():
     app.dependency_overrides.clear()
 
 
+_CROSS_ASSET_SOL_BODY = {
+    "date": "2024-02-01",
+    "coinId": "solana", "symbol": "SOL", "name": "Solana",
+    "type": "Buy", "qty": 5, "price": 12, "fee": 0, "total": 60,
+    "platformId": "phantom", "platformName": "Phantom", "currency": "BRL",
+}
+
+_CROSS_ASSET_SOL_ROW = {
+    "id": "sol-1", "date": "2024-02-01", "coin_id": "solana", "symbol": "SOL", "name": "Solana",
+    "type": "Buy", "qty": "5", "price": "12", "fee": "0", "total": "60",
+    "platform_id": "phantom", "platform_name": "Phantom", "currency": "BRL",
+    "leverage": None, "trade_group_id": None,
+}
+
+
+def test_close_op_cross_asset_prices_pnl_from_trade_value(close_client):
+    # Close 0.5 BTC (source price 100 → cost 50) by receiving 5 SOL worth 60 → realized 10.
+    # A different coin, same type (Buy), and different platform are all accepted here.
+    client, conn, cur = close_client
+    cur.fetchone.side_effect = [_SOURCE_ROW, _CROSS_ASSET_SOL_ROW, _closure_row("c1", "buy-1", 0.5, 10)]
+    cur.fetchall.side_effect = [[_SOURCE_ROW], []]
+
+    res = client.post("/api/ops/buy-1/close", json={"closingOp": _CROSS_ASSET_SOL_BODY, "qtyToClose": 0.5})
+
+    assert res.status_code == 201
+    assert res.json()["closingOp"]["coinId"] == "solana"
+    closure_insert = next(c for c in cur.execute.call_args_list if "INSERT INTO op_closures" in c.args[0])
+    assert closure_insert.args[1][3] == 10.0  # params: (source_id, closing_id, qty_alloc, computed pnl)
+    conn.commit.assert_called_once()
+
+
+def test_close_op_cross_asset_rejects_currency_mismatch(close_client):
+    client, conn, cur = close_client
+    cur.fetchone.side_effect = [_SOURCE_ROW]
+    res = client.post(
+        "/api/ops/buy-1/close",
+        json={"closingOp": {**_CROSS_ASSET_SOL_BODY, "currency": "USD"}, "qtyToClose": 0.5},
+    )
+    assert res.status_code == 400
+
+
 def test_close_op_full_close(close_client):
     client, conn, cur = close_client
     cur.fetchone.side_effect = [_SOURCE_ROW, _CLOSING_ROW, _closure_row("c1", "buy-1", 1, 50)]
@@ -175,19 +216,6 @@ def test_close_op_sell_closed_by_buy(close_client):
 
     assert res.status_code == 201
     assert res.json()["closures"][0]["realizedPnl"] == 50  # 1 * (150 sell - 100 buy)
-
-
-def test_close_op_mismatched_asset_rejected(close_client):
-    client, conn, cur = close_client
-    cur.fetchone.side_effect = [_SOURCE_ROW]
-
-    res = client.post(
-        "/api/ops/buy-1/close",
-        json={"closingOp": {**_CLOSING_OP_BODY, "coinId": "ethereum"}, "qtyToClose": 1},
-    )
-
-    assert res.status_code == 400
-    assert "asset" in res.json()["detail"].lower()
 
 
 def test_close_op_skips_fully_closed_candidate_and_stops_once_satisfied(close_client):

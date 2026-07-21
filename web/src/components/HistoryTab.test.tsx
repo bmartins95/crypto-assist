@@ -235,7 +235,7 @@ describe('HistoryTab', () => {
     expect(screen.getByDisplayValue('0.5')).toBeInTheDocument();
   });
 
-  it('closes a Buy via Trade: calls onCloseOp for the sell leg and onAddOp for the new leg', async () => {
+  it('closes a Buy via Trade with a different output coin: one received op via onCloseOp, no extra onAddOp', async () => {
     const onCloseOp = vi.fn();
     const onAddOp = vi.fn();
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={onCloseOp} onAddOp={onAddOp} />);
@@ -247,10 +247,11 @@ describe('HistoryTab', () => {
     fireEvent.change(screen.getAllByLabelText('Quantidade')[1], { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    // The received Solana IS the close (qtyToClose is the BTC amount) — no separate BTC Sell op.
     await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith(
-      'op-1', expect.objectContaining({ type: 'Sell', coinId: 'bitcoin', qty: 0.5 }), 0.5,
+      'op-1', expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5 }), 0.5,
     ));
-    expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5 }));
+    expect(onAddOp).not.toHaveBeenCalled();
   });
 
   it('calls onCloseOp with the source op id when submitting a close', async () => {

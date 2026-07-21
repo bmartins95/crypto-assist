@@ -63,7 +63,7 @@ export default function AppLayout() {
   // Without rates no op amount can be normalized to USD; empty positions plus the
   // rates-status message beat rendering numbers in mixed currencies (FR-009).
   const usdOps = useMemo(() => (rates ? convertOpsToUsd(ops, rates) : []), [ops, rates]);
-  const assets = useMemo(() => collectAssets(usdOps, exitPrices), [usdOps, exitPrices]);
+  const assets = useMemo(() => collectAssets(usdOps, exitPrices, closures), [usdOps, exitPrices, closures]);
 
   const reload = useCallback(async () => {
     const [remoteOps, remoteExitPrices, remoteClosures] = await Promise.all([api.getOps(), api.getExitPrices(), api.getOpClosures()]);

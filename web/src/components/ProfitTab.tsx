@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
-import { ChartType, Op, Prices } from '@/lib/types';
+import { ChartType, Op, OpClosure, Prices } from '@/lib/types';
 import { fmtPct, fmtDate } from '@/lib/format';
 import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
 import { api } from '@/lib/api/client';
@@ -46,6 +46,7 @@ const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#B
 
 interface Props {
   ops: Op[];
+  closures: OpClosure[];
   prices: Prices;
   activeChart: ChartType;
   onChartSwitch: (t: ChartType) => void;
@@ -53,7 +54,7 @@ interface Props {
   onFetchPrices: () => void;
 }
 
-export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
+export default function ProfitTab({ ops, closures, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, ratesStatus, fmtMoney } = useCurrency();
@@ -88,10 +89,10 @@ export default function ProfitTab({ ops, prices, activeChart, onChartSwitch, sta
     return () => { cancelled = true; };
   }, [isTimeBased, coinIds.join(','), rangeFrom, rangeTo, t]);
 
-  const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo) : [];
+  const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo, closures) : [];
   const timeframeEmpty = isTimeBased && timeline.length < 2;
 
-  const profitByAsset = computeProfitByAsset(ops, prices);
+  const profitByAsset = computeProfitByAsset(ops, prices, closures);
   const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
   const withPrice = profitByAsset.filter(p => p.hasPrice);
   const totalUnrealized = withPrice.reduce((s, p) => s + p.unrealizedPnl, 0);
