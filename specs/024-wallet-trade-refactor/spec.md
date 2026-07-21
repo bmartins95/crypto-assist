@@ -8,6 +8,15 @@
 
 **Input**: User description: "Item 28 from docs/PLAN.md — wallet vs. trade operation refactor. Split wallet movement (Buy/Sell/Swap of assets the user holds) from speculative trades (leveraged long/short positions), currently mixed into the same History flow and the same per-operation Open/Partial/Closed status. Design references: docs/design/wallet-trade-refactor-handoff.md (22 product-owner-approved requirements) and docs/design/wallet-trade-refactor-wireframes.html. Builds on item 26 (position closing, leverage, day-grouped History) and folds in item 27 (cycle tag + floating summary), rescoped to trade positions only."
 
+## Clarifications
+
+### Session 2026-07-21
+
+- Q: Should trade (leveraged) positions be included in the Wallet/Profit views' portfolio value and P/L calculations, or excluded since they don't represent real held assets? → A: Excluded — trade positions never contribute to Wallet (holdings) or Profit (P&L) view calculations; those views only ever reflect wallet-kind operations.
+- Q: Existing operations may already have closure records from before this feature (Item 26 allowed closing any Buy/Sell, not just leveraged ones) that will now be reclassified as wallet operations. Should those legacy closure records be left in place (inert) or cleaned up? → A: Cleaned up — the migration deletes any closure record that references an operation reclassified as wallet, rather than leaving orphaned/unused rows behind.
+- Q: Can an operation's classification (wallet vs. trade) be changed after creation via the edit action? → A: No — classification is fixed permanently at creation; editing can change an operation's details but never its wallet/trade classification or a trade's direction.
+- Q: Should the edit/delete recompute-and-confirm protection (User Story 5) apply only to a wallet Buy, or to any wallet operation (Buy, Sell, or Swap) that later balances depend on? → A: Uniformly to any wallet operation (Buy, Sell, or either side of a Swap) whose change affects a later operation's derived balance/cost.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Wallet operations no longer carry a confusing trade status (Priority: P1)
@@ -80,18 +89,18 @@ A user looking at any row belonging to a trade position — its entry or any of 
 
 ---
 
-### User Story 5 - Editing or deleting a past wallet purchase keeps later sells honest (Priority: P5)
+### User Story 5 - Editing or deleting a past wallet operation keeps later ones honest (Priority: P5)
 
-A user edits or deletes a wallet purchase that has already had later sells drawn against it (via the first-in-first-out matching that determines balance and average cost). The system must not let this silently corrupt the picture: it recomputes affected figures, warns the user when the change affects recorded sells, and refuses a change that would leave a negative balance at any point in the history.
+A user edits or deletes a wallet operation (Buy, Sell, or Swap) that has already had later operations' balance or cost drawn against it (via the first-in-first-out matching that determines balance and average cost). The system must not let this silently corrupt the picture: it recomputes affected figures, warns the user when the change affects later recorded operations, and refuses a change that would leave a negative balance at any point in the history.
 
 **Why this priority**: An important correctness safeguard, but it only matters once User Story 1's FIFO-based wallet accounting exists, and its absence does not block the primary wallet/trade split from shipping and being useful.
 
-**Independent Test**: Can be fully tested by buying an asset, selling part of it, then attempting to edit the original buy's quantity down below what the recorded sell consumed, and confirming the system blocks the change; then attempting a smaller edit that still leaves a valid balance and confirming a confirmation dialog appears describing the affected sells before the change is applied.
+**Independent Test**: Can be fully tested by buying an asset, selling part of it, then attempting to edit the original buy's quantity down below what the recorded sell consumed, and confirming the system blocks the change; then attempting a smaller edit that still leaves a valid balance and confirming a confirmation dialog appears describing the affected later operations before the change is applied. Also verifiable by editing a Swap's "you give up" side that a later sell depends on, confirming the same protection applies.
 
 **Acceptance Scenarios**:
 
-1. **Given** a wallet buy with no later sells drawn against it, **When** the user edits or deletes it, **Then** no special warning is shown (existing edit/delete behavior applies).
-2. **Given** a wallet buy with later sells drawn against it, **When** the user edits a value that changes the available quantity or cost, **Then** a confirmation dialog explains how many later sells are affected before the change is applied.
+1. **Given** a wallet operation with no later operations depending on its balance/cost, **When** the user edits or deletes it, **Then** no special warning is shown (existing edit/delete behavior applies).
+2. **Given** a wallet Buy, Sell, or Swap with later operations depending on its balance/cost, **When** the user edits a value that changes the available quantity or cost, **Then** a confirmation dialog explains how many later operations are affected before the change is applied.
 3. **Given** an edit or delete that would cause a negative balance on any date after it, **When** the user attempts to confirm it, **Then** the system blocks the change and explains why.
 
 ---
@@ -127,15 +136,18 @@ A user edits or deletes a wallet purchase that has already had later sells drawn
 - **FR-017**: A trade position's close panel MUST show a live-updating estimated profit/loss for the amount being closed, with its sign appropriate to the position's direction (long vs. short) and scaled by the position's leverage.
 - **FR-018**: Closing less than a trade position's full remaining quantity MUST set its status to Partial; closing the full remaining quantity MUST set it to Closed. The system MUST reject an attempt to close more than the remaining open quantity.
 - **FR-019**: The system MUST offer a way to view a trade position's full history (its entry, every close against it, remaining open quantity if any, and total realized profit/loss) by interacting with any row belonging to that position. This MUST NOT be offered for wallet operations.
-- **FR-020**: Editing or deleting a wallet buy that has later sells drawn against it (via first-in-first-out matching) MUST recompute those sells' derived figures and MUST show the user a confirmation describing the affected sells before applying the change.
-- **FR-021**: The system MUST block an edit or delete of a wallet buy if it would result in a negative balance at any point in the operation history that follows it.
+- **FR-020**: Editing or deleting any wallet operation (Buy, Sell, or Swap) that has later operations depending on its balance or cost (via first-in-first-out matching) MUST recompute those later operations' derived figures and MUST show the user a confirmation describing what is affected before applying the change.
+- **FR-021**: The system MUST block an edit or delete of any wallet operation if it would result in a negative balance at any point in the operation history that follows it.
 - **FR-022**: Operations recorded before this feature shipped MUST be correctly classified: any operation with a leverage multiplier greater than 1x becomes a trade (direction derived from its Buy/Sell type), preserving its existing status and close history; every other pre-existing operation becomes a wallet operation with no status shown going forward.
+- **FR-023**: Trade positions MUST be excluded from the existing Wallet (holdings) and Profit (P&L) views' calculations — those views MUST reflect wallet-kind operations only, so a trade position never inflates or distorts a user's actual portfolio value or realized/unrealized profit figures.
+- **FR-024**: The migration that classifies pre-existing operations MUST remove any closure record that references an operation being reclassified as wallet (a record from before this feature, when any operation could be closed) — no orphaned closure record may remain for a wallet-classified operation.
+- **FR-025**: An operation's classification (wallet or trade) and, for a trade, its direction (long/short), MUST be fixed at creation and MUST NOT be changeable via the edit action; edits may change other details (price, quantity, platform, date, etc.) without altering classification or direction.
 
 ### Key Entities
 
 - **Operation**: A recorded Buy, Sell, or Swap. Gains a classification of either "wallet" (movement of held assets) or "trade" (leveraged speculative position); trade operations additionally carry a direction (long/short) and a leverage multiplier.
 - **Wallet balance**: A derived (not separately stored) figure per asset/platform — available quantity and average cost — computed from the user's wallet Buy/Sell/Swap history using first-in-first-out matching.
-- **Trade position**: A trade-classified operation together with zero or more later trade operations that close it (fully or partially) against it, carrying a status (Open, Partial, Closed) and a realized profit/loss for each closing portion.
+- **Trade position**: A trade-classified operation together with zero or more later trade operations that close it (fully or partially) against it, carrying a status (Open, Partial, Closed) and a realized profit/loss for each closing portion. Trade positions are never counted toward portfolio holdings or profit/loss in the Wallet or Profit views.
 - **Trade position summary**: A read-only, derived view of a trade position's entry, all of its closes, remaining open quantity, and total realized profit/loss.
 
 ## Success Criteria *(mandatory)*
@@ -147,12 +159,12 @@ A user edits or deletes a wallet purchase that has already had later sells drawn
 - **SC-003**: A user can open a leveraged short position in an asset with zero held balance, successfully, every time.
 - **SC-004**: A trade position's status and realized profit/loss reflect a submitted close within the same interaction, with no page reload required.
 - **SC-005**: A user can see a trade position's complete entry-to-exit history from a single interaction with any of its rows, in under 2 seconds.
-- **SC-006**: An edit or delete of a wallet buy that would produce a negative historical balance is blocked before it is applied, 100% of the time.
+- **SC-006**: An edit or delete of any wallet operation that would produce a negative historical balance is blocked before it is applied, 100% of the time.
 
 ## Assumptions
 
 - Migrating a pre-existing operation's classification is based solely on whether its leverage multiplier is greater than 1x — no separate manual reclassification step is offered to users.
-- Any pre-existing operation that was closed under the previous behavior (which allowed closing any operation, not just leveraged ones) but is reclassified as "wallet" under this feature retains its historical closure record for data integrity, but that record is no longer surfaced as a status in the History table — wallet figures going forward are derived purely from first-in-first-out matching.
+- Any pre-existing closure record referencing an operation that gets reclassified as "wallet" under this feature is removed as part of the migration (see Clarifications) — wallet figures going forward are derived purely from first-in-first-out matching, with no legacy closure data involved.
 - The "Swap" operation type is a rename/relabel of the existing cross-asset/cross-platform trade type available in the wallet flow today; its underlying behavior (two linked legs) is unchanged, only its display as a single History row and its exclusion from trade-position status are new.
 - Trade positions opened under this feature always have exactly one entry operation; the rare case of multiple entries sharing one position (a pre-existing data shape from before this feature) is preserved for viewing but is not a flow a user can newly create.
 - "Current market price" quick-fill behavior for price fields, and the day-grouping of the History table, are unchanged by this feature and are out of scope.
