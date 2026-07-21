@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.dependencies import AuthContext, require_auth
 from app.db.postgres_client import get_conn
-from app.models import Op, NewOp, DeleteAllOpsResponse
+from app.models import Op, NewOp, DeleteAllOpsResponse, DeleteOpResponse
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id"
 
 
 def _row_to_op(row: dict) -> Op:
@@ -23,6 +23,8 @@ def _row_to_op(row: dict) -> Op:
         platformId=row["platform_id"],
         platformName=row["platform_name"],
         currency=row["currency"],
+        leverage=row["leverage"],
+        tradeGroupId=str(row["trade_group_id"]) if row["trade_group_id"] else None,
     )
 
 
@@ -55,11 +57,12 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency),
+                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency, op.leverage,
+                 op.tradeGroupId),
             )
             row = cur.fetchone()
         conn.commit()
@@ -77,18 +80,36 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # An operation with a closure link (as either side) has already produced a
+            # frozen realized_pnl elsewhere — changing its qty/price after the fact would
+            # silently invalidate that figure, so the update is blocked in the same
+            # statement rather than with a separate up-front check (keeps the success
+            # path at one round trip, matching every other route in this file).
             cur.execute(
                 f"UPDATE ops SET date=%s, coin_id=%s, symbol=%s, name=%s, type=%s,"  # nosec B608
-                f" qty=%s, price=%s, fee=%s, total=%s, platform_id=%s, platform_name=%s, currency=%s"
+                f" qty=%s, price=%s, fee=%s, total=%s, platform_id=%s, platform_name=%s, currency=%s, leverage=%s"
                 f" WHERE id=%s AND user_id=%s"
+                f" AND NOT EXISTS (SELECT 1 FROM op_closures WHERE source_op_id = ops.id OR closing_op_id = ops.id)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency,
+                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency, op.leverage,
                  op_id, auth.user_id),
             )
             row = cur.fetchone()
+            has_closure = False
+            if row is None:
+                cur.execute(
+                    "SELECT 1 FROM op_closures WHERE source_op_id = %s OR closing_op_id = %s",
+                    (op_id, op_id),
+                )
+                has_closure = cur.fetchone() is not None
         conn.commit()
         if row is None:
+            if has_closure:
+                raise HTTPException(
+                    status_code=409,
+                    detail="This operation has a closure recorded against it and can no longer be edited.",
+                )
             raise HTTPException(status_code=404, detail="Operation not found.")
         return _row_to_op(row)
     except HTTPException:
@@ -115,16 +136,38 @@ def delete_all_ops(auth: AuthContext = Depends(require_auth)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/{op_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{op_id}", response_model=DeleteOpResponse)
 def delete_op(op_id: str, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM ops WHERE id = %s AND user_id = %s",
+                "SELECT trade_group_id FROM ops WHERE id = %s AND user_id = %s",
                 (op_id, auth.user_id),
             )
+            found = cur.fetchone()
+            if found is None:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Operation not found.")
+            group_id = found["trade_group_id"]
+            if group_id is not None:
+                # Both legs of a trade are one unit — deleting either removes the whole
+                # group. op_closures cascades, so any position a leg had closed reverts.
+                cur.execute(
+                    "DELETE FROM ops WHERE trade_group_id = %s AND user_id = %s RETURNING id",
+                    (group_id, auth.user_id),
+                )
+            else:
+                cur.execute(
+                    "DELETE FROM ops WHERE id = %s AND user_id = %s RETURNING id",
+                    (op_id, auth.user_id),
+                )
+            deleted_ids = [str(r["id"]) for r in cur.fetchall()]
         conn.commit()
+        return DeleteOpResponse(deletedIds=deleted_ids)
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

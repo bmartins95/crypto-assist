@@ -69,6 +69,8 @@ def test_export_populated_account_matches_backup_payload_shape(export_client):
             "platformId": "binance",
             "platformName": "Binance",
             "currency": "BRL",
+            "leverage": None,
+            "tradeGroupId": None,
         }
     ]
     assert body["exitPrices"] == {"bitcoin": 500000.0}

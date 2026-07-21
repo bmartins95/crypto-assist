@@ -187,11 +187,12 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(toQtyEl, { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(document.querySelector('.drawer-foot .btn-submit')).not.toBeDisabled());
     expect(document.querySelector('.btn-submit.done')).not.toBeInTheDocument();
@@ -236,12 +237,13 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(toQtyEl, { target: { value: '5' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Taxa'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'Sell', coinId: 'ethereum', qty: 1, total: 500, date: '2024-03-10', platformId: 'custom:kraken', platformName: 'Kraken' }),
@@ -260,12 +262,13 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(toQtyEl, { target: { value: '5' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     selectCustomPlatform(screen.getByLabelText('Plataforma de destino'), 'Sodex');
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).toHaveBeenCalledWith(
       expect.objectContaining({ platformId: 'custom:kraken', platformName: 'Kraken' }),
@@ -280,11 +283,12 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
-    fireEvent.change(toQtyEl, { target: { value: '1' } });
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '100' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '100' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
     expect(screen.getByText('A moeda de origem e de destino não podem ser a mesma.')).toBeInTheDocument();
@@ -297,12 +301,13 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
-    fireEvent.change(toQtyEl, { target: { value: '1' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '100' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     selectCustomPlatform(screen.getByLabelText('Plataforma de destino'), 'Sodex');
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(screen.queryByText('A moeda de origem e de destino não podem ser a mesma.')).not.toBeInTheDocument();
     expect(onSubmitTrade).toHaveBeenCalledWith(
@@ -432,17 +437,19 @@ describe('OpDrawer', () => {
     expect(document.querySelector('.xfer-warn')).toBeInTheDocument();
   });
 
-  it('auto-fills the trade total and destination quantity from live prices', async () => {
+  it('auto-fills each side\'s unit price, the destination quantity, and the received total from live prices', async () => {
     const prices = { ethereum: 100, solana: 20 };
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={prices} />);
     fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
+    await waitFor(() => expect((screen.getAllByLabelText('Preço unit.')[0] as HTMLInputElement).value).toBe('100.00'));
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '2' } });
-    expect((screen.getByLabelText(/^Total/) as HTMLInputElement).value).toBe('200.00');
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10');
+    await waitFor(() => expect((screen.getAllByLabelText('Preço unit.')[1] as HTMLInputElement).value).toBe('20.00'));
+    await waitFor(() => expect((screen.getAllByLabelText('Quantidade')[1] as HTMLInputElement).value).toBe('10'));
+    expect((screen.getByLabelText(/^Total/) as HTMLInputElement).value).toBe('200.00');
   });
 
   it('fetches the destination price when not already cached, then syncs the trade total', async () => {
@@ -803,6 +810,136 @@ describe('OpDrawer', () => {
     expect(document.body.style.overflow).toBe('hidden');
     rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
     expect(document.body.style.overflow).toBe('auto');
+  });
+
+  it('leverage chips appear only for a brand-new Buy/Sell, and are omitted from the submitted op when unset', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(document.querySelector('.leverage-chips')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: undefined }));
+  });
+
+  it('selecting a leverage chip includes it in the submitted op; clicking it again deselects it', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).toHaveClass('active');
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
+  });
+
+  it('slides the type panel directionally on switch without remounting it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const before = document.querySelector('.type-panel');
+    fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
+    const after = document.querySelector('.type-panel');
+    // Same DOM node (no remount) — the animation is driven by a directional class, not a key.
+    expect(after).toBe(before);
+    expect(after).toHaveClass('slide-fwd');
+    fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
+    expect(document.querySelector('.type-panel')).toHaveClass('slide-back');
+  });
+
+  const closingBuyOp: Op = {
+    id: 'buy-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
+    type: 'Buy', qty: 1, price: 100, fee: 0, total: 100,
+    platformId: 'binance', platformName: 'Binance',
+  };
+
+  it('pre-fills asset/platform/quantity when opened with closingOp, and restricts type tabs to the opposite type + Trade', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
+    expect(screen.queryByRole('button', { name: 'Compra' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trade' })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1')).toBeInTheDocument();
+    expect(screen.getByText('Bitcoin (BTC)')).toBeInTheDocument();
+    expect(screen.getByText('Binance')).toBeInTheDocument();
+    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
+  });
+
+  it('restricts tabs to Compra + Trade when closing a Sell', () => {
+    const closingSellOp: Op = { ...closingBuyOp, id: 'sell-1', type: 'Sell' };
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingSellOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Compra' })).toHaveClass('active');
+    expect(screen.queryByRole('button', { name: 'Venda' })).not.toBeInTheDocument();
+  });
+
+  it('accounts for closures already recorded against the position when pre-filling the remaining quantity', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'buy-1', closingOpId: 'other', qtyClosed: 0.4, realizedPnl: 5 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();
+  });
+
+  it('submits a simple close via onSubmitClose, not onSubmit, with the requested quantity', async () => {
+    const onSubmitClose = vi.fn();
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onSubmitClose).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 150 }), 1));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {
+    const onClose = vi.fn();
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(document.querySelector('.btn-submit.done')).not.toBeInTheDocument();
+  });
+
+  it('marks a long pre-filled platform/coin name for single-line truncation instead of wrapping', () => {
+    const longOp: Op = { ...closingBuyOp, name: 'Coinbase Wrapped Bitcoin Extremely Long Name', platformName: 'A Very Long Custom Platform Name' };
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={longOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const [platformText, coinText] = document.querySelectorAll('.static-field-text');
+    expect(platformText).toHaveTextContent('A Very Long Custom Platform Name');
+    expect(coinText).toHaveTextContent('Coinbase Wrapped Bitcoin Extremely Long Name');
+  });
+
+  it('shows a platform and coin logo (or initials fallback) on the pre-filled static fields when closing', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const staticFields = document.querySelectorAll('.static-field');
+    expect(staticFields[0].querySelector('.plogo')).toBeInTheDocument();
+    expect(staticFields[1].querySelector('.coin')).toBeInTheDocument();
+  });
+
+  it('shows the currency symbol on the estimated P/L preview', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    const pnlValue = document.querySelector('.pnl-preview span:last-child');
+    expect(pnlValue).toHaveTextContent('R$');
+  });
+
+  it('shows a unit price field on each Trade side and a read-only received Total', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    expect(screen.getAllByLabelText('Preço unit.')).toHaveLength(2);
+    expect((screen.getByLabelText(/^Total/) as HTMLInputElement).readOnly).toBe(true);
+  });
+
+  it('shows the estimated P/L resume in the Trade tab only when closing a position', () => {
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    expect(document.querySelector('.pnl-preview')).not.toBeInTheDocument();
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} onSubmitTradeClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    fireEvent.change(screen.getAllByLabelText('Preço unit.')[0], { target: { value: '150' } });
+    const pnl = document.querySelector('.pnl-preview span:last-child');
+    expect(pnl).toHaveTextContent('R$');
+    expect(pnl).toHaveClass('pnl-pos');
   });
 
   it('restores focus to the element that triggered the drawer after it closes', () => {

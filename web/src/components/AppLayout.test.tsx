@@ -16,13 +16,15 @@ import { ThemeProvider } from '@/context/ThemeContext';
 vi.mock('@/lib/api/client', () => ({
   api: {
     getOps: vi.fn(async () => []),
+    getOpClosures: vi.fn(async () => []),
+    closeOp: vi.fn(async () => ({ closingOp: {}, closures: [] })),
     getExchangeRates: vi.fn(async () => ({ rates: { BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z' })),
     getExitPrices: vi.fn(async () => ({})),
     getPrices: vi.fn(async () => ({})),
     searchCoins: vi.fn(async () => []),
     createOp: vi.fn(async () => ({})),
     updateOp: vi.fn(async () => ({})),
-    deleteOp: vi.fn(async () => undefined),
+    deleteOp: vi.fn(async (id: string) => ({ deletedIds: [id] })),
     setExitPrice: vi.fn(async () => undefined),
     importBackup: vi.fn(async () => undefined),
     exportBackup: vi.fn(async () => ({ version: 1, exportedAt: '', ops: [] })),
@@ -59,11 +61,20 @@ vi.mock('@/components/WalletTab', () => ({
 }));
 vi.mock('@/components/ProfitTab', () => ({ default: () => <div data-testid="profit-view" /> }));
 vi.mock('@/components/HistoryTab', () => ({
-  default: (props: { onAddOp: (op: unknown) => void; onEditOp: (id: string, op: unknown) => void; onRemoveOp: (id: string) => void }) => (
+  default: (props: {
+    onAddOp: (op: unknown) => void; onEditOp: (id: string, op: unknown) => void; onRemoveOp: (id: string) => void;
+    onCloseOp: (sourceOpId: string, op: unknown, qty: number) => void;
+    ops: unknown[];
+    closures: unknown[];
+  }) => (
     <div data-testid="history-view">
+      <span data-testid="ops-count">{props.ops.length}</span>
+      <span data-testid="closures-count">{props.closures.length}</span>
       <button onClick={() => props.onAddOp({ coinId: 'bitcoin' })}>add-op</button>
       <button onClick={() => props.onEditOp('1', { coinId: 'bitcoin' })}>edit-op</button>
       <button onClick={() => props.onRemoveOp('1')}>remove-op</button>
+      <button onClick={() => props.onRemoveOp('2')}>remove-closing-op</button>
+      <button onClick={() => props.onCloseOp('1', { coinId: 'bitcoin' }, 0.5)}>close-op</button>
     </div>
   ),
 }));
@@ -418,6 +429,49 @@ describe('AppLayout', () => {
       vi.mocked(api.deleteOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('remove-op'));
       await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(2));
+    });
+
+    it('closes an op via HistoryTab, appending the result, and alerts on failure', async () => {
+      const { api } = await import('@/lib/api/client');
+      const closingOp = { ...oneOp, id: '2', type: 'Sell' as const };
+      const closure = { id: 'c1', sourceOpId: '1', closingOpId: '2', qtyClosed: 0.5, realizedPnl: 5 };
+      vi.mocked(api.closeOp).mockResolvedValueOnce({ closingOp, closures: [closure] });
+      await renderAt('/history');
+      await waitFor(() => expect(screen.getByTestId('history-view')).toBeTruthy());
+      fireEvent.click(screen.getByText('close-op'));
+      await waitFor(() => expect(api.closeOp).toHaveBeenCalledWith('1', { closingOp: { coinId: 'bitcoin' }, qtyToClose: 0.5 }));
+      expect(window.alert).not.toHaveBeenCalled();
+
+      vi.mocked(api.closeOp).mockRejectedValueOnce(new Error('fail'));
+      fireEvent.click(screen.getByText('close-op'));
+      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+    });
+
+    it('drops the closure link when the closing op is deleted, freeing the source op', async () => {
+      const { api } = await import('@/lib/api/client');
+      const closingOp = { ...oneOp, id: '2', type: 'Sell' as const };
+      const closure = { id: 'c1', sourceOpId: '1', closingOpId: '2', qtyClosed: 0.5, realizedPnl: 5 };
+      vi.mocked(api.closeOp).mockResolvedValueOnce({ closingOp, closures: [closure] });
+      await renderAt('/history');
+      await waitFor(() => expect(screen.getByTestId('history-view')).toBeTruthy());
+      fireEvent.click(screen.getByText('close-op'));
+      await waitFor(() => expect(screen.getByTestId('closures-count').textContent).toBe('1'));
+      fireEvent.click(screen.getByText('remove-closing-op'));
+      await waitFor(() => expect(api.deleteOp).toHaveBeenCalledWith('2'));
+      expect(screen.getByTestId('closures-count').textContent).toBe('0');
+    });
+
+    it('removes every op the backend reports deleted (the whole trade group), not just the clicked one', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([
+        { ...oneOp, id: '2', tradeGroupId: 'g1' },
+        { ...oneOp, id: '3', tradeGroupId: 'g1' },
+      ]);
+      vi.mocked(api.deleteOp).mockResolvedValueOnce({ deletedIds: ['2', '3'] });
+      await renderAt('/history');
+      await waitFor(() => expect(screen.getByTestId('ops-count').textContent).toBe('2'));
+      fireEvent.click(screen.getByText('remove-closing-op'));
+      await waitFor(() => expect(screen.getByTestId('ops-count').textContent).toBe('0'));
     });
 
     it('sets an exit price and shows a status message on failure', async () => {

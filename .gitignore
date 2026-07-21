@@ -1,5 +1,7 @@
 crypto_portfolio_resumo.md
 
+/node_modules/
+
 .local/
 .claude/settings.json
 

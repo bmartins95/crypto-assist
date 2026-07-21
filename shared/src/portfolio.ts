@@ -1,4 +1,33 @@
-import type { Op, Asset, AssetWithPlatform, Currency, ExchangeRates, Prices, ExitPrices } from './types';
+import type { Op, OpClosure, Asset, AssetWithPlatform, Currency, ExchangeRates, Prices, ExitPrices } from './types';
+
+// A cross-asset trade-close (e.g. closing a BTC long by receiving Solana) stores only the
+// received op — there is no Sell of the source coin, so the source's holdings would look
+// untouched. This derives that missing disposal from each such closure as a synthetic Sell
+// of the source coin at the trade value, so every holdings/profit/timeline calculation
+// reflects the source having been partially closed without special-casing closures. A
+// same-asset close already has a real Sell op, so it is skipped (no double-counting).
+export function withClosureAdjustments(ops: Op[], closures: OpClosure[]): Op[] {
+  if (!closures.length) return ops;
+  const byId = new Map(ops.map((o) => [o.id, o]));
+  const synthetic: Op[] = [];
+  for (const c of closures) {
+    const source = byId.get(c.sourceOpId);
+    const closing = byId.get(c.closingOpId);
+    if (!source || !closing || source.coinId === closing.coinId) continue;
+    const proceeds = closing.total - closing.fee;
+    synthetic.push({
+      ...source,
+      id: `synthetic-close-${c.id}`,
+      date: closing.date,
+      type: 'Sell',
+      qty: c.qtyClosed,
+      price: c.qtyClosed > 0 ? proceeds / c.qtyClosed : 0,
+      fee: 0,
+      total: proceeds,
+    });
+  }
+  return synthetic.length ? [...ops, ...synthetic] : ops;
+}
 
 export function convertOpsToUsd(ops: Op[], rates: ExchangeRates): Op[] {
   return ops.map(o => {
@@ -9,9 +38,9 @@ export function convertOpsToUsd(ops: Op[], rates: ExchangeRates): Op[] {
   });
 }
 
-export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
+export function computePositions(ops: Op[], closures: OpClosure[] = []): Omit<Asset, 'exitPrice'>[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
-  ops.forEach(o => {
+  withClosureAdjustments(ops, closures).forEach(o => {
     if (!o.coinId) return;
     if (!map[o.coinId]) map[o.coinId] = { coinId: o.coinId, symbol: o.symbol, name: o.name, buyQty: 0, buyTotal: 0, sellQty: 0 };
     if (o.type === 'Buy') { map[o.coinId].buyQty += o.qty; map[o.coinId].buyTotal += o.qty * o.price; }
@@ -24,13 +53,13 @@ export function computePositions(ops: Op[]): Omit<Asset, 'exitPrice'>[] {
   })).filter(a => a.qty > 1e-9);
 }
 
-export function collectAssets(ops: Op[], exitPrices: ExitPrices): Asset[] {
-  return computePositions(ops).map(p => ({ ...p, exitPrice: exitPrices[p.coinId] || 0 }));
+export function collectAssets(ops: Op[], exitPrices: ExitPrices, closures: OpClosure[] = []): Asset[] {
+  return computePositions(ops, closures).map(p => ({ ...p, exitPrice: exitPrices[p.coinId] || 0 }));
 }
 
-export function computePositionsByAssetAndPlatform(ops: Op[]): AssetWithPlatform[] {
+export function computePositionsByAssetAndPlatform(ops: Op[], closures: OpClosure[] = []): AssetWithPlatform[] {
   const map: Record<string, { coinId: string; symbol: string; name: string; platformId: string; platformName: string; buyQty: number; buyTotal: number; sellQty: number }> = {};
-  ops.forEach(o => {
+  withClosureAdjustments(ops, closures).forEach(o => {
     if (!o.coinId) return;
     const platformId = o.platformId || '';
     const platformName = o.platformName || '';
@@ -59,8 +88,8 @@ export interface AssetProfit {
   hasPrice: boolean;
 }
 
-export function computeProfitByAsset(ops: Op[], prices: Prices): AssetProfit[] {
-  const sorted = [...ops].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+export function computeProfitByAsset(ops: Op[], prices: Prices, closures: OpClosure[] = []): AssetProfit[] {
+  const sorted = [...withClosureAdjustments(ops, closures)].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const map: Record<string, { symbol: string; name: string; qty: number; avgCost: number; realizedPnl: number }> = {};
   sorted.forEach(o => {
     if (!o.coinId) return;
@@ -147,8 +176,9 @@ export function computeTimeline(
   historicalPrices: Record<string, Record<string, number>>,
   from?: string,
   to?: string,
+  closures: OpClosure[] = [],
 ): TimelinePoint[] {
-  const sorted = [...ops].filter(o => o.coinId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const sorted = [...withClosureAdjustments(ops, closures)].filter(o => o.coinId).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const rangeFrom = from ?? sorted[0]?.date ?? todayISO();
   const rangeTo = to ?? todayISO();
 

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;font-family:'Inter',sans-serif}
+  body{margin:0;background:#0b0b0d}
+  ::-webkit-scrollbar{width:0;height:0}
+</style>
+</helmet>
+
+<div style="display:flex;width:1680px;height:1000px;background:#0b0b0d;overflow:hidden;position:relative">
+
+  <div style="width:220px;flex:none;background:#101013;border-right:1px solid #1f1f23;padding:22px 16px;display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 6px">
+      <div style="width:30px;height:30px;border-radius:8px;background:#17171a;border:1px solid #3a3a42;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 512 512"><path d="M148 118 L148 394 L232 394 C348 394 410 336 410 256 C410 176 348 118 232 118 Z" fill="none" stroke="#2dd4bf" stroke-width="40" stroke-linejoin="round"></path><circle cx="263" cy="256" r="40" fill="#f97316"></circle></svg>
+      </div>
+      <span style="font:700 17px 'Space Grotesk',sans-serif;color:#f4f4f5">datum<span style="color:#f97316">.</span></span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:0 10px;margin-bottom:8px">Portfólio</span>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#a1a1aa;font-size:13.5px">Carteira</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#a1a1aa;font-size:13.5px">Lucro</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:#17171a;color:#f4f4f5;font-size:13.5px;font-weight:600"><span style="width:5px;height:5px;border-radius:50%;background:#2dd4bf"></span>Histórico</div>
+    </div>
+  </div>
+
+  <div style="flex:1;padding:36px 40px;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+      <div>
+        <div style="font:700 26px 'Space Grotesk',sans-serif;color:#f4f4f5">Histórico</div>
+        <div style="color:#71717a;font-size:13px;margin-top:4px">Operações registradas · BRL</div>
+      </div>
+      <button onClick="{{ openNewOp }}" style="background:#2dd4bf;color:#062a26;border:none;border-radius:8px;padding:11px 18px;font-weight:700;font-size:13.5px;cursor:pointer;display:flex;align-items:center;gap:6px">+ Registrar operação</button>
+    </div>
+
+    <sc-if value="{{ compact }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;{{ gridColsStyle }};gap:0;padding:0 14px;margin-bottom:6px">
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Moeda</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Tipo</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Qtd.</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Total</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Lucro/Prejuízo</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Status</span>
+        <span></span>
+      </div>
+    </sc-if>
+    <sc-if value="{{ notCompact }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;{{ gridColsStyle }};gap:0;padding:0 14px;margin-bottom:6px">
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Moeda</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Tipo</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Qtd.</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Preço unit.</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Total</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Taxa</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Plataforma</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Lucro/Prejuízo</span>
+        <span style="color:#52525b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase">Status</span>
+        <span></span>
+      </div>
+    </sc-if>
+
+    <sc-for list="{{ groups }}" as="grp" hint-placeholder-count="4">
+      <div style="margin-top:18px">
+        <div style="color:#a1a1aa;font-size:12.5px;font-weight:600;padding:8px 14px;border-bottom:1px solid #1f1f23;margin-bottom:2px">{{ grp.label }}</div>
+        <sc-for list="{{ grp.rows }}" as="row" hint-placeholder-count="3">
+          <div onClick="{{ row.rowClick }}" style="{{ row.rowStyle }}">
+            <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">{{ row.coin }}</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span style="{{ row.typeChipStyle }}">{{ row.type }}</span>
+              <sc-if value="{{ row.leverage }}" hint-placeholder-val="{{ false }}">
+                <span style="background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.35);color:#f97316;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px">{{ row.leverageLabel }}</span>
+              </sc-if>
+            </span>
+            <span style="color:#d4d4d8;font-size:13.5px">{{ row.qty }}</span>
+            <sc-if value="{{ row.showChevron }}" hint-placeholder-val="{{ true }}">
+              <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">{{ row.total }}</span>
+              <span style="font-weight:600;font-size:13.5px;{{ row.pnlColor }}">{{ row.pnl }}</span>
+              <span style="{{ row.statusChipStyle }}">{{ row.statusLabel }}</span>
+            </sc-if>
+            <sc-if value="{{ row.notCompactMode }}" hint-placeholder-val="{{ false }}">
+              <span style="color:#d4d4d8;font-size:13.5px">{{ row.price }}</span>
+              <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">{{ row.total }}</span>
+              <span style="color:#71717a;font-size:13.5px">{{ row.fee }}</span>
+              <span style="color:#a1a1aa;font-size:13.5px">{{ row.platform }}</span>
+              <span style="font-weight:600;font-size:13.5px;{{ row.pnlColor }}">{{ row.pnl }}</span>
+              <span style="{{ row.statusChipStyle }}">{{ row.statusLabel }}</span>
+            </sc-if>
+            <span style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+              <sc-if value="{{ row.canClose }}" hint-placeholder-val="{{ false }}">
+                <span title="Fechar operação" onClick="{{ row.onClose }}" style="cursor:pointer;color:#2dd4bf;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"></path><circle cx="12" cy="12" r="9"></circle></svg></span>
+              </sc-if>
+              <span onClick="{{ row.onEdit }}" style="cursor:pointer;color:#71717a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></span>
+              <span onClick="{{ row.onDelete }}" style="cursor:pointer;color:#ef4444"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"></path></svg></span>
+              <sc-if value="{{ row.showChevron }}" hint-placeholder-val="{{ true }}">
+                <span style="{{ row.chevronStyle }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg></span>
+              </sc-if>
+            </span>
+          </div>
+          <sc-if value="{{ row.showChevron }}" hint-placeholder-val="{{ true }}">
+            <div style="{{ row.detailStyle }};padding:0 14px 0 14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;background:#0d0d10;border-radius:8px;padding:12px 16px;margin:2px 0 8px">
+                <div><span style="display:block;color:#52525b;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Preço unit.</span><span style="color:#d4d4d8;font-size:13px">{{ row.price }}</span></div>
+                <div><span style="display:block;color:#52525b;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Taxa</span><span style="color:#71717a;font-size:13px">{{ row.fee }}</span></div>
+                <div><span style="display:block;color:#52525b;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Plataforma</span><span style="color:#a1a1aa;font-size:13px">{{ row.platform }}</span></div>
+              </div>
+            </div>
+          </sc-if>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="position:absolute;top:0;right:0;height:100%;width:420px;background:#101013;border-left:1px solid #26262b;box-shadow:-24px 0 48px rgba(0,0,0,.35);transform:{{ drawerTransform }};transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column">
+    <div style="display:flex;flex-direction:column;gap:2px;padding:22px 24px;border-bottom:1px solid #1f1f23">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font:700 16px 'Space Grotesk',sans-serif;color:#f4f4f5">{{ drawerTitle }}</span>
+        <span onClick="{{ closeDrawer }}" style="cursor:pointer;color:#71717a;font-size:18px;line-height:1">×</span>
+      </div>
+      <span style="color:{{ modeSubtitleColor }};font-size:12px">{{ drawerSubtitle }}</span>
+    </div>
+
+    <div style="padding:22px 24px;overflow-y:auto;flex:1">
+      <sc-if value="{{ closingBanner }}" hint-placeholder-val="{{ false }}">
+        <div style="background:rgba(45,212,191,.08);border:1px solid rgba(45,212,191,.3);border-radius:8px;padding:10px 12px;margin-bottom:18px;color:#5eead4;font-size:12px;line-height:1.5">{{ closingBanner }}</div>
+      </sc-if>
+
+      <label style="display:block;color:#a1a1aa;font-size:12.5px;margin-bottom:8px">{{ tabsLabel }}</label>
+      <div style="position:relative;background:#0b0b0d;border-radius:8px;padding:4px;display:grid;{{ tabsGridStyle }};margin-bottom:22px">
+        <div style="position:absolute;top:4px;bottom:4px;left:4px;{{ pillWidthStyle }};border-radius:6px;background:#ffffff;transform:{{ pillTransform }};transition:transform .28s cubic-bezier(.2,.8,.2,1)"></div>
+        <sc-if value="{{ showCompraTab }}" hint-placeholder-val="{{ true }}">
+          <div onClick="{{ toCompra }}" style="position:relative;text-align:center;padding:9px 0;font-size:13px;font-weight:600;cursor:pointer;color:{{ compraTabColor }}">Compra</div>
+        </sc-if>
+        <sc-if value="{{ showVendaTab }}" hint-placeholder-val="{{ true }}">
+          <div onClick="{{ toVenda }}" style="position:relative;text-align:center;padding:9px 0;font-size:13px;font-weight:600;cursor:pointer;color:{{ vendaTabColor }}">Venda</div>
+        </sc-if>
+        <div onClick="{{ toTrade }}" style="position:relative;text-align:center;padding:9px 0;font-size:13px;font-weight:600;cursor:pointer;color:{{ tradeTabColor }}">Trade</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+        <div>
+          <label style="display:block;color:#a1a1aa;font-size:12.5px;margin-bottom:6px">Data</label>
+          <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;display:flex;align-items:center;gap:8px">
+            <span style="color:#f4f4f5;font-size:14px;flex:1">20/07/2026</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+          </div>
+        </div>
+        <sc-if value="{{ isSimple }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <label style="display:block;color:#a1a1aa;font-size:12.5px;margin-bottom:6px">Plataforma</label>
+            <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+              <span style="{{ simplePlatformAvatarStyle }}">{{ simplePlatformInitial }}</span>
+              <span style="color:{{ platformFieldColor }};font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ simplePlatform }}</span>
+              <sc-if value="{{ hasSimplePlatform }}" hint-placeholder-val="{{ false }}"><span style="color:#52525b;cursor:pointer">×</span></sc-if>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="{{ panelStyle }}">
+        <sc-if value="{{ isSimple }}" hint-placeholder-val="{{ true }}">
+          <label style="display:block;color:#a1a1aa;font-size:12.5px;margin-bottom:6px">{{ simpleCoinLabel }}</label>
+          <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <span style="{{ simpleCoinAvatarStyle }}">{{ simpleCoinInitial }}</span>
+            <span style="color:{{ assetFieldColor }};font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">{{ simpleAsset }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+            <div>
+              <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Quantidade</label>
+              <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;display:flex;align-items:center;gap:8px">
+                <span style="color:#f4f4f5;font-size:14px;flex:1">{{ simpleQty }}</span>
+                <span style="color:#52525b;font-size:12.5px">{{ simpleQtyUnit }}</span>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Preço unit.</label>
+              <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;display:flex;align-items:center;gap:8px">
+                <span style="color:#f4f4f5;font-size:14px;flex:1">{{ simplePrice }}</span>
+                <span style="background:rgba(45,212,191,.15);color:#2dd4bf;font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:4px">atual</span>
+              </div>
+            </div>
+          </div>
+
+          <sc-if value="{{ showLeverage }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-bottom:20px">
+              <label style="display:block;color:#a1a1aa;font-size:12.5px;margin-bottom:8px">Alavancagem</label>
+              <div style="display:flex;gap:8px">
+                <sc-for list="{{ leverageOptions }}" as="lev" hint-placeholder-count="5">
+                  <span onClick="{{ lev.onClick }}" style="{{ lev.chipStyle }}">{{ lev.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ isTrade }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="border-left:3px solid #ef4444;padding-left:14px;order:{{ sellOrder }}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444"></span><span style="font-size:12.5px;font-weight:700;color:#ef4444">Você vende</span></div>
+            <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Plataforma de origem</label>
+            <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span style="{{ tradeFromPlatformAvatarStyle }}">{{ tradeFromPlatformInitial }}</span>
+              <span style="color:{{ tradeFromPlatformColor }};font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tradeFromPlatform }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Ativo</label>
+                <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+                  <span style="{{ tradeFromAssetAvatarStyle }}">{{ tradeFromAssetInitial }}</span>
+                  <span style="color:{{ tradeFromAssetColor }};font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">{{ tradeFromAsset }}</span>
+                </div>
+              </div>
+              <div><label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Quantidade</label><div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;color:#f4f4f5;font-size:14px">{{ tradeFromQty }}</div></div>
+            </div>
+            <div style="color:#52525b;font-size:11px;margin-top:6px">Saldo: {{ tradeFromBalance }} <span style="color:#2dd4bf;cursor:pointer">Máx</span></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;order:2">
+            <span style="width:30px;height:30px;border-radius:50%;background:#17171a;border:1px solid #26262b;display:flex;align-items:center;justify-content:center;color:#71717a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"></path></svg></span>
+            <span style="display:flex;align-items:center;gap:6px;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);color:#eab308;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3 21 7 17 11"></path><path d="M21 7H9a4 4 0 0 0-4 4v1"></path><path d="M7 21 3 17 7 13"></path><path d="M3 17h12a4 4 0 0 0 4-4v-1"></path></svg>
+              Transferência entre plataformas
+            </span>
+          </div>
+
+          <div style="border-left:3px solid #2dd4bf;padding-left:14px;order:{{ buyOrder }}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px"><span style="width:6px;height:6px;border-radius:50%;background:#2dd4bf"></span><span style="font-size:12.5px;font-weight:700;color:#2dd4bf">Você recebe</span></div>
+            <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Plataforma de destino</label>
+            <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="{{ tradeToPlatformAvatarStyle }}">{{ tradeToPlatformInitial }}</span>
+              <span style="color:{{ tradeToPlatformColor }};font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ tradeToPlatform }}</span>
+            </div>
+            <div style="color:#52525b;font-size:11px;margin-bottom:8px">Vazio = mesma plataforma de origem</div>
+            <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Ativo</label>
+                <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+                  <span style="{{ tradeToAssetAvatarStyle }}">{{ tradeToAssetInitial }}</span>
+                  <span style="color:{{ tradeToAssetColor }};font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">{{ tradeToAsset }}</span>
+                </div>
+              </div>
+              <div><label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Quantidade</label><div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;color:#f4f4f5;font-size:14px">{{ tradeToQty }}</div></div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div><label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Taxa</label><div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;color:#71717a;font-size:14px">R$ 0,00</div></div>
+        <div><label style="display:block;color:#a1a1aa;font-size:12px;margin-bottom:6px">Total</label><div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:11px 12px;color:#71717a;font-size:14px">R$ 0,00</div></div>
+      </div>
+      <div style="color:#52525b;font-size:11px;margin-top:6px">{{ totalCaption }}</div>
+
+      <sc-if value="{{ showPnlPreview }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #1f1f23;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#a1a1aa;font-size:12.5px">Lucro/prejuízo estimado</span>
+          <span style="font-weight:700;font-size:15px;{{ pnlPreviewColor }}">{{ pnlPreviewValue }}</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding:18px 24px;border-top:1px solid #1f1f23">
+      <button onClick="{{ closeDrawer }}" style="background:transparent;border:1px solid #26262b;color:#a1a1aa;border-radius:8px;padding:10px 16px;font-size:13.5px;cursor:pointer">Cancelar</button>
+      <button style="background:#2dd4bf;color:#062a26;border:none;border-radius:8px;padding:10px 18px;font-weight:700;font-size:13.5px;cursor:pointer">Registrar operação</button>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1680,&quot;height&quot;:1000},&quot;compactColumns&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tabela&quot;,&quot;description&quot;:&quot;Esconde Preço unit., Taxa e Plataforma na lista; clique na linha expande os detalhes&quot;},&quot;denseRows&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tabela&quot;,&quot;description&quot;:&quot;Linhas mais compactas (menos padding vertical)&quot;}}">
+const ORDER = ['compra', 'venda', 'trade'];
+
+const GROUPS_RAW = [
+  { label: '15 de junho de 2026', rows: [
+    { id: 'r1', coin: 'CBBTC', type: 'Compra', leverage: 2, qty: '0,00513', price: 'R$ 336.534,04', total: 'R$ 1.726,42', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+    { id: 'r2', coin: 'USDC', type: 'Compra', qty: '183,996', price: 'R$ 5,05', total: 'R$ 929,18', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+    { id: 'r3', coin: 'BNB', type: 'Compra', qty: '0,0105', price: 'R$ 3.163,66', total: 'R$ 33,22', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+    { id: 'r4', coin: 'SOL', type: 'Compra', qty: '0,0565', price: 'R$ 372,84', total: 'R$ 21,07', fee: '—', platform: 'Phantom', status: 'aberta', pnl: null },
+    { id: 'r5', coin: 'SPYX', type: 'Compra', leverage: 5, qty: '0,1486', price: 'R$ 3.847,40', total: 'R$ 571,72', fee: '—', platform: 'Kamino', status: 'aberta', pnl: null },
+  ]},
+  { label: '06 de julho de 2026', rows: [
+    { id: 'r6', coin: 'USDT', type: 'Compra', qty: '3.810,42', price: 'R$ 5,17', total: 'R$ 20.000,00', fee: 'R$ 300,13', platform: 'BingX', status: 'fechada', pnl: -414.44 },
+    { id: 'r7', coin: 'USDT', type: 'Venda', qty: '3.810,42', price: 'R$ 5,14', total: 'R$ 19.585,56', fee: '—', platform: 'BingX', status: 'fechada', pnl: -414.44 },
+    { id: 'r8', coin: 'USDC', type: 'Compra', qty: '3.806,99', price: 'R$ 5,14', total: 'R$ 19.585,56', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+  ]},
+  { label: '07 de julho de 2026', rows: [
+    { id: 'r9', coin: 'USDC', type: 'Venda', qty: '3.128,352', price: 'R$ 5,15', total: 'R$ 16.111,01', fee: '—', platform: 'MetaMask', status: 'parcial', pnl: 3.17 },
+    { id: 'r10', coin: 'CBBTC', type: 'Compra', leverage: 3, qty: '0,049228', price: 'R$ 327.273,30', total: 'R$ 16.111,01', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+  ]},
+  { label: '15 de julho de 2026', rows: [
+    { id: 'r11', coin: 'CBBTC', type: 'Compra', qty: '0,0002', price: 'R$ 330.857,99', total: 'R$ 66,17', fee: '—', platform: 'MetaMask', status: 'aberta', pnl: null },
+  ]},
+];
+
+const TYPE_CHIP = {
+  Compra: 'background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.35);color:#2dd4bf;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:5px',
+  Venda: 'background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#ef4444;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:5px',
+};
+
+const STATUS_CHIP = {
+  aberta: { label: 'Aberta', style: 'background:transparent;border:1px solid #3a3a42;color:#a1a1aa;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;width:fit-content' },
+  parcial: { label: 'Parcial', style: 'background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);color:#eab308;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;width:fit-content' },
+  fechada: { label: 'Fechada', style: 'background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.35);color:#2dd4bf;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;width:fit-content' },
+};
+
+function fmtPnl(v) {
+  if (v == null) return { text: '—', color: 'color:#52525b' };
+  const abs = Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return v >= 0 ? { text: `+R$ ${abs}`, color: 'color:#22c55e' } : { text: `-R$ ${abs}`, color: 'color:#ef4444' };
+}
+
+const PLATFORM_COLORS = { MetaMask: '#f6851b', Phantom: '#ab9ff2', Kamino: '#22c55e', BingX: '#155dfc', Binance: '#f0b90b' };
+const COIN_COLORS = { CBBTC: '#3b82f6', USDC: '#2775ca', BNB: '#f0b90b', SOL: '#9945ff', ETH: '#627eea', USDT: '#26a17b', SPYX: '#f4f4f5', Bitcoin: '#f7931a' };
+function avatarStyle(bg) {
+  return `width:20px;height:20px;flex:none;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;color:#0b0b0d;font-size:10px;font-weight:700`;
+}
+
+class Component extends DCLogic {
+  state = {
+    drawerOpen: false,
+    formType: 'compra',
+    leverage: null,
+    animPhase: 'settled',
+    animDir: 1,
+    animating: false,
+    closingRow: null,
+    expandedRows: {},
+  };
+
+  toggleExpand = (id) => this.setState(s => ({ expandedRows: { ...s.expandedRows, [id]: !s.expandedRows[id] } }));
+  stopAnd = (fn) => (e) => { e.stopPropagation(); fn(); };
+
+  openNewOp = () => this.setState({ drawerOpen: true, formType: 'compra', closingRow: null, leverage: null, animPhase: 'settled' });
+  closeDrawer = () => this.setState({ drawerOpen: false, closingRow: null });
+
+  openCloseFor(row) {
+    const nextType = row.type === 'Compra' ? 'venda' : 'compra';
+    this.setState({
+      drawerOpen: true, formType: nextType,
+      leverage: row.leverage || null,
+      closingRow: row, animPhase: 'settled',
+    });
+  }
+
+  allowedTypes() {
+    const cr = this.state.closingRow;
+    if (!cr) return ['compra', 'venda', 'trade'];
+    return cr.type === 'Compra' ? ['venda', 'trade'] : ['compra', 'trade'];
+  }
+
+  switchType(newType) {
+    const { formType, animating } = this.state;
+    if (newType === formType || animating || !this.allowedTypes().includes(newType)) return;
+    const dir = ORDER.indexOf(newType) > ORDER.indexOf(formType) ? 1 : -1;
+    this.setState({ animating: true, animDir: dir, animPhase: 'out' });
+    setTimeout(() => {
+      this.setState({ formType: newType, animPhase: 'in' });
+      requestAnimationFrame(() => requestAnimationFrame(() => this.setState({ animPhase: 'settled' })));
+      setTimeout(() => this.setState({ animating: false }), 260);
+    }, 170);
+  }
+
+  toCompra = () => this.switchType('compra');
+  toVenda = () => this.switchType('venda');
+  toTrade = () => this.switchType('trade');
+
+  setLeverage(v) {
+    this.setState(s => ({ leverage: s.leverage === v ? null : v }));
+  }
+
+  renderVals() {
+    const { formType, animPhase, animDir, drawerOpen, closingRow, leverage, expandedRows } = this.state;
+    const compact = this.props.compactColumns ?? true;
+    const dense = this.props.denseRows ?? false;
+    const rowPad = dense ? '8px 14px' : '13px 14px';
+
+    const gridCols = compact
+      ? '.9fr 1.3fr 1fr 1.1fr 1.1fr .9fr .7fr'
+      : '1.1fr 1.3fr .9fr 1.2fr 1.2fr .9fr 1fr 1.2fr 1fr .9fr';
+
+    const groups = GROUPS_RAW.map(g => ({
+      label: g.label,
+      rows: g.rows.map(row => {
+        const pnl = fmtPnl(row.pnl);
+        const status = STATUS_CHIP[row.status];
+        const expanded = !!expandedRows[row.id];
+        return {
+          id: row.id, coin: row.coin, type: row.type, qty: row.qty, price: row.price, total: row.total, fee: row.fee, platform: row.platform,
+          typeChipStyle: TYPE_CHIP[row.type],
+          leverage: !!row.leverage, leverageLabel: row.leverage ? row.leverage + 'x' : '',
+          pnl: pnl.text, pnlColor: pnl.color,
+          statusLabel: status.label, statusChipStyle: status.style,
+          canClose: row.status !== 'fechada',
+          onClose: this.stopAnd(() => this.openCloseFor(row)),
+          onEdit: this.stopAnd(() => {}),
+          onDelete: this.stopAnd(() => {}),
+          rowClick: compact ? () => this.toggleExpand(row.id) : undefined,
+          rowStyle: `display:grid;grid-template-columns:${gridCols};align-items:center;padding:${rowPad};border-bottom:1px solid #17171a;cursor:${compact ? 'pointer' : 'default'}`,
+          showChevron: compact,
+          notCompactMode: !compact,
+          chevronStyle: `display:flex;justify-content:flex-end;color:#71717a;transform:rotate(${expanded ? 180 : 0}deg);transition:transform .18s ease`,
+          expanded,
+          detailVisible: compact && expanded,
+          detailStyle: `overflow:hidden;max-height:${expanded ? '80px' : '0px'};opacity:${expanded ? 1 : 0};transition:max-height .22s ease,opacity .18s ease`,
+        };
+      }),
+    }));
+
+    const tabOptions = this.allowedTypes();
+    const n = tabOptions.length;
+    const activeIdx = Math.max(0, tabOptions.indexOf(formType));
+    const pillTransform = `translateX(${activeIdx * 100}%)`;
+    const pillWidthStyle = `width:calc(${100 / n}% - ${n === 3 ? 5.33 : 4}px)`;
+    const tabsGridStyle = `grid-template-columns:repeat(${n},1fr)`;
+    const showCompraTab = tabOptions.includes('compra');
+    const showVendaTab = tabOptions.includes('venda');
+
+    let panelStyle;
+    if (animPhase === 'out') panelStyle = `transform:translateX(${animDir * -18}px);opacity:0;transition:transform .17s ease,opacity .17s ease`;
+    else if (animPhase === 'in') panelStyle = `transform:translateX(${animDir * 18}px);opacity:0;transition:none`;
+    else panelStyle = `transform:translateX(0);opacity:1;transition:transform .24s ease,opacity .24s ease`;
+
+    const isSimple = formType !== 'trade';
+    const isTrade = formType === 'trade';
+    const simpleCoinLabel = formType === 'venda' ? 'Moeda vendida' : 'Moeda comprada';
+
+    const drawerTitle = closingRow ? 'Fechar operação' : 'Registrar operação';
+    const drawerSubtitle = closingRow ? 'Fechamento total ou parcial de uma posição aberta' : 'Nova operação na carteira';
+    const modeSubtitleColor = closingRow ? '#5eead4' : '#71717a';
+    const tabsLabel = closingRow ? 'Como você está fechando esta posição?' : 'Tipo de operação';
+
+    const closingBanner = closingRow
+      ? `Fechando posição: ${closingRow.coin} · ${closingRow.platform} · quantidade restante ${closingRow.qty}`
+      : null;
+
+    const simplePlatform = closingRow ? closingRow.platform : 'Busque: Binance, MetaMask, Kamino...';
+    const hasSimplePlatform = !!closingRow;
+    const simpleAsset = closingRow ? closingRow.coin : 'Escolha o ativo';
+    const simpleQty = closingRow ? closingRow.qty : '0';
+    const simplePrice = closingRow ? closingRow.price.replace('R$ ', '') : '0,00';
+    const platformFieldColor = closingRow ? '#f4f4f5' : '#52525b';
+    const assetFieldColor = closingRow ? '#f4f4f5' : '#52525b';
+    const simplePlatformInitial = closingRow ? closingRow.platform[0] : '?';
+    const simplePlatformAvatarStyle = avatarStyle(closingRow ? (PLATFORM_COLORS[closingRow.platform] || '#3a3a42') : '#3a3a42');
+    const simpleCoinInitial = closingRow ? closingRow.coin[0] : '?';
+    const simpleCoinAvatarStyle = avatarStyle(closingRow ? (COIN_COLORS[closingRow.coin] || '#3a3a42') : '#3a3a42');
+
+    // Fechando uma Compra -> tabs Venda/Trade -> o lado "vende" é o que já sai preenchido.
+    // Fechando uma Venda -> tabs Compra/Trade -> o lado "recebe" é o que já sai preenchido, e vem primeiro.
+    const closeRole = closingRow ? (closingRow.type === 'Compra' ? 'sell' : 'buy') : null;
+    const reverseOrder = closeRole === 'buy';
+    const sellOrder = reverseOrder ? 3 : 1;
+    const buyOrder = reverseOrder ? 1 : 3;
+    const simpleQtyUnit = closingRow ? closingRow.coin : '';
+
+    const tradeFromPlatform = closeRole === 'sell' ? closingRow.platform : 'Busque: Binance, MetaMask, Kamino...';
+    const tradeToPlatform = closeRole === 'buy' ? closingRow.platform : 'Busque: Binance, MetaMask, Kamino...';
+    const tradeFromAsset = closeRole === 'sell' ? closingRow.coin : 'Escolha o ativo';
+    const tradeToAsset = closeRole === 'buy' ? closingRow.coin : 'Escolha o ativo';
+    const tradeFromQty = closeRole === 'sell' ? closingRow.qty : '0';
+    const tradeToQty = closeRole === 'buy' ? closingRow.qty : '0';
+    const tradeFromBalance = closeRole === 'sell' ? `${closingRow.qty} ${closingRow.coin}` : '—';
+    const tradeFromPlatformColor = closeRole === 'sell' ? '#f4f4f5' : '#52525b';
+    const tradeToPlatformColor = closeRole === 'buy' ? '#f4f4f5' : '#52525b';
+    const tradeFromAssetColor = closeRole === 'sell' ? '#f4f4f5' : '#52525b';
+    const tradeToAssetColor = closeRole === 'buy' ? '#f4f4f5' : '#52525b';
+    const tradeFromPlatformInitial = closeRole === 'sell' ? closingRow.platform[0] : '?';
+    const tradeToPlatformInitial = closeRole === 'buy' ? closingRow.platform[0] : '?';
+    const tradeFromAssetInitial = closeRole === 'sell' ? closingRow.coin[0] : '?';
+    const tradeToAssetInitial = closeRole === 'buy' ? closingRow.coin[0] : '?';
+    const tradeFromPlatformAvatarStyle = avatarStyle(closeRole === 'sell' ? (PLATFORM_COLORS[closingRow.platform] || '#3a3a42') : '#3a3a42');
+    const tradeToPlatformAvatarStyle = avatarStyle(closeRole === 'buy' ? (PLATFORM_COLORS[closingRow.platform] || '#3a3a42') : '#3a3a42');
+    const tradeFromAssetAvatarStyle = avatarStyle(closeRole === 'sell' ? (COIN_COLORS[closingRow.coin] || '#3a3a42') : '#3a3a42');
+    const tradeToAssetAvatarStyle = avatarStyle(closeRole === 'buy' ? (COIN_COLORS[closingRow.coin] || '#3a3a42') : '#3a3a42');
+    const totalCaption = closingRow ? 'Calculado automaticamente' : 'Valor da operação';
+
+    const leverageValues = [null, 2, 3, 5, 10];
+    const leverageOptions = leverageValues.map(v => {
+      const active = leverage === v;
+      const label = v === null ? '1x' : v + 'x';
+      return {
+        label,
+        onClick: () => this.setLeverage(v),
+        chipStyle: `padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${active ? '#2dd4bf' : '#26262b'};background:${active ? 'rgba(45,212,191,.12)' : '#17171a'};color:${active ? '#2dd4bf' : '#a1a1aa'}`,
+      };
+    });
+
+    const showPnlPreview = !!closingRow;
+    const pnlPreviewNum = closingRow ? (closingRow.type === 'Compra' ? 214.5 : -87.2) : 0;
+    const pnlPreview = fmtPnl(pnlPreviewNum);
+
+    return {
+      groups,
+      compact,
+      notCompact: !compact,
+      gridColsStyle: `grid-template-columns:${gridCols}`,
+      openNewOp: this.openNewOp,
+      closeDrawer: this.closeDrawer,
+      drawerTransform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
+      drawerTitle, drawerSubtitle, modeSubtitleColor, tabsLabel,
+      pillTransform, pillWidthStyle, tabsGridStyle, showCompraTab, showVendaTab,
+      compraTabColor: formType === 'compra' ? '#09090b' : '#a1a1aa',
+      vendaTabColor: formType === 'venda' ? '#09090b' : '#a1a1aa',
+      tradeTabColor: formType === 'trade' ? '#09090b' : '#a1a1aa',
+      toCompra: this.toCompra, toVenda: this.toVenda, toTrade: this.toTrade,
+      panelStyle,
+      isSimple, isTrade,
+      simpleCoinLabel,
+      simplePlatform, hasSimplePlatform, simpleAsset, simpleQty, simpleQtyUnit, simplePrice,
+      platformFieldColor, assetFieldColor,
+      simplePlatformInitial, simplePlatformAvatarStyle, simpleCoinInitial, simpleCoinAvatarStyle,
+      showLeverage: isSimple && !closingRow,
+      leverageOptions,
+      closingBanner, totalCaption, sellOrder, buyOrder,
+      tradeFromPlatform, tradeToPlatform, tradeFromAsset, tradeToAsset, tradeFromQty, tradeToQty, tradeFromBalance,
+      tradeFromPlatformColor, tradeFromAssetColor, tradeToPlatformColor, tradeToAssetColor,
+      tradeFromPlatformInitial, tradeToPlatformInitial, tradeFromAssetInitial, tradeToAssetInitial,
+      tradeFromPlatformAvatarStyle, tradeToPlatformAvatarStyle, tradeFromAssetAvatarStyle, tradeToAssetAvatarStyle,
+      showPnlPreview,
+      pnlPreviewValue: pnlPreview.text,
+      pnlPreviewColor: pnlPreview.color,
+    };
+  }
+}
+</script>
+</body>
+</html>

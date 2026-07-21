@@ -17,11 +17,26 @@ CREATE TABLE IF NOT EXISTS ops (
     platform_id   text,
     platform_name text,
     currency    varchar(8)  NOT NULL DEFAULT 'BRL' CHECK (currency IN ('BRL', 'USD', 'EUR', 'GBP', 'JPY')),
+    leverage    smallint    CHECK (leverage IN (2, 3, 5, 10)),
+    trade_group_id uuid,
     created_at  timestamptz DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS ops_user_id_idx ON ops(user_id);
 CREATE INDEX IF NOT EXISTS ops_date_idx    ON ops(date);
+CREATE INDEX IF NOT EXISTS ops_trade_group_id_idx ON ops(trade_group_id);
+
+CREATE TABLE IF NOT EXISTS op_closures (
+    id             uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_op_id   uuid           NOT NULL REFERENCES ops(id) ON DELETE CASCADE,
+    closing_op_id  uuid           NOT NULL REFERENCES ops(id) ON DELETE CASCADE,
+    qty_closed     numeric(30,10) NOT NULL,
+    realized_pnl   numeric(30,10) NOT NULL,
+    created_at     timestamptz    DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS op_closures_source_op_id_idx  ON op_closures(source_op_id);
+CREATE INDEX IF NOT EXISTS op_closures_closing_op_id_idx ON op_closures(closing_op_id);
 
 CREATE TABLE IF NOT EXISTS exit_prices (
     user_id     text           NOT NULL,

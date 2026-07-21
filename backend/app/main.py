@@ -9,7 +9,7 @@ from mangum import Mangum
 
 from app.config import get_settings
 from app.db.postgres_client import get_conn
-from app.routes import ops, exit_prices, prices, export_data, import_data, exchange_rates, price_history, coins, platforms
+from app.routes import ops, exit_prices, prices, export_data, import_data, exchange_rates, price_history, coins, platforms, op_closures
 
 # In Lambda the runtime pre-installs a root handler, so logging.basicConfig() is a
 # no-op and our INFO logs would be dropped (root defaults to WARNING). Set the level
@@ -31,6 +31,8 @@ app.add_middleware(
 )
 
 app.include_router(ops.router, prefix="/api/ops")
+app.include_router(op_closures.router, prefix="/api/ops")
+app.include_router(op_closures.closures_router, prefix="/api/op-closures")
 app.include_router(exit_prices.router, prefix="/api/exit-prices")
 app.include_router(prices.router, prefix="/api/prices")
 app.include_router(export_data.router, prefix="/api/export")

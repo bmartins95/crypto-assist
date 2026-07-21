@@ -138,7 +138,7 @@ function WalletRoute() {
   return (
     <div className="app content-enter">
       <WalletTab
-        ops={p.usdOps} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
+        ops={p.usdOps} closures={p.closures} assets={p.assets} prices={p.prices} avatarCache={p.avatarCache}
         groupMode={p.groupMode} onGroupMode={p.setGroupMode}
         statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
         onExitPriceChange={p.setExitPrice}
@@ -161,7 +161,7 @@ function ProfitRoute() {
   return (
     <div className="app content-enter">
       <ProfitTab
-        ops={p.usdOps} prices={p.prices}
+        ops={p.usdOps} closures={p.closures} prices={p.prices}
         activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
         statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
       />
@@ -183,8 +183,8 @@ function HistoryRoute() {
   return (
     <div className="app content-enter">
       <HistoryTab
-        ops={p.ops} assets={p.assets} avatarCache={p.avatarCache} prices={p.prices}
-        onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp}
+        ops={p.ops} assets={p.assets} avatarCache={p.avatarCache} prices={p.prices} closures={p.closures}
+        onAddOp={p.addOp} onEditOp={p.editOp} onRemoveOp={p.removeOp} onCloseOp={p.closeOp}
       />
     </div>
   );
