@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Op, NewOp, OpClosure, Asset, AssetWithPlatform, AvatarCache, Prices, Platform, Leverage } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
 import { fmtQty } from '@/lib/format';
@@ -215,12 +215,14 @@ export default function OpDrawer({
   const [fromCoinId, setFromCoinId] = useState('');
   const [fromCoinText, setFromCoinText] = useState('');
   const [fromQty, setFromQty] = useState('');
+  const [fromUnitPrice, setFromUnitPrice] = useState('');
+  const [fromPriceState, setFromPriceState] = useState<PriceState>('idle');
   const [toCoin, setToCoin] = useState<CoinSelection | null>(null);
   const [toCoinText, setToCoinText] = useState('');
   const [toQty, setToQty] = useState('');
-  const [total, setTotal] = useState('');
+  const [toUnitPrice, setToUnitPrice] = useState('');
+  const [toPriceState, setToPriceState] = useState<PriceState>('idle');
   const [tradeFee, setTradeFee] = useState('');
-  const [totalHint, setTotalHint] = useState('');
 
   const drawerRef = useRef<HTMLElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
@@ -237,13 +239,13 @@ export default function OpDrawer({
 
   const resetTrade = () => {
     setOriginPlatform(null); setDestPlatform(null);
-    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setToCoin(null); setToCoinText('');
-    setToQty(''); setTotal(''); setTradeFee(''); setTotalHint('');
+    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
+    setToCoin(null); setToCoinText(''); setToQty(''); setToUnitPrice(''); setToPriceState('idle'); setTradeFee('');
   };
 
   const handleOriginPlatformChange = (p: Platform | null) => {
     setOriginPlatform(p);
-    setFromCoinId(''); setFromCoinText(''); setFromQty('');
+    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
   };
 
   const originHoldings = useMemo(
@@ -419,6 +421,16 @@ export default function OpDrawer({
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
+  const fromQtyNum = parseFloat(fromQty) || 0;
+  const toQtyNum = parseFloat(toQty) || 0;
+  const fromPriceNum = parseFloat(fromUnitPrice) || 0;
+  const toPriceNum = parseFloat(toUnitPrice) || 0;
+  const tradeFeeNum = parseFloat(tradeFee) || 0;
+  // The bottom "Total" reflects the amount received (destination qty × its unit price);
+  // the sell leg's own value is separate so unequal-value swaps still book correctly.
+  const receivedTotal = toQtyNum * toPriceNum;
+  const soldValue = fromQtyNum * fromPriceNum;
+
   // A normal create/edit shows the inline "done" checkmark and keeps the drawer open
   // with the just-submitted values still filled in, so registering several similar ops
   // in a row doesn't require reopening and re-filling the form. Closing a position is a
@@ -462,50 +474,55 @@ export default function OpDrawer({
     }
   };
 
-  const syncTradeTotal = useCallback((fromId: string, fromQtyStr: string, toC: CoinSelection | null, totalStr: string) => {
-    const fQty = parseFloat(fromQtyStr) || 0;
-    let amount = 0;
-    if (fromId && fQty && prices[fromId] && rates) {
-      amount = fQty * toDisplay(prices[fromId]);
-      setTotal(amount.toFixed(2));
-      setTotalHint('≈ atual');
-    } else {
-      amount = parseFloat(totalStr) || 0;
-      setTotalHint('');
-    }
-    if (amount > 0 && toC && prices[toC.coinId] && rates) {
-      setToQty((amount / toDisplay(prices[toC.coinId])).toFixed(8).replace(/\.?0+$/, ''));
-    }
-  }, [prices, rates, currency]);
-
   const handleFromCoinSelect = (c: CoinSelection) => {
     setFromCoinId(c.coinId);
-    syncTradeTotal(c.coinId, fromQty, toCoin, total);
   };
 
-  // Same stale-response guard as the Buy/Sell price effect above, for the Trade
-  // "receive" side's live price lookup.
+  // Auto-fills each side's unit price from the live market price (display currency),
+  // mirroring the Buy/Sell price effect. The `cancelled` flag drops a stale response if
+  // the coin changes before this fetch resolves; a manual edit flips the badge to
+  // 'manual' and this effect won't clobber it (it only re-runs on coin/type change).
+  useEffect(() => {
+    if (!fromCoinId || opType !== 'trade') return;
+    let cancelled = false;
+    setFromPriceState('fetching');
+    (async () => {
+      let p = prices[fromCoinId];
+      if (!p) { try { p = (await api.getPrices([fromCoinId]))[fromCoinId]?.price; } catch { p = undefined; } }
+      if (cancelled) return;
+      if (p && rates) { prices[fromCoinId] = p; setFromUnitPrice(toDisplay(p).toFixed(2)); setFromPriceState('auto'); }
+      else setFromPriceState('idle');
+    })();
+    return () => { cancelled = true; };
+  }, [fromCoinId, opType]);
+
   useEffect(() => {
     if (!toCoin || opType !== 'trade') return;
-    if (prices[toCoin.coinId]) { syncTradeTotal(fromCoinId, fromQty, toCoin, total); return; }
     let cancelled = false;
+    setToPriceState('fetching');
     (async () => {
-      try {
-        const p = (await api.getPrices([toCoin.coinId]))[toCoin.coinId]?.price;
-        if (cancelled || !p) return;
-        prices[toCoin.coinId] = p;
-        syncTradeTotal(fromCoinId, fromQty, toCoin, total);
-      } catch { /* price stays unavailable; total sync falls back to manual entry */ }
+      let p = prices[toCoin.coinId];
+      if (!p) { try { p = (await api.getPrices([toCoin.coinId]))[toCoin.coinId]?.price; } catch { p = undefined; } }
+      if (cancelled) return;
+      if (p && rates) { prices[toCoin.coinId] = p; setToUnitPrice(toDisplay(p).toFixed(2)); setToPriceState('auto'); }
+      else setToPriceState('idle');
     })();
     return () => { cancelled = true; };
   }, [toCoin, opType]);
 
+  // Derives the received quantity from an equal-value swap: the value sold
+  // (fromQty × fromUnitPrice) buys as much of the destination as its unit price allows.
+  // Keyed off the sell side and both unit prices, never off toQty, so a manual toQty
+  // edit isn't overwritten unless an upstream value changes.
+  useEffect(() => {
+    if (opType !== 'trade') return;
+    const sold = (parseFloat(fromQty) || 0) * (parseFloat(fromUnitPrice) || 0);
+    const tPrice = parseFloat(toUnitPrice) || 0;
+    if (sold > 0 && tPrice > 0) setToQty((sold / tPrice).toFixed(8).replace(/\.?0+$/, ''));
+  }, [fromQty, fromUnitPrice, toUnitPrice, opType]);
+
   const submitTrade = async () => {
-    const fromQtyNum = parseFloat(fromQty) || 0;
-    const toQtyNum = parseFloat(toQty) || 0;
-    const totalNum = parseFloat(total) || 0;
-    const tradeFeeNum = parseFloat(tradeFee) || 0;
-    if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || totalNum <= 0) {
+    if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || fromPriceNum <= 0 || toPriceNum <= 0) {
       setError(t.history_form_validationRequired);
       return;
     }
@@ -528,14 +545,14 @@ export default function OpDrawer({
       date, coinId: fromCoinId,
       symbol: (closingOp && closeRole === 'sell') ? closingOp.symbol : (fromAsset?.symbol || ''),
       name: (closingOp && closeRole === 'sell') ? closingOp.name : (fromAsset?.name || ''),
-      type: 'Sell', qty: fromQtyNum, price: totalNum / fromQtyNum, fee: 0, total: totalNum,
+      type: 'Sell', qty: fromQtyNum, price: fromPriceNum, fee: 0, total: soldValue,
       platformId: originPlatform.id, platformName: originPlatform.name,
       currency: tradeCurrency,
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
-      type: 'Buy', qty: toQtyNum, price: (totalNum + tradeFeeNum) / toQtyNum, fee: tradeFeeNum,
-      total: totalNum + tradeFeeNum, platformId: effectiveDest.id, platformName: effectiveDest.name,
+      type: 'Buy', qty: toQtyNum, price: toPriceNum, fee: tradeFeeNum,
+      total: receivedTotal + tradeFeeNum, platformId: effectiveDest.id, platformName: effectiveDest.name,
       currency: tradeCurrency,
     };
     setPhase('loading');
@@ -560,13 +577,14 @@ export default function OpDrawer({
   const titleId = 'drawer-title';
   const busy = phase !== 'idle';
   const assetSeed: CoinSearchResult[] = assets.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }));
-  const priceBadge = editingOp || priceState === 'idle'
-    ? undefined
-    : priceState === 'fetching'
-      ? { variant: 'fetching' as const, content: <span className="mini-spin" /> }
-      : priceState === 'auto'
-        ? { variant: 'auto' as const, content: t.history_form_priceAuto }
-        : { variant: 'manual' as const, content: t.history_form_priceManual };
+  const badgeFor = (state: PriceState) => state === 'fetching'
+    ? { variant: 'fetching' as const, content: <span className="mini-spin" /> }
+    : state === 'auto'
+      ? { variant: 'auto' as const, content: t.history_form_priceAuto }
+      : state === 'manual'
+        ? { variant: 'manual' as const, content: t.history_form_priceManual }
+        : undefined;
+  const priceBadge = editingOp ? undefined : badgeFor(priceState);
 
   return (
     <>
@@ -680,16 +698,16 @@ export default function OpDrawer({
 
               <div className="trade-block out">
                 <div className="trade-hd"><span className="dot" />{t.trade_form_from}</div>
-                <div className="fld">
-                  <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
-                  {closeRole === 'sell' ? (
-                    renderStaticPlatform(closingPlatform)
-                  ) : (
-                    <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
-                      options={heldPlatforms} />
-                  )}
-                </div>
                 <div className="drawer-grid">
+                  <div className="fld">
+                    <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
+                    {closeRole === 'sell' ? (
+                      renderStaticPlatform(closingPlatform)
+                    ) : (
+                      <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
+                        options={heldPlatforms} />
+                    )}
+                  </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
                     {closeRole === 'sell' ? (
@@ -707,10 +725,12 @@ export default function OpDrawer({
                         onClear={() => setFromCoinId('')} />
                     )}
                   </div>
+                </div>
+                <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
                     value={fromQty} suffix={closeRole === 'sell' ? closingSymbol : fromHolding?.symbol}
                     error={closeRole === 'sell' ? (parseFloat(fromQty) || 0) > remainingQty : fromOverBalance}
-                    onChange={v => { setFromQty(v); syncTradeTotal(fromCoinId, v, toCoin, total); }}
+                    onChange={setFromQty}
                     hint={closeRole === 'sell' ? (
                       <span className={`bal-row${(parseFloat(fromQty) || 0) > remainingQty ? ' err' : ''}`}>
                         <span>{((parseFloat(fromQty) || 0) > remainingQty ? t.trade_form_balanceExceeded : t.trade_form_balance)
@@ -721,11 +741,14 @@ export default function OpDrawer({
                         <span>{(fromOverBalance ? t.trade_form_balanceExceeded : t.trade_form_balance)
                           .replace('{qty}', fmtQty(fromHolding.qty, locale)).replace('{symbol}', fromHolding.symbol)}</span>
                         <button type="button" className="max"
-                          onClick={() => { const q = String(fromHolding.qty); setFromQty(q); syncTradeTotal(fromCoinId, q, toCoin, total); }}>
+                          onClick={() => setFromQty(String(fromHolding.qty))}>
                           {t.trade_form_max}
                         </button>
                       </span>
                     )} />
+                  <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
+                    value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}
+                    prefix="R$" badge={badgeFor(fromPriceState)} />
                 </div>
               </div>
 
@@ -734,18 +757,18 @@ export default function OpDrawer({
 
               <div className="trade-block in">
                 <div className="trade-hd"><span className="dot" />{t.trade_form_to}</div>
-                <div className="fld">
-                  <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
-                  {closeRole === 'buy' ? (
-                    renderStaticPlatform(closingPlatform)
-                  ) : (
-                    <>
-                      <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
-                      <span className="fhint">{t.trade_form_platformToHint}</span>
-                    </>
-                  )}
-                </div>
                 <div className="drawer-grid">
+                  <div className="fld">
+                    <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
+                    {closeRole === 'buy' ? (
+                      renderStaticPlatform(closingPlatform)
+                    ) : (
+                      <>
+                        <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
+                        <span className="fhint">{t.trade_form_platformToHint}</span>
+                      </>
+                    )}
+                  </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     {closeRole === 'buy' ? (
@@ -756,18 +779,36 @@ export default function OpDrawer({
                         onClear={() => { setToCoin(null); setToQty(''); }} />
                     )}
                   </div>
+                </div>
+                <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
                     value={toQty} onChange={setToQty} suffix={closeRole === 'buy' ? closingSymbol : toCoin?.symbol}
                     error={closeRole === 'buy' ? (parseFloat(toQty) || 0) > remainingQty : false} />
+                  <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
+                    value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
+                    prefix="R$" badge={badgeFor(toPriceState)} />
                 </div>
               </div>
 
               <div className="drawer-grid">
                 <NumericField id="drawer-tr-fee" label={t.trade_form_fee} placeholder="0.00"
                   value={tradeFee} onChange={setTradeFee} prefix="R$" />
-                <NumericField id="drawer-tr-total" label={t.trade_form_price} placeholder="0.00" prefix="R$"
-                  value={total} onChange={setTotal} hint={totalHint || t.trade_form_totalHint} />
+                <NumericField id="drawer-tr-total" label={t.trade_form_price} prefix="R$" readOnly
+                  value={receivedTotal.toFixed(2)} onChange={() => {}} hint={t.trade_form_totalHint} />
               </div>
+              {closingOp && (() => {
+                const closePrice = closeRole === 'sell' ? fromPriceNum : toPriceNum;
+                const closeQty = closeRole === 'sell' ? fromQtyNum : toQtyNum;
+                const estimatedPnl = estimateClosePnl(closingOp, { price: closePrice }, Math.min(closeQty, remainingQty));
+                return (
+                  <div className="pnl-preview">
+                    <span>{t.history_pnl_estimated}</span>
+                    <span className={estimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
+                      {fmtFromCurrency(estimatedPnl, closingOp.currency ?? 'BRL')}
+                    </span>
+                  </div>
+                );
+              })()}
             </>
           )}
           </div>

@@ -174,11 +174,12 @@ describe('HistoryTab', () => {
     fireEvent.click(screen.getByText('Kraken', { selector: '.n' }));
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    const [fromQtyEl, toQtyEl] = screen.getAllByLabelText('Quantidade');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
     fireEvent.change(fromQtyEl, { target: { value: '1' } });
     await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(toQtyEl, { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(2));
     expect(onAddOp).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'Sell', coinId: 'ethereum', platformId: 'custom:kraken', platformName: 'Kraken' }));
@@ -245,7 +246,9 @@ describe('HistoryTab', () => {
     // labeled field), so only the "receive" side's asset/quantity fields exist.
     await selectCoin(screen.getByLabelText('Ativo'), { id: 'solana', symbol: 'sol', name: 'Solana' });
     fireEvent.change(screen.getAllByLabelText('Quantidade')[1], { target: { value: '5' } });
-    fireEvent.change(screen.getByLabelText(/^Total/), { target: { value: '500' } });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '1000' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     // The received Solana IS the close (qtyToClose is the BTC amount) — no separate BTC Sell op.
     await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith(
