@@ -100,6 +100,8 @@ const ptBR: UIText = {
   history_form_swap: 'Troca',
   history_opType_buyLong: 'Compra · Long',
   history_opType_sellShort: 'Venda · Short',
+  trade_side_long: 'Long',
+  trade_side_short: 'Short',
   wallet_available_balance: 'Saldo disponível',
   wallet_max_button: 'Máx',
   wallet_estimated_pnl: 'P/L estimado (vs. custo médio)',

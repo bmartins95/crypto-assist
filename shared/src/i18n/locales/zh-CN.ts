@@ -100,6 +100,8 @@ const zhCN: UIText = {
   history_form_swap: '兑换',
   history_opType_buyLong: '买入 · 多头',
   history_opType_sellShort: '卖出 · 空头',
+  trade_side_long: '多头',
+  trade_side_short: '空头',
   wallet_available_balance: '可用余额',
   wallet_max_button: '最大',
   wallet_estimated_pnl: '预估盈亏（相对平均成本）',

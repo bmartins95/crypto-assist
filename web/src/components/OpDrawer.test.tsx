@@ -104,13 +104,13 @@ function selectFromAsset(input: HTMLElement, name: string) {
 
 describe('OpDrawer', () => {
   it('is hidden from the accessibility tree when closed (stays mounted for the slide animation)', () => {
-    renderDrawer(<OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.querySelector('.drawer')).not.toHaveClass('open');
   });
 
   it('opens in Buy mode by default with focus on the first field', async () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(document.querySelector('.drawer')).toHaveClass('open');
     expect(screen.getByRole('button', { name: 'Compra' })).toHaveClass('active');
@@ -118,7 +118,7 @@ describe('OpDrawer', () => {
   });
 
   it('exposes dialog accessibility attributes', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAttribute('aria-labelledby', 'drawer-title');
@@ -126,7 +126,7 @@ describe('OpDrawer', () => {
 
   it('blocks submission and shows a validation message when required fields are missing', () => {
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe('OpDrawer', () => {
   it('submits a valid Buy with an auto-calculated total, then stays open with fields intact after the done animation', async () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     setDateField(screen.getByLabelText('Data'), '2024-03-10');
     selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Binance');
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
@@ -157,7 +157,7 @@ describe('OpDrawer', () => {
 
   it('switches to Sell and submits with type Sell', async () => {
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
     await selectCoin(screen.getByLabelText('Moeda vendida'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
@@ -169,7 +169,7 @@ describe('OpDrawer', () => {
   it('returns to idle without closing when onSubmit rejects', async () => {
     const onSubmit = vi.fn(() => Promise.reject(new Error('network error')));
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
@@ -182,8 +182,8 @@ describe('OpDrawer', () => {
   it('returns to idle without closing when onSubmitTrade rejects', async () => {
     const onSubmitTrade = vi.fn(() => Promise.reject(new Error('network error')));
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -202,7 +202,7 @@ describe('OpDrawer', () => {
   it('shows a loading spinner then a checkmark while saving, disabling Cancel and the type selector', async () => {
     let resolveSubmit: () => void = () => {};
     const onSubmit = vi.fn(() => new Promise<void>(resolve => { resolveSubmit = resolve; }));
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
@@ -215,24 +215,24 @@ describe('OpDrawer', () => {
   });
 
   it('swaps in the two-block Trade fieldset when switching type', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     expect(document.querySelector('.trade-block.out')).toBeInTheDocument();
     expect(document.querySelector('.trade-block.in')).toBeInTheDocument();
     expect(document.getElementById('drawer-coin')).not.toBeInTheDocument();
   });
 
   it('constrains the Trade Data field to half width instead of stretching the full drawer', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     expect(document.getElementById('drawer-tr-date')?.closest('.fld')).toHaveClass('tr-date');
   });
 
   it('submits a valid Trade as one Sell and one Buy sharing the same date, then stays open with fields intact', async () => {
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     setDateField(screen.getByLabelText('Data'), '2024-03-10');
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
@@ -257,8 +257,8 @@ describe('OpDrawer', () => {
 
   it('submits a Trade with a different destination platform, tagging the sell with the origin and the buy with the destination', async () => {
     const onSubmitTrade = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -278,8 +278,8 @@ describe('OpDrawer', () => {
 
   it('blocks Trade submission when source and destination assets are the same', async () => {
     const onSubmitTrade = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -296,8 +296,8 @@ describe('OpDrawer', () => {
 
   it('allows the same asset on both sides of a Trade when origin and destination platforms differ (a transfer)', async () => {
     const onSubmitTrade = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -318,16 +318,16 @@ describe('OpDrawer', () => {
 
   it('blocks Trade submission and shows the validation message when required fields are missing', () => {
     const onSubmitTrade = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
   });
 
   it('restricts the "Plataforma de origem" picker to platforms with a current holding', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     const input = screen.getByLabelText('Plataforma de origem');
     fireEvent.focus(input);
     expect(screen.getByText('Kraken')).toBeInTheDocument();
@@ -338,8 +338,8 @@ describe('OpDrawer', () => {
   });
 
   it('disables the "Você vende" asset field until an origin platform is chosen, then filters to that platform\'s holdings', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     expect(fromAssetEl).toBeDisabled();
     selectOriginPlatform('Kraken');
@@ -350,8 +350,8 @@ describe('OpDrawer', () => {
 
   it('shows the real coin logo on a "Você vende" holding when it is cached in avatarCache', () => {
     const avatarCache = { ethereum: { url: 'https://cg.example/ethereum.png' } };
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={avatarCache} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={avatarCache} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.focus(fromAssetEl);
@@ -364,8 +364,8 @@ describe('OpDrawer', () => {
       ...krakenEth,
       { coinId: 'solana', symbol: 'SOL', name: 'Solana', platformId: 'custom:sodex', platformName: 'Sodex', qty: 3, avgPrice: 20 },
     ];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={multi} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={multi} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -375,8 +375,8 @@ describe('OpDrawer', () => {
   });
 
   it('shows the platform balance under "Quantidade" and fills it in via "Máx"', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -386,8 +386,8 @@ describe('OpDrawer', () => {
   });
 
   it('groups the origin dropdown under "Seus ativos em <platform>" and shows the held quantity per row', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.focus(fromAssetEl);
@@ -401,11 +401,11 @@ describe('OpDrawer', () => {
     // this state is reached by the last coin on an already-selected platform
     // being sold out from under the still-open drawer (ops refresh mid-edit),
     // not by picking an empty platform outright.
-    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
-      <OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />
+      <OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
     </CurrencyProvider></BalanceProvider></LocaleProvider>);
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     expect(fromAssetEl).toHaveAttribute('placeholder', 'Sem ativos nesta plataforma');
@@ -414,8 +414,8 @@ describe('OpDrawer', () => {
   });
 
   it('flags the balance line and the quantity field as exceeded when the entered quantity is above what is held', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -427,8 +427,8 @@ describe('OpDrawer', () => {
   });
 
   it('shows the cross-platform transfer warning only when the destination platform differs from the origin', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     expect(document.querySelector('.xfer-warn')).not.toBeInTheDocument();
     selectCustomPlatform(screen.getByLabelText('Plataforma de destino'), 'Kraken');
@@ -439,8 +439,8 @@ describe('OpDrawer', () => {
 
   it('auto-fills each side\'s unit price, the destination quantity, and the received total from live prices', async () => {
     const prices = { ethereum: 100, solana: 20 };
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={prices} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={prices} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -454,8 +454,8 @@ describe('OpDrawer', () => {
 
   it('fetches the destination price when not already cached, then syncs the trade total', async () => {
     mockGetPricesOnce(20);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{ ethereum: 100 }} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{ ethereum: 100 }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -466,8 +466,8 @@ describe('OpDrawer', () => {
 
   it('leaves the trade total unsynced when the destination price fetch fails', async () => {
     mockGetPricesRejectOnce(new Error('network error'));
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{ ethereum: 100 }} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{ ethereum: 100 }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -479,7 +479,7 @@ describe('OpDrawer', () => {
 
   it('leaves the unit price unset when the Buy/Sell price fetch fails', async () => {
     mockGetPricesRejectOnce(new Error('network error'));
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await new Promise(r => setTimeout(r, 50));
     expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('');
@@ -487,21 +487,21 @@ describe('OpDrawer', () => {
   });
 
   it('keeps Trade-only fields (and the Buy/Sell platform) filled when switching tabs', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Kraken');
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     fireEvent.change(screen.getAllByLabelText('Quantidade')[0], { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
     expect((screen.getByLabelText('Plataforma') as HTMLInputElement).value).toBe('Kraken');
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('3');
   });
 
   it('clears fields for the next new-op session once the drawer has actually been closed and reopened', () => {
-    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
     const rerenderWith = (open: boolean) => rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
-      <OpDrawer open={open} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />
+      <OpDrawer open={open} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
     </CurrencyProvider></BalanceProvider></LocaleProvider>);
     rerenderWith(false);
     rerenderWith(true);
@@ -509,8 +509,8 @@ describe('OpDrawer', () => {
   });
 
   it('uses the same dropdown styling as the other coin fields and only shows owned assets for "Você vende"', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     fireEvent.focus(fromAssetEl);
@@ -522,8 +522,8 @@ describe('OpDrawer', () => {
   });
 
   it('closes the "Você vende" dropdown and clears its selection when clicking outside', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -535,8 +535,8 @@ describe('OpDrawer', () => {
   });
 
   it('clears and reopens the "Você vende" field when refocused after a selection', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
@@ -546,19 +546,20 @@ describe('OpDrawer', () => {
   });
 
   it('pre-fills every field when opened with editingOp and disables the Trade option', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} editingOp={editingOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} editingOp={editingOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByDisplayValue('2')).toBeInTheDocument();
     expect(screen.getByDisplayValue('100')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Kraken')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
-    expect(screen.getByRole('button', { name: 'Trade' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Troca' })).toBeDisabled();
   });
 
   it('submits updated fields via onSubmit when editing, not onSubmitTrade, then stays open with the edited values', async () => {
     const onSubmit = vi.fn();
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={onSubmitTrade} editingOp={editingOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const priorBuy: Op = { ...editingOp, id: 'buy-eth', type: 'Buy', qty: 10 };
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={onSubmitTrade} editingOp={editingOp} assets={[]} platformAssets={[]} ops={[priorBuy, editingOp]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ qty: 3, type: 'Sell', coinId: 'ethereum' }));
@@ -572,7 +573,7 @@ describe('OpDrawer', () => {
   it('leaves the operation untouched when closing an edit session without submitting', () => {
     const onSubmit = vi.fn();
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} editingOp={editingOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} editingOp={editingOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '999' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn')!);
     expect(onSubmit).not.toHaveBeenCalled();
@@ -582,7 +583,7 @@ describe('OpDrawer', () => {
   it('closes on Escape with no submission', () => {
     const onClose = vi.fn();
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -590,7 +591,7 @@ describe('OpDrawer', () => {
 
   it('closes on backdrop click with no submission', () => {
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(document.querySelector('.drawer-backdrop')!);
     expect(onClose).toHaveBeenCalled();
   });
@@ -598,7 +599,7 @@ describe('OpDrawer', () => {
   it('closes on Cancel, discarding in-progress field values, with no submission', () => {
     const onClose = vi.fn();
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '5' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn')!);
     expect(onClose).toHaveBeenCalled();
@@ -609,7 +610,7 @@ describe('OpDrawer', () => {
     let resolveSubmit: () => void = () => {};
     const onSubmit = vi.fn(() => new Promise<void>(resolve => { resolveSubmit = resolve; }));
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
@@ -624,7 +625,7 @@ describe('OpDrawer', () => {
   it('shows a spinner badge while fetching the price, then an "auto" badge once it resolves', async () => {
     let resolvePrice: (v: { bitcoin: { price: number; image: null } }) => void = () => {};
     vi.mocked(api.getPrices).mockReturnValueOnce(new Promise(resolve => { resolvePrice = resolve; }));
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await waitFor(() => expect(document.querySelector('.badge.fetching .mini-spin')).toBeInTheDocument());
     resolvePrice({ bitcoin: { price: 50000, image: null } });
@@ -634,7 +635,7 @@ describe('OpDrawer', () => {
 
   it('switches the price badge to "manual" when the auto-filled price is edited by hand', async () => {
     mockGetPricesOnce(50000);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await waitFor(() => expect(document.querySelector('.badge')).toHaveClass('auto'));
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '51000' } });
@@ -646,7 +647,7 @@ describe('OpDrawer', () => {
     vi.mocked(api.getPrices)
       .mockImplementationOnce(() => new Promise(resolve => { resolveFirst = resolve; }))
       .mockImplementationOnce(async (ids: string[]) => ({ [ids[0]]: { price: 2000, image: null } }));
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
     await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).toBe('2000.00'));
@@ -657,7 +658,7 @@ describe('OpDrawer', () => {
 
   it('shows the user\'s own holdings as instant suggestions when the coin field is focused and empty', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     vi.mocked(api.searchCoins).mockClear();
     fireEvent.focus(screen.getByLabelText('Moeda comprada'));
     expect(screen.getByText('Ethereum')).toBeInTheDocument();
@@ -667,7 +668,7 @@ describe('OpDrawer', () => {
   it('shows the real coin logo (not a placeholder) on an owned-holding suggestion when it is cached in avatarCache', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     const avatarCache = { ethereum: { url: 'https://cg.example/ethereum.png' } };
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} avatarCache={avatarCache} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={avatarCache} prices={{}} />);
     fireEvent.focus(screen.getByLabelText('Moeda comprada'));
     const img = document.querySelector('.search-item .coin img');
     expect(img).toHaveAttribute('src', 'https://cg.example/ethereum.png');
@@ -675,7 +676,7 @@ describe('OpDrawer', () => {
 
   it('falls back to initials on an owned-holding suggestion when it has no cached avatar', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.focus(screen.getByLabelText('Moeda comprada'));
     expect(document.querySelector('.search-item .coin img')).not.toBeInTheDocument();
     expect(document.querySelector('.search-item .coin')).toHaveTextContent('ETH');
@@ -683,7 +684,7 @@ describe('OpDrawer', () => {
 
   it('searches via the backend as soon as any character is typed', async () => {
     vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'b' } });
     await screen.findByText('Bitcoin');
     expect(api.searchCoins).toHaveBeenCalledWith('b');
@@ -693,7 +694,7 @@ describe('OpDrawer', () => {
     vi.useFakeTimers();
     try {
       vi.mocked(api.searchCoins).mockClear();
-      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
       const input = screen.getByLabelText('Moeda comprada');
       fireEvent.change(input, { target: { value: 'b' } });
       fireEvent.change(input, { target: { value: 'bi' } });
@@ -711,7 +712,7 @@ describe('OpDrawer', () => {
     vi.useFakeTimers();
     try {
       vi.mocked(api.searchCoins).mockClear();
-      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
       const input = screen.getByLabelText('Moeda comprada');
       fireEvent.change(input, { target: { value: 'bit' } });
       fireEvent.change(input, { target: { value: '' } });
@@ -726,7 +727,7 @@ describe('OpDrawer', () => {
     vi.mocked(api.searchCoins).mockResolvedValueOnce([
       { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
     ]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     const img = document.querySelector('.search-item .coin img');
@@ -735,7 +736,7 @@ describe('OpDrawer', () => {
 
   it('falls back to initials in the dropdown when a coin has no image', async () => {
     vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     expect(document.querySelector('.search-item .coin img')).not.toBeInTheDocument();
@@ -746,7 +747,7 @@ describe('OpDrawer', () => {
     vi.mocked(api.searchCoins).mockResolvedValueOnce([
       { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
     ]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     fireEvent.click(screen.getByText('Bitcoin'));
@@ -759,7 +760,7 @@ describe('OpDrawer', () => {
   it('closes the dropdown and clears the unit price when clicking outside the coin field', async () => {
     mockGetPricesOnce(50000);
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).not.toBe(''));
     fireEvent.focus(screen.getByLabelText('Moeda comprada'));
@@ -771,7 +772,7 @@ describe('OpDrawer', () => {
   });
 
   it('clicking a result inside the dropdown does not trigger the outside-click clear', async () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     expect((screen.getByLabelText('Moeda comprada') as HTMLInputElement).value).toBe('Bitcoin (BTC)');
   });
@@ -779,7 +780,7 @@ describe('OpDrawer', () => {
   it('clears the confirmed selection and price, and reopens suggestions, when the coin field is refocused', async () => {
     mockGetPricesOnce(50000);
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     await waitFor(() => expect((screen.getByLabelText('Preço unit.') as HTMLInputElement).value).not.toBe(''));
     fireEvent.focus(screen.getByLabelText('Moeda comprada'));
@@ -790,7 +791,7 @@ describe('OpDrawer', () => {
   });
 
   it('traps Tab within the drawer, wrapping at both ends', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const dialog = screen.getByRole('dialog');
     const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('input, select, button, textarea, [tabindex]:not([tabindex="-1"])'))
       .filter(el => !el.hasAttribute('disabled'));
@@ -806,29 +807,31 @@ describe('OpDrawer', () => {
 
   it('locks body scroll while open and restores the prior value after closing', () => {
     document.body.style.overflow = 'auto';
-    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(document.body.style.overflow).toBe('hidden');
-    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
     expect(document.body.style.overflow).toBe('auto');
   });
 
-  it('leverage chips appear only for a brand-new Buy/Sell, and are omitted from the submitted op when unset', async () => {
+  it('leverage chips appear only in trade mode, never in wallet mode, and are omitted when unset', async () => {
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(document.querySelector('.leverage-chips')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Compra' }));
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: undefined }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: undefined, kind: 'trade' }));
+  });
+
+  it('shows no leverage chips in wallet mode', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
   });
 
   it('selecting a leverage chip includes it in the submitted op; clicking it again deselects it', async () => {
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: '3x' }));
     expect(screen.getByRole('button', { name: '3x' })).toHaveClass('active');
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
@@ -839,7 +842,7 @@ describe('OpDrawer', () => {
   });
 
   it('slides the type panel directionally on switch without remounting it', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const before = document.querySelector('.type-panel');
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
     const after = document.querySelector('.type-panel');
@@ -853,37 +856,40 @@ describe('OpDrawer', () => {
   const closingBuyOp: Op = {
     id: 'buy-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
     type: 'Buy', qty: 1, price: 100, fee: 0, total: 100,
-    platformId: 'binance', platformName: 'Binance',
+    platformId: 'binance', platformName: 'Binance', kind: 'trade', side: 'long', leverage: 3,
   };
 
-  it('pre-fills asset/platform/quantity when opened with closingOp, and restricts type tabs to the opposite type + Trade', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+  it('pre-fills asset/platform/quantity when opened with closingOp, locking to the single resolving type with no swap tab', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
     expect(screen.queryByRole('button', { name: 'Compra' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Trade' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Troca' })).not.toBeInTheDocument();
+    expect(screen.getByText('Uma posição long só fecha com uma Venda')).toBeInTheDocument();
     expect(screen.getByDisplayValue('1')).toBeInTheDocument();
     expect(screen.getByText('Bitcoin (BTC)')).toBeInTheDocument();
     expect(screen.getByText('Binance')).toBeInTheDocument();
     expect(document.querySelector('.leverage-chips')).not.toBeInTheDocument();
   });
 
-  it('restricts tabs to Compra + Trade when closing a Sell', () => {
-    const closingSellOp: Op = { ...closingBuyOp, id: 'sell-1', type: 'Sell' };
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingSellOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+  it('locks to Compra with no swap tab when closing a short', () => {
+    const closingSellOp: Op = { ...closingBuyOp, id: 'sell-1', type: 'Sell', side: 'short' };
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingSellOp} assets={[]} platformAssets={[]} ops={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByRole('button', { name: 'Compra' })).toHaveClass('active');
     expect(screen.queryByRole('button', { name: 'Venda' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Troca' })).not.toBeInTheDocument();
+    expect(screen.getByText('Uma posição short só fecha com uma Compra')).toBeInTheDocument();
   });
 
   it('accounts for closures already recorded against the position when pre-filling the remaining quantity', () => {
     const closures = [{ id: 'c1', sourceOpId: 'buy-1', closingOpId: 'other', qtyClosed: 0.4, realizedPnl: 5 }];
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();
   });
 
   it('submits a simple close via onSubmitClose, not onSubmit, with the requested quantity', async () => {
     const onSubmitClose = vi.fn();
     const onSubmit = vi.fn();
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(onSubmitClose).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 150 }), 1));
@@ -892,7 +898,7 @@ describe('OpDrawer', () => {
 
   it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {
     const onClose = vi.fn();
-    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -901,44 +907,39 @@ describe('OpDrawer', () => {
 
   it('marks a long pre-filled platform/coin name for single-line truncation instead of wrapping', () => {
     const longOp: Op = { ...closingBuyOp, name: 'Coinbase Wrapped Bitcoin Extremely Long Name', platformName: 'A Very Long Custom Platform Name' };
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={longOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={longOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const [platformText, coinText] = document.querySelectorAll('.static-field-text');
     expect(platformText).toHaveTextContent('A Very Long Custom Platform Name');
     expect(coinText).toHaveTextContent('Coinbase Wrapped Bitcoin Extremely Long Name');
   });
 
   it('shows a platform and coin logo (or initials fallback) on the pre-filled static fields when closing', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const staticFields = document.querySelectorAll('.static-field');
     expect(staticFields[0].querySelector('.plogo')).toBeInTheDocument();
     expect(staticFields[1].querySelector('.coin')).toBeInTheDocument();
   });
 
   it('shows the currency symbol on the estimated P/L preview', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     const pnlValue = document.querySelector('.pnl-preview span:last-child');
     expect(pnlValue).toHaveTextContent('R$');
   });
 
   it('shows a unit price field on each Trade side and a read-only received Total', () => {
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     expect(screen.getAllByLabelText('Preço unit.')).toHaveLength(2);
     expect((screen.getByLabelText(/^Total/) as HTMLInputElement).readOnly).toBe(true);
   });
 
-  it('shows the estimated P/L resume in the Trade tab only when closing a position', () => {
-    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} avatarCache={{}} prices={{}} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    expect(document.querySelector('.pnl-preview')).not.toBeInTheDocument();
-    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
-      <OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} onSubmitTradeClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />
-    </CurrencyProvider></BalanceProvider></LocaleProvider>);
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    fireEvent.change(screen.getAllByLabelText('Preço unit.')[0], { target: { value: '150' } });
+  it('scales the estimated close P/L preview by the position leverage', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    // (150 - 100) * 1 qty * 3x leverage = 150.
     const pnl = document.querySelector('.pnl-preview span:last-child');
-    expect(pnl).toHaveTextContent('R$');
+    expect(pnl).toHaveTextContent('150,00');
     expect(pnl).toHaveClass('pnl-pos');
   });
 
@@ -946,8 +947,8 @@ describe('OpDrawer', () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();
-    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
-    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider><OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} /></CurrencyProvider></BalanceProvider></LocaleProvider>);
     expect(document.activeElement).toBe(trigger);
     document.body.removeChild(trigger);
   });

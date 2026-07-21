@@ -100,6 +100,8 @@ const esES: UIText = {
   history_form_swap: 'Canje',
   history_opType_buyLong: 'Compra · Long',
   history_opType_sellShort: 'Venta · Short',
+  trade_side_long: 'Long',
+  trade_side_short: 'Short',
   wallet_available_balance: 'Saldo disponible',
   wallet_max_button: 'Máx',
   wallet_estimated_pnl: 'P/L estimado (vs. costo medio)',

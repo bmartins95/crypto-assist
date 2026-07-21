@@ -100,6 +100,8 @@ const deDE: UIText = {
   history_form_swap: 'Tausch',
   history_opType_buyLong: 'Kauf · Long',
   history_opType_sellShort: 'Verkauf · Short',
+  trade_side_long: 'Long',
+  trade_side_short: 'Short',
   wallet_available_balance: 'Verfügbares Guthaben',
   wallet_max_button: 'Max',
   wallet_estimated_pnl: 'Geschätzter G/V (vs. Durchschnittskosten)',

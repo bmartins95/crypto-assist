@@ -100,6 +100,8 @@ const frFR: UIText = {
   history_form_swap: 'Échange',
   history_opType_buyLong: 'Achat · Long',
   history_opType_sellShort: 'Vente · Short',
+  trade_side_long: 'Long',
+  trade_side_short: 'Short',
   wallet_available_balance: 'Solde disponible',
   wallet_max_button: 'Max',
   wallet_estimated_pnl: 'P/L estimé (vs coût moyen)',

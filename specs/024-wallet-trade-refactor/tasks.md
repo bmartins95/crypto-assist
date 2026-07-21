@@ -22,7 +22,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm local dev environment is up (`backend/AGENTS.md`'s Docker Postgres + `uv run dev.py`, `cd web && npm run dev`) so migrations 014/015 apply automatically on first backend connection
+- [x] T001 Confirm local dev environment is up (`backend/AGENTS.md`'s Docker Postgres + `uv run dev.py`, `cd web && npm run dev`) so migrations 014/015 apply automatically on first backend connection
 
 ---
 
@@ -30,16 +30,16 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 **⚠️ CRITICAL**: No user story task may start until this phase is complete.
 
-- [ ] T002 [P] Add migration `backend/db/migrations/014_op_kind_and_side.sql`: `ALTER TABLE ops ADD COLUMN op_kind VARCHAR(10) NOT NULL DEFAULT 'wallet'`, `ADD COLUMN side VARCHAR(5)` — per data-model.md
-- [ ] T003 Add migration `backend/db/migrations/015_backfill_op_kind.py`: classify pre-existing ops with `leverage > 1` as `op_kind='trade'` with `side` derived from `type`; delete any `op_closures` row referencing a now-`wallet`-classified op — per data-model.md's ordered backfill steps (depends on T002 for the column names it targets)
-- [ ] T004 [P] `backend/app/models.py`: add `op_kind: str`, `side: str | None` to `NewOp`/`Op`; validate `leverage` is `None` when `op_kind='wallet'`; validate `side` is set iff `op_kind='trade'`; derive `side` server-side from `type` on create for trade ops (never trust a client-supplied `side`)
-- [ ] T005 `backend/app/routes/ops.py`: `PUT /api/ops/{id}` rejects 400 when the request's `op_kind` or `side` differs from the operation's stored value — classification and trade direction are immutable after creation (spec FR-025, contracts/close-endpoint-delta.md) (depends on T004)
-- [ ] T006 [P] `shared/src/types.ts`: add `kind: 'wallet' | 'trade'`, `side?: 'long' | 'short'` to `NewOp`/`Op`; export from `shared/src/index.ts`
-- [ ] T007 [P] `shared/src/portfolio.ts`: `computePositions`/`computeProfitByAsset` filter their input to `kind: 'wallet'` ops before computing (spec FR-023) (depends on T006)
-- [ ] T008 [P] Create `shared/src/walletFifo.ts`: `computeWalletBalance(ops, coinId, platformId, currency)`, `computeWalletRealizedPnl(sellOp, ops)`, `computeWalletEditImpact(ops, editedOpId, proposedOp)` per data-model.md's FIFO algorithm; export from `shared/src/index.ts` (depends on T006)
-- [ ] T009 [P] Create `shared/src/cycles.ts`: `computeCycles(ops, closures)` (folded from item 27, filtered to `kind: 'trade'`), `Cycle` type; export from `shared/src/index.ts` (depends on T006)
-- [ ] T010 [P] `shared/src/positions.ts`: extend `estimateClosePnl` to scale by the source op's `leverage` and invert sign when `side: 'short'` (depends on T006)
-- [ ] T011 [P] Add i18n keys to `shared/src/i18n/types.ts` and all 10 locale files: `history_action_moveWallet`, `history_action_newTrade`, `wallet_available_balance`, `wallet_max_button`, `wallet_estimated_pnl`, `trade_side_long`, `trade_side_short`, `trade_close_locked_hint`, `cycle_tag_aria`, `cycle_header`, `cycle_status_partial`, `cycle_status_closed`, `cycle_entry_label`, `cycle_exit_label`, `cycle_exit_partial_label`, `cycle_remaining_label`, `cycle_realized_label`
+- [x] T002 [P] Add migration `backend/db/migrations/014_op_kind_and_side.sql`: `ALTER TABLE ops ADD COLUMN op_kind VARCHAR(10) NOT NULL DEFAULT 'wallet'`, `ADD COLUMN side VARCHAR(5)` — per data-model.md
+- [x] T003 Add migration `backend/db/migrations/015_backfill_op_kind.py`: classify pre-existing ops with `leverage > 1` as `op_kind='trade'` with `side` derived from `type`; delete any `op_closures` row referencing a now-`wallet`-classified op — per data-model.md's ordered backfill steps (depends on T002 for the column names it targets)
+- [x] T004 [P] `backend/app/models.py`: add `op_kind: str`, `side: str | None` to `NewOp`/`Op`; validate `leverage` is `None` when `op_kind='wallet'`; validate `side` is set iff `op_kind='trade'`; derive `side` server-side from `type` on create for trade ops (never trust a client-supplied `side`)
+- [x] T005 `backend/app/routes/ops.py`: `PUT /api/ops/{id}` rejects 400 when the request's `op_kind` or `side` differs from the operation's stored value — classification and trade direction are immutable after creation (spec FR-025, contracts/close-endpoint-delta.md) (depends on T004)
+- [x] T006 [P] `shared/src/types.ts`: add `kind: 'wallet' | 'trade'`, `side?: 'long' | 'short'` to `NewOp`/`Op`; export from `shared/src/index.ts`
+- [x] T007 [P] `shared/src/portfolio.ts`: `computePositions`/`computeProfitByAsset` filter their input to `kind: 'wallet'` ops before computing (spec FR-023) (depends on T006)
+- [x] T008 [P] Create `shared/src/walletFifo.ts`: `computeWalletBalance(ops, coinId, platformId, currency)`, `computeWalletRealizedPnl(sellOp, ops)`, `computeWalletEditImpact(ops, editedOpId, proposedOp)` per data-model.md's FIFO algorithm; export from `shared/src/index.ts` (depends on T006)
+- [x] T009 [P] Create `shared/src/cycles.ts`: `computeCycles(ops, closures)` (folded from item 27, filtered to `kind: 'trade'`), `Cycle` type; export from `shared/src/index.ts` (depends on T006)
+- [x] T010 [P] `shared/src/positions.ts`: extend `estimateClosePnl` to scale by the source op's `leverage` and invert sign when `side: 'short'` (depends on T006)
+- [x] T011 [P] Add i18n keys to `shared/src/i18n/types.ts` and all 10 locale files: `history_action_moveWallet`, `history_action_newTrade`, `wallet_available_balance`, `wallet_max_button`, `wallet_estimated_pnl`, `trade_side_long`, `trade_side_short`, `trade_close_locked_hint`, `cycle_tag_aria`, `cycle_header`, `cycle_status_partial`, `cycle_status_closed`, `cycle_entry_label`, `cycle_exit_label`, `cycle_exit_partial_label`, `cycle_remaining_label`, `cycle_realized_label`
 
 **Checkpoint**: Data model, shared derivation logic (FIFO, portfolio exclusion, cycles), classification-immutability guard, and i18n keys are in place — user story work can begin.
 
@@ -54,17 +54,17 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 ### Tests for User Story 1
 
 - [ ] T012 [P] [US1] `web/src/lib/walletFifo.test.ts` — `computeWalletBalance`/`computeWalletRealizedPnl` happy path (multiple buys at different prices/platforms, partial sell, swap consuming a lot and creating a new one)
-- [ ] T013 [P] [US1] Extend `backend/tests/test_ops.py` — creating a wallet op with `leverage` set is rejected 400; a plain create defaults to `op_kind='wallet'`; `PUT` rejecting a request that changes `op_kind`/`side` is rejected 400; `POST` for a wallet Sell/Swap exceeding the available FIFO balance is rejected 400
-- [ ] T014 [P] [US1] Extend `backend/tests/test_op_closures.py` — `POST /api/ops/{id}/close` rejects 400 when `{id}` resolves to `op_kind='wallet'`
+- [x] T013 [P] [US1] Extend `backend/tests/test_ops.py` — creating a wallet op with `leverage` set is rejected 400; a plain create defaults to `op_kind='wallet'`; `PUT` rejecting a request that changes `op_kind`/`side` is rejected 400; `POST` for a wallet Sell/Swap exceeding the available FIFO balance is rejected 400
+- [x] T014 [P] [US1] Extend `backend/tests/test_op_closures.py` — `POST /api/ops/{id}/close` rejects 400 when `{id}` resolves to `op_kind='wallet'`
 - [ ] T015 [P] [US1] Extend `web/src/components/HistoryTab.test.tsx` — wallet rows show no status/close action; a wallet Sell row shows realized P/L; a Swap pair renders as one collapsed row
-- [ ] T016 [P] [US1] Extend `web/src/components/OpDrawer.test.tsx` — wallet mode shows Buy/Sell/Swap tabs with no leverage field; Sell/Swap show available balance + Max; Sell shows a live P/L footer; over-balance quantity is blocked client-side
+- [x] T016 [P] [US1] Extend `web/src/components/OpDrawer.test.tsx` — wallet mode shows Buy/Sell/Swap tabs with no leverage field; Sell/Swap show available balance + Max; Sell shows a live P/L footer; over-balance quantity is blocked client-side
 
 ### Implementation for User Story 1
 
 - [ ] T017 [US1] `backend/app/routes/op_closures.py`: reject close (400) when the source op's `op_kind` is `'wallet'`
 - [ ] T018 [US1] `backend/app/routes/ops.py`: `create_op` rejects 400 when a wallet Sell/Swap's `qty` exceeds `computeWalletBalance`'s available quantity for that coin/platform/currency (Python port of the shared FIFO walk from T008 — the server must not trust the client to have enforced this) (depends on T008)
 - [ ] T019 [US1] `web/src/components/HistoryTab.tsx`: two header buttons ("Move wallet" / "New trade") replacing "+ Add operation"; wallet rows render with no status/close columns; wallet Sell rows show FIFO-derived realized P/L; Swap-paired rows (`tradeGroupId`-linked, `kind: 'wallet'`) collapse into a single row
-- [ ] T020 [US1] `web/src/components/OpDrawer.tsx`: wallet-mode fieldsets — Buy/Sell/Swap tabs (rename the existing "Trade" tab label to "Swap" in this mode only), no leverage field, available-balance + Max button on Sell/Swap (via `computeWalletBalance`), live estimated-P/L footer on Sell (via `computeWalletRealizedPnl`)
+- [x] T020 [US1] `web/src/components/OpDrawer.tsx`: wallet-mode fieldsets — Buy/Sell/Swap tabs (rename the existing "Trade" tab label to "Swap" in this mode only), no leverage field, available-balance + Max button on Sell/Swap (via `computeWalletBalance`), live estimated-P/L footer on Sell (via `computeWalletRealizedPnl`)
 - [ ] T021 [US1] `web/src/app/globals.css`: two-button header styles, wallet available-balance card, Swap chip color (`#a78bfa` suggested)
 
 **Checkpoint**: Wallet flow is fully de-statused and FIFO-driven, validated at both UI and API boundary; independently testable and demoable.
@@ -85,9 +85,9 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] `backend/app/routes/ops.py`: on create, when `op_kind='trade'`, derive and store `side` from `type` server-side
+- [x] T025 [US2] `backend/app/routes/ops.py`: on create, when `op_kind='trade'`, derive and store `side` from `type` server-side
 - [ ] T026 [US2] `web/src/components/OpDrawer.tsx`: trade-mode fieldset — "Buy · Long"/"Sell · Short" tabs, leverage chip selection (1x/2x/3x/5x/10x), no wallet-balance UI or validation
-- [ ] T027 [US2] `web/src/components/HistoryTab.tsx`: trade-row rendering — reuse item 26's status pill, leverage badge, add the Long/Short label and the 2px orange left-border marker
+- [x] T027 [US2] `web/src/components/HistoryTab.tsx`: trade-row rendering — reuse item 26's status pill, leverage badge, add the Long/Short label and the 2px orange left-border marker
 - [ ] T028 [US2] `web/src/app/globals.css`: trade-row left-border marker and Long/Short label styles
 
 **Checkpoint**: Trade positions can be opened independently of wallet state; both US1 and US2 work together without interference.
@@ -102,7 +102,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Extend `backend/tests/test_op_closures.py` — closing a `side: 'short'` position with a `type: 'Sell'` closing op is rejected 400 (must be Buy); closing a `side: 'long'` position with `type: 'Buy'` is rejected 400 (must be Sell); a Swap-mode close against a trade position is rejected
+- [x] T029 [P] [US3] Extend `backend/tests/test_op_closures.py` — closing a `side: 'short'` position with a `type: 'Sell'` closing op is rejected 400 (must be Buy); closing a `side: 'long'` position with `type: 'Buy'` is rejected 400 (must be Sell); a Swap-mode close against a trade position is rejected
 - [ ] T030 [P] [US3] Extend `web/src/components/OpDrawer.test.tsx` — close mode shows a single locked segment (no tab choice) matching the position's side; no Swap option is offered; the P/L footer inverts sign for a short and scales by leverage
 
 ### Implementation for User Story 3
@@ -129,7 +129,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 - [ ] T035 [US4] Create `web/src/components/CyclePopover.tsx` — header (`cycle_header` + partial/closed badge), entry row(s), exit rows, remaining-open row, realized-P/L footer; vertical flip near the viewport's lower half
 - [ ] T036 [US4] `web/src/components/HistoryTab.tsx`: render the cycle tag next to the type chip on any row resolving to a `Cycle` via `computeCycles` (trade rows only); wire hover-open/leave-close (desktop) and tap-open/tap-outside-close (touch); keyboard-operable (`button`, opens on focus, closes on `Esc`)
-- [ ] T037 [US4] `web/src/app/globals.css`: cycle tag + popover styles (`#c4b5fd` cycle color, `#141418` popover surface, ~160ms transition, `overflow: visible` on the table container)
+- [x] T037 [US4] `web/src/app/globals.css`: cycle tag + popover styles (`#c4b5fd` cycle color, `#141418` popover surface, ~160ms transition, `overflow: visible` on the table container)
 
 **Checkpoint**: Cycle summaries work for trade positions only; no cycle tag appears on any wallet row.
 
@@ -144,7 +144,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 ### Tests for User Story 5
 
 - [ ] T038 [P] [US5] Extend `web/src/lib/walletFifo.test.ts` — `computeWalletEditImpact` returns the correct affected-count and first-negative-balance date across edits/deletes of Buy, Sell, and either side of a Swap
-- [ ] T039 [P] [US5] Extend `backend/tests/test_ops.py` — `PUT`/`DELETE /api/ops/{id}` reject 400 when the change would produce a negative wallet balance at any later date for that coin/platform/currency
+- [x] T039 [P] [US5] Extend `backend/tests/test_ops.py` — `PUT`/`DELETE /api/ops/{id}` reject 400 when the change would produce a negative wallet balance at any later date for that coin/platform/currency
 - [ ] T040 [P] [US5] Extend `web/src/components/HistoryTab.test.tsx` — editing/deleting an operation with dependent later ops shows the existing `ConfirmDialog` describing the impact; an attempt that would go negative is blocked with an explanatory message and no dialog
 
 ### Implementation for User Story 5

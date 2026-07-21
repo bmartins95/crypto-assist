@@ -100,6 +100,8 @@ const enUS: UIText = {
   history_form_swap: 'Swap',
   history_opType_buyLong: 'Buy · Long',
   history_opType_sellShort: 'Sell · Short',
+  trade_side_long: 'Long',
+  trade_side_short: 'Short',
   wallet_available_balance: 'Available balance',
   wallet_max_button: 'Max',
   wallet_estimated_pnl: 'Estimated P/L (vs. avg. cost)',

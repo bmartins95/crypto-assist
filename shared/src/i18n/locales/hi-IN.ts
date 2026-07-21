@@ -100,6 +100,8 @@ const hiIN: UIText = {
   history_form_swap: 'स्वैप',
   history_opType_buyLong: 'खरीद · लॉन्ग',
   history_opType_sellShort: 'बिक्री · शॉर्ट',
+  trade_side_long: 'लॉन्ग',
+  trade_side_short: 'शॉर्ट',
   wallet_available_balance: 'उपलब्ध शेष',
   wallet_max_button: 'अधिकतम',
   wallet_estimated_pnl: 'अनुमानित लाभ/हानि (औसत लागत की तुलना में)',

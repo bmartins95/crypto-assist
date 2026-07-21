@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Op, NewOp, OpClosure, Asset, AssetWithPlatform, AvatarCache, Prices, Platform, Leverage } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
 import { fmtQty } from '@/lib/format';
-import { openQtyRemaining, estimateClosePnl } from '@/lib/portfolio';
+import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWalletRealizedPnl } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
@@ -18,16 +18,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (op: NewOp) => void | Promise<void>;
+  // Wallet Swap only — a trade position can never be closed via swap (item 28 removes
+  // that path; see contracts/close-endpoint-delta.md's "Removed capability").
   onSubmitTrade: (sell: NewOp, buy: NewOp) => void | Promise<void>;
-  // Only relevant when closingOp is set: closes the position via a simple Buy/Sell.
+  // Only relevant when closingOp is set: closes the trade position via a locked-type
+  // Buy/Sell (spec FR-015).
   onSubmitClose?: (op: NewOp, qtyToClose: number) => void | Promise<void>;
-  // Only relevant when closingOp is set and the user picks Trade: the leg matching
-  // closingOp's opposite type closes it; the other leg is a brand-new, independently
-  // open operation (see specs/023-position-closing/contracts/close-endpoint.md).
-  onSubmitTradeClose?: (closingLeg: NewOp, qtyToClose: number, newLeg: NewOp) => void | Promise<void>;
   editingOp?: Op;
-  // The open/partial position being closed. Mutually exclusive with editingOp.
+  // The open/partial trade position being closed. Mutually exclusive with editingOp.
   closingOp?: Op;
+  // Which button opened the drawer for a brand-new operation ('wallet' via "Move
+  // wallet", 'trade' via "New trade"). Ignored when editingOp/closingOp is set — their
+  // own kind/side determine the mode instead.
+  newOpKind?: 'wallet' | 'trade';
+  ops: Op[];
   closures?: OpClosure[];
   assets: Asset[];
   platformAssets: AssetWithPlatform[];
@@ -184,18 +188,24 @@ const today = () => new Date().toISOString().slice(0, 10);
 const DONE_DISPLAY_MS = 1300;
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
 
-type OpTypeOption = 'buy' | 'sell' | 'trade';
-const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'trade'];
+type OpTypeOption = 'buy' | 'sell' | 'swap';
+const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'swap'];
+type DrawerMode = 'wallet' | 'trade' | 'close';
 
 export default function OpDrawer({
-  open, onClose, onSubmit, onSubmitTrade, onSubmitClose, onSubmitTradeClose,
-  editingOp, closingOp, closures = [], assets, platformAssets, avatarCache, prices,
+  open, onClose, onSubmit, onSubmitTrade, onSubmitClose,
+  editingOp, closingOp, newOpKind, ops, closures = [], assets, platformAssets, avatarCache, prices,
 }: Props) {
   const { t, locale } = useLocale();
   const { currency, rates, fmtFromCurrency } = useCurrency();
   const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
+  const mode: DrawerMode = closingOp
+    ? 'close'
+    : editingOp
+      ? (editingOp.kind === 'trade' ? 'trade' : 'wallet')
+      : (newOpKind === 'trade' ? 'trade' : 'wallet');
   const [opType, setOpType] = useState<OpTypeOption>('buy');
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -268,20 +278,14 @@ export default function OpDrawer({
   const fromOverBalance = !!fromHolding && (parseFloat(fromQty) || 0) > fromHolding.qty;
   const showTransferWarning = !!originPlatform && !!destPlatform && destPlatform.id !== originPlatform.id;
 
-  // Which type(s) can legally close closingOp — the row's own type is never offered
-  // (FR-006). Undefined (no closingOp) means every type is available, as today.
+  // Closing a trade position locks the type to whichever side resolves it — a short
+  // closes only via Buy, a long only via Sell (spec FR-015); never a swap. A brand-new
+  // trade offers Buy/Sell (Long/Short) with no swap; a wallet op offers all three.
   const allowedTypes: OpTypeOption[] = closingOp
-    ? closingOp.type === 'Buy' ? ['sell', 'trade'] : ['buy', 'trade']
-    : ['buy', 'sell', 'trade'];
-  // When closing via Trade, this is the leg that must match closingOp (and therefore
-  // calls onSubmitTradeClose's closing-leg path) — 'sell' closes an open Buy, 'buy'
-  // closes an open Sell.
-  const closeRole: 'sell' | 'buy' | null = closingOp ? (closingOp.type === 'Buy' ? 'sell' : 'buy') : null;
+    ? [closingOp.side === 'short' ? 'buy' : 'sell']
+    : mode === 'trade' ? ['buy', 'sell'] : ['buy', 'sell', 'swap'];
   const remainingQty = closingOp ? openQtyRemaining(closingOp, closures) : 0;
   const closingPlatform = closingOp ? resolveOpPlatform(closingOp.platformId, closingOp.platformName) : null;
-  const closingName = closingOp?.name ?? '';
-  const closingSymbol = closingOp?.symbol ?? '';
-  const closingCoinId = closingOp?.coinId ?? '';
 
   const renderStaticPlatform = (p: typeof closingPlatform) => (
     <div className="static-field">
@@ -318,29 +322,16 @@ export default function OpDrawer({
       } else if (closingOp) {
         const remaining = openQtyRemaining(closingOp, closures);
         const p = resolveOpPlatform(closingOp.platformId, closingOp.platformName);
-        const closingCoin = { coinId: closingOp.coinId, symbol: closingOp.symbol, name: closingOp.name };
-        setOpType(closingOp.type === 'Buy' ? 'sell' : 'buy');
+        setOpType(closingOp.side === 'short' ? 'buy' : 'sell');
         setDate(today());
         setPlatform(p);
-        setCoin(closingCoin);
+        setCoin({ coinId: closingOp.coinId, symbol: closingOp.symbol, name: closingOp.name });
         setCoinText(`${closingOp.name} (${closingOp.symbol})`);
         setQty(String(remaining));
         setUnitPrice('');
         setPriceState('idle');
         setFee('');
         resetTrade();
-        // Pre-fill the Trade side matching closeRole too, so switching tabs keeps continuity.
-        if (closingOp.type === 'Buy') {
-          setOriginPlatform(p);
-          setFromCoinId(closingOp.coinId);
-          setFromCoinText(`${closingOp.name} (${closingOp.symbol})`);
-          setFromQty(String(remaining));
-        } else {
-          setDestPlatform(p);
-          setToCoin(closingCoin);
-          setToCoinText(`${closingOp.name} (${closingOp.symbol})`);
-          setToQty(String(remaining));
-        }
       } else {
         setOpType('buy');
         resetBuySell();
@@ -421,6 +412,31 @@ export default function OpDrawer({
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
+  // Excludes the op being edited so the preview reflects the balance available before
+  // this edit, not a figure that already double-counts it.
+  const opsForWalletPreview = useMemo(
+    () => (editingOp ? ops.filter(o => o.id !== editingOp.id) : ops),
+    [ops, editingOp],
+  );
+  const walletBalance = useMemo(
+    () => (mode === 'wallet' && opType === 'sell' && coin && platform)
+      ? computeWalletBalance(opsForWalletPreview, coin.coinId, platform.id, editingOp?.currency ?? currency)
+      : null,
+    [mode, opType, coin, platform, opsForWalletPreview, editingOp, currency],
+  );
+  const walletOverBalance = !!walletBalance && qtyNum > walletBalance.availableQty + 1e-9;
+  const walletEstimatedPnl = (mode === 'wallet' && opType === 'sell' && coin && platform && qtyNum > 0 && priceNum > 0)
+    ? (() => {
+        const preview: Op = {
+          id: '__wallet_preview__', date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
+          type: 'Sell', qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
+          platformId: platform.id, platformName: platform.name,
+          currency: editingOp?.currency ?? currency, kind: 'wallet',
+        };
+        return computeWalletRealizedPnl(preview, [...opsForWalletPreview, preview]);
+      })()
+    : null;
+
   const fromQtyNum = parseFloat(fromQty) || 0;
   const toQtyNum = parseFloat(toQty) || 0;
   const fromPriceNum = parseFloat(fromUnitPrice) || 0;
@@ -444,12 +460,16 @@ export default function OpDrawer({
 
   const handleSubmit = async () => {
     if (phase !== 'idle') return;
-    if (opType === 'trade') { await submitTrade(); return; }
+    if (opType === 'swap') { await submitTrade(); return; }
     if (!coin || qtyNum <= 0 || priceNum <= 0) {
       setError(t.history_form_validationRequired);
       return;
     }
     if (closingOp && qtyNum > remainingQty + 1e-9) {
+      setError(t.history_form_validationRequired);
+      return;
+    }
+    if (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance) {
       setError(t.history_form_validationRequired);
       return;
     }
@@ -459,7 +479,11 @@ export default function OpDrawer({
       qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
       platformId: platform?.id, platformName: platform?.name,
       currency: editingOp?.currency ?? closingOp?.currency ?? currency,
-      leverage: !editingOp && !closingOp ? (leverage ?? undefined) : undefined,
+      leverage: mode === 'trade' && !editingOp && !closingOp ? (leverage ?? undefined) : undefined,
+      // Classification is fixed at creation (spec FR-025) — an edit must echo the
+      // stored op's kind/side exactly, never re-derive it from the current mode.
+      kind: editingOp ? editingOp.kind : closingOp ? closingOp.kind : (mode === 'trade' ? 'trade' : 'wallet'),
+      side: editingOp ? editingOp.side : undefined,
     };
     setPhase('loading');
     try {
@@ -483,7 +507,7 @@ export default function OpDrawer({
   // the coin changes before this fetch resolves; a manual edit flips the badge to
   // 'manual' and this effect won't clobber it (it only re-runs on coin/type change).
   useEffect(() => {
-    if (!fromCoinId || opType !== 'trade') return;
+    if (!fromCoinId || opType !== 'swap') return;
     let cancelled = false;
     setFromPriceState('fetching');
     (async () => {
@@ -497,7 +521,7 @@ export default function OpDrawer({
   }, [fromCoinId, opType]);
 
   useEffect(() => {
-    if (!toCoin || opType !== 'trade') return;
+    if (!toCoin || opType !== 'swap') return;
     let cancelled = false;
     setToPriceState('fetching');
     (async () => {
@@ -515,12 +539,14 @@ export default function OpDrawer({
   // Keyed off the sell side and both unit prices, never off toQty, so a manual toQty
   // edit isn't overwritten unless an upstream value changes.
   useEffect(() => {
-    if (opType !== 'trade') return;
+    if (opType !== 'swap') return;
     const sold = (parseFloat(fromQty) || 0) * (parseFloat(fromUnitPrice) || 0);
     const tPrice = parseFloat(toUnitPrice) || 0;
     if (sold > 0 && tPrice > 0) setToQty((sold / tPrice).toFixed(8).replace(/\.?0+$/, ''));
   }, [fromQty, fromUnitPrice, toUnitPrice, opType]);
 
+  // Wallet Swap only — a trade position never closes via swap (allowedTypes excludes
+  // 'swap' whenever closingOp is set, so this is unreachable in close mode).
   const submitTrade = async () => {
     if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || fromPriceNum <= 0 || toPriceNum <= 0) {
       setError(t.history_form_validationRequired);
@@ -531,43 +557,22 @@ export default function OpDrawer({
       setError(t.trade_form_sameAsset);
       return;
     }
-    if (closingOp && closeRole === 'sell' && fromQtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
-    if (closingOp && closeRole === 'buy' && toQtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
     const fromAsset = originHoldings.find(a => a.coinId === fromCoinId);
-    const tradeCurrency = closingOp?.currency ?? currency;
     const sellOp: NewOp = {
-      date, coinId: fromCoinId,
-      symbol: (closingOp && closeRole === 'sell') ? closingOp.symbol : (fromAsset?.symbol || ''),
-      name: (closingOp && closeRole === 'sell') ? closingOp.name : (fromAsset?.name || ''),
+      date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
       type: 'Sell', qty: fromQtyNum, price: fromPriceNum, fee: 0, total: soldValue,
       platformId: originPlatform.id, platformName: originPlatform.name,
-      currency: tradeCurrency,
+      currency, kind: 'wallet',
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
       type: 'Buy', qty: toQtyNum, price: toPriceNum, fee: tradeFeeNum,
       total: receivedTotal + tradeFeeNum, platformId: effectiveDest.id, platformName: effectiveDest.name,
-      currency: tradeCurrency,
+      currency, kind: 'wallet',
     };
     setPhase('loading');
     try {
-      if (closingOp && closeRole === 'sell' && buyOp.coinId !== closingOp.coinId) {
-        // Cross-asset close: the received asset alone is the closer of the source long —
-        // no separate same-asset Sell leg (the source drop is derived from the closure).
-        await onSubmitClose?.(buyOp, fromQtyNum);
-      } else if (closingOp && closeRole === 'sell') {
-        await onSubmitTradeClose?.(sellOp, fromQtyNum, buyOp);
-      } else if (closingOp && closeRole === 'buy') {
-        await onSubmitTradeClose?.(buyOp, toQtyNum, sellOp);
-      } else {
-        await onSubmitTrade(sellOp, buyOp);
-      }
+      await onSubmitTrade(sellOp, buyOp);
       finishAfterSave();
     } catch {
       setPhase('idle');
@@ -614,17 +619,26 @@ export default function OpDrawer({
             <label htmlFor="drawer-type">{t.history_form_type}</label>
             <div className="seg-ctrl seg-tipo" id="drawer-type">
               {allowedTypes.includes('buy') && (
-                <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy}>{t.history_opType_buy}</button>
+                <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy || !!closingOp}>
+                  {mode === 'trade' ? t.history_opType_buyLong : t.history_opType_buy}
+                </button>
               )}
               {allowedTypes.includes('sell') && (
-                <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy}>{t.history_opType_sell}</button>
+                <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy || !!closingOp}>
+                  {mode === 'trade' ? t.history_opType_sellShort : t.history_opType_sell}
+                </button>
               )}
-              <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={busy || !!editingOp}>{t.history_form_trade}</button>
+              {allowedTypes.includes('swap') && (
+                <button type="button" className={opType === 'swap' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('swap')} disabled={busy || !!editingOp}>{t.history_form_swap}</button>
+              )}
             </div>
+            {closingOp && (
+              <div className="fhint">{closingOp.side === 'short' ? t.trade_close_locked_hint_short : t.trade_close_locked_hint_long}</div>
+            )}
           </div>
 
           <div className="type-panel" ref={panelRef}>
-          {opType !== 'trade' ? (
+          {opType !== 'swap' ? (
             <>
               <div className="drawer-grid">
                 <div className="fld">
@@ -650,13 +664,20 @@ export default function OpDrawer({
                     onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
                 )}
               </div>
+              {walletBalance && (
+                <div className={`bal-row${walletOverBalance ? ' err' : ''}`}>
+                  <span>{(walletOverBalance ? t.trade_form_balanceExceeded : t.wallet_available_balance)
+                    .replace('{qty}', fmtQty(walletBalance.availableQty, locale)).replace('{symbol}', coin?.symbol ?? '')}</span>
+                  <button type="button" className="max" onClick={() => setQty(String(walletBalance.availableQty))}>{t.wallet_max_button}</button>
+                </div>
+              )}
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
-                  value={qty} onChange={setQty} suffix={coin?.symbol} />
+                  value={qty} onChange={setQty} suffix={coin?.symbol} error={walletOverBalance} />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
                   value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
               </div>
-              {!editingOp && !closingOp && (
+              {mode === 'trade' && !editingOp && !closingOp && (
                 <div className="fld">
                   <label>{t.op_leverage_label}</label>
                   <div className="leverage-chips">
@@ -688,6 +709,14 @@ export default function OpDrawer({
                   </div>
                 );
               })()}
+              {walletEstimatedPnl !== null && (
+                <div className="pnl-preview">
+                  <span>{t.wallet_estimated_pnl}</span>
+                  <span className={walletEstimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
+                    {fmtFromCurrency(walletEstimatedPnl, editingOp?.currency ?? currency)}
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -701,42 +730,29 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
-                    {closeRole === 'sell' ? (
-                      renderStaticPlatform(closingPlatform)
-                    ) : (
-                      <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
-                        options={heldPlatforms} />
-                    )}
+                    <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
+                      options={heldPlatforms} />
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
-                    {closeRole === 'sell' ? (
-                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
-                    ) : (
-                      <CoinSearch id="drawer-tr-from"
-                        placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
-                        disabled={!originPlatform}
-                        restrictTo={originHoldings.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }))}
-                        emptyLabel={originPlatform ? t.trade_form_noAssetsOnPlatform.replace('{platform}', originPlatform.name) : undefined}
-                        groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
-                        qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
-                        value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
-                        selected={fromCoinId ? { coinId: fromCoinId, symbol: fromHolding?.symbol || '', name: '' } : null}
-                        onClear={() => setFromCoinId('')} />
-                    )}
+                    <CoinSearch id="drawer-tr-from"
+                      placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
+                      disabled={!originPlatform}
+                      restrictTo={originHoldings.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }))}
+                      emptyLabel={originPlatform ? t.trade_form_noAssetsOnPlatform.replace('{platform}', originPlatform.name) : undefined}
+                      groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
+                      qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
+                      value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
+                      selected={fromCoinId ? { coinId: fromCoinId, symbol: fromHolding?.symbol || '', name: '' } : null}
+                      onClear={() => setFromCoinId('')} />
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
-                    value={fromQty} suffix={closeRole === 'sell' ? closingSymbol : fromHolding?.symbol}
-                    error={closeRole === 'sell' ? (parseFloat(fromQty) || 0) > remainingQty : fromOverBalance}
+                    value={fromQty} suffix={fromHolding?.symbol}
+                    error={fromOverBalance}
                     onChange={setFromQty}
-                    hint={closeRole === 'sell' ? (
-                      <span className={`bal-row${(parseFloat(fromQty) || 0) > remainingQty ? ' err' : ''}`}>
-                        <span>{((parseFloat(fromQty) || 0) > remainingQty ? t.trade_form_balanceExceeded : t.trade_form_balance)
-                          .replace('{qty}', fmtQty(remainingQty, locale)).replace('{symbol}', closingSymbol)}</span>
-                      </span>
-                    ) : fromHolding && (
+                    hint={fromHolding && (
                       <span className={`bal-row${fromOverBalance ? ' err' : ''}`}>
                         <span>{(fromOverBalance ? t.trade_form_balanceExceeded : t.trade_form_balance)
                           .replace('{qty}', fmtQty(fromHolding.qty, locale)).replace('{symbol}', fromHolding.symbol)}</span>
@@ -760,30 +776,19 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
-                    {closeRole === 'buy' ? (
-                      renderStaticPlatform(closingPlatform)
-                    ) : (
-                      <>
-                        <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
-                        <span className="fhint">{t.trade_form_platformToHint}</span>
-                      </>
-                    )}
+                    <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
+                    <span className="fhint">{t.trade_form_platformToHint}</span>
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
-                    {closeRole === 'buy' ? (
-                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
-                    ) : (
-                      <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
-                        value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
-                        onClear={() => { setToCoin(null); setToQty(''); }} />
-                    )}
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
+                      onClear={() => { setToCoin(null); setToQty(''); }} />
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
-                    value={toQty} onChange={setToQty} suffix={closeRole === 'buy' ? closingSymbol : toCoin?.symbol}
-                    error={closeRole === 'buy' ? (parseFloat(toQty) || 0) > remainingQty : false} />
+                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />
                   <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
                     prefix="R$" badge={badgeFor(toPriceState)} />
@@ -796,19 +801,6 @@ export default function OpDrawer({
                 <NumericField id="drawer-tr-total" label={t.trade_form_price} prefix="R$" readOnly
                   value={receivedTotal.toFixed(2)} onChange={() => {}} hint={t.trade_form_totalHint} />
               </div>
-              {closingOp && (() => {
-                const closePrice = closeRole === 'sell' ? fromPriceNum : toPriceNum;
-                const closeQty = closeRole === 'sell' ? fromQtyNum : toQtyNum;
-                const estimatedPnl = estimateClosePnl(closingOp, { price: closePrice }, Math.min(closeQty, remainingQty));
-                return (
-                  <div className="pnl-preview">
-                    <span>{t.history_pnl_estimated}</span>
-                    <span className={estimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
-                      {fmtFromCurrency(estimatedPnl, closingOp.currency ?? 'BRL')}
-                    </span>
-                  </div>
-                );
-              })()}
             </>
           )}
           </div>

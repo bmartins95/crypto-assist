@@ -100,6 +100,8 @@ const jaJP: UIText = {
   history_form_swap: 'スワップ',
   history_opType_buyLong: '買い・ロング',
   history_opType_sellShort: '売り・ショート',
+  trade_side_long: 'ロング',
+  trade_side_short: 'ショート',
   wallet_available_balance: '利用可能残高',
   wallet_max_button: '最大',
   wallet_estimated_pnl: '推定損益（平均コスト比）',

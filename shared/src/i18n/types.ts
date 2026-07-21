@@ -112,6 +112,8 @@ export interface UIText {
   history_form_swap: string;
   history_opType_buyLong: string;
   history_opType_sellShort: string;
+  trade_side_long: string;
+  trade_side_short: string;
   wallet_available_balance: string;
   wallet_max_button: string;
   wallet_estimated_pnl: string;

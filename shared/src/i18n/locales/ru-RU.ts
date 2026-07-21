@@ -100,6 +100,8 @@ const ruRU: UIText = {
   history_form_swap: 'Обмен',
   history_opType_buyLong: 'Покупка · Лонг',
   history_opType_sellShort: 'Продажа · Шорт',
+  trade_side_long: 'Лонг',
+  trade_side_short: 'Шорт',
   wallet_available_balance: 'Доступный баланс',
   wallet_max_button: 'Макс',
   wallet_estimated_pnl: 'Расчётная прибыль/убыток (относительно средней цены)',

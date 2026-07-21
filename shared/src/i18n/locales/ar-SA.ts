@@ -100,6 +100,8 @@ const arSA: UIText = {
   history_form_swap: 'مبادلة',
   history_opType_buyLong: 'شراء · طويل',
   history_opType_sellShort: 'بيع · قصير',
+  trade_side_long: 'طويل',
+  trade_side_short: 'قصير',
   wallet_available_balance: 'الرصيد المتاح',
   wallet_max_button: 'الحد الأقصى',
   wallet_estimated_pnl: 'الربح/الخسارة المقدرة (مقابل متوسط التكلفة)',
