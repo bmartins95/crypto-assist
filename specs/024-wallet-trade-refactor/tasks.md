@@ -13,6 +13,31 @@ FR-025 (classification immutable on edit) had no implementing task at all, and F
 over-balance wallet Sell/Swap) only had a frontend task, leaving the server boundary unvalidated per
 constitution Principle II. Both are folded in below (T005, T018, plus their tests in T013).
 
+**Corrections learned during implementation**:
+- `computeWalletEditImpact` initially compared only FIFO-derived *quantity* balance between the
+  current and hypothetical op lists to decide `affectedCount` — missed that editing a wallet buy's
+  *price* (not quantity) leaves every later balance unchanged but still silently changes a later
+  sell's realized P/L. Fixed to also track and compare per-op cumulative realized P/L, not just
+  running balance (`shared/src/walletFifo.ts`).
+- `CyclePopover` renders via a React portal to `document.body` with `position: fixed` coordinates
+  computed from the trigger's own `getBoundingClientRect()`, not a CSS-relative popover as originally
+  sketched — the History table has `overflow-x: auto` for horizontal scrolling, which would otherwise
+  clip the popover exactly the way the "never clipped by the table's edges" done-when criterion warns
+  against.
+- T034 (`test_close_op_cross_asset_prices_pnl_from_trade_value` and its sibling cross-asset tests from
+  item 26) were replaced, not just relabeled — cross-asset close is now unreachable for trade positions
+  (locked to same-asset Buy/Sell) and impossible for wallet positions (no close action at all), so the
+  `is_cross_asset` branch in `backend/app/routes/op_closures.py` was removed as dead code rather than
+  preserved.
+- T047 (live quickstart walkthrough) was verified at the migration/data level, not via full browser
+  click-through — no browser-automation tool or Cognito test credentials were available in this
+  environment (same constraint noted in item 26's T034). What was verified directly: migrations
+  014/015 apply cleanly against the real dev Postgres (confirmed via `docker exec psql`), and the
+  backfill correctly reclassified real pre-existing data (48 wallet ops, 2 leveraged ops correctly
+  became `kind='trade'` with the right `side`, 0 dangling `op_closures` rows left referencing a
+  wallet-classified op). The UI flows themselves are covered by the automated test suites (628 web
+  tests, 204 backend tests) but a manual click-through is still recommended before merging.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependency on an incomplete task)
@@ -159,9 +184,9 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 ## Phase 8: Polish & Cross-Cutting Concerns
 
 - [x] T043 [P] Confirm every new symbol (`walletFifo.ts`, `cycles.ts`, new `types.ts` fields) is exported from `shared/src/index.ts`
-- [ ] T044 `cd backend && pytest --cov=app --cov-report=term-missing` — verify ≥90% coverage on changed modules (`models.py`, `routes/ops.py`, `routes/op_closures.py`)
-- [ ] T045 `cd web && npm run coverage` — verify coverage on changed modules (`HistoryTab.tsx`, `OpDrawer.tsx`, `CyclePopover.tsx`, `walletFifo.ts`, `cycles.ts`)
-- [ ] T046 Mobile `tsc --noEmit` — confirm the `kind`/`side` additions to `Op`/`NewOp` don't break the mobile type contract
+- [x] T044 `cd backend && pytest --cov=app --cov-report=term-missing` — verify ≥90% coverage on changed modules (`models.py`, `routes/ops.py`, `routes/op_closures.py`)
+- [x] T045 `cd web && npm run coverage` — verify coverage on changed modules (`HistoryTab.tsx`, `OpDrawer.tsx`, `CyclePopover.tsx`, `walletFifo.ts`, `cycles.ts`)
+- [x] T046 Mobile `tsc --noEmit` — confirm the `kind`/`side` additions to `Op`/`NewOp` don't break the mobile type contract
 - [ ] T047 Run `specs/024-wallet-trade-refactor/quickstart.md`'s live walkthrough end-to-end
 
 ---

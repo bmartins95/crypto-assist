@@ -63,7 +63,7 @@ export default function CyclePopover({ cycle, coinSymbol }: Props) {
       ref={wrapRef}
       onMouseEnter={show}
       onMouseLeave={hide}
-      onClick={(e) => { e.stopPropagation(); position ? hide() : show(); }}
+      onClick={(e) => { e.stopPropagation(); if (position) hide(); else show(); }}
     >
       <button
         type="button"
