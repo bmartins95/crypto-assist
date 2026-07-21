@@ -943,3 +943,38 @@ Model closing as an explicit many-to-many link (`op_closures`) rather than a sin
 - Switching between Compra/Venda/Trade tabs in the drawer animates (slide) instead of snapping.
 - Operations in the History table are grouped by day with a date-section header.
 - `pytest` covers `op_closures.py` (full close, partial close, close spanning multiple source ops, over-close rejected with 400, auth required). `npm test` covers `computeOpStatus`/`estimateClosePnl`, the day-grouping, and `OpDrawer`'s closing-mode pre-fill and restricted tabs.
+
+---
+
+## Item 27 — Cycle tag + floating summary for linked operations
+**Branch:** `feat/op-cycle-summary`
+**Depends on:** item 26 (position closing — `op_closures` is the source of truth this item derives cycles from)
+
+- [ ] Done
+
+### Design reference
+`docs/design/op-cycle-tag-summary.html` — interaction source of truth (handoff doc "2c — Vínculo de Operações"): a small cycle tag (e.g. `A3`) rendered next to the type chip on any op that is part of an entry↔exit link; hovering (or tapping on touch) any tag belonging to the same cycle opens an identical floating popover summarizing the whole cycle — entry, every exit (including partials), the remaining open quantity, and the realized P/L. The History table's day-grouping and row order are never changed by this feature; the cycle is a pure overlay.
+
+### Current state
+Item 26 introduces `op_closures` (`source_op_id`, `closing_op_id`, `qty_closed`, `realized_pnl`) as the many-to-many link between an op and whatever later op(s) closed it, plus `computeOpStatus`/`openQtyRemaining` for a single op's own aberta/parcial/fechada status. Nothing today groups the ops on either side of a closure into a labeled, user-visible unit, and nothing surfaces the full chain (entry + all partial exits + what's left) in one place — a user has to mentally reconstruct it by scanning rows across different day sections. The design's own data model (`cycleId` field, `Cycle` derived type) predates Item 26 and assumes one stored `cycleId` per op with a single entry per cycle; this item adapts that model to be *derived* from `op_closures` rather than stored, since Item 26 already owns that relationship and a redundant `cycleId` column would be a second source of truth for the same link.
+
+### Approach
+A "cycle" is a connected component of the `op_closures` graph, computed client-side (not persisted) from the same `ops` + closures data `computeOpStatus` already consumes. Within a component, an op is an **entry** if it appears as a `source_op_id` and never as a `closing_op_id`; an op is an **exit** if it appears as a `closing_op_id`. The common case — one entry, one or more partial exits — matches the design directly. A component with more than one entry (e.g. two buys later closed together by a single sell) is out of scope for this item's popover layout (which assumes one entry row); render its tag and open the popover with all entries listed under the existing "entry" section rather than adding new UI for it, and revisit a richer layout only if this turns out to be a common real-world shape.
+
+### Files to create
+- `shared/src/cycles.ts` — `computeCycles(ops: Op[], closures: OpClosure[]): Map<string, Cycle>` (keyed by op id, so every op in a cycle resolves to the same `Cycle`) plus a `Cycle` type (`entries`, `exits`, `qtyEntry`, `qtyClosed`, `qtyRemaining`, `realizedPnl`, `status: 'partial' | 'closed'`). Cycle labels (`cycleLabel: string`, e.g. sequential per coin in chronological order of the earliest entry) are assigned here — the design's `A3` is illustrative of the visual format, not a literal scheme to replicate. Floating-point tolerance for `qtyRemaining ≈ 0` follows the same convention as Item 26's `computeOpStatus`.
+- `web/src/components/CyclePopover.tsx` — the floating summary: header (`Ciclo {coin} · {cycleLabel}` + Parcial/Encerrado badge), one row per entry, one row per exit, a remaining-open row (only when `qtyRemaining > 0`), and a realized-P/L footer. Positioned via a `position:relative` wrapper around the trigger tag with vertical flip when the row is in the lower half of the viewport, per the design's section 4.
+
+### Files to modify
+- `web/src/components/HistoryTab.tsx` — render the cycle tag (purple, link icon + `cycleLabel`) immediately after the type chip on any row whose op resolves to a `Cycle` via `computeCycles`; wire hover-open/leave-close (desktop) and tap-open/tap-outside-close (touch) to `CyclePopover`, keeping the existing day-grouping and row order from Item 26 untouched.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `cycle_tag_aria` (`Ver ciclo {cycleLabel}`), `cycle_header`, `cycle_status_partial`, `cycle_status_closed`, `cycle_entry_label`, `cycle_exit_label`, `cycle_exit_partial_label`, `cycle_remaining_label`, `cycle_realized_label`.
+- `web/src/app/globals.css` — tag and popover styles per the design's section 6 tokens (`#c4b5fd` cycle color, `#141418` popover surface, ~160ms opacity/translateY transition, `z-index`/`overflow:visible` on the table container so the popover is never clipped).
+
+### Done when
+- An op that is part of an `op_closures` link shows the cycle tag; an op with no closure link (open, never touched) shows no tag.
+- Hovering (or tapping) any tag belonging to the same cycle — the entry's or any exit's — opens the identical popover, without moving rows or changing day groups.
+- The popover lists the entry (or entries, for the multi-entry fallback), every exit as its own row, the remaining-open row when applicable, and the cycle's total realized P/L.
+- A cycle with `qtyRemaining > 0` shows Parcial; once the last exit zeroes the remainder, every tag in the cycle shows Fechada.
+- The popover flips above the tag when the row sits in the lower half of the viewport, and is never clipped by the table's edges.
+- The tag is keyboard-operable (`button`, opens on focus, closes on `Esc`) and touch-operable (tap opens/closes).
+- `npm test` covers `computeCycles` (single entry/single exit, single entry/multiple partial exits, multi-entry component, no-closure op resolves to no cycle) and `CyclePopover`'s render for partial vs. closed status.

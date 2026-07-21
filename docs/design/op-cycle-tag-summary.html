@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;font-family:'Inter',sans-serif}
+  body{margin:0;background:#0b0b0d}
+  a{color:#5eead4;text-decoration:none}
+  a:hover{color:#2dd4bf}
+  ::-webkit-scrollbar{width:0;height:0}
+  code{font-family:'JetBrains Mono',monospace}
+</style>
+</helmet>
+
+<div style="max-width:860px;margin:0 auto;padding:56px 40px 96px;background:#0b0b0d">
+
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <span style="background:#17171a;border:1px solid #a78bfa;color:#a78bfa;font:700 12px 'Space Grotesk',sans-serif;padding:4px 9px;border-radius:6px">2c</span>
+    <span style="color:#71717a;font-size:13px">Handoff · Claude Code</span>
+  </div>
+  <div style="font:700 30px 'Space Grotesk',sans-serif;color:#f4f4f5">Vínculo de operações — tag + resumo flutuante</div>
+  <div style="color:#a1a1aa;font-size:15px;margin-top:10px;line-height:1.6">Uma tag de ciclo (ex.: <b style="color:#c4b5fd">A3</b>) marca todas as operações que pertencem ao mesmo par entrada↔saída. Ao passar o mouse sobre qualquer tag — a da entrada ou a de uma saída — abre um resumo flutuante do ciclo inteiro, incluindo saídas parciais e o restante em aberto. <b style="color:#f4f4f5">A tabela não é reordenada</b>; os grupos por dia permanecem intactos.</div>
+
+  <div style="margin:32px 0 12px;color:#52525b;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600">Demonstração interativa</div>
+
+  <div style="background:#0d0d10;border:1px solid #1f1f23;border-radius:12px;overflow:visible">
+    <div style="display:grid;grid-template-columns:64px 1.2fr 90px 120px 84px;padding:9px 16px;border-bottom:1px solid #1f1f23">
+      <span style="color:#52525b;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase">Moeda</span>
+      <span style="color:#52525b;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase">Tipo</span>
+      <span style="color:#52525b;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase">Qtd.</span>
+      <span style="color:#52525b;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase">Lucro/Prej.</span>
+      <span style="color:#52525b;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase">Status</span>
+    </div>
+
+    <div style="color:#a1a1aa;font-size:12px;font-weight:600;padding:8px 16px;border-bottom:1px solid #1f1f23;background:#0b0b0d">15/06/2026</div>
+    <div style="display:grid;grid-template-columns:64px 1.2fr 90px 120px 84px;align-items:center;padding:12px 16px">
+      <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">USDT</span>
+      <span style="display:flex;align-items:center;gap:7px;position:relative">
+        <span style="background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.35);color:#2dd4bf;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px">Compra</span>
+        <span onMouseEnter="{{ enterEntry }}" onMouseLeave="{{ leave }}" style="{{ tagStyle }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 12h6M8 8a4 4 0 0 0 0 8h1M16 8a4 4 0 0 1 0 8h-1"></path></svg>A3</span>
+        <div style="{{ popEntryStyle }}">{{ popover }}</div>
+      </span>
+      <span style="color:#d4d4d8;font-size:13.5px">3.810</span>
+      <span style="color:#52525b;font-size:13.5px">—</span>
+      <span style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);color:#eab308;font-size:11px;font-weight:600;padding:2px 9px;border-radius:5px;width:fit-content">Parcial</span>
+    </div>
+    <div style="display:grid;grid-template-columns:64px 1.2fr 90px 120px 84px;align-items:center;padding:12px 16px;border-top:1px solid #17171a">
+      <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">BNB</span>
+      <span><span style="background:rgba(45,212,191,.12);border:1px solid rgba(45,212,191,.35);color:#2dd4bf;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px">Compra</span></span>
+      <span style="color:#d4d4d8;font-size:13.5px">0,010</span>
+      <span style="color:#52525b;font-size:13.5px">—</span>
+      <span style="background:transparent;border:1px solid #3a3a42;color:#a1a1aa;font-size:11px;font-weight:600;padding:2px 9px;border-radius:5px;width:fit-content">Aberta</span>
+    </div>
+
+    <div style="color:#a1a1aa;font-size:12px;font-weight:600;padding:8px 16px;border-top:1px solid #1f1f23;border-bottom:1px solid #1f1f23;background:#0b0b0d">06/07/2026</div>
+    <div style="display:grid;grid-template-columns:64px 1.2fr 90px 120px 84px;align-items:center;padding:12px 16px">
+      <span style="color:#f4f4f5;font-weight:600;font-size:13.5px">USDT</span>
+      <span style="display:flex;align-items:center;gap:7px;position:relative">
+        <span style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#ef4444;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px">Venda</span>
+        <span onMouseEnter="{{ enterExit }}" onMouseLeave="{{ leave }}" style="{{ tagStyle }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 12h6M8 8a4 4 0 0 0 0 8h1M16 8a4 4 0 0 1 0 8h-1"></path></svg>A3</span>
+        <div style="{{ popExitStyle }}">{{ popover }}</div>
+      </span>
+      <span style="color:#d4d4d8;font-size:13.5px">1.500</span>
+      <span style="color:#ef4444;font-weight:600;font-size:13.5px">-R$ 165,00</span>
+      <span style="background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35);color:#eab308;font-size:11px;font-weight:600;padding:2px 9px;border-radius:5px;width:fit-content">Parcial</span>
+    </div>
+  </div>
+  <div style="color:#52525b;font-size:12px;margin-top:10px">Passe o mouse sobre qualquer tag <span style="color:#c4b5fd">A3</span> acima. O mesmo resumo é acionado pela entrada (15/06) e pela saída parcial (06/07).</div>
+
+  <!-- ============ SPEC ============ -->
+  <div style="margin:48px 0 0;height:1px;background:#1f1f23"></div>
+
+  <div style="margin-top:40px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">1. Modelo de dados</div>
+  <div style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.65">Cada operação ganha um campo opcional <code style="color:#c4b5fd">cycleId</code>. Todas as operações do mesmo par entrada↔saída compartilham o mesmo <code style="color:#c4b5fd">cycleId</code>. Uma posição solta (sem fechamento) tem <code style="color:#c4b5fd">cycleId = null</code> e não exibe tag.</div>
+  <div style="background:#0d0d10;border:1px solid #1f1f23;border-radius:10px;padding:16px 18px;margin-top:14px;overflow-x:auto">
+    <pre style="margin:0;color:#d4d4d8;font-size:12.5px;line-height:1.7"><code>type Operation = {
+  id: string
+  cycleId: string | null   // ex.: "A3" — null = posição solta
+  role: 'entry' | 'exit'   // entrada (compra) ou saída (venda)
+  coin: string             // "USDT"
+  date: string             // ISO — mantém o agrupamento por dia
+  qty: number              // quantidade desta operação
+  total: number            // valor em BRL desta operação
+  pnl: number | null       // realizado nesta operação (null p/ entrada)
+  status: 'aberta' | 'parcial' | 'fechada'
+}
+
+// Um ciclo é derivado, não armazenado:
+type Cycle = {
+  cycleId: string
+  entry: Operation             // 1 entrada
+  exits: Operation[]           // 1..N saídas (parciais)
+  qtyEntry: number
+  qtyClosed: number            // Σ exits.qty
+  qtyRemaining: number         // qtyEntry - qtyClosed
+  realizedPnl: number          // Σ exits.pnl
+  status: 'parcial' | 'fechada'  // fechada quando qtyRemaining ≈ 0
+}</code></pre>
+  </div>
+  <div style="color:#71717a;font-size:13px;margin-top:10px;line-height:1.6">Agrupe as operações por <code style="color:#a1a1aa">cycleId</code> no cliente (um <code style="color:#a1a1aa">Map&lt;cycleId, Cycle&gt;</code>) uma vez por render da lista. A tabela continua ordenada e agrupada por <code style="color:#a1a1aa">date</code> — o ciclo é apenas uma visão sobreposta.</div>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">2. A tag na linha</div>
+  <ul style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.75;padding-left:20px">
+    <li>Renderize a tag <b style="color:#f4f4f5">apenas quando</b> <code style="color:#c4b5fd">op.cycleId != null</code>, logo após o chip de tipo (Compra/Venda).</li>
+    <li>Rótulo = <code style="color:#c4b5fd">cycleId</code>. Mesma tag idêntica na entrada e em cada saída — é o que comunica o vínculo mesmo em dias diferentes.</li>
+    <li>Ícone de elo (link) + label. Cor roxa (<code style="color:#c4b5fd">#c4b5fd</code>) para não competir com verde/vermelho de compra/venda.</li>
+    <li><code style="color:#a1a1aa">cursor: pointer</code>. A tag é o único gatilho do resumo — o resto da linha mantém o comportamento atual (expandir detalhes / ações).</li>
+  </ul>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">3. O resumo flutuante</div>
+  <div style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.65">Popover posicionado relativo à tag (<code style="color:#c4b5fd">position:absolute</code> dentro de um wrapper <code style="color:#c4b5fd">position:relative</code>). Conteúdo idêntico independentemente de qual tag disparou — ele descreve o <b style="color:#f4f4f5">ciclo</b>, não a operação.</div>
+  <div style="color:#a1a1aa;font-size:14px;margin-top:14px;line-height:1.7">Estrutura, de cima para baixo:</div>
+  <ol style="color:#a1a1aa;font-size:14.5px;margin-top:8px;line-height:1.75;padding-left:20px">
+    <li><b style="color:#f4f4f5">Cabeçalho</b> — "Ciclo {coin} · {cycleId}" + badge de status (<span style="color:#eab308">Parcial</span> se <code style="color:#a1a1aa">qtyRemaining &gt; 0</code>, senão <span style="color:#2dd4bf">Encerrado</span>).</li>
+    <li><b style="color:#f4f4f5">Linha de entrada</b> — seta ↓ verde, "Compra · {data}", qtd e total.</li>
+    <li><b style="color:#f4f4f5">Uma linha por saída</b> — seta ↑ vermelha, "Venda parcial · {data}" (ou "Venda ·" se for única e total), qtd e total. <i style="color:#71717a">N saídas = N linhas.</i></li>
+    <li><b style="color:#f4f4f5">Restante em aberto</b> — só aparece quando <code style="color:#a1a1aa">qtyRemaining &gt; 0</code>. Ícone neutro, quantidade restante, total "—".</li>
+    <li><b style="color:#f4f4f5">Rodapé</b> — "Resultado realizado" = <code style="color:#a1a1aa">realizedPnl</code> (soma das saídas). Verde/vermelho conforme sinal. Rotule como <b>realizado</b>, não "líquido", enquanto houver restante.</li>
+  </ol>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">4. Interação e estados</div>
+  <ul style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.75;padding-left:20px">
+    <li><b style="color:#f4f4f5">Hover</b> abre; sair fecha. Transição de ~160ms em <code style="color:#a1a1aa">opacity</code> + <code style="color:#a1a1aa">translateY(-6px→0)</code>.</li>
+    <li>Guarde só o <b style="color:#f4f4f5">id da operação em hover</b> (ou null) no estado. A tag da entrada e a da saída são gatilhos independentes; ambas resolvem para o mesmo <code style="color:#a1a1aa">cycleId</code> e mostram o mesmo popover.</li>
+    <li><code style="color:#a1a1aa">z-index</code> alto e <code style="color:#a1a1aa">overflow:visible</code> no contêiner da tabela para o popover não ser cortado.</li>
+    <li>Flip vertical: se a linha estiver na metade de baixo da viewport, abra o popover <b style="color:#f4f4f5">acima</b> da tag (<code style="color:#a1a1aa">bottom: 100%</code>) em vez de abaixo.</li>
+    <li><b style="color:#f4f4f5">Mobile / toque:</b> sem hover — a tag vira <code style="color:#a1a1aa">tap</code> que abre o mesmo resumo como bottom-sheet/popover, com fechar por tap-fora.</li>
+    <li><b style="color:#f4f4f5">Acessibilidade:</b> tag é <code style="color:#a1a1aa">button</code> com <code style="color:#a1a1aa">aria-label="Ver ciclo {cycleId}"</code>; abrir também no <code style="color:#a1a1aa">focus</code>, fechar no <code style="color:#a1a1aa">Esc</code>.</li>
+  </ul>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">5. Saídas parciais — regras</div>
+  <ul style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.75;padding-left:20px">
+    <li>Uma entrada pode ter <b style="color:#f4f4f5">várias</b> saídas com o mesmo <code style="color:#c4b5fd">cycleId</code>. Cada saída é uma linha própria na tabela, no seu respectivo dia.</li>
+    <li>Status da entrada e das saídas = <span style="color:#eab308">Parcial</span> enquanto <code style="color:#a1a1aa">qtyRemaining &gt; 0</code>; todas viram <span style="color:#2dd4bf">Fechada</span> quando a última saída zera o restante.</li>
+    <li>Cada linha de saída mostra no <b style="color:#f4f4f5">L/P</b> apenas o realizado <b style="color:#f4f4f5">daquela</b> saída. O acumulado do ciclo vive só no rodapé do popover.</li>
+    <li>Use tolerância (ex.: <code style="color:#a1a1aa">Math.abs(qtyRemaining) &lt; 1e-8</code>) para decidir "fechada" e evitar resíduo de ponto flutuante.</li>
+  </ul>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">6. Tokens de estilo</div>
+  <div style="background:#0d0d10;border:1px solid #1f1f23;border-radius:10px;padding:16px 18px;margin-top:12px;overflow-x:auto">
+    <pre style="margin:0;color:#d4d4d8;font-size:12.5px;line-height:1.7"><code>Ciclo / tag ...... texto #c4b5fd · borda rgba(167,139,250,.35) · fundo rgba(167,139,250,.12)
+Compra ........... #2dd4bf sobre rgba(45,212,191,.12)
+Venda ............ #ef4444 sobre rgba(239,68,68,.12)
+Status Parcial ... #eab308 sobre rgba(234,179,8,.12)
+Status Fechada ... #2dd4bf sobre rgba(45,212,191,.12)
+Popover .......... fundo #141418 · borda rgba(167,139,250,.4) · radius 12
+                   sombra 0 18px 40px rgba(0,0,0,.5) · largura ~284px
+Superfícies ...... página #0b0b0d · linha #0d0d10 · divisórias #17171a / #1f1f23
+Texto ............ primário #f4f4f5 · secundário #a1a1aa · terciário #71717a / #52525b
+Tipografia ....... Space Grotesk (títulos) · Inter (corpo)</code></pre>
+  </div>
+
+  <div style="margin-top:36px;font:700 20px 'Space Grotesk',sans-serif;color:#f4f4f5">7. Aceite</div>
+  <ul style="color:#a1a1aa;font-size:14.5px;margin-top:12px;line-height:1.75;padding-left:20px">
+    <li>Operações com <code style="color:#a1a1aa">cycleId</code> mostram a tag; posições soltas não.</li>
+    <li>Hover em qualquer tag do mesmo ciclo abre o mesmo resumo, sem mover linhas nem alterar os grupos por dia.</li>
+    <li>Resumo lista entrada + todas as saídas + restante em aberto + resultado realizado.</li>
+    <li>Ciclo com restante &gt; 0 aparece como Parcial; ao zerar, tudo vira Fechada.</li>
+    <li>Popover nunca é cortado pela borda da tabela nem pela borda da viewport (flip vertical).</li>
+    <li>Funciona com teclado e em toque (tap abre/fecha).</li>
+  </ul>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { hover: null }; // 'entry' | 'exit' | null
+  enterEntry = () => this.setState({ hover: 'entry' });
+  enterExit = () => this.setState({ hover: 'exit' });
+  leave = () => this.setState({ hover: null });
+
+  popStyle(on) {
+    return `position:absolute;top:calc(100% + 8px);left:0;z-index:40;transition:opacity .16s ease,transform .16s ease;transform:translateY(${on ? 0 : -6}px);opacity:${on ? 1 : 0};pointer-events:${on ? 'auto' : 'none'}`;
+  }
+
+  buildPopover() {
+    const h = React.createElement;
+    const cell = (children, style) => h('span', { style: Object.assign({ fontSize: '11.5px' }, style) }, children);
+    const dotArrow = (dir) => {
+      const teal = dir === 'down';
+      return h('span', { style: { width: '14px', height: '14px', borderRadius: '50%', background: teal ? 'rgba(45,212,191,.15)' : 'rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: teal ? '#2dd4bf' : '#ef4444' } },
+        h('svg', { width: 8, height: 8, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 3 },
+          h('path', { d: teal ? 'M12 5v14M5 12l7 7 7-7' : 'M12 19V5M5 12l7-7 7 7' })));
+    };
+    const row = (icon, label, labelColor, qty, total) => h('div', { style: { display: 'grid', gridTemplateColumns: '16px 1fr 62px 84px', alignItems: 'center', gap: '6px', padding: '9px 13px', borderBottom: '1px solid #17171a' } },
+      icon,
+      cell(label, { color: labelColor }),
+      cell(qty, { color: '#71717a', fontSize: '11px', textAlign: 'right' }),
+      cell(total, { color: '#f4f4f5', fontWeight: 600, textAlign: 'right' }));
+
+    return h('div', { style: { width: '284px', background: '#141418', border: '1px solid rgba(167,139,250,.4)', borderRadius: '12px', boxShadow: '0 18px 40px rgba(0,0,0,.5)', overflow: 'hidden' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 13px', background: 'rgba(167,139,250,.08)', borderBottom: '1px solid #1f1f23' } },
+        h('span', { style: { display: 'flex', alignItems: 'center', gap: '6px', color: '#c4b5fd', fontSize: '11.5px', fontWeight: 700 } },
+          h('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2 }, h('path', { d: 'M9 12h6M8 8a4 4 0 0 0 0 8h1M16 8a4 4 0 0 1 0 8h-1' })),
+          'Ciclo USDT · A3'),
+        h('span', { style: { background: 'rgba(234,179,8,.14)', border: '1px solid rgba(234,179,8,.35)', color: '#eab308', fontSize: '9.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' } }, 'Parcial')),
+      row(dotArrow('down'), 'Compra · 15/06', '#a1a1aa', '3.810', 'R$ 20.000'),
+      row(dotArrow('up'), 'Venda parcial · 06/07', '#5eead4', '1.500', 'R$ 7.710'),
+      h('div', { style: { display: 'grid', gridTemplateColumns: '16px 1fr 62px 84px', alignItems: 'center', gap: '6px', padding: '9px 13px' } },
+        h('span', { style: { width: '14px', height: '14px', borderRadius: '50%', background: '#26262b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#71717a' } },
+          h('svg', { width: 8, height: 8, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 3 }, h('circle', { cx: 12, cy: 12, r: 9 }))),
+        cell('Restante em aberto', { color: '#71717a' }),
+        cell('2.310', { color: '#a1a1aa', fontSize: '11px', textAlign: 'right' }),
+        cell('—', { color: '#52525b', fontSize: '11px', textAlign: 'right' })),
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 13px', background: '#0b0b0d', borderTop: '1px solid #1f1f23' } },
+        h('span', { style: { color: '#71717a', fontSize: '11px' } }, 'Resultado realizado'),
+        h('span', { style: { color: '#ef4444', fontSize: '13.5px', fontWeight: 700 } }, '-R$ 165,00')));
+  }
+
+  renderVals() {
+    const { hover } = this.state;
+    return {
+      enterEntry: this.enterEntry,
+      enterExit: this.enterExit,
+      leave: this.leave,
+      tagStyle: 'display:inline-flex;align-items:center;gap:4px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.35);color:#c4b5fd;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;cursor:pointer;position:relative;z-index:2',
+      popEntryStyle: this.popStyle(hover === 'entry'),
+      popExitStyle: this.popStyle(hover === 'exit'),
+      popover: this.buildPopover(),
+    };
+  }
+}
+</script>
+</body>
+</html>
