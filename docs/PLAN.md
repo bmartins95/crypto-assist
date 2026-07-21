@@ -894,7 +894,7 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 **Branch:** `feat/position-closing`
 **Depends on:** item 9 (History view + entry drawer), item 22 (PlatformSelect / platform catalog)
 
-- [ ] Done
+- [x] Done ([PR #95](https://github.com/bmartins95/crypto-assist/pull/95), merged 2026-07-21)
 
 ### Design reference
 `docs/design/history-position-closing.html` — interaction source of truth: day-grouped history rows (date section headers), Aberta/Parcial/Fechada status chips, a per-row "Fechar operação" action, a drawer type-tab switcher (Compra/Venda/Trade) with a sliding animation between panels and tabs restricted to whichever types can legally close the row being closed, leverage chips (1x/2x/3x/5x/10x) on the buy fieldset, and an estimated P/L preview footer in the drawer while closing a position.
@@ -950,7 +950,9 @@ Model closing as an explicit many-to-many link (`op_closures`) rather than a sin
 **Branch:** `feat/op-cycle-summary`
 **Depends on:** item 26 (position closing — `op_closures` is the source of truth this item derives cycles from)
 
-- [ ] Done
+- [x] Folded into item 28 (not implemented standalone)
+
+**2026-07-21 — superseded, kept for reference only.** Item 28's wallet/trade refactor removes `op_closures` from wallet Sell/Swap flows entirely (they move to FIFO-derived balances with no explicit close link), so this item's premise — cycles built from `op_closures` covering *all* ops — no longer matches the data model. The cycle tag/popover concept survives, but rescoped to trade (leveraged long/short) positions only, where `op_closures` still applies; see item 28's "Cycle tag (folded from item 27)" section below rather than re-deriving this item independently.
 
 ### Design reference
 `docs/design/op-cycle-tag-summary.html` — interaction source of truth (handoff doc "2c — Vínculo de Operações"): a small cycle tag (e.g. `A3`) rendered next to the type chip on any op that is part of an entry↔exit link; hovering (or tapping on touch) any tag belonging to the same cycle opens an identical floating popover summarizing the whole cycle — entry, every exit (including partials), the remaining open quantity, and the realized P/L. The History table's day-grouping and row order are never changed by this feature; the cycle is a pure overlay.
@@ -978,3 +980,67 @@ A "cycle" is a connected component of the `op_closures` graph, computed client-s
 - The popover flips above the tag when the row sits in the lower half of the viewport, and is never clipped by the table's edges.
 - The tag is keyboard-operable (`button`, opens on focus, closes on `Esc`) and touch-operable (tap opens/closes).
 - `npm test` covers `computeCycles` (single entry/single exit, single entry/multiple partial exits, multi-entry component, no-closure op resolves to no cycle) and `CyclePopover`'s render for partial vs. closed status.
+
+---
+
+## Item 28 — Wallet vs. trade operation refactor (History + operation panel)
+**Branch:** `feat/wallet-trade-refactor`
+**Depends on:** item 26 (leverage field, `op_closures`, `computeOpStatus`, day-grouped History, closing-drawer mechanics — this item restructures how those primitives are used, it does not rebuild them)
+
+- [ ] Done
+
+### Design reference
+`docs/design/wallet-trade-refactor-handoff.md` — approved requirements (translated from the product owner's original Portuguese handoff; all 22 numbered items were approved individually — implement all of them). `docs/design/wallet-trade-refactor-wireframes.html` — approved ASCII-style wireframes of the four states (History table, Move-wallet panel, New-trade panel, Close-position panel). Per the handoff: **the app's current live design system is the visual source of truth**, not the wireframe's styling — reuse existing components (segmented control, Buy/Sell chips, the orange leverage chip, status pills, inputs, primary teal button, row icons). A referenced interactive hi-fi prototype (`Hi-fi - Histórico Refactor.dc.html` + its `support.js` runtime) was **not** provided to this repo — request it only if a specific interaction's structure is ambiguous from the wireframes; the handoff is explicit that visual fidelity should follow the app, not the prototype, so this is unlikely to block implementation.
+
+### Current state (post-item-26, as actually shipped)
+- `Op`/`NewOp` (`shared/src/types.ts`) has `type: 'Buy' | 'Sell'`, optional `leverage` (1x/2x/3x/5x/10x, settable on any brand-new non-closing Buy or Sell — not restricted to any notion of "trade"), and optional `tradeGroupId` (links the two legs of a swap, or a trade-close's closing leg + newly-received leg, so deleting either leg deletes both).
+- `op_closures` (`source_op_id`, `closing_op_id`, `qty_closed`, `realized_pnl`) is a general-purpose close link usable on **any** Buy/Sell op — a plain, unleveraged wallet sell and a leveraged position close go through the exact same `POST /api/ops/{id}/close` endpoint and the same `computeOpStatus`/`openQtyRemaining` derivation (`shared/src/positions.ts`).
+- `HistoryTab.tsx` shows a single "+ Add operation" entry point, a status chip (Aberta/Parcial/Fechada) and a "Fechar operação" action on **every** Buy/Sell row regardless of leverage, and a leverage badge only when `op.leverage` is set. `OpDrawer.tsx` has one segmented control with three tabs — Buy / Sell / Trade (the "Trade" tab is today's cross-asset swap, building two linked `NewOp`s via `tradeGroupId`) — plus leverage chips available on the Buy/Sell fieldset for any new, non-closing op, and a `closingOp` mode that restricts tabs to whatever can legally close the row (including via the Trade/swap tab, producing a closing leg + a received leg both linked by `tradeGroupId` and to the source op via `op_closures`).
+- This is exactly the "two concepts mixed into one flow" problem the design's Overview describes: a plain wallet sell and a leveraged short both show a status pill and a close action today, and the swap-based close path exists for wallet-style closes that the new design removes entirely (wallet rows lose the close action altogether).
+
+### Goal
+Split "wallet movement" (Buy/Sell/Swap of assets the user holds, no status, no leverage, balance/avg-cost/realized-P/L derived via FIFO) from "trade" (leveraged long/short speculative positions, keeps status + leverage + the existing `op_closures` close mechanism from item 26) — per the design's sections A–E — without adding new panels: two History header buttons, three behaviors of the existing `OpDrawer`, two History row classes.
+
+### Approach
+- Add an additive `op_kind: 'wallet' | 'trade'` column (`shared/src/types.ts`'s `NewOp`/`Op` gain `kind: 'wallet' | 'trade'`, default `'wallet'`) plus `side?: 'long' | 'short'` (trade only, derived from Buy/Sell at creation — long from Buy, short from Sell). Every new op is written with an explicit `kind`; `leverage` becomes valid only when `kind === 'trade'` (validate server-side in `backend/app/models.py`/`routes/ops.py` — reject a `leverage` value on a `kind: 'wallet'` op with 400).
+- Wallet Sell/Swap stop going through `op_closures` and `POST /api/ops/{id}/close` — they become plain, unlinked `NewOp`s (matching the existing plain-create path), and balance/average-cost/realized P/L for wallet ops are derived via **FIFO lot-matching** over the wallet ops of a given asset×platform, computed the same "derive, don't store" way `computePositions`/`computeProfitByAsset` already work in `shared/src/portfolio.ts`. This likely wants a new `shared/src/walletFifo.ts` (or an addition to `portfolio.ts` if the logic is small enough) — `computeWalletBalance(ops, coinId, platformId): { available, avgCost }`, `computeWalletRealizedPnl(sellOp, ops): number`.
+- Trade ops keep exactly item 26's mechanism: `op_closures`, `computeOpStatus`, `openQtyRemaining`, `estimateClosePnl`, the closing drawer mode — but the **close side is now locked**, not tab-restricted: a `side: 'short'` position can only close with a `Buy`, a `side: 'long'` position only with a `Sell` (no Trade/swap tab in the close panel at all — the swap-based close path item 26 built becomes dead code for this flow and should be removed, not preserved, once trade closes are Buy/Sell-only).
+- `HistoryTab.tsx` gains two header buttons (`t.history_action_moveWallet`, `t.history_action_newTrade`) instead of one "+ Add operation", opening `OpDrawer` in the corresponding mode. A third, existing implicit mode — closing — is unchanged in trigger (the per-row "Fechar operação" icon), but is now only rendered on `kind: 'trade'` rows.
+- `OpDrawer.tsx`'s segmented control becomes mode-dependent: wallet mode shows Buy/Sell/Swap (renaming today's "Trade" tab label to "Swap" for wallet mode only — the tab still produces two `tradeGroupId`-linked ops exactly as today), trade mode shows "Buy · Long"/"Sell · Short", close mode shows a single disabled segment reflecting the locked side. Sell (wallet) and Close (trade) both gain a live P/L footer — wallet Sell's is `(sell price − avg cost) × qty` via the new FIFO helper; trade close's is item 26's existing `estimateClosePnl`, now also multiplied by `leverage` and sign-inverted for `side: 'short'`. Wallet Sell/Swap gain an "Available balance" readout + "Max" button (fills qty from `computeWalletBalance`); trade close keeps item 26's "remaining qty" + "All" button.
+
+### Data model changes (additive only)
+1. `ALTER TABLE ops ADD COLUMN op_kind VARCHAR(10) NOT NULL DEFAULT 'wallet'`, `ADD COLUMN side VARCHAR(5)` (nullable; `'long'|'short'`, trade only).
+2. **Backfill migration** (mirrors item 22's `011_backfill_platform_fields.py` pattern — a `.py` migration run automatically via `postgres_client.py`'s migration runner, not a manual step): every existing op with `leverage IS NOT NULL AND leverage > 1` → `op_kind = 'trade'`, `side = 'long' | 'short'` (from `type = 'Buy' | 'Sell'`), preserving its existing `op_closures` rows and status as-is. Every other existing op → `op_kind = 'wallet'` (the column default already covers this; the migration only needs to touch the leverage>1x rows).
+3. See "Scope notes" below for the one open question this backfill does **not** resolve on its own.
+
+### Cycle tag (folded from item 27)
+Item 27's cycle tag + floating popover (`docs/design/op-cycle-tag-summary.html`) ships as part of this item instead of standalone, rescoped: `computeCycles` (`shared/src/cycles.ts`) only ever considers `kind: 'trade'` ops and their `op_closures` links — wallet ops never produce a cycle under the new FIFO model, so the tag/popover only ever appears on trade rows. This also simplifies item 27's original "multi-entry component" fallback: a trade position now has exactly one entry op by construction (opened once via the New-trade panel), so the multi-entry case item 27 flagged as a rare fallback should no longer occur in practice for data created after this item ships (it may still occur for pre-item-26 data with unusual manual closes — keep the fallback rendering rather than assuming it's now impossible).
+
+### Files to create
+- `shared/src/walletFifo.ts` (or added to `shared/src/portfolio.ts`, whichever keeps the "derive from ops" logic co-located per existing convention) — FIFO balance/avg-cost/realized-P/L derivation for wallet ops.
+- `shared/src/cycles.ts`, `web/src/components/CyclePopover.tsx` — as item 27 specified, but scoped to `kind: 'trade'` per the "Cycle tag" section above.
+- `backend/db/migrations/0NN_op_kind_and_side.sql` + `0NN_backfill_op_kind.py` — additive columns + backfill described above.
+- `docs/design/wallet-trade-refactor-handoff.md`, `docs/design/wallet-trade-refactor-wireframes.html` (design references, already added).
+
+### Files to modify
+- `shared/src/types.ts` — `NewOp`/`Op` gain `kind: 'wallet' | 'trade'`, `side?: 'long' | 'short'`.
+- `backend/app/models.py`, `backend/app/routes/ops.py` — mirror `kind`/`side`; reject `leverage` on `kind: 'wallet'` with 400.
+- `backend/app/routes/op_closures.py` — reject closing a `kind: 'wallet'` op with 400 (wallet ops no longer have a close action); enforce the locked side (`side: 'short'` → only `Buy` closes it, `side: 'long'` → only `Sell`).
+- `web/src/components/HistoryTab.tsx` — two header buttons; status/leverage/close-action columns rendered only for `kind: 'trade'` rows (wallet rows show "—" in STATUS); wallet sells show FIFO-derived realized P/L in the P/L column; trade rows get the 2px orange left-border marker + Long/Short label; Swap rows (wallet, `tradeGroupId`-linked pair) render as one collapsed row (`ETH→SOL`, `0.5→22`) instead of two separate rows.
+- `web/src/components/OpDrawer.tsx` — mode-dependent segmented control (wallet: Buy/Sell/Swap; trade: Buy·Long/Sell·Short; close: single locked segment), Available-balance/Max card + P/L footer on wallet Sell, leverage chips restricted to trade mode only, close-mode swap tab removed.
+- `shared/src/i18n/types.ts` + all 10 locale files — `history_action_moveWallet`, `history_action_newTrade`, `wallet_available_balance`, `wallet_max_button`, `wallet_estimated_pnl`, `trade_side_long`, `trade_side_short`, `trade_close_locked_hint`, plus item 27's cycle-tag keys (still needed, now scoped to trade rows).
+- `web/src/app/globals.css` — Swap chip color (purple, `#a78bfa` suggested), trade-row left-border marker, Long/Short label style, wallet Available-balance card, cycle tag/popover styles (from item 27).
+
+### Scope notes (to refine during spec/clarify)
+- **Pre-existing `op_closures` on now-wallet ops.** Item 26 shipped allowing a close on *any* Buy/Sell, so it's possible (dev/staging data only, not confirmed) that a non-leveraged op already has `op_closures` rows from before this item. The backfill migration above does not attempt to reconcile these — decide during clarify whether to (a) leave such legacy closure rows in place but stop surfacing them in the wallet UI (FIFO becomes the sole source of truth for display, the old rows become inert), or (b) write a one-off reconciliation step. Check actual dev/staging data for whether this case exists at all before deciding — it may be a non-issue.
+- **Edit/delete recompute + confirmation dialog (design item 22).** Editing or deleting an old wallet buy must recompute FIFO-derived balances/P/L for all later sells of the same asset×platform, show a confirmation dialog when it affects already-recorded sells, and block the change if it would produce a negative balance on any date. This is meaningfully new backend/frontend validation, not just a display change — size it accordingly during planning, it may be its own sub-phase of the branch.
+
+### Done when
+- History shows two header buttons ("Move wallet" / "New trade") instead of one; each opens `OpDrawer` in the corresponding mode.
+- Wallet rows (Buy/Sell/Swap, `kind: 'wallet'`) show no status and no close action; wallet sells show FIFO-realized P/L; Swap legs render as one collapsed row.
+- Trade rows (`kind: 'trade'`) keep item 26's status pill, leverage badge, and close action; gain the left-border marker and Long/Short label.
+- The wallet panel's Sell/Swap tabs show available balance + Max, block a quantity greater than the available balance, and (Sell) show a live estimated P/L footer.
+- The trade panel has no wallet-balance check on Sell (short) and requires a leverage selection; the close panel has no tabs, shows a locked type derived from the position's side, and a live P/L footer with sign inverted for shorts.
+- The cycle tag/popover (item 27) appears only on trade rows and correctly reflects multi-partial-close chains.
+- Existing item-26 data migrates correctly: leverage>1x ops become `kind: 'trade'` with the right `side`, preserving their status/closures; everything else becomes `kind: 'wallet'` with no status shown.
+- `pytest` covers the `op_kind`/`side` validation, the close-endpoint's locked-side enforcement, and the backfill migration. `npm test` covers the FIFO helper (multiple buys at different platforms/prices, sell exceeding one lot, edit/delete recompute), `computeCycles` restricted to trade ops, and both `OpDrawer` modes' restricted fields.
