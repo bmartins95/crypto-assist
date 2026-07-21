@@ -147,6 +147,10 @@ export default function AppLayout() {
     try {
       await api.deleteOp(id);
       setOps(prev => prev.filter(o => o.id !== id));
+      // The DB cascades op_closures on either side (ON DELETE CASCADE on both source_op_id
+      // and closing_op_id), so drop the same rows locally — otherwise a deleted closing op
+      // would leave its link behind and keep the source op stuck as partially closed.
+      setClosures(prev => prev.filter(c => c.sourceOpId !== id && c.closingOpId !== id));
     } catch {
       alert(t.dashboard_error_delete_op);
     }

@@ -64,11 +64,14 @@ vi.mock('@/components/HistoryTab', () => ({
   default: (props: {
     onAddOp: (op: unknown) => void; onEditOp: (id: string, op: unknown) => void; onRemoveOp: (id: string) => void;
     onCloseOp: (sourceOpId: string, op: unknown, qty: number) => void;
+    closures: unknown[];
   }) => (
     <div data-testid="history-view">
+      <span data-testid="closures-count">{props.closures.length}</span>
       <button onClick={() => props.onAddOp({ coinId: 'bitcoin' })}>add-op</button>
       <button onClick={() => props.onEditOp('1', { coinId: 'bitcoin' })}>edit-op</button>
       <button onClick={() => props.onRemoveOp('1')}>remove-op</button>
+      <button onClick={() => props.onRemoveOp('2')}>remove-closing-op</button>
       <button onClick={() => props.onCloseOp('1', { coinId: 'bitcoin' }, 0.5)}>close-op</button>
     </div>
   ),
@@ -440,6 +443,20 @@ describe('AppLayout', () => {
       vi.mocked(api.closeOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('close-op'));
       await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+    });
+
+    it('drops the closure link when the closing op is deleted, freeing the source op', async () => {
+      const { api } = await import('@/lib/api/client');
+      const closingOp = { ...oneOp, id: '2', type: 'Sell' as const };
+      const closure = { id: 'c1', sourceOpId: '1', closingOpId: '2', qtyClosed: 0.5, realizedPnl: 5 };
+      vi.mocked(api.closeOp).mockResolvedValueOnce({ closingOp, closures: [closure] });
+      await renderAt('/history');
+      await waitFor(() => expect(screen.getByTestId('history-view')).toBeTruthy());
+      fireEvent.click(screen.getByText('close-op'));
+      await waitFor(() => expect(screen.getByTestId('closures-count').textContent).toBe('1'));
+      fireEvent.click(screen.getByText('remove-closing-op'));
+      await waitFor(() => expect(api.deleteOp).toHaveBeenCalledWith('2'));
+      expect(screen.getByTestId('closures-count').textContent).toBe('0');
     });
 
     it('sets an exit price and shows a status message on failure', async () => {
