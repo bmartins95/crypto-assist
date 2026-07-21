@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.dependencies import AuthContext, require_auth
 from app.db.postgres_client import get_conn
-from app.models import Op, NewOp, DeleteAllOpsResponse
+from app.models import Op, NewOp, DeleteAllOpsResponse, DeleteOpResponse
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id"
 
 
 def _row_to_op(row: dict) -> Op:
@@ -24,6 +24,7 @@ def _row_to_op(row: dict) -> Op:
         platformName=row["platform_name"],
         currency=row["currency"],
         leverage=row["leverage"],
+        tradeGroupId=str(row["trade_group_id"]) if row["trade_group_id"] else None,
     )
 
 
@@ -56,11 +57,12 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, op.date, op.coinId, op.symbol, op.name, op.type,
-                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency, op.leverage),
+                 op.qty, op.price, op.fee, op.total, op.platformId, op.platformName, op.currency, op.leverage,
+                 op.tradeGroupId),
             )
             row = cur.fetchone()
         conn.commit()
@@ -134,16 +136,38 @@ def delete_all_ops(auth: AuthContext = Depends(require_auth)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/{op_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{op_id}", response_model=DeleteOpResponse)
 def delete_op(op_id: str, auth: AuthContext = Depends(require_auth)):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM ops WHERE id = %s AND user_id = %s",
+                "SELECT trade_group_id FROM ops WHERE id = %s AND user_id = %s",
                 (op_id, auth.user_id),
             )
+            found = cur.fetchone()
+            if found is None:
+                conn.rollback()
+                raise HTTPException(status_code=404, detail="Operation not found.")
+            group_id = found["trade_group_id"]
+            if group_id is not None:
+                # Both legs of a trade are one unit — deleting either removes the whole
+                # group. op_closures cascades, so any position a leg had closed reverts.
+                cur.execute(
+                    "DELETE FROM ops WHERE trade_group_id = %s AND user_id = %s RETURNING id",
+                    (group_id, auth.user_id),
+                )
+            else:
+                cur.execute(
+                    "DELETE FROM ops WHERE id = %s AND user_id = %s RETURNING id",
+                    (op_id, auth.user_id),
+                )
+            deleted_ids = [str(r["id"]) for r in cur.fetchall()]
         conn.commit()
+        return DeleteOpResponse(deletedIds=deleted_ids)
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

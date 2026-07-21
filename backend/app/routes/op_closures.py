@@ -102,12 +102,13 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
                 )
 
             cur.execute(
-                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage)"  # nosec B608
-                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                f"INSERT INTO ops (user_id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id)"  # nosec B608
+                f" VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
                 f" RETURNING {_SELECT}",  # nosec B608
                 (auth.user_id, closing_op.date, closing_op.coinId, closing_op.symbol, closing_op.name, closing_op.type,
                  closing_op.qty, closing_op.price, closing_op.fee, closing_op.total,
-                 closing_op.platformId, closing_op.platformName, closing_op.currency, closing_op.leverage),
+                 closing_op.platformId, closing_op.platformName, closing_op.currency, closing_op.leverage,
+                 closing_op.tradeGroupId),
             )
             closing_row = cur.fetchone()
 

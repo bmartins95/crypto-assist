@@ -36,6 +36,7 @@ class NewOp(BaseModel):
     platformName: str | None = None
     currency: CurrencyCode = "BRL"
     leverage: LeverageValue | None = None
+    tradeGroupId: str | None = None
 
 
 class Op(NewOp):
@@ -113,6 +114,10 @@ class ImportPayload(BaseModel):
 
 class DeleteAllOpsResponse(BaseModel):
     deleted: int
+
+
+class DeleteOpResponse(BaseModel):
+    deletedIds: list[str]
 
 
 class ExchangeRatesResponse(BaseModel):

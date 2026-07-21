@@ -44,6 +44,7 @@ _DB_ROW = {
     "platform_name": "Binance",
     "currency": "BRL",
     "leverage": None,
+    "trade_group_id": None,
 }
 
 _API_OP = {
@@ -61,6 +62,7 @@ _API_OP = {
     "platformName": "Binance",
     "currency": "BRL",
     "leverage": None,
+    "tradeGroupId": None,
 }
 
 _NEW_OP_BODY = {
@@ -124,7 +126,7 @@ def test_create_op_records_entry_currency(client_with_db):
     assert res.status_code == 201
     assert res.json()["currency"] == "USD"
     insert_params = conn.cursor.return_value.execute.call_args[0][1]
-    assert insert_params[-2] == "USD"
+    assert insert_params[-3] == "USD"
 
 
 @pytest.mark.pgdata({})
@@ -180,11 +182,29 @@ def test_create_op_platform_name_without_id_rejected(client_with_db):
     assert res.status_code == 422
 
 
-@pytest.mark.pgdata({})
+@pytest.mark.pgdata(_DB_ROW)
 def test_delete_op(client_with_db):
     client, _ = client_with_db
     res = client.delete("/api/ops/op-1")
-    assert res.status_code == 204
+    assert res.status_code == 200
+    assert res.json() == {"deletedIds": ["op-1"]}
+
+
+@pytest.mark.pgdata({})
+def test_delete_op_not_found(client_with_db):
+    client, _ = client_with_db
+    res = client.delete("/api/ops/missing")
+    assert res.status_code == 404
+
+
+def test_delete_op_deletes_the_whole_trade_group(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = {"trade_group_id": "grp-1"}
+    cur.fetchall.side_effect = [[{"id": "op-1"}, {"id": "op-2"}]]
+    res = client.delete("/api/ops/op-1")
+    assert res.status_code == 200
+    assert set(res.json()["deletedIds"]) == {"op-1", "op-2"}
 
 
 def test_list_ops_db_error(error_client):
@@ -270,7 +290,7 @@ def test_create_op_with_leverage(client_with_db):
     res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 3})
     assert res.status_code == 201
     insert_params = conn.cursor.return_value.execute.call_args[0][1]
-    assert insert_params[-1] == 3
+    assert insert_params[-2] == 3
 
 
 @pytest.mark.pgdata({})

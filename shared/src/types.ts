@@ -29,6 +29,9 @@ export interface NewOp {
   currency?: Currency;
   // Only settable on a brand-new, non-closing Buy or Sell; absent means 1x (unleveraged).
   leverage?: Leverage;
+  // Shared by the two legs of a trade (a swap, or a trade-close's closing + received
+  // legs) so deleting either leg deletes the whole trade. Absent for single Buy/Sell ops.
+  tradeGroupId?: string;
 }
 
 // An operation as stored/returned by the backend (always has an id).

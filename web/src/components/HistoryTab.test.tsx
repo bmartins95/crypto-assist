@@ -183,6 +183,9 @@ describe('HistoryTab', () => {
     await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(2));
     expect(onAddOp).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'Sell', coinId: 'ethereum', platformId: 'custom:kraken', platformName: 'Kraken' }));
     expect(onAddOp).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'Buy', coinId: 'solana', platformId: 'custom:kraken', platformName: 'Kraken' }));
+    const g1 = onAddOp.mock.calls[0][0].tradeGroupId;
+    expect(g1).toBeTruthy();
+    expect(onAddOp.mock.calls[1][0].tradeGroupId).toBe(g1);
   });
 
   it('shows translated op type labels in es-ES locale', () => {

@@ -24,7 +24,7 @@ vi.mock('@/lib/api/client', () => ({
     searchCoins: vi.fn(async () => []),
     createOp: vi.fn(async () => ({})),
     updateOp: vi.fn(async () => ({})),
-    deleteOp: vi.fn(async () => undefined),
+    deleteOp: vi.fn(async (id: string) => ({ deletedIds: [id] })),
     setExitPrice: vi.fn(async () => undefined),
     importBackup: vi.fn(async () => undefined),
     exportBackup: vi.fn(async () => ({ version: 1, exportedAt: '', ops: [] })),
@@ -64,9 +64,11 @@ vi.mock('@/components/HistoryTab', () => ({
   default: (props: {
     onAddOp: (op: unknown) => void; onEditOp: (id: string, op: unknown) => void; onRemoveOp: (id: string) => void;
     onCloseOp: (sourceOpId: string, op: unknown, qty: number) => void;
+    ops: unknown[];
     closures: unknown[];
   }) => (
     <div data-testid="history-view">
+      <span data-testid="ops-count">{props.ops.length}</span>
       <span data-testid="closures-count">{props.closures.length}</span>
       <button onClick={() => props.onAddOp({ coinId: 'bitcoin' })}>add-op</button>
       <button onClick={() => props.onEditOp('1', { coinId: 'bitcoin' })}>edit-op</button>
@@ -457,6 +459,19 @@ describe('AppLayout', () => {
       fireEvent.click(screen.getByText('remove-closing-op'));
       await waitFor(() => expect(api.deleteOp).toHaveBeenCalledWith('2'));
       expect(screen.getByTestId('closures-count').textContent).toBe('0');
+    });
+
+    it('removes every op the backend reports deleted (the whole trade group), not just the clicked one', async () => {
+      const { api } = await import('@/lib/api/client');
+      vi.mocked(api.getOps).mockResolvedValue([
+        { ...oneOp, id: '2', tradeGroupId: 'g1' },
+        { ...oneOp, id: '3', tradeGroupId: 'g1' },
+      ]);
+      vi.mocked(api.deleteOp).mockResolvedValueOnce({ deletedIds: ['2', '3'] });
+      await renderAt('/history');
+      await waitFor(() => expect(screen.getByTestId('ops-count').textContent).toBe('2'));
+      fireEvent.click(screen.getByText('remove-closing-op'));
+      await waitFor(() => expect(screen.getByTestId('ops-count').textContent).toBe('0'));
     });
 
     it('sets an exit price and shows a status message on failure', async () => {

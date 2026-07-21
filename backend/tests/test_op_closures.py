@@ -21,6 +21,7 @@ _SOURCE_ROW = {
     "platform_name": "Binance",
     "currency": "BRL",
     "leverage": None,
+    "trade_group_id": None,
 }
 
 _CLOSING_OP_BODY = {
@@ -53,6 +54,7 @@ _CLOSING_ROW = {
     "platform_name": "Binance",
     "currency": "BRL",
     "leverage": None,
+    "trade_group_id": None,
 }
 
 

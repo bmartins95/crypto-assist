@@ -36,7 +36,7 @@ export const api = {
   getOps: () => request<Op[]>('/api/ops'),
   createOp: (op: NewOp) => request<Op>('/api/ops', { method: 'POST', body: JSON.stringify(op) }),
   updateOp: (id: string, op: NewOp) => request<Op>(`/api/ops/${id}`, { method: 'PUT', body: JSON.stringify(op) }),
-  deleteOp: (id: string) => request<void>(`/api/ops/${id}`, { method: 'DELETE' }),
+  deleteOp: (id: string) => request<{ deletedIds: string[] }>(`/api/ops/${id}`, { method: 'DELETE' }),
 
   closeOp: (id: string, body: { closingOp: NewOp; qtyToClose: number }) =>
     request<{ closingOp: Op; closures: OpClosure[] }>(`/api/ops/${id}/close`, { method: 'POST', body: JSON.stringify(body) }),

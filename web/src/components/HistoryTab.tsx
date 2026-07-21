@@ -66,8 +66,9 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   );
 
   const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
-    await onAddOp(sell);
-    await onAddOp(buy);
+    const tradeGroupId = crypto.randomUUID();
+    await onAddOp({ ...sell, tradeGroupId });
+    await onAddOp({ ...buy, tradeGroupId });
   };
 
   const handleSubmitClose = async (op: NewOp, qtyToClose: number): Promise<void> => {
@@ -78,8 +79,11 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
   const handleSubmitTradeClose = async (closingLeg: NewOp, qtyToClose: number, newLeg: NewOp): Promise<void> => {
     if (!closingOp) return;
-    await onCloseOp(closingOp.id, closingLeg, qtyToClose);
-    await onAddOp(newLeg);
+    // The closing leg and the received leg are one trade — a shared group id lets
+    // deleting either one undo the whole trade and revert the closed position.
+    const tradeGroupId = crypto.randomUUID();
+    await onCloseOp(closingOp.id, { ...closingLeg, tradeGroupId }, qtyToClose);
+    await onAddOp({ ...newLeg, tradeGroupId });
     setToast({ kind: 'success', message: t.history_close_success });
   };
 
