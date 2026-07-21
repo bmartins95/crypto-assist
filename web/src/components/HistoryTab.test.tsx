@@ -329,4 +329,125 @@ describe('HistoryTab', () => {
     const headerTexts = Array.from(headerCells).map(c => c.textContent);
     expect(headerTexts).not.toContain('Data');
   });
+
+  describe('wallet edit/delete recompute safety (User Story 5)', () => {
+    const oldBuy: Op = { ...existingOp, id: 'buy-1', date: '2024-01-01', qty: 1 };
+    const laterSell: Op = { ...existingOp, id: 'sell-1', date: '2024-01-10', type: 'Sell', qty: 0.3 };
+
+    it('shows a confirmation dialog before applying an edit that affects a later sell', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(onEditOp).not.toHaveBeenCalled();
+    });
+
+    it('applies the edit once the confirmation dialog is accepted', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar mesmo assim' }));
+      expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
+    });
+
+    it('discards the edit when the confirmation dialog is cancelled', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      fireEvent.click(screen.getByRole('alertdialog').querySelector('.confirm-dialog-actions button')!);
+      expect(onEditOp).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('shows a confirmation dialog before deleting a buy that a later sell partly depends on, once a buffer buy remains', () => {
+      // Deleting buy-1 alone doesn't go negative (buy-2 still covers sell-1's 0.3), but it
+      // does change which lot the sell draws from — an "affected", not "blocked", case.
+      const bufferBuy: Op = { ...existingOp, id: 'buy-2', date: '2024-01-05', qty: 5, price: 100 };
+      const onRemoveOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, bufferBuy, laterSell]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(onRemoveOp).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar mesmo assim' }));
+      expect(onRemoveOp).toHaveBeenCalledWith('buy-1');
+    });
+
+    it('blocks (no dialog) a delete that would leave a negative balance', () => {
+      const onRemoveOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onRemoveOp).not.toHaveBeenCalled();
+      expect(screen.getByText('Esta alteração deixaria um saldo negativo para este ativo/plataforma.')).toBeInTheDocument();
+    });
+
+    it('blocks (no dialog) an edit that would leave a negative balance, showing an error toast', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.1' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onEditOp).not.toHaveBeenCalled();
+      expect(screen.getByText('Esta alteração deixaria um saldo negativo para este ativo/plataforma.')).toBeInTheDocument();
+    });
+
+    it('applies an edit with no dialog when no later operation is affected', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getByTitle('Editar operação'));
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
+    });
+
+    it('skips the wallet-impact check entirely for a trade op (edit/delete proceed with no dialog)', () => {
+      const onEditOp = vi.fn();
+      const onRemoveOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onEditOp={onEditOp} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getByTitle('Editar operação'));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      fireEvent.click(document.querySelector('.drawer-foot .btn')!);
+      fireEvent.click(screen.getByTitle('Excluir'));
+      expect(onRemoveOp).toHaveBeenCalledWith('trade-1');
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('swap rows (collapsed wallet pairs)', () => {
+    const swapSell: Op = { ...existingOp, id: 'swap-sell', type: 'Sell', symbol: 'BTC', qty: 1, tradeGroupId: 'grp-1' };
+    const swapBuy: Op = { ...existingOp, id: 'swap-buy', type: 'Buy', symbol: 'SOL', qty: 20, total: 2000, tradeGroupId: 'grp-1' };
+
+    it('renders a swap pair as a single collapsed row with both assets/quantities and no P/L or status', () => {
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} />);
+      expect(screen.getByText('BTC→SOL')).toBeInTheDocument();
+      expect(document.querySelector('.history-row .tag.swap')).toHaveTextContent('Troca');
+      const cells = document.querySelectorAll('.history-row td');
+      expect(cells[4]).toHaveTextContent('—');
+      expect(cells[5]).toHaveTextContent('—');
+      expect(document.querySelectorAll('.history-row')).toHaveLength(1);
+    });
+
+    it('deleting a collapsed swap row removes the sell leg (which cascades the whole group)', () => {
+      const onRemoveOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getByTitle('Excluir'));
+      expect(onRemoveOp).toHaveBeenCalledWith('swap-sell');
+    });
+
+    it('expands the swap row detail on click, showing the sell leg\'s price/fee/platform', () => {
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} />);
+      const detail = document.querySelector('.history-detail');
+      expect(detail).not.toHaveClass('expanded');
+      fireEvent.click(document.querySelector('.history-row')!);
+      expect(detail).toHaveClass('expanded');
+    });
+  });
 });

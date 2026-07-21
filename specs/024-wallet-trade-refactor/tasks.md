@@ -53,7 +53,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] `web/src/lib/walletFifo.test.ts` — `computeWalletBalance`/`computeWalletRealizedPnl` happy path (multiple buys at different prices/platforms, partial sell, swap consuming a lot and creating a new one)
+- [x] T012 [P] [US1] `web/src/lib/walletFifo.test.ts` — `computeWalletBalance`/`computeWalletRealizedPnl` happy path (multiple buys at different prices/platforms, partial sell, swap consuming a lot and creating a new one)
 - [x] T013 [P] [US1] Extend `backend/tests/test_ops.py` — creating a wallet op with `leverage` set is rejected 400; a plain create defaults to `op_kind='wallet'`; `PUT` rejecting a request that changes `op_kind`/`side` is rejected 400; `POST` for a wallet Sell/Swap exceeding the available FIFO balance is rejected 400
 - [x] T014 [P] [US1] Extend `backend/tests/test_op_closures.py` — `POST /api/ops/{id}/close` rejects 400 when `{id}` resolves to `op_kind='wallet'`
 - [x] T015 [P] [US1] Extend `web/src/components/HistoryTab.test.tsx` — wallet rows show no status/close action; a wallet Sell row shows realized P/L; a Swap pair renders as one collapsed row
@@ -61,7 +61,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] `backend/app/routes/op_closures.py`: reject close (400) when the source op's `op_kind` is `'wallet'`
+- [x] T017 [US1] `backend/app/routes/op_closures.py`: reject close (400) when the source op's `op_kind` is `'wallet'`
 - [x] T018 [US1] `backend/app/routes/ops.py`: `create_op` rejects 400 when a wallet Sell/Swap's `qty` exceeds `computeWalletBalance`'s available quantity for that coin/platform/currency (Python port of the shared FIFO walk from T008 — the server must not trust the client to have enforced this) (depends on T008)
 - [x] T019 [US1] `web/src/components/HistoryTab.tsx`: two header buttons ("Move wallet" / "New trade") replacing "+ Add operation"; wallet rows render with no status/close columns; wallet Sell rows show FIFO-derived realized P/L; Swap-paired rows (`tradeGroupId`-linked, `kind: 'wallet'`) collapse into a single row
 - [x] T020 [US1] `web/src/components/OpDrawer.tsx`: wallet-mode fieldsets — Buy/Sell/Swap tabs (rename the existing "Trade" tab label to "Swap" in this mode only), no leverage field, available-balance + Max button on Sell/Swap (via `computeWalletBalance`), live estimated-P/L footer on Sell (via `computeWalletRealizedPnl`)
@@ -79,8 +79,8 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ### Tests for User Story 2
 
-- [ ] T022 [P] [US2] Extend `backend/tests/test_ops.py` — creating a trade op derives `side` from `type` server-side (`Buy→long`, `Sell→short`); no wallet-balance validation occurs for a trade Sell (short)
-- [ ] T023 [P] [US2] Extend `web/src/components/OpDrawer.test.tsx` — trade mode shows "Buy · Long"/"Sell · Short" tabs and leverage chips; no wallet balance shown or validated
+- [x] T022 [P] [US2] Extend `backend/tests/test_ops.py` — creating a trade op derives `side` from `type` server-side (`Buy→long`, `Sell→short`); no wallet-balance validation occurs for a trade Sell (short)
+- [x] T023 [P] [US2] Extend `web/src/components/OpDrawer.test.tsx` — trade mode shows "Buy · Long"/"Sell · Short" tabs and leverage chips; no wallet balance shown or validated
 - [x] T024 [P] [US2] Extend `web/src/components/HistoryTab.test.tsx` — a new trade row shows Open status, its leverage badge, a Long/Short label, and the left-border marker
 
 ### Implementation for User Story 2
@@ -145,12 +145,12 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 - [x] T038 [P] [US5] Extend `web/src/lib/walletFifo.test.ts` — `computeWalletEditImpact` returns the correct affected-count and first-negative-balance date across edits/deletes of Buy, Sell, and either side of a Swap
 - [x] T039 [P] [US5] Extend `backend/tests/test_ops.py` — `PUT`/`DELETE /api/ops/{id}` reject 400 when the change would produce a negative wallet balance at any later date for that coin/platform/currency
-- [ ] T040 [P] [US5] Extend `web/src/components/HistoryTab.test.tsx` — editing/deleting an operation with dependent later ops shows the existing `ConfirmDialog` describing the impact; an attempt that would go negative is blocked with an explanatory message and no dialog
+- [x] T040 [P] [US5] Extend `web/src/components/HistoryTab.test.tsx` — editing/deleting an operation with dependent later ops shows the existing `ConfirmDialog` describing the impact; an attempt that would go negative is blocked with an explanatory message and no dialog
 
 ### Implementation for User Story 5
 
-- [ ] T041 [US5] `backend/app/routes/ops.py`: on `PUT`/`DELETE`, run the same FIFO check as `computeWalletEditImpact` (Python port, scoped to the same coin/platform/currency wallet ops) and reject 400 on a resulting negative balance
-- [ ] T042 [US5] `web/src/components/HistoryTab.tsx`: call `computeWalletEditImpact` before submitting an edit or delete; show the existing `ConfirmDialog` (`web/src/components/ConfirmDialog.tsx`) when later operations are affected; block outright with a message when a negative balance would result
+- [x] T041 [US5] `backend/app/routes/ops.py`: on `PUT`/`DELETE`, run the same FIFO check as `computeWalletEditImpact` (Python port, scoped to the same coin/platform/currency wallet ops) and reject 400 on a resulting negative balance
+- [x] T042 [US5] `web/src/components/HistoryTab.tsx`: call `computeWalletEditImpact` before submitting an edit or delete; show the existing `ConfirmDialog` (`web/src/components/ConfirmDialog.tsx`) when later operations are affected; block outright with a message when a negative balance would result
 
 **Checkpoint**: All five user stories work independently and together; full feature scope complete.
 
@@ -158,7 +158,7 @@ constitution Principle II. Both are folded in below (T005, T018, plus their test
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T043 [P] Confirm every new symbol (`walletFifo.ts`, `cycles.ts`, new `types.ts` fields) is exported from `shared/src/index.ts`
+- [x] T043 [P] Confirm every new symbol (`walletFifo.ts`, `cycles.ts`, new `types.ts` fields) is exported from `shared/src/index.ts`
 - [ ] T044 `cd backend && pytest --cov=app --cov-report=term-missing` — verify ≥90% coverage on changed modules (`models.py`, `routes/ops.py`, `routes/op_closures.py`)
 - [ ] T045 `cd web && npm run coverage` — verify coverage on changed modules (`HistoryTab.tsx`, `OpDrawer.tsx`, `CyclePopover.tsx`, `walletFifo.ts`, `cycles.ts`)
 - [ ] T046 Mobile `tsc --noEmit` — confirm the `kind`/`side` additions to `Op`/`NewOp` don't break the mobile type contract

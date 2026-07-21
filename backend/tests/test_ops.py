@@ -401,3 +401,30 @@ def test_delete_op_wallet_negative_balance_rejected(client_with_db):
     res = client.delete("/api/ops/op-1")
     assert res.status_code == 400
     assert "negative balance" in res.json()["detail"].lower()
+
+
+def test_update_op_moved_to_different_platform_checks_both_groups(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = _DB_ROW
+    # Old group (binance): no other ops, so removing this op from it is fine.
+    # New group (kraken): no prior ops either, so adding it there is fine too.
+    cur.fetchall.side_effect = [[], []]
+    body = {**_NEW_OP_BODY, "platformId": "kraken", "platformName": "Kraken"}
+    res = client.put("/api/ops/op-1", json=body)
+    assert res.status_code == 200
+    assert cur.fetchall.call_count == 2
+
+
+def test_update_op_moved_to_different_platform_rejects_negative_balance_in_old_group(client_with_db):
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    cur.fetchone.return_value = _DB_ROW
+    # A later sell still on the old platform (binance) would be left with nothing once
+    # this buy moves away to kraken.
+    later_sell = {"id": "sell-1", "date": "2024-01-20", "created_at": "2024-01-20T00:00:00+00:00", "type": "Sell", "qty": "0.01"}
+    cur.fetchall.side_effect = [[later_sell]]
+    body = {**_NEW_OP_BODY, "platformId": "kraken", "platformName": "Kraken"}
+    res = client.put("/api/ops/op-1", json=body)
+    assert res.status_code == 400
+    assert "negative balance" in res.json()["detail"].lower()
