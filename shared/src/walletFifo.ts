@@ -109,10 +109,14 @@ export function computeWalletEditImpact(ops: Op[], editedOpId: string, proposedO
       currency,
     );
 
-    const runningBalance = (list: Op[]): Map<string, number> => {
+    // Tracks both the running balance and each Sell's own realized P/L — a source op's
+    // price can change without changing any later balance, but it still changes what a
+    // later Sell realized, which FR-020 requires surfacing too.
+    const runningState = (list: Op[]): Map<string, { qty: number; pnl: number }> => {
       const lots: Lot[] = [];
-      const balances = new Map<string, number>();
+      const state = new Map<string, { qty: number; pnl: number }>();
       for (const op of list) {
+        let pnlThisOp = 0;
         if (op.type === 'Buy') {
           lots.push({ qty: op.qty, unitCost: op.price });
         } else {
@@ -120,23 +124,25 @@ export function computeWalletEditImpact(ops: Op[], editedOpId: string, proposedO
           while (remaining > QTY_EPSILON && lots.length > 0) {
             const lot = lots[0];
             const consumed = Math.min(lot.qty, remaining);
+            pnlThisOp += consumed * (op.price - lot.unitCost);
             lot.qty -= consumed;
             remaining -= consumed;
             if (lot.qty <= QTY_EPSILON) lots.shift();
           }
           if (remaining > QTY_EPSILON && firstNegativeBalanceDate === null) firstNegativeBalanceDate = op.date;
         }
-        balances.set(op.id, lots.reduce((sum, l) => sum + l.qty, 0));
+        state.set(op.id, { qty: lots.reduce((sum, l) => sum + l.qty, 0), pnl: pnlThisOp });
       }
-      return balances;
+      return state;
     };
 
-    const currentBalances = runningBalance(current);
-    const hypotheticalBalances = runningBalance(hypothetical);
-    for (const [id, qty] of hypotheticalBalances) {
+    const currentState = runningState(current);
+    const hypotheticalState = runningState(hypothetical);
+    for (const [id, after] of hypotheticalState) {
       if (id === editedOpId) continue;
-      const before = currentBalances.get(id);
-      if (before !== undefined && Math.abs(before - qty) > QTY_EPSILON) affectedCount++;
+      const before = currentState.get(id);
+      if (!before) continue;
+      if (Math.abs(before.qty - after.qty) > QTY_EPSILON || Math.abs(before.pnl - after.pnl) > QTY_EPSILON) affectedCount++;
     }
   }
 

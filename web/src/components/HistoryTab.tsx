@@ -3,13 +3,14 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Op, NewOp, OpClosure, Asset, AvatarCache, Prices } from '@/lib/types';
 import { fmtQty, fmtDate } from '@/lib/format';
-import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlForSource, isClosedSource, computeWalletRealizedPnl, computeWalletEditImpact } from '@/lib/portfolio';
+import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlForSource, isClosedSource, computeWalletRealizedPnl, computeWalletEditImpact, computeCycles } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import CyclePopover from '@/components/CyclePopover';
 import Toast, { ToastKind } from '@/components/Toast';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
@@ -96,6 +97,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
   const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops, closures), [ops, closures]);
   const dateGroups = useMemo(() => groupOpsByDate(ops), [ops]);
+  const cycles = useMemo(() => computeCycles(ops, closures), [ops, closures]);
 
   const toggleExpand = (id: string) => setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -230,6 +232,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
             <span className={`tag ${o.type === 'Buy' ? 'buy' : 'sell'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span>
             {o.leverage && <span className="lev-badge">{o.leverage}x</span>}
             <span className="side-label">{o.side === 'short' ? t.trade_side_short : t.trade_side_long}</span>
+            {cycles.get(o.id) && <CyclePopover cycle={cycles.get(o.id)!} coinSymbol={o.symbol} />}
           </td>
           <td className="num">{mask(fmtQty(o.qty, locale))}</td>
           <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>

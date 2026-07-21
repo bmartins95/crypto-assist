@@ -1251,6 +1251,57 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .pnl-pos { color: var(--success); font-weight: 600; }
 .pnl-neg { color: var(--danger); font-weight: 600; }
 
+/* Item 28 — wallet vs. trade split */
+.tag.swap { background: rgba(167, 139, 250, .14); color: #a78bfa; }
+.side-label {
+  margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--s-text-dim); text-transform: uppercase;
+}
+.btn-outline-accent {
+  background: transparent; border: 1px solid rgba(251, 146, 60, .45); color: #fb923c;
+}
+.btn-outline-accent:hover { background: rgba(251, 146, 60, .08); }
+.trade-row { border-left: 2px solid #fb923c; }
+.history-row.trade-row td:first-child { padding-left: 10px; }
+
+.bal-row {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  font-size: 12px; color: var(--s-text-dim); padding: 8px 10px; border-radius: var(--radius);
+  background: var(--s-surface); border: 1px solid var(--s-border); margin-bottom: 10px;
+}
+.bal-row.err { color: var(--danger); border-color: rgba(248, 113, 113, .35); }
+.bal-row .max {
+  background: transparent; border: none; color: var(--s-accent); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; padding: 0;
+}
+.bal-row .max:hover { text-decoration: underline; }
+
+.cycle-wrap { position: relative; display: inline-block; margin-left: 6px; }
+.cycle-tag {
+  display: inline-flex; align-items: center; gap: 3px; background: rgba(196, 181, 253, .12);
+  border: 1px solid rgba(196, 181, 253, .35); color: #c4b5fd; border-radius: 99px;
+  font-size: 11px; font-weight: 600; padding: 2px 8px; cursor: pointer;
+}
+.cycle-tag:hover, .cycle-tag:focus-visible { background: rgba(196, 181, 253, .2); }
+/* Portaled to document.body (see CyclePopover.tsx) — position:fixed with coordinates
+   computed from the trigger's own rect, so the table's overflow-x:auto never clips it. */
+.cycle-popover {
+  position: fixed; z-index: 1000; width: 260px;
+  background: #141418; border: 1px solid var(--s-border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4); padding: 12px; font-size: 12px;
+}
+.cycle-popover-head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  font-weight: 600; color: var(--s-text);
+}
+.cycle-badge { font-size: 10.5px; padding: 2px 7px; border-radius: 5px; }
+.cycle-badge.partial { background: rgba(234, 179, 8, .12); color: #eab308; }
+.cycle-badge.closed { background: rgba(45, 212, 191, .12); color: var(--s-accent); }
+.cycle-row {
+  display: flex; align-items: center; justify-content: space-between; padding: 4px 0;
+  color: var(--s-text-dim);
+}
+.cycle-footer { border-top: 1px solid var(--s-border); margin-top: 4px; padding-top: 8px; font-weight: 600; }
+
 .closing-banner {
   background: rgba(45, 212, 191, .08); border: 1px solid rgba(45, 212, 191, .3); border-radius: var(--radius);
   padding: 10px 12px; margin-bottom: 18px; color: var(--s-accent); font-size: 12px; line-height: 1.5;
