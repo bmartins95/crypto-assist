@@ -496,8 +496,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   padding: 18px 24px; border-top: 1px solid var(--s-border-soft); flex-shrink: 0;
 }
 
-.drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.drawer-body .fld { display: flex; flex-direction: column; gap: 7px; position: relative; }
+/* minmax(0, 1fr) (not the default minmax(auto, 1fr)) lets each column shrink below its
+   content's min size, so a long no-wrap value (e.g. a static coin name) truncates instead
+   of stretching its track and squishing the sibling field. */
+.drawer-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.drawer-body .fld { display: flex; flex-direction: column; gap: 7px; position: relative; min-width: 0; }
 .drawer-body .fld label { font-size: 12px; color: var(--s-text-dim); font-weight: 500; }
 .drawer-body .fld input, .drawer-body .fld select {
   width: 100%; background: var(--s-surface-2); border-color: var(--s-border);
@@ -1254,7 +1257,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .static-field {
-  width: 100%; padding: 8px 10px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px;
+  width: 100%; min-width: 0; padding: 8px 10px; border-radius: var(--radius); display: flex; align-items: center; gap: 8px;
   background: var(--s-surface); border: 1px solid var(--s-border); color: var(--s-text-dim); font-size: 14px;
 }
 .static-field-text {
