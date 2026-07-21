@@ -56,6 +56,26 @@ describe('computeOpStatus', () => {
     const closures = [closure({ sourceOpId: 'op-2', qtyClosed: 1 })];
     expect(computeOpStatus(op({ id: 'op-1', qty: 2 }), closures)).toBe('open');
   });
+
+  it('is closed when the op is the closing leg that fully covered another op', () => {
+    // The Sell (op-2) that closed a Buy is itself fully consumed → closed, not open.
+    const closures = [closure({ sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 2 })];
+    expect(computeOpStatus(op({ id: 'op-2', qty: 2 }), closures)).toBe('closed');
+  });
+
+  it('is partial when the op is a closing leg that only covered part of its own quantity', () => {
+    const closures = [closure({ sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 1 })];
+    expect(computeOpStatus(op({ id: 'op-2', qty: 2 }), closures)).toBe('partial');
+  });
+
+  it('is closed for a closing leg spanning multiple sources despite float dust', () => {
+    // 0.03 + 0.02 !== 0.05 in floating point — the epsilon keeps this from reading as partial.
+    const closures = [
+      closure({ id: 'c1', sourceOpId: 'op-a', closingOpId: 'op-2', qtyClosed: 0.03 }),
+      closure({ id: 'c2', sourceOpId: 'op-b', closingOpId: 'op-2', qtyClosed: 0.02 }),
+    ];
+    expect(computeOpStatus(op({ id: 'op-2', qty: 0.05 }), closures)).toBe('closed');
+  });
 });
 
 describe('openQtyRemaining', () => {
@@ -66,6 +86,11 @@ describe('openQtyRemaining', () => {
 
   it('equals the full quantity when there are no closures', () => {
     expect(openQtyRemaining(op({ id: 'op-1', qty: 1 }), [])).toBe(1);
+  });
+
+  it('also subtracts quantity the op consumed as a closing leg', () => {
+    const closures = [closure({ sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.4 })];
+    expect(openQtyRemaining(op({ id: 'op-2', qty: 1 }), closures)).toBeCloseTo(0.6);
   });
 });
 

@@ -1,20 +1,29 @@
 import type { Op, OpClosure, PositionStatus } from './types';
 
-function closedQtyFor(opId: string, closures: OpClosure[]): number {
+// Rounding tolerance: a closing op's consumed qty is summed from per-source closure rows
+// (e.g. 0.03 + 0.02), which isn't exact in floating point, so an exact `<= 0` check would
+// misreport a fully-consumed op as still partially open.
+const QTY_EPSILON = 1e-9;
+
+// Quantity of `op` consumed by closure links — whether it played the source role (being
+// closed) or the closing role (the leg that closed another op). Both roles use up the op's
+// quantity, so both count toward it being closed. A single closure row links two distinct
+// ops, so for any one op it matches on exactly one side and is never double-counted.
+function consumedQtyFor(opId: string, closures: OpClosure[]): number {
   return closures
-    .filter((c) => c.sourceOpId === opId)
+    .filter((c) => c.sourceOpId === opId || c.closingOpId === opId)
     .reduce((sum, c) => sum + c.qtyClosed, 0);
 }
 
-// Quantity of `op` not yet accounted for by any closure link referencing it as source.
+// Quantity of `op` not yet accounted for by any closure link (source or closing side).
 export function openQtyRemaining(op: Op, closures: OpClosure[]): number {
-  return op.qty - closedQtyFor(op.id, closures);
+  return op.qty - consumedQtyFor(op.id, closures);
 }
 
 export function computeOpStatus(op: Op, closures: OpClosure[]): PositionStatus {
-  const closed = closedQtyFor(op.id, closures);
-  if (closed <= 0) return 'open';
-  return openQtyRemaining(op, closures) <= 0 ? 'closed' : 'partial';
+  const consumed = consumedQtyFor(op.id, closures);
+  if (consumed <= QTY_EPSILON) return 'open';
+  return op.qty - consumed <= QTY_EPSILON ? 'closed' : 'partial';
 }
 
 // Sum of realized P/L across every closure link referencing `opId`, whether it played
