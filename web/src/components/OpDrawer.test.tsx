@@ -883,6 +883,16 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it('auto-closes the drawer after a close finishes (unlike a normal op, which stays open)', async () => {
+    const onClose = vi.fn();
+    renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
+    await waitForClose();
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('marks a long pre-filled platform/coin name for single-line truncation instead of wrapping', () => {
     const longOp: Op = { ...closingBuyOp, name: 'Coinbase Wrapped Bitcoin Extremely Long Name', platformName: 'A Very Long Custom Platform Name' };
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={longOp} assets={[]} platformAssets={[]} avatarCache={{}} prices={{}} />);
