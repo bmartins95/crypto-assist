@@ -665,6 +665,30 @@ describe('OpDrawer', () => {
     expect(api.searchCoins).not.toHaveBeenCalled();
   });
 
+  it('prefetches the browse list as soon as the drawer mounts, before it is even opened', async () => {
+    vi.mocked(api.searchCoins).mockClear();
+    renderDrawer(<OpDrawer open={false} onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    await waitFor(() => expect(api.searchCoins).toHaveBeenCalledWith('', 50));
+  });
+
+  it('shows browse suggestions on click when buying — options appear without typing, like PlatformSelect', async () => {
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    await waitFor(() => expect(api.searchCoins).toHaveBeenCalledWith('', 50));
+    fireEvent.focus(screen.getByLabelText('Moeda comprada'));
+    expect(await screen.findByText('Bitcoin')).toBeInTheDocument();
+  });
+
+  it('updates an already-open, empty dropdown once a still-loading browse list arrives', async () => {
+    let resolveBrowse: (v: import('@/lib/api/client').CoinSearchResult[]) => void = () => {};
+    vi.mocked(api.searchCoins).mockReturnValueOnce(new Promise(resolve => { resolveBrowse = resolve; }));
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.focus(screen.getByLabelText('Moeda comprada'));
+    expect(screen.queryByText('Bitcoin')).not.toBeInTheDocument();
+    await act(async () => { resolveBrowse([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]); });
+    expect(await screen.findByText('Bitcoin')).toBeInTheDocument();
+  });
+
   it('shows the user\'s own holdings as instant suggestions when selling — a sell is limited to held coins', () => {
     const assets: Asset[] = [{ coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', qty: 2, avgPrice: 100, exitPrice: 0 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);

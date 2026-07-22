@@ -107,6 +107,15 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
 
+  // A browse-mode `seed` (or `restrictTo`) can still be loading when the field
+  // is first focused with an empty query — without this, a dropdown opened
+  // before that load finishes would show nothing until the user blurs and
+  // refocuses. Re-syncs the open, still-empty dropdown once the data arrives.
+  useEffect(() => {
+    if (!open || value.trim().length > 0) return;
+    setResults(restrictTo ?? seed ?? []);
+  }, [restrictTo, seed]);
+
   const runSearch = (q: string) => {
     const seq = ++searchSeq.current;
     const applyIfCurrent = (list: CoinSearchResult[]) => { if (seq === searchSeq.current) setResults(list); };
@@ -302,6 +311,14 @@ export default function OpDrawer({
     </div>
   );
 
+  // Fetched on mount, not gated on `open` — the drawer stays mounted (just
+  // hidden) between opens, so this has almost always already resolved by the
+  // time the user clicks "+ Add operation", matching PlatformSelect's
+  // always-available seed instead of racing a network call against the click.
+  useEffect(() => {
+    api.searchCoins('', BROWSE_LIMIT).then(setDefaultCoins).catch(() => { /* falls back to per-query search */ });
+  }, []);
+
   useEffect(() => {
     if (open) {
       previouslyFocused.current = document.activeElement as HTMLElement | null;
@@ -310,11 +327,6 @@ export default function OpDrawer({
       setError(null);
       setPhase('idle');
       setLeverage(null);
-      // Backed by the backend's own coin-search cache (1h TTL) — this is a
-      // "browse" request, not a per-keystroke search, so a field with no
-      // restriction shows real options as soon as it's clicked, not just once
-      // the user starts typing.
-      api.searchCoins('', BROWSE_LIMIT).then(setDefaultCoins).catch(() => { /* falls back to per-query search */ });
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
