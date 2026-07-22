@@ -787,7 +787,11 @@ export default function OpDrawer({
                   <div className="leverage-chips">
                     {LEVERAGE_OPTIONS.map(v => (
                       <button key={String(v)} type="button"
-                        className={leverage === v ? 'lev-chip active' : 'lev-chip'}
+                        // The 1x pill (v === null) is the unleveraged baseline, not a
+                        // selectable value — it never shows as active, so deselecting
+                        // any other chip lands on "nothing highlighted" instead of
+                        // visually (and misleadingly) landing on "1x selected".
+                        className={v !== null && leverage === v ? 'lev-chip active' : 'lev-chip'}
                         aria-label={`${v ?? 1}x`}
                         onClick={() => { setLeverage(prev => (prev === v ? null : v)); setCustomLevMode('idle'); }}>
                         {v ?? 1}x

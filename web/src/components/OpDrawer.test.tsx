@@ -963,6 +963,18 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
   });
 
+  it('the 1x pill never shows as active — deselecting a chip highlights nothing, not 1x', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    const oneX = screen.getByRole('button', { name: '1x' });
+    expect(oneX).not.toHaveClass('active');
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).toHaveClass('active');
+    expect(oneX).not.toHaveClass('active');
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).not.toHaveClass('active');
+    expect(oneX).not.toHaveClass('active');
+  });
+
   it('Custom leverage pill starts idle (dashed, no remembered value) when never used before', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     expect(screen.getByRole('button', { name: 'Personalizada' })).toHaveClass('lev-chip-custom-idle');
