@@ -40,7 +40,7 @@ const baseProps = {
   closures: [] as import('@crypto-assist/shared').OpClosure[],
   onAddOp: vi.fn(),
   onEditOp: vi.fn(),
-  onRemoveOp: vi.fn(),
+  onRemoveOp: vi.fn(async () => {}),
   onCloseOp: vi.fn(),
 };
 
@@ -136,7 +136,7 @@ describe('HistoryTab', () => {
   });
 
   it('calls onRemoveOp when clicking the delete button on a row', () => {
-    const onRemoveOp = vi.fn();
+    const onRemoveOp = vi.fn(async () => {});
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
     expect(onRemoveOp).toHaveBeenCalledWith('op-1');
@@ -206,6 +206,40 @@ describe('HistoryTab', () => {
     const g1 = onAddOp.mock.calls[0][0].tradeGroupId;
     expect(g1).toBeTruthy();
     expect(onAddOp.mock.calls[1][0].tradeGroupId).toBe(g1);
+  });
+
+  it('never attempts the buy leg of a swap when the sell leg is rejected — no orphaned single-leg swap', async () => {
+    // Reproduces a real bug: onAddOp used to swallow its own failure (AppLayout showed
+    // an alert but never rethrew), so this function kept going and created the buy leg
+    // even though the sell leg (e.g. insufficient balance) had just failed — leaving a
+    // tradeGroupId with only one leg in the database.
+    const onAddOp = vi.fn().mockRejectedValueOnce(new Error('insufficient balance'));
+    const ethOp: Op = {
+      id: 'eth-1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum',
+      type: 'Buy', qty: 2, price: 100, fee: 0, total: 200,
+      platformId: 'custom:kraken', platformName: 'Kraken',
+    };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[ethOp]} onAddOp={onAddOp} />);
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
+    const originInput = screen.getByLabelText('Plataforma de origem');
+    fireEvent.focus(originInput);
+    fireEvent.change(originInput, { target: { value: 'Kraken' } });
+    fireEvent.click(screen.getByText('Kraken', { selector: '.n' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(1));
+    expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', coinId: 'ethereum' }));
+    // Give any (incorrect) second call a chance to fire before asserting it didn't.
+    await new Promise(r => setTimeout(r, 50));
+    expect(onAddOp).toHaveBeenCalledTimes(1);
   });
 
   it('shows translated op type labels in es-ES locale', () => {
@@ -387,7 +421,7 @@ describe('HistoryTab', () => {
       // Deleting buy-1 alone doesn't go negative (buy-2 still covers sell-1's 0.3), but it
       // does change which lot the sell draws from — an "affected", not "blocked", case.
       const bufferBuy: Op = { ...existingOp, id: 'buy-2', date: '2024-01-05', qty: 5, price: 100 };
-      const onRemoveOp = vi.fn();
+      const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, bufferBuy, laterSell]} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getAllByTitle('Excluir')[0]);
       expect(screen.getByRole('alertdialog')).toBeInTheDocument();
@@ -397,7 +431,7 @@ describe('HistoryTab', () => {
     });
 
     it('blocks (no dialog) a delete that would leave a negative balance', () => {
-      const onRemoveOp = vi.fn();
+      const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getAllByTitle('Excluir')[0]);
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -428,7 +462,7 @@ describe('HistoryTab', () => {
 
     it('skips the wallet-impact check entirely for a trade op (edit/delete proceed with no dialog)', () => {
       const onEditOp = vi.fn();
-      const onRemoveOp = vi.fn();
+      const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onEditOp={onEditOp} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getByTitle('Editar operação'));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -454,7 +488,7 @@ describe('HistoryTab', () => {
     });
 
     it('deleting a collapsed swap row removes the sell leg (which cascades the whole group)', () => {
-      const onRemoveOp = vi.fn();
+      const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getByTitle('Excluir'));
       expect(onRemoveOp).toHaveBeenCalledWith('swap-sell');

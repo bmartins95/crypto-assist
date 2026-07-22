@@ -5,6 +5,7 @@ import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, d
 import { api } from '@/lib/api/client';
 import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
+import Toast, { ToastKind } from '@/components/Toast';
 import AppBootstrapGate from '@/auth/AppBootstrapGate';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -52,6 +53,7 @@ export default function AppLayout() {
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
+  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed(prev => {
@@ -129,8 +131,12 @@ export default function AppLayout() {
     try {
       const created = await api.createOp(op);
       setOps(prev => [...prev, created]);
-    } catch {
-      alert(t.dashboard_error_add_op);
+    } catch (e) {
+      // Re-thrown so callers (e.g. a swap's second leg) don't proceed as if this
+      // succeeded — HistoryTab relies on the rejection to skip its own success toast
+      // and to stop a multi-step submission (a swap) after the first leg fails.
+      setToast({ kind: 'error', message: t.dashboard_error_add_op });
+      throw e;
     }
   }, [t]);
 
@@ -138,8 +144,9 @@ export default function AppLayout() {
     try {
       const updated = await api.updateOp(id, op);
       setOps(prev => prev.map(o => (o.id === id ? updated : o)));
-    } catch {
-      alert(t.dashboard_error_edit_op);
+    } catch (e) {
+      setToast({ kind: 'error', message: t.dashboard_error_edit_op });
+      throw e;
     }
   }, [t]);
 
@@ -155,8 +162,9 @@ export default function AppLayout() {
       // and closing_op_id), so drop the same rows locally — otherwise a deleted closing op
       // would leave its link behind and keep the source op stuck as partially closed.
       setClosures(prev => prev.filter(c => !removed.has(c.sourceOpId) && !removed.has(c.closingOpId)));
-    } catch {
-      alert(t.dashboard_error_delete_op);
+    } catch (e) {
+      setToast({ kind: 'error', message: t.dashboard_error_delete_op });
+      throw e;
     }
   }, [t]);
 
@@ -165,8 +173,9 @@ export default function AppLayout() {
       const { closingOp, closures: newClosures } = await api.closeOp(sourceOpId, { closingOp: op, qtyToClose });
       setOps(prev => [...prev, closingOp]);
       setClosures(prev => [...prev, ...newClosures]);
-    } catch {
-      alert(t.dashboard_error_add_op);
+    } catch (e) {
+      setToast({ kind: 'error', message: t.dashboard_error_add_op });
+      throw e;
     }
   }, [t]);
 
@@ -248,6 +257,9 @@ export default function AppLayout() {
           </PortfolioContext.Provider>
         </main>
       </div>
+      {toast && (
+        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
+      )}
     </AppBootstrapGate>
   );
 }

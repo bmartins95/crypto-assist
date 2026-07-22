@@ -22,7 +22,7 @@ interface Props {
   closures: OpClosure[];
   onAddOp: (op: NewOp) => Promise<void>;
   onEditOp: (id: string, op: NewOp) => Promise<void>;
-  onRemoveOp: (id: string) => void;
+  onRemoveOp: (id: string) => Promise<void>;
   onCloseOp: (sourceOpId: string, op: NewOp, qtyToClose: number) => Promise<void>;
 }
 
@@ -136,6 +136,10 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
   const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
     const tradeGroupId = crypto.randomUUID();
+    // onAddOp rejecting here (e.g. the sell leg has insufficient balance) must stop
+    // this function before the second leg is attempted — otherwise a failed swap could
+    // still leave an orphaned single-leg buy with a tradeGroupId that has no matching
+    // sell. The rejection propagates to OpDrawer's own try/catch around this call.
     await onAddOp({ ...sell, tradeGroupId });
     await onAddOp({ ...buy, tradeGroupId });
     setToast({ kind: 'success', message: t.history_add_success });
@@ -151,16 +155,22 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     const { verdict, affectedCount } = checkWalletImpact(o.id, null);
     if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
     if (verdict === 'confirm') { setPendingAction({ kind: 'delete', id: o.id, affectedCount }); return; }
-    onRemoveOp(o.id);
+    // AppLayout's removeOp already shows its own error toast on failure — this only
+    // exists so a rejection here doesn't surface as an unhandled promise rejection.
+    onRemoveOp(o.id).catch(() => {});
   };
 
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
-    if (pendingAction.kind === 'edit') {
-      await onEditOp(pendingAction.id, pendingAction.op);
-      setToast({ kind: 'success', message: t.history_edit_success });
-    } else {
-      onRemoveOp(pendingAction.id);
+    try {
+      if (pendingAction.kind === 'edit') {
+        await onEditOp(pendingAction.id, pendingAction.op);
+        setToast({ kind: 'success', message: t.history_edit_success });
+      } else {
+        await onRemoveOp(pendingAction.id);
+      }
+    } catch {
+      // AppLayout's onEditOp/onRemoveOp already shows its own error toast on failure.
     }
     setPendingAction(null);
   };
