@@ -513,6 +513,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .seg-tipo .seg-btn { flex: 1; justify-content: center; }
 
 .fhint { font-size: 10.5px; color: var(--s-text-dim); margin-top: 3px; }
+.field-error { color: var(--danger); }
 
 .trade-block {
   border-left: 3px solid var(--s-border); border-radius: var(--radius);

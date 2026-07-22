@@ -72,7 +72,7 @@ function filterSeed(list: CoinSearchResult[], query: string): CoinSearchResult[]
 
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
-function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected, disabled, groupLabel, qtyLabel }: {
+function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected, disabled, groupLabel, qtyLabel, error }: {
   id: string; placeholder: string;
   onSelect: (c: CoinSelection) => void;
   onClear: () => void;
@@ -85,6 +85,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   disabled?: boolean;
   groupLabel?: string;
   qtyLabel?: (coinId: string) => string | undefined;
+  error?: boolean;
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -162,7 +163,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
         <span className="sel-logo"><CoinLogo image={selected.image} symbol={selected.symbol} size="sm" /></span>
       )}
       <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off" disabled={disabled}
-        className={`inp${showInlineLogo ? ' withcoin' : ''}`}
+        className={['inp', showInlineLogo && 'withcoin', error && 'err'].filter(Boolean).join(' ')}
         value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
       {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
         <div className="search-dropdown">
@@ -208,7 +209,12 @@ export default function OpDrawer({
       ? (editingOp.kind === 'trade' ? 'trade' : 'wallet')
       : (newOpKind === 'trade' ? 'trade' : 'wallet');
   const [opType, setOpType] = useState<OpTypeOption>('buy');
-  const [error, setError] = useState<string | null>(null);
+  // Field-level validity is derived fresh on every render (see e.g. `coinMissing`,
+  // `qtyInvalid` below) rather than stored as messages — `submitAttempted` just
+  // gates whether those derived flags are actually displayed, so a first submit
+  // click lights up every currently-invalid field at once (not just the first one
+  // found), each with its own message positioned right next to that field.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
 
   const [date, setDate] = useState(today());
@@ -324,7 +330,7 @@ export default function OpDrawer({
       previouslyFocused.current = document.activeElement as HTMLElement | null;
       priorOverflow.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      setError(null);
+      setSubmitAttempted(false);
       setPhase('idle');
       setLeverage(null);
       if (editingOp) {
@@ -395,7 +401,7 @@ export default function OpDrawer({
     slideDirRef.current = TYPE_ORDER.indexOf(next) > TYPE_ORDER.indexOf(opType) ? 'fwd' : 'back';
     pendingSlideRef.current = true;
     setOpType(next);
-    setError(null);
+    setSubmitAttempted(false);
   };
 
   // Restart the directional slide keyframe on each user-initiated tab switch. The
@@ -444,6 +450,12 @@ export default function OpDrawer({
     [mode, opType, coin, platform, opsForWalletPreview, editingOp, currency],
   );
   const walletOverBalance = !!walletBalance && qtyNum > walletBalance.availableQty + 1e-9;
+  // Each condition maps to exactly one field's own inline message below — `coin` is
+  // always pre-set for a close (renderStaticCoin), so it's never the missing one there.
+  const coinMissing = !closingOp && !coin;
+  const qtyExceedsRemaining = !!closingOp && qtyNum > 0 && qtyNum > remainingQty + 1e-9;
+  const qtyInvalid = qtyNum <= 0;
+  const priceInvalid = priceNum <= 0;
   const walletEstimatedPnl = (mode === 'wallet' && opType === 'sell' && coin && platform && qtyNum > 0 && priceNum > 0)
     ? (() => {
         const preview: Op = {
@@ -469,6 +481,20 @@ export default function OpDrawer({
   // the sell leg's own value is separate so unequal-value swaps still book correctly.
   const receivedTotal = toQtyNum * toPriceNum;
   const soldValue = fromQtyNum * fromPriceNum;
+  // One flag per swap field, each surfaced right next to that field below.
+  const originPlatformMissing = !originPlatform;
+  const fromCoinMissing = !fromCoinId;
+  const fromQtyInvalid = fromQtyNum <= 0;
+  const fromPriceInvalid = fromPriceNum <= 0;
+  const toCoinMissing = !toCoin;
+  const toQtyInvalid = toQtyNum <= 0;
+  const toPriceInvalid = toPriceNum <= 0;
+  // Shown live (not gated by submitAttempted), matching `showTransferWarning` above —
+  // both describe the relationship between the two blocks, not a single field's own
+  // value, so waiting for a submit attempt would just hide useful feedback the user
+  // could otherwise catch immediately after picking the second asset.
+  const sameAssetSelected = !!originPlatform && !!toCoin && fromCoinId === toCoin.coinId
+    && (destPlatform ?? originPlatform).id === originPlatform.id;
 
   // A normal create/edit keeps the drawer open with the just-submitted values still
   // filled in, so registering several similar ops in a row doesn't require reopening
@@ -482,18 +508,11 @@ export default function OpDrawer({
   const handleSubmit = async () => {
     if (phase !== 'idle') return;
     if (opType === 'swap') { await submitTrade(); return; }
-    if (!coin || qtyNum <= 0 || priceNum <= 0) {
-      setError(t.history_form_validationRequired);
+    setSubmitAttempted(true);
+    if (coinMissing || qtyInvalid || priceInvalid || qtyExceedsRemaining || (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance)) {
       return;
     }
-    if (closingOp && qtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
-    if (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
+    if (!coin) return;
     const op: NewOp = {
       date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
       type: opType === 'buy' ? 'Buy' : 'Sell',
@@ -570,23 +589,17 @@ export default function OpDrawer({
   // Wallet Swap only — a trade position never closes via swap (allowedTypes excludes
   // 'swap' whenever closingOp is set, so this is unreachable in close mode).
   const submitTrade = async () => {
-    if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || fromPriceNum <= 0 || toPriceNum <= 0) {
-      setError(t.history_form_validationRequired);
+    setSubmitAttempted(true);
+    // Re-checks fromOverBalance here (not just relied on for the field's error
+    // styling) — the drawer can stay open and pre-filled after a prior successful
+    // swap already spent this same balance, so the value computed at render time
+    // must still be re-validated at submit time rather than assuming it's accurate.
+    if (originPlatformMissing || fromCoinMissing || fromQtyInvalid || fromPriceInvalid
+      || toCoinMissing || toQtyInvalid || toPriceInvalid || fromOverBalance || sameAssetSelected) {
       return;
     }
-    // Re-checked here (not just relied on for the field's error styling) — the
-    // drawer can stay open and pre-filled after a prior successful swap already
-    // spent this same balance, so the value computed at render time must still be
-    // re-validated at submit time rather than assuming it's still accurate.
-    if (fromOverBalance) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
+    if (!originPlatform || !toCoin) return;
     const effectiveDest = destPlatform ?? originPlatform;
-    if (fromCoinId === toCoin.coinId && effectiveDest.id === originPlatform.id) {
-      setError(t.trade_form_sameAsset);
-      return;
-    }
     const sellOp: NewOp = {
       date, coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: fromCoinMeta?.name || '',
       type: 'Sell', qty: fromQtyNum, price: fromPriceNum, fee: 0, total: soldValue,
@@ -687,22 +700,35 @@ export default function OpDrawer({
                   {closingOp ? (
                     renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
                   ) : (
-                    <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
-                      seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
-                      value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
-                      onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
+                    <>
+                      <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
+                        seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
+                        value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
+                        error={submitAttempted && coinMissing}
+                        onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
+                      {submitAttempted && coinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
+                    </>
                   )}
                 </div>
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
-                  value={qty} onChange={setQty} suffix={coin?.symbol} error={walletOverBalance}
-                  hint={walletBalance && (
-                    <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
-                      onMax={() => setQty(String(walletBalance.availableQty))} />
-                  )} />
+                  value={qty} onChange={setQty} suffix={coin?.symbol}
+                  error={walletOverBalance || (submitAttempted && (qtyExceedsRemaining || qtyInvalid))}
+                  hint={
+                    submitAttempted && qtyInvalid ? (
+                      <span className="field-error">{t.history_form_enterQuantity}</span>
+                    ) : submitAttempted && qtyExceedsRemaining ? (
+                      <span className="field-error">{t.history_form_qtyExceedsRemaining.replace('{qty}', fmtQty(remainingQty, locale))}</span>
+                    ) : walletBalance ? (
+                      <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
+                        onMax={() => setQty(String(walletBalance.availableQty))} />
+                    ) : undefined
+                  } />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
-                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge}
+                  error={submitAttempted && priceInvalid}
+                  hint={submitAttempted && priceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
               </div>
               {mode === 'trade' && !editingOp && !closingOp && (
                 <div className="fld">
@@ -758,7 +784,8 @@ export default function OpDrawer({
                   <div className="fld">
                     <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
                     <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
-                      options={heldPlatforms} />
+                      options={heldPlatforms} error={submitAttempted && originPlatformMissing} />
+                    {submitAttempted && originPlatformMissing && <span className="fhint field-error">{t.history_form_selectPlatform}</span>}
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
@@ -771,21 +798,29 @@ export default function OpDrawer({
                       qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
                       value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
                       selected={fromCoinId ? { coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: '' } : null}
+                      error={submitAttempted && fromCoinMissing}
                       onClear={() => { setFromCoinId(''); setFromCoinMeta(null); }} />
+                    {submitAttempted && fromCoinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
                     value={fromQty} suffix={fromCoinMeta?.symbol}
-                    error={fromOverBalance}
+                    error={fromOverBalance || (submitAttempted && fromQtyInvalid)}
                     onChange={setFromQty}
-                    hint={!!fromCoinId && (
-                      <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
-                        onMax={() => setFromQty(String(fromAvailableQty))} />
-                    )} />
+                    hint={
+                      submitAttempted && fromQtyInvalid ? (
+                        <span className="field-error">{t.history_form_enterQuantity}</span>
+                      ) : fromCoinId ? (
+                        <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
+                          onMax={() => setFromQty(String(fromAvailableQty))} />
+                      ) : undefined
+                    } />
                   <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
                     value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(fromPriceState)} />
+                    prefix="R$" badge={badgeFor(fromPriceState)}
+                    error={submitAttempted && fromPriceInvalid}
+                    hint={submitAttempted && fromPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
               </div>
 
@@ -804,15 +839,22 @@ export default function OpDrawer({
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
                     <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={defaultCoins}
                       value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
+                      error={submitAttempted && toCoinMissing}
                       onClear={() => { setToCoin(null); setToQty(''); }} />
+                    {submitAttempted && toCoinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
+                    {sameAssetSelected && <span className="fhint field-error">{t.trade_form_sameAsset}</span>}
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
-                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol} />
+                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol}
+                    error={submitAttempted && toQtyInvalid}
+                    hint={submitAttempted && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
                   <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(toPriceState)} />
+                    prefix="R$" badge={badgeFor(toPriceState)}
+                    error={submitAttempted && toPriceInvalid}
+                    hint={submitAttempted && toPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
               </div>
 
@@ -825,8 +867,6 @@ export default function OpDrawer({
             </>
           )}
           </div>
-
-          {error && <div className="fhint" style={{ color: 'var(--danger)' }}>{error}</div>}
         </div>
 
         <div className="drawer-foot">

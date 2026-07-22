@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import OpDrawer from './OpDrawer';
 import type { Op, Asset, AssetWithPlatform } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
@@ -124,12 +124,35 @@ describe('OpDrawer', () => {
     expect(dialog).toHaveAttribute('aria-labelledby', 'drawer-title');
   });
 
-  it('blocks submission and shows a validation message when required fields are missing', () => {
+  it('blocks submission and shows a specific message next to each missing field, not a single generic banner', () => {
     const onSubmit = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
+    const coinField = screen.getByLabelText('Moeda comprada').closest('.fld')!;
+    expect(within(coinField).getByText('Selecione um ativo.')).toBeInTheDocument();
+    const qtyField = screen.getByLabelText('Quantidade').closest('.fld')!;
+    expect(within(qtyField).getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+    const priceField = screen.getByLabelText('Preço unit.').closest('.fld')!;
+    expect(within(priceField).getByText('Informe um preço maior que zero.')).toBeInTheDocument();
+  });
+
+  it('does not show any field errors before the first submit attempt', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.queryByText('Selecione um ativo.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Informe um preço maior que zero.')).not.toBeInTheDocument();
+  });
+
+  it('clears a field error live as soon as that field is fixed, without a second submit', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(screen.getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+    // The other still-missing fields stay flagged.
+    expect(screen.getByText('Selecione um ativo.')).toBeInTheDocument();
   });
 
   it('submits a valid Buy with an auto-calculated total, then stays open with fields intact after the done animation', async () => {
@@ -296,6 +319,18 @@ describe('OpDrawer', () => {
     expect(screen.getByText('A moeda de origem e de destino não podem ser a mesma.')).toBeInTheDocument();
   });
 
+  it('shows the same-asset warning live, next to the "receive" asset field, before any submit attempt', async () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
+    selectOriginPlatform('Kraken');
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    expect(screen.queryByText('A moeda de origem e de destino não podem ser a mesma.')).not.toBeInTheDocument();
+    await selectCoin(toAssetEl, { id: 'ethereum', symbol: 'eth', name: 'Ethereum' });
+    const message = screen.getByText('A moeda de origem e de destino não podem ser a mesma.');
+    expect(message.closest('.fld')).toBe(toAssetEl.closest('.fld'));
+  });
+
   it('allows the same asset on both sides of a Trade when origin and destination platforms differ (a transfer)', async () => {
     const onSubmitTrade = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
@@ -318,13 +353,20 @@ describe('OpDrawer', () => {
     );
   });
 
-  it('blocks Trade submission and shows the validation message when required fields are missing', () => {
+  it('blocks Trade submission and shows a specific message next to each missing field', () => {
     const onSubmitTrade = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
-    expect(screen.getByText('Preencha todos os campos obrigatórios.')).toBeInTheDocument();
+    expect(within(screen.getByLabelText('Plataforma de origem').closest('.fld')!).getByText('Escolha uma plataforma.')).toBeInTheDocument();
+    const [fromAssetField, toAssetField] = screen.getAllByLabelText('Ativo').map(el => el.closest('.fld')!);
+    expect(within(fromAssetField).getByText('Selecione um ativo.')).toBeInTheDocument();
+    expect(within(toAssetField).getByText('Selecione um ativo.')).toBeInTheDocument();
+    const qtyFields = screen.getAllByLabelText('Quantidade').map(el => el.closest('.fld')!);
+    qtyFields.forEach(f => expect(within(f).getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument());
+    const priceFields = screen.getAllByLabelText('Preço unit.').map(el => el.closest('.fld')!);
+    priceFields.forEach(f => expect(within(f).getByText('Informe um preço maior que zero.')).toBeInTheDocument());
   });
 
   it('restricts the "Plataforma de origem" picker to platforms with a current holding', () => {
@@ -455,6 +497,13 @@ describe('OpDrawer', () => {
     expect(screen.getByText('Disponível: 0,00 ETH')).toBeInTheDocument();
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitTrade).not.toHaveBeenCalled();
+    // Reproduces the exact reported bug: every other field is actually filled in, so
+    // the only real problem is the over-balance one already shown next to "Quantidade"
+    // — no misleading "fill in required fields"-style message should appear anywhere.
+    expect(screen.queryByText('Selecione um ativo.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Escolha uma plataforma.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Informe um preço maior que zero.')).not.toBeInTheDocument();
+    expect(screen.queryAllByText('Informe uma quantidade maior que zero.')).toHaveLength(0);
   });
 
   it('shows the cross-platform transfer warning only when the destination platform differs from the origin', () => {
@@ -967,6 +1016,16 @@ describe('OpDrawer', () => {
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(onSubmitClose).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 150 }), 1));
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('blocks closing more than the remaining open quantity, with a message naming the actual limit', () => {
+    const onSubmitClose = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmitClose).not.toHaveBeenCalled();
+    expect(screen.getByText('Não é possível fechar mais que a quantidade em aberto (1,00).')).toBeInTheDocument();
   });
 
   it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {

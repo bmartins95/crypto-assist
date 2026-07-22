@@ -14,6 +14,7 @@ interface Props {
   // disables the "add as custom" row, since a platform outside this list can't
   // be a valid choice regardless of what the user types.
   options?: Platform[];
+  error?: boolean;
 }
 
 // 'custom' only ever shows up via a restricted `options` list (a held platform
@@ -21,7 +22,7 @@ interface Props {
 // unrestricted catalog from usePlatformCatalog() never contains one.
 const CATEGORY_ORDER: PlatformKind[] = ['exchange', 'wallet', 'defi', 'custom'];
 
-export default function PlatformSelect({ id, value, onChange, options }: Props) {
+export default function PlatformSelect({ id, value, onChange, options, error }: Props) {
   const { t } = useLocale();
   const { catalog: fullCatalog, recent: allRecent, addRecent } = usePlatformCatalog();
   const catalog = options ?? fullCatalog;
@@ -142,7 +143,7 @@ export default function PlatformSelect({ id, value, onChange, options }: Props) 
         aria-expanded={open}
         aria-controls={`${id}-listbox`}
         aria-activedescendant={activeDescendant}
-        className={showInlineLogo ? 'inp withlogo' : 'inp'}
+        className={['inp', showInlineLogo && 'withlogo', error && 'err'].filter(Boolean).join(' ')}
         placeholder={t.platform_search_placeholder}
         value={displayValue}
         onFocus={openDropdown}
