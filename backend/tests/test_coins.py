@@ -106,21 +106,53 @@ def test_search_respects_limit():
         _cleanup(patches)
 
 
-def test_empty_query_rejected():
-    client, _, _, patches = _make_auth_client(None)
+def test_empty_query_browses_top_coins_by_market_cap():
+    client, _, cur, patches = _make_auth_client(None)
+    cg_data = [{
+        "id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1,
+        "image": "https://cg.example/bitcoin.png",
+    }]
+    mock_client = _mock_httpx_client(json_data=cg_data)
     try:
-        res = client.get("/api/coins/search?q=")
-        assert res.status_code == 400
-        assert "q" in res.json()["detail"]
+        with patch("app.providers.coingecko.httpx.Client", return_value=mock_client):
+            res = client.get("/api/coins/search?q=")
+        assert res.status_code == 200
+        assert res.json() == [{
+            "id": "bitcoin", "symbol": "btc", "name": "Bitcoin", "market_cap_rank": 1,
+            "image": "https://cg.example/bitcoin.png",
+        }]
+        called_url = mock_client.get.call_args.args[0]
+        assert "coins/markets" in called_url
+        assert "order=market_cap_desc" in called_url
+        insert_calls = [c for c in cur.execute.call_args_list if "INSERT INTO coin_search_cache" in c.args[0]]
+        assert insert_calls[0].args[1][0] == ""
     finally:
         _cleanup(patches)
 
 
-def test_missing_query_rejected():
+def test_missing_query_browses_top_coins_by_market_cap():
     client, _, _, patches = _make_auth_client(None)
+    mock_client = _mock_httpx_client(json_data=[])
     try:
-        res = client.get("/api/coins/search")
-        assert res.status_code == 400
+        with patch("app.providers.coingecko.httpx.Client", return_value=mock_client):
+            res = client.get("/api/coins/search")
+        assert res.status_code == 200
+        called_url = mock_client.get.call_args.args[0]
+        assert "coins/markets" in called_url
+    finally:
+        _cleanup(patches)
+
+
+def test_browse_cache_served_without_upstream_call():
+    empty_row = {"results": [], "updated_at": "2099-01-01T00:00:00+00:00"}
+    client, _, _, patches = _make_auth_client(empty_row)
+    mock_client = _mock_httpx_client()
+    try:
+        with patch("app.providers.coingecko.httpx.Client", return_value=mock_client):
+            res = client.get("/api/coins/search?q=")
+        assert res.status_code == 200
+        assert res.json() == []
+        mock_client.get.assert_not_called()
     finally:
         _cleanup(patches)
 

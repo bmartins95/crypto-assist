@@ -46,6 +46,7 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 const DEBOUNCE_MS = 300;
+const BROWSE_LIMIT = 50;
 
 // Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
 // the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
@@ -219,6 +220,7 @@ export default function OpDrawer({
   const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
   const [leverage, setLeverage] = useState<Leverage | null>(null);
+  const [defaultCoins, setDefaultCoins] = useState<CoinSearchResult[]>([]);
 
   const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
   const [destPlatform, setDestPlatform] = useState<Platform | null>(null);
@@ -308,6 +310,11 @@ export default function OpDrawer({
       setError(null);
       setPhase('idle');
       setLeverage(null);
+      // Backed by the backend's own coin-search cache (1h TTL) — this is a
+      // "browse" request, not a per-keystroke search, so a field with no
+      // restriction shows real options as soon as it's clicked, not just once
+      // the user starts typing.
+      api.searchCoins('', BROWSE_LIMIT).then(setDefaultCoins).catch(() => { /* falls back to per-query search */ });
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -660,7 +667,7 @@ export default function OpDrawer({
                   renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
                 ) : (
                   <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
-                    seed={mode === 'wallet' && opType === 'sell' ? assetSeed : undefined}
+                    seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
                     value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
                     onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
                 )}
@@ -782,7 +789,7 @@ export default function OpDrawer({
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
-                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={defaultCoins}
                       value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
                       onClear={() => { setToCoin(null); setToQty(''); }} />
                   </div>

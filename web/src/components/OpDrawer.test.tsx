@@ -695,8 +695,9 @@ describe('OpDrawer', () => {
   });
 
   it('searches via the backend as soon as any character is typed', async () => {
-    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    vi.mocked(api.searchCoins).mockClear();
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'b' } });
     await screen.findByText('Bitcoin');
     expect(api.searchCoins).toHaveBeenCalledWith('b');
@@ -705,8 +706,8 @@ describe('OpDrawer', () => {
   it('debounces the network search so rapid typing fires one request, not one per keystroke', async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(api.searchCoins).mockClear();
       renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+      vi.mocked(api.searchCoins).mockClear();
       const input = screen.getByLabelText('Moeda comprada');
       fireEvent.change(input, { target: { value: 'b' } });
       fireEvent.change(input, { target: { value: 'bi' } });
@@ -723,8 +724,8 @@ describe('OpDrawer', () => {
   it('cancels a pending debounced search when the query is cleared before it fires', async () => {
     vi.useFakeTimers();
     try {
-      vi.mocked(api.searchCoins).mockClear();
       renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+      vi.mocked(api.searchCoins).mockClear();
       const input = screen.getByLabelText('Moeda comprada');
       fireEvent.change(input, { target: { value: 'bit' } });
       fireEvent.change(input, { target: { value: '' } });
@@ -736,10 +737,11 @@ describe('OpDrawer', () => {
   });
 
   it('shows a round coin logo per result in the search dropdown', async () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    vi.mocked(api.searchCoins).mockClear();
     vi.mocked(api.searchCoins).mockResolvedValueOnce([
       { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
     ]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     const img = document.querySelector('.search-item .coin img');
@@ -747,8 +749,9 @@ describe('OpDrawer', () => {
   });
 
   it('falls back to initials in the dropdown when a coin has no image', async () => {
-    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    vi.mocked(api.searchCoins).mockClear();
+    vi.mocked(api.searchCoins).mockResolvedValueOnce([{ id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1 }]);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     expect(document.querySelector('.search-item .coin img')).not.toBeInTheDocument();
@@ -756,10 +759,11 @@ describe('OpDrawer', () => {
   });
 
   it('shows the selected coin\'s logo inline in the input once picked', async () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    vi.mocked(api.searchCoins).mockClear();
     vi.mocked(api.searchCoins).mockResolvedValueOnce([
       { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin', market_cap_rank: 1, image: 'https://cg.example/bitcoin.png' },
     ]);
-    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Moeda comprada'), { target: { value: 'bit' } });
     await screen.findByText('Bitcoin');
     fireEvent.click(screen.getByText('Bitcoin'));

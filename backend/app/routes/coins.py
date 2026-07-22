@@ -24,10 +24,10 @@ def search_coins(
     limit: int = Query(7),
     _auth=Depends(require_auth),
 ):
+    # An empty query is a valid "browse" request — the provider returns a
+    # default/trending set (top coins by market cap for CoinGecko) instead of
+    # a targeted search, cached under its own key just like any other query.
     query = q.strip()
-    if not query:
-        raise HTTPException(status_code=400, detail='Query param "q" is required.')
-
     cache_key = query.lower()
     conn = get_conn()
 
