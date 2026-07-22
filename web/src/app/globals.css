@@ -507,7 +507,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
    this class rather than relying on :first-child, which broke once the type-panel
    wrapper (added for the tab-switch animation) shifted every other .fld down a level. */
 .drawer-type-fld { padding-bottom: 22px; border-bottom: 1px solid var(--s-border-soft); }
-.drawer-body .fld.tr-date { max-width: 50%; }
+/* Matches one column of .drawer-grid's 2-up layout (same gap subtracted before
+   halving) rather than a flat 50%, which ignores the gap and renders visibly
+   wider than an actual grid column of the same row. */
+.drawer-body .fld.tr-date { max-width: calc((100% - 14px) / 2); }
 
 .seg-tipo { width: 100%; }
 .seg-tipo .seg-btn { flex: 1; justify-content: center; }

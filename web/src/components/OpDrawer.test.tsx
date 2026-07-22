@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import path from 'path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import OpDrawer from './OpDrawer';
@@ -258,6 +260,21 @@ describe('OpDrawer', () => {
     expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
     fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
     expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
+  });
+
+  it("the .tr-date rule subtracts .drawer-grid's own gap before halving, instead of a flat 50% that renders wider than a real grid column", () => {
+    // jsdom doesn't run layout, so the actual rendered pixel width can't be asserted
+    // from a component test — this locks the CSS formula itself instead. A flat
+    // `max-width: 50%` looks like "half the row" but ignores .drawer-grid's 14px gap,
+    // so the date field ends up visibly wider than either column of a real two-up row.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed, compile-time test-only path, not user input
+    const css = readFileSync(path.resolve(__dirname, '../app/globals.css'), 'utf-8');
+    const gridRule = css.match(/\.drawer-grid\s*\{([^}]*)\}/)?.[1] ?? '';
+    const gapMatch = gridRule.match(/gap:\s*([\d.]+px)/);
+    expect(gapMatch).not.toBeNull();
+    const gap = gapMatch![1];
+    const dateRule = css.match(/\.drawer-body \.fld\.tr-date\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(dateRule).toContain(`max-width: calc((100% - ${gap}) / 2)`);
   });
 
   it('submits a valid Trade as one Sell and one Buy sharing the same date, then stays open with fields intact', async () => {
