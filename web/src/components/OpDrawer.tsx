@@ -799,7 +799,7 @@ export default function OpDrawer({
                           ref={customLevInputRef}
                           type="number" inputMode="numeric"
                           min={CUSTOM_LEVERAGE_MIN} max={CUSTOM_LEVERAGE_MAX} step={1}
-                          className="inp has-suf"
+                          className="inp"
                           value={customLevDraft}
                           onChange={e => setCustomLevDraft(e.target.value)}
                           onBlur={handleCustomLevBlur}
@@ -808,7 +808,14 @@ export default function OpDrawer({
                             else if (e.key === 'Escape') { e.preventDefault(); cancelCustomLevEditor(); }
                           }}
                           aria-label={t.op_leverage_custom_label} />
-                        <span className="affix suf">x</span>
+                        <button type="button" className="icon-btn lev-chip-exit-btn"
+                          aria-label={t.op_leverage_custom_cancel}
+                          // Prevents the browser's default focus-shift-on-mousedown from
+                          // blurring (and thus committing) the input before this click fires.
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={cancelCustomLevEditor}>
+                          <i className="ti ti-x" />
+                        </button>
                       </div>
                     ) : leverage !== null && !isFixedLeverage(leverage) ? (
                       <button type="button" className="lev-chip active"

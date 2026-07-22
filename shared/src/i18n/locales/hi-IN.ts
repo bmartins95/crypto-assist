@@ -54,6 +54,7 @@ const hiIN: UIText = {
   op_leverage_custom_label: 'कस्टम',
   op_leverage_custom_lastUsed: 'पिछली बार उपयोग किया गया',
   op_leverage_custom_edit: 'कस्टम लीवरेज संपादित करें',
+  op_leverage_custom_cancel: 'कस्टम लीवरेज रद्द करें',
   history_opType_buy: 'खरीदें',
   history_opType_sell: 'बेचें',
   history_form_addOp: 'ऑपरेशन जोड़ें',

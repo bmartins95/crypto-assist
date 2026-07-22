@@ -54,6 +54,7 @@ const frFR: UIText = {
   op_leverage_custom_label: 'Personnalisé',
   op_leverage_custom_lastUsed: 'DERNIER UTILISÉ',
   op_leverage_custom_edit: "Modifier l'effet de levier personnalisé",
+  op_leverage_custom_cancel: "Annuler l'effet de levier personnalisé",
   history_opType_buy: 'Achat',
   history_opType_sell: 'Vente',
   history_form_addOp: 'Enregistrer une opération',

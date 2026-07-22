@@ -54,6 +54,7 @@ const ptBR: UIText = {
   op_leverage_custom_label: 'Personalizada',
   op_leverage_custom_lastUsed: 'ÚLTIMA USADA',
   op_leverage_custom_edit: 'Editar alavancagem personalizada',
+  op_leverage_custom_cancel: 'Cancelar alavancagem personalizada',
   history_opType_buy: 'Compra',
   history_opType_sell: 'Venda',
   history_form_addOp: 'Registrar operação',

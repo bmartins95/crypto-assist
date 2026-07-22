@@ -54,6 +54,7 @@ const enUS: UIText = {
   op_leverage_custom_label: 'Custom',
   op_leverage_custom_lastUsed: 'LAST USED',
   op_leverage_custom_edit: 'Edit custom leverage',
+  op_leverage_custom_cancel: 'Cancel custom leverage',
   history_opType_buy: 'Buy',
   history_opType_sell: 'Sell',
   history_form_addOp: 'Add operation',

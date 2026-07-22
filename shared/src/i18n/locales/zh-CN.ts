@@ -54,6 +54,7 @@ const zhCN: UIText = {
   op_leverage_custom_label: '自定义',
   op_leverage_custom_lastUsed: '上次使用',
   op_leverage_custom_edit: '编辑自定义杠杆',
+  op_leverage_custom_cancel: '取消自定义杠杆',
   history_opType_buy: '买入',
   history_opType_sell: '卖出',
   history_form_addOp: '添加操作',

@@ -54,6 +54,7 @@ const deDE: UIText = {
   op_leverage_custom_label: 'Benutzerdefiniert',
   op_leverage_custom_lastUsed: 'ZULETZT VERWENDET',
   op_leverage_custom_edit: 'Benutzerdefinierten Hebel bearbeiten',
+  op_leverage_custom_cancel: 'Benutzerdefinierten Hebel abbrechen',
   history_opType_buy: 'Kauf',
   history_opType_sell: 'Verkauf',
   history_form_addOp: 'Transaktion erfassen',

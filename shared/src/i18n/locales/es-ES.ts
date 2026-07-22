@@ -54,6 +54,7 @@ const esES: UIText = {
   op_leverage_custom_label: 'Personalizado',
   op_leverage_custom_lastUsed: 'ÚLTIMO USADO',
   op_leverage_custom_edit: 'Editar apalancamiento personalizado',
+  op_leverage_custom_cancel: 'Cancelar apalancamiento personalizado',
   history_opType_buy: 'Compra',
   history_opType_sell: 'Venta',
   history_form_addOp: 'Registrar operación',

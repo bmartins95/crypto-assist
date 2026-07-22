@@ -1004,6 +1004,21 @@ describe('OpDrawer', () => {
     expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
   });
 
+  it('clicking the exit button cancels the custom leverage input without committing or selecting it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    // Mousedown before click, mirroring real pointer interaction — the handler
+    // must prevent the browser's default focus-shift-triggered blur so it
+    // doesn't commit the draft before the click's cancel runs.
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Cancelar alavancagem personalizada' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar alavancagem personalizada' }));
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '15x' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
   it('an out-of-range custom leverage is discarded on commit', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));

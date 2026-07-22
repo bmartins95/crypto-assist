@@ -54,6 +54,7 @@ const ruRU: UIText = {
   op_leverage_custom_label: 'Своё',
   op_leverage_custom_lastUsed: 'ПОСЛЕДНЕЕ',
   op_leverage_custom_edit: 'Изменить своё плечо',
+  op_leverage_custom_cancel: 'Отменить своё плечо',
   history_opType_buy: 'Покупка',
   history_opType_sell: 'Продажа',
   history_form_addOp: 'Добавить операцию',

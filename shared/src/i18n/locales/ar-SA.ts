@@ -54,6 +54,7 @@ const arSA: UIText = {
   op_leverage_custom_label: 'مخصصة',
   op_leverage_custom_lastUsed: 'آخر استخدام',
   op_leverage_custom_edit: 'تعديل الرافعة المالية المخصصة',
+  op_leverage_custom_cancel: 'إلغاء الرافعة المالية المخصصة',
   history_opType_buy: 'شراء',
   history_opType_sell: 'بيع',
   history_form_addOp: 'إضافة عملية',

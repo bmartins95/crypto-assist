@@ -1325,11 +1325,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Item 29 — Custom leverage pill: idle (dashed), typing, and remembered states */
 .lev-chip-custom-idle { border-style: dashed; }
-.lev-chip-custom-input { width: 92px; }
+.lev-chip-custom-input { width: 100px; }
 .lev-chip-custom-input .inp {
-  padding: 8px 22px 8px 10px; font-size: 13px; font-weight: 600; border-radius: 7px; width: 100%;
+  padding: 8px 26px 8px 10px; font-size: 13px; font-weight: 600; border-radius: 7px; width: 100%;
 }
-.lev-chip-custom-input .affix.suf { right: 10px; font-size: 13px; font-weight: 600; }
+.lev-chip-exit-btn {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; padding: 0; border-radius: 5px; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
 .lev-chip-remembered {
   display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px;
   border-radius: 7px; border: 1px dashed var(--s-border); background: var(--s-surface-2);

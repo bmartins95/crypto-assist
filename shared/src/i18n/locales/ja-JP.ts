@@ -54,6 +54,7 @@ const jaJP: UIText = {
   op_leverage_custom_label: 'カスタム',
   op_leverage_custom_lastUsed: '前回使用',
   op_leverage_custom_edit: 'カスタムレバレッジを編集',
+  op_leverage_custom_cancel: 'カスタムレバレッジをキャンセル',
   history_opType_buy: '買い',
   history_opType_sell: '売り',
   history_form_addOp: '取引を追加',

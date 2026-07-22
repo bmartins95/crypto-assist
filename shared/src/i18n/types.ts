@@ -66,6 +66,7 @@ export interface UIText {
   op_leverage_custom_label: string;
   op_leverage_custom_lastUsed: string;
   op_leverage_custom_edit: string;
+  op_leverage_custom_cancel: string;
   history_opType_buy: string;
   history_opType_sell: string;
   history_form_addOp: string;
