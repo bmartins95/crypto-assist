@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
+import { fmtDate } from '@/lib/format';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { BalanceProvider } from '@/context/BalanceContext';
@@ -360,6 +361,23 @@ describe('HistoryTab', () => {
     expect(headers).toHaveLength(2);
     const rows = document.querySelectorAll('.history-row');
     expect(rows).toHaveLength(3);
+  });
+
+  it('merges a later-added op into its own date\'s existing group instead of creating a duplicate', () => {
+    // Reproduces the reported bug: ops are appended to the array in the order
+    // they were added client-side (see AppLayout's addOp), not re-sorted by
+    // `date` — so a same-day op added after a later-dated one ends up last in
+    // the array despite having an earlier date.
+    const laterDay: Op = { ...existingOp, id: 'op-later', date: '2024-01-20' };
+    const backfilledSameDay: Op = { ...existingOp, id: 'op-backfilled', date: existingOp.date };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, laterDay, backfilledSameDay]} />);
+
+    const headers = document.querySelectorAll('.history-group-header');
+    expect(headers).toHaveLength(2);
+    // Chronological order, not array/insertion order.
+    expect(headers[0]).toHaveTextContent(fmtDate(existingOp.date, 'pt-BR'));
+    expect(headers[1]).toHaveTextContent(fmtDate(laterDay.date, 'pt-BR'));
+    expect(document.querySelectorAll('.history-row')).toHaveLength(3);
   });
 
   it('collapses row detail by default and expands it on click, showing price/fee/platform', () => {

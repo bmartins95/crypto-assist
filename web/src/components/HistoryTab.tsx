@@ -64,16 +64,20 @@ function pairSwaps(ops: Op[]): HistoryRow[] {
   return rows;
 }
 
-// Ops arrive already ordered by date ascending (backend `ORDER BY date`) — this only
-// buckets consecutive/matching dates into groups, it never re-sorts the operations.
+// A freshly-added op is always appended to the end of `ops` (see AppLayout's
+// addOp/editOp/closeOp) regardless of its own `date` — the backend's own
+// `ORDER BY date` only holds for the initial fetch, not for the client-side
+// array afterward. So this buckets by date value (a same-date op anywhere in
+// the array joins its group, not just an immediately preceding entry), then
+// sorts the groups chronologically — grouping is never a function of array
+// position/insertion order, only of each op's own `date`.
 function groupOpsByDate(ops: Op[]): { date: string; rows: HistoryRow[] }[] {
-  const groups: { date: string; ops: Op[] }[] = [];
+  const byDate = new Map<string, Op[]>();
   for (const op of ops) {
-    const last = groups[groups.length - 1];
-    if (last && last.date === op.date) last.ops.push(op);
-    else groups.push({ date: op.date, ops: [op] });
+    if (!byDate.has(op.date)) byDate.set(op.date, []);
+    byDate.get(op.date)!.push(op);
   }
-  return groups.map(g => ({ date: g.date, rows: pairSwaps(g.ops) }));
+  return [...byDate.keys()].sort().map(date => ({ date, rows: pairSwaps(byDate.get(date)!) }));
 }
 
 export default function HistoryTab({ ops, assets, avatarCache, prices, closures, onAddOp, onEditOp, onRemoveOp, onCloseOp }: Props) {
