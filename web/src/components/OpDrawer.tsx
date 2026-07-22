@@ -659,7 +659,8 @@ export default function OpDrawer({
                 {closingOp ? (
                   renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
                 ) : (
-                  <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." seed={assetSeed}
+                  <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
+                    seed={mode === 'wallet' && opType === 'sell' ? assetSeed : undefined}
                     value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
                     onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
                 )}
