@@ -100,9 +100,6 @@ export interface UIText {
   trade_form_platformTo: string;
   trade_form_platformToHint: string;
   trade_form_transferWarning: string;
-  trade_form_balance: string;
-  trade_form_balanceExceeded: string;
-  trade_form_max: string;
   trade_form_choosePlatformFirst: string;
   trade_form_noAssetsInPlatform: string;
   trade_form_noAssetsOnPlatform: string;
@@ -114,8 +111,8 @@ export interface UIText {
   history_opType_sellShort: string;
   trade_side_long: string;
   trade_side_short: string;
-  wallet_available_balance: string;
-  wallet_max_button: string;
+  balance_available: string;
+  balance_max: string;
   wallet_estimated_pnl: string;
   trade_close_locked_hint_short: string;
   trade_close_locked_hint_long: string;

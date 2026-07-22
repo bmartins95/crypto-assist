@@ -8,6 +8,7 @@ import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWallet
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
+import BalanceHint from '@/components/BalanceHint';
 import PlatformSelect from '@/components/platform/PlatformSelect';
 import PlatformLogo from '@/components/platform/PlatformLogo';
 import DatePicker from '@/components/DatePicker/DatePicker';
@@ -688,11 +689,8 @@ export default function OpDrawer({
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
                   value={qty} onChange={setQty} suffix={coin?.symbol} error={walletOverBalance}
                   hint={walletBalance && (
-                    <span className={`bal-row${walletOverBalance ? ' err' : ''}`}>
-                      <span>{(walletOverBalance ? t.trade_form_balanceExceeded : t.wallet_available_balance)
-                        .replace('{qty}', fmtQty(walletBalance.availableQty, locale)).replace('{symbol}', coin?.symbol ?? '')}</span>
-                      <button type="button" className="max" onClick={() => setQty(String(walletBalance.availableQty))}>{t.wallet_max_button}</button>
-                    </span>
+                    <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
+                      onMax={() => setQty(String(walletBalance.availableQty))} />
                   )} />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
                   value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
@@ -773,14 +771,8 @@ export default function OpDrawer({
                     error={fromOverBalance}
                     onChange={setFromQty}
                     hint={fromHolding && (
-                      <span className={`bal-row${fromOverBalance ? ' err' : ''}`}>
-                        <span>{(fromOverBalance ? t.trade_form_balanceExceeded : t.trade_form_balance)
-                          .replace('{qty}', fmtQty(fromHolding.qty, locale)).replace('{symbol}', fromHolding.symbol)}</span>
-                        <button type="button" className="max"
-                          onClick={() => setFromQty(String(fromHolding.qty))}>
-                          {t.trade_form_max}
-                        </button>
-                      </span>
+                      <BalanceHint qty={fromHolding.qty} symbol={fromHolding.symbol} over={fromOverBalance}
+                        onMax={() => setFromQty(String(fromHolding.qty))} />
                     )} />
                   <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
                     value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}

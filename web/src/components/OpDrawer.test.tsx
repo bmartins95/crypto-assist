@@ -380,7 +380,7 @@ describe('OpDrawer', () => {
     selectOriginPlatform('Kraken');
     const [fromAssetEl] = screen.getAllByLabelText('Ativo');
     selectFromAsset(fromAssetEl, 'Ethereum');
-    expect(screen.getByText('Saldo: 2,00 ETH')).toBeInTheDocument();
+    expect(screen.getByText('Disponível: 2,00 ETH')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Máx' }));
     expect((screen.getAllByLabelText('Quantidade')[0] as HTMLInputElement).value).toBe('2');
   });
@@ -421,7 +421,7 @@ describe('OpDrawer', () => {
     selectFromAsset(fromAssetEl, 'Ethereum');
     const fromQtyEl = screen.getAllByLabelText('Quantidade')[0];
     fireEvent.change(fromQtyEl, { target: { value: '5' } });
-    expect(screen.getByText('Acima do saldo (2,00 ETH)')).toBeInTheDocument();
+    expect(screen.getByText('Disponível: 2,00 ETH')).toBeInTheDocument();
     expect(document.querySelector('.bal-row.err')).toBeInTheDocument();
     expect(fromQtyEl).toHaveClass('err');
   });
