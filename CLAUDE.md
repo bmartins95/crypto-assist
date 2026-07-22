@@ -30,6 +30,7 @@
 - Good path: the operation succeeds and the response/state is exactly what is expected.
 - Bad paths: invalid input, missing auth, resource not found, upstream failure (mock it), concurrent modification — whichever apply to the feature.
 - New shared library functions require tests alongside the function in `shared/src/*.test.ts` or `web/src/lib/*.test.ts`.
+- Every bug fix must ship with a regression test that reproduces the exact reported scenario and fails without the fix. A generic/happy-path test that merely exercises the changed code is not sufficient — it must fail on the pre-fix code.
 - Run `cd backend && pytest` and `cd web && npm test` before opening a PR. Fix all failures first.
 
 ### Error handling
