@@ -333,10 +333,17 @@ describe('HistoryTab', () => {
     await waitFor(() => expect(screen.getByText('Operação salva com sucesso')).toBeInTheDocument());
   });
 
-  it('shows a leverage badge and a Long/Short label next to the type chip for a trade', () => {
+  it('shows a leverage badge and a Long pill for a leveraged long trade', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
     expect(document.querySelector('.tbl .lev-badge')).toHaveTextContent('3x');
-    expect(document.querySelector('.tbl .side-label')).toHaveTextContent('Long');
+    expect(document.querySelector('.tbl .tag.long')).toHaveTextContent('Long');
+  });
+
+  it('shows a Short pill for a short trade', () => {
+    const shortOp: Op = { ...tradeOp, id: 'trade-2', side: 'short' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[shortOp]} />);
+    expect(document.querySelector('.tbl .tag.short')).toHaveTextContent('Short');
+    expect(document.querySelector('.tbl .tag.long')).not.toBeInTheDocument();
   });
 
   it('shows no leverage badge for a wallet (unleveraged) operation', () => {

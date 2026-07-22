@@ -63,6 +63,9 @@ export interface UIText {
   history_add_success: string;
   history_edit_success: string;
   op_leverage_label: string;
+  op_leverage_custom_label: string;
+  op_leverage_custom_lastUsed: string;
+  op_leverage_custom_edit: string;
   history_opType_buy: string;
   history_opType_sell: string;
   history_form_addOp: string;

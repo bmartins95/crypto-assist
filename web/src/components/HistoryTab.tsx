@@ -246,9 +246,8 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
         <tr className="history-row trade-row" onClick={() => toggleExpand(o.id)}>
           <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
           <td>
-            <span className={`tag ${o.type === 'Buy' ? 'buy' : 'sell'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span>
+            <span className={`tag ${o.side === 'short' ? 'short' : 'long'}`}>{o.side === 'short' ? t.trade_side_short : t.trade_side_long}</span>
             {o.leverage && <span className="lev-badge">{o.leverage}x</span>}
-            <span className="side-label">{o.side === 'short' ? t.trade_side_short : t.trade_side_long}</span>
             {cycles.get(o.id) && <CyclePopover cycle={cycles.get(o.id)!} coinSymbol={o.symbol} />}
           </td>
           <td className="num">{mask(fmtQty(o.qty, locale))}</td>

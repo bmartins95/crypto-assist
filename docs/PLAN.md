@@ -1049,3 +1049,45 @@ Item 27's cycle tag + floating popover (`docs/design/op-cycle-tag-summary.html`)
 - The cycle tag/popover (item 27) appears only on trade rows and correctly reflects multi-partial-close chains.
 - Existing item-26 data migrates correctly: leverage>1x ops become `kind: 'trade'` with the right `side`, preserving their status/closures; everything else becomes `kind: 'wallet'` with no status shown.
 - `pytest` covers the `op_kind`/`side` validation, the close-endpoint's locked-side enforcement, and the backfill migration. `npm test` covers the FIFO helper (multiple buys at different platforms/prices, sell exceeding one lot, edit/delete recompute), `computeCycles` restricted to trade ops, and both `OpDrawer` modes' restricted fields.
+
+---
+
+## Item 29 — Leverage custom input + Long/Short pill refactor
+**Branch:** `feat/leverage-custom-input`
+**Depends on:** item 28 (introduced the fixed leverage chips and the trade-row Buy/Sell tag + side-label this item replaces)
+
+- [x] Done
+
+### Design reference
+Claude Design project "Datum Designs" (`claude.ai/design/p/7de25ab4-b495-4062-bdb4-ba8895f54eef`), file `Handoff — Leverage Custom Input.dc.html` — imported via the `claude_design` MCP. Covers two independent pieces: (1) the leverage field's behavior spec (idle/typing/committed/remembered states for a 6th "Custom" pill) and (2) a Long/Short pill spec replacing the redundant Buy pill + separate side text on trade rows.
+
+### Current state
+- `web/src/components/OpDrawer.tsx`'s `LEVERAGE_OPTIONS` (`[null, 2, 3, 5, 10]`) renders five fixed pills only — no way to enter a leverage value outside that set. `shared/src/types.ts`'s `Leverage` type (`2 | 3 | 5 | 10`) and `backend/app/models.py`'s `LeverageValue` (`Literal[2, 3, 5, 10]`) enforce the same fixed set client- and server-side; `backend/db/schema.sql`'s `ops.leverage` column has a matching `CHECK (leverage IN (2, 3, 5, 10))`.
+- `web/src/components/HistoryTab.tsx`'s `renderTradeRow` (~L249-251) renders a `.tag.buy`/`.tag.sell` pill (`t.history_opType_buy`/`sell`) immediately followed by a separate `.side-label` span showing Long/Short as plain dimmed uppercase text — the exact redundancy the handoff's section 3 calls out.
+
+### Goal
+1. Add a 6th "Custom" leverage pill (dashed border) alongside the existing five, supporting the handoff's four states: idle (never used), typing (click turns it into a numeric input matching the Quantity/Unit price field chrome, with an "x" suffix), committed & selected (turns into a solid pill exactly like a selected fixed chip), and remembered (next time the drawer opens, the pill pre-shows the last custom value with a "LAST USED" caption and a pencil icon — clicking the pill body selects it directly, clicking the pencil re-opens the editable input pre-filled with that value). Persist the last custom value client-side (`localStorage`), one value, no history list.
+2. Replace the trade row's Buy/Sell tag + separate Long/Short text with a single pill showing only "Long"/"Short", styled like the existing Buy/Sell/Type pills — teal for Long, amber for Short. The orange leverage badge next to it is unchanged in concept; recolor it to the handoff's exact tokens (`#fb923c` / `rgba(251,146,60,.12)`), which already match this app's own `--s-accent`-adjacent orange used elsewhere for trade UI (`.btn-outline-accent`, `.trade-row` border) more precisely than the badge's prior slightly-different orange.
+
+### Approach
+Widening the fixed leverage set to an open-ended custom value means `Leverage` can no longer be a literal union — it becomes `number`, validated as an integer in a bounded range (chosen: 2–125, matching common exchange futures leverage caps such as Binance's 125x) both client-side (the custom input's `min`/`max`) and server-side (`backend/app/models.py`'s `LeverageValue`, replacing the `Literal` with a ranged `Field`). The existing 1x/2x/3x/5x/10x pills and their submit/validation path are unchanged — only the allowed range widens.
+
+### Database migration (additive only)
+`backend/db/migrations/016_widen_leverage_check.sql` — drops the old `ops_leverage_check` constraint (`leverage IN (2, 3, 5, 10)`) and adds a new one (`leverage IS NULL OR leverage BETWEEN 2 AND 125)`), widening the allowed range without touching any column or existing data.
+
+### Files to modify
+- `shared/src/types.ts` — `Leverage` becomes `number` (documented as an integer, 2–125, validated server-side).
+- `backend/app/models.py` — `LeverageValue` becomes a ranged `int` (`Field(ge=2, le=125)`) instead of `Literal[2, 3, 5, 10]`.
+- `backend/db/schema.sql` — `ops.leverage`'s inline `CHECK` widened to match the migration.
+- `backend/tests/test_ops.py` — `test_create_op_invalid_leverage_rejected` now asserts an out-of-range value (e.g. `1` or `200`) is rejected with 422, since `4` (previously invalid) is now a legal custom value; add a case asserting a custom in-range value (e.g. `27`) is accepted.
+- `web/src/components/OpDrawer.tsx` — add the 6th "Custom" pill with the four states described above, reusing the existing `NumericField`/`.nf`/`.inp` chrome for the typing state (same visual treatment the handoff calls for, already theme-aware for light/dark) rather than hardcoding new colors.
+- `web/src/components/HistoryTab.tsx` — `renderTradeRow` swaps the Buy/Sell tag + `.side-label` span for a single `.tag.long`/`.tag.short` pill.
+- `web/src/app/globals.css` — new `.tag.long`/`.tag.short`, `.lev-chip-custom-idle` (dashed), `.lev-chip-custom-input` (reuses `.nf`/`.inp`/`.affix` at a chip-compact size), `.lev-chip-remembered` (+ body/caption/edit-button sub-classes); recolored `.lev-badge`; removes the now-dead `.side-label` rule.
+- `shared/src/i18n/types.ts` + all 10 locale files — `op_leverage_custom_label` ("Custom"), `op_leverage_custom_lastUsed` ("LAST USED"), `op_leverage_custom_edit` (pencil icon aria-label).
+- `web/src/components/OpDrawer.test.tsx`, `web/src/components/HistoryTab.test.tsx` — cover the new pill states and the Long/Short pill.
+
+### Done when
+- The leverage row in "New trade" shows 1x/2x/3x/5x/10x plus a 6th Custom pill in all four spec states, and a submitted custom value round-trips through the backend (rejects out-of-range, accepts 2–125).
+- Reopening the drawer after a custom leverage was used shows the remembered value with a "LAST USED" caption and pencil icon, selectable directly or editable via the pencil.
+- Trade rows in History show one Long/Short pill (teal/amber) instead of a Buy/Sell tag plus separate side text; the leverage badge stays orange, recolored to the handoff's exact tokens.
+- `pytest` and `npm test` pass, including new coverage for the custom-leverage states and the Long/Short pill colors.

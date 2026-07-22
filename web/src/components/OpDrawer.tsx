@@ -189,6 +189,15 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
 
 const today = () => new Date().toISOString().slice(0, 10);
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
+const CUSTOM_LEVERAGE_MIN = 2;
+const CUSTOM_LEVERAGE_MAX = 125;
+const CUSTOM_LEVERAGE_STORAGE_KEY = 'crypto-assist:custom-leverage';
+
+function readLastCustomLeverage(): number | null {
+  const raw = localStorage.getItem(CUSTOM_LEVERAGE_STORAGE_KEY);
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isInteger(n) && n >= CUSTOM_LEVERAGE_MIN && n <= CUSTOM_LEVERAGE_MAX ? n : null;
+}
 
 type OpTypeOption = 'buy' | 'sell' | 'swap';
 const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'swap'];
@@ -226,6 +235,9 @@ export default function OpDrawer({
   const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
   const [leverage, setLeverage] = useState<Leverage | null>(null);
+  const [customLevMode, setCustomLevMode] = useState<'idle' | 'editing'>('idle');
+  const [customLevDraft, setCustomLevDraft] = useState('');
+  const [lastCustomLeverage, setLastCustomLeverage] = useState<number | null>(readLastCustomLeverage);
   const [defaultCoins, setDefaultCoins] = useState<CoinSearchResult[]>([]);
 
   const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
@@ -252,6 +264,10 @@ export default function OpDrawer({
   const priorOverflow = useRef('');
   const panelRef = useRef<HTMLDivElement>(null);
   const slideDirRef = useRef<'fwd' | 'back'>('fwd');
+  const customLevInputRef = useRef<HTMLInputElement>(null);
+  // Set right before an Escape-driven mode change so the blur the browser fires
+  // when the input unmounts doesn't also commit the draft (see handoff state 5b/5c).
+  const skipCustomLevBlurRef = useRef(false);
   const pendingSlideRef = useRef(false);
 
   const resetBuySell = () => {
@@ -263,6 +279,39 @@ export default function OpDrawer({
     setOriginPlatform(null); setDestPlatform(null);
     setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
     setToCoin(null); setToCoinText(''); setToQty(''); setToUnitPrice(''); setToPriceState('idle'); setTradeFee('');
+  };
+
+  const isFixedLeverage = (v: number | null) => LEVERAGE_OPTIONS.includes(v);
+
+  const openCustomLevEditor = (prefill: string) => {
+    setCustomLevDraft(prefill);
+    setCustomLevMode('editing');
+    requestAnimationFrame(() => customLevInputRef.current?.focus());
+  };
+
+  const commitCustomLeverage = () => {
+    const n = Math.trunc(Number(customLevDraft));
+    if (Number.isFinite(n) && n >= CUSTOM_LEVERAGE_MIN && n <= CUSTOM_LEVERAGE_MAX) {
+      setLeverage(n);
+      setLastCustomLeverage(n);
+      localStorage.setItem(CUSTOM_LEVERAGE_STORAGE_KEY, String(n));
+    }
+    setCustomLevMode('idle');
+    setCustomLevDraft('');
+  };
+
+  // The browser can fire a real blur event when the input unmounts as a side
+  // effect of the Escape handler's own state update — this guard keeps that
+  // stray blur from re-committing a draft the user just cancelled.
+  const handleCustomLevBlur = () => {
+    if (skipCustomLevBlurRef.current) { skipCustomLevBlurRef.current = false; return; }
+    commitCustomLeverage();
+  };
+
+  const cancelCustomLevEditor = () => {
+    skipCustomLevBlurRef.current = true;
+    setCustomLevMode('idle');
+    setCustomLevDraft('');
   };
 
   const handleOriginPlatformChange = (p: Platform | null) => {
@@ -333,6 +382,8 @@ export default function OpDrawer({
       setSubmitAttempted(false);
       setPhase('idle');
       setLeverage(null);
+      setCustomLevMode('idle');
+      setCustomLevDraft('');
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -738,10 +789,53 @@ export default function OpDrawer({
                       <button key={String(v)} type="button"
                         className={leverage === v ? 'lev-chip active' : 'lev-chip'}
                         aria-label={`${v ?? 1}x`}
-                        onClick={() => setLeverage(prev => (prev === v ? null : v))}>
+                        onClick={() => { setLeverage(prev => (prev === v ? null : v)); setCustomLevMode('idle'); }}>
                         {v ?? 1}x
                       </button>
                     ))}
+                    {customLevMode === 'editing' ? (
+                      <div className="nf lev-chip lev-chip-custom-input">
+                        <input
+                          ref={customLevInputRef}
+                          type="number" inputMode="numeric"
+                          min={CUSTOM_LEVERAGE_MIN} max={CUSTOM_LEVERAGE_MAX} step={1}
+                          className="inp has-suf"
+                          value={customLevDraft}
+                          onChange={e => setCustomLevDraft(e.target.value)}
+                          onBlur={handleCustomLevBlur}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitCustomLeverage(); }
+                            else if (e.key === 'Escape') { e.preventDefault(); cancelCustomLevEditor(); }
+                          }}
+                          aria-label={t.op_leverage_custom_label} />
+                        <span className="affix suf">x</span>
+                      </div>
+                    ) : leverage !== null && !isFixedLeverage(leverage) ? (
+                      <button type="button" className="lev-chip active"
+                        aria-label={`${leverage}x`}
+                        onClick={() => setLeverage(null)}>
+                        {leverage}x
+                      </button>
+                    ) : lastCustomLeverage !== null ? (
+                      <div className="lev-chip lev-chip-remembered">
+                        <button type="button" className="lev-chip-remembered-body"
+                          aria-label={`${lastCustomLeverage}x`}
+                          onClick={() => setLeverage(lastCustomLeverage)}>
+                          <span className="lev-chip-remembered-value">{lastCustomLeverage}x</span>
+                          <span className="lev-chip-remembered-caption">{t.op_leverage_custom_lastUsed}</span>
+                        </button>
+                        <button type="button" className="lev-chip-edit"
+                          aria-label={t.op_leverage_custom_edit}
+                          onClick={() => openCustomLevEditor(String(lastCustomLeverage))}>
+                          <i className="ti ti-pencil" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" className="lev-chip lev-chip-custom-idle"
+                        onClick={() => openCustomLevEditor('')}>
+                        {t.op_leverage_custom_label}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

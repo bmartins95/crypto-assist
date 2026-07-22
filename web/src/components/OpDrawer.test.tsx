@@ -963,6 +963,91 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
   });
 
+  it('Custom leverage pill starts idle (dashed, no remembered value) when never used before', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toHaveClass('lev-chip-custom-idle');
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(document.querySelector('.lev-chip-remembered')).not.toBeInTheDocument();
+  });
+
+  it('clicking the idle Custom pill opens a numeric input; committing it on Enter selects it and includes it in the submitted op', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '27' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.getByRole('button', { name: '27x' })).toHaveClass('lev-chip active');
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 27 }));
+  });
+
+  it('committing a custom leverage on blur also selects it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.blur(input);
+    expect(screen.getByRole('button', { name: '15x' })).toHaveClass('lev-chip active');
+  });
+
+  it('Escape cancels the custom leverage input without committing or selecting it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
+  it('an out-of-range custom leverage is discarded on commit', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '999' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.queryByRole('button', { name: '999x' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
+  it('remembers the last custom leverage across drawer sessions and lets the body select it or the pencil re-edit it', async () => {
+    const onClose = vi.fn();
+    const onSubmit = vi.fn();
+    const { rerender } = renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    fireEvent.change(document.querySelector('.lev-chip-custom-input input')!, { target: { value: '27' } });
+    fireEvent.keyDown(document.querySelector('.lev-chip-custom-input input')!, { key: 'Enter' });
+    expect(localStorage.getItem('crypto-assist:custom-leverage')).toBe('27');
+
+    // Close and reopen — a fresh drawer session should show the remembered pill.
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open={false} onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+
+    const remembered = document.querySelector('.lev-chip-remembered')!;
+    expect(within(remembered as HTMLElement).getByText('27x')).toBeInTheDocument();
+    expect(within(remembered as HTMLElement).getByText('ÚLTIMA USADA')).toBeInTheDocument();
+
+    fireEvent.click(within(remembered as HTMLElement).getByRole('button', { name: '27x' }));
+    expect(screen.getByRole('button', { name: '27x' })).toHaveClass('lev-chip active');
+  });
+
+  it('the pencil on a remembered custom pill reopens the editor pre-filled with the last value', () => {
+    localStorage.setItem('crypto-assist:custom-leverage', '42');
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(document.querySelector('.lev-chip-remembered .lev-chip-edit')!);
+    const input = document.querySelector('.lev-chip-custom-input input') as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe('42');
+  });
+
   it('slides the type panel directionally on switch without remounting it', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const before = document.querySelector('.type-panel');

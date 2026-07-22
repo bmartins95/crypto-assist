@@ -1243,8 +1243,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .status-chip.closed { background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .35); color: var(--s-accent); }
 
 .lev-badge {
-  margin-left: 6px; padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 700;
-  background: rgba(249, 115, 22, .12); border: 1px solid rgba(249, 115, 22, .35); color: #f97316;
+  margin-left: 6px; padding: 2px 6px; border-radius: 5px; font-size: 10px; font-weight: 700;
+  background: rgba(251, 146, 60, .12); color: #fb923c;
 }
 
 .pnl-pos { color: var(--success); font-weight: 600; }
@@ -1252,9 +1252,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Item 28 — wallet vs. trade split */
 .tag.swap { background: rgba(167, 139, 250, .14); color: #a78bfa; }
-.side-label {
-  margin-left: 6px; font-size: 11px; font-weight: 600; color: var(--s-text-dim); text-transform: uppercase;
-}
+/* Item 29 — single Long/Short pill replaces the old Buy/Sell tag + side-label text */
+.tag.long { background: rgba(45, 212, 191, .12); color: var(--s-accent); }
+.tag.short { background: rgba(251, 191, 36, .12); color: var(--warning, #fbbf24); }
 .btn-outline-accent {
   background: transparent; border: 1px solid rgba(251, 146, 60, .45); color: #fb923c;
 }
@@ -1322,6 +1322,32 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border: 1px solid var(--s-border); background: var(--s-surface-2); color: var(--s-text-dim);
 }
 .lev-chip.active { border-color: var(--s-accent); background: rgba(45, 212, 191, .12); color: var(--s-accent); }
+
+/* Item 29 — Custom leverage pill: idle (dashed), typing, and remembered states */
+.lev-chip-custom-idle { border-style: dashed; }
+.lev-chip-custom-input { width: 92px; }
+.lev-chip-custom-input .inp {
+  padding: 8px 22px 8px 10px; font-size: 13px; font-weight: 600; border-radius: 7px; width: 100%;
+}
+.lev-chip-custom-input .affix.suf { right: 10px; font-size: 13px; font-weight: 600; }
+.lev-chip-remembered {
+  display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px;
+  border-radius: 7px; border: 1px dashed var(--s-border); background: var(--s-surface-2);
+}
+.lev-chip-remembered-body {
+  display: flex; flex-direction: column; align-items: center; line-height: 1.15;
+  background: none; border: none; padding: 0; cursor: pointer; color: var(--s-text-dim);
+  font-size: 13px; font-weight: 600; font-family: inherit;
+}
+.lev-chip-remembered-caption {
+  font-size: 8.5px; letter-spacing: .4px; color: var(--s-text-dim); opacity: .7; font-weight: 500; margin-top: 1px;
+}
+.lev-chip-edit {
+  flex: none; width: 22px; height: 22px; border-radius: 6px; border: none;
+  background: var(--s-surface-hover); color: var(--s-text-dim); font-size: 11px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.lev-chip-edit:hover { color: var(--text); }
 
 .pnl-preview {
   margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--s-border-soft);
