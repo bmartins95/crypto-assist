@@ -225,6 +225,10 @@ export default function OpDrawer({
   const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
   const [destPlatform, setDestPlatform] = useState<Platform | null>(null);
   const [fromCoinId, setFromCoinId] = useState('');
+  // Symbol/name captured at selection time, independent of `originHoldings` — a
+  // filtered "currently held" list drops the asset entirely once its balance hits
+  // zero, which must not erase what's needed to display/submit the sell leg.
+  const [fromCoinMeta, setFromCoinMeta] = useState<{ symbol: string; name: string } | null>(null);
   const [fromCoinText, setFromCoinText] = useState('');
   const [fromQty, setFromQty] = useState('');
   const [fromUnitPrice, setFromUnitPrice] = useState('');
@@ -251,13 +255,13 @@ export default function OpDrawer({
 
   const resetTrade = () => {
     setOriginPlatform(null); setDestPlatform(null);
-    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
+    setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
     setToCoin(null); setToCoinText(''); setToQty(''); setToUnitPrice(''); setToPriceState('idle'); setTradeFee('');
   };
 
   const handleOriginPlatformChange = (p: Platform | null) => {
     setOriginPlatform(p);
-    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
+    setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
   };
 
   const originHoldings = useMemo(
@@ -276,8 +280,13 @@ export default function OpDrawer({
     }
     return [...seen.values()];
   }, [platformAssets, resolveOpPlatform]);
-  const fromHolding = originHoldings.find(a => a.coinId === fromCoinId);
-  const fromOverBalance = !!fromHolding && (parseFloat(fromQty) || 0) > fromHolding.qty;
+  // `originHoldings` only lists assets with a *current* nonzero balance, so once this
+  // coin's balance reaches zero (e.g. a prior swap in this same drawer session already
+  // sold all of it) `.find` returns undefined — defaulting to 0 here instead of leaving
+  // the qty (and the over-balance check below) undefined is what makes a second attempt
+  // to sell the same now-empty position actually get caught instead of silently passing.
+  const fromAvailableQty = originHoldings.find(a => a.coinId === fromCoinId)?.qty ?? 0;
+  const fromOverBalance = !!fromCoinId && (parseFloat(fromQty) || 0) > fromAvailableQty + 1e-9;
   const showTransferWarning = !!originPlatform && !!destPlatform && destPlatform.id !== originPlatform.id;
 
   // Closing a trade position locks the type to whichever side resolves it — a short
@@ -512,6 +521,7 @@ export default function OpDrawer({
 
   const handleFromCoinSelect = (c: CoinSelection) => {
     setFromCoinId(c.coinId);
+    setFromCoinMeta({ symbol: c.symbol, name: c.name });
   };
 
   // Auto-fills each side's unit price from the live market price (display currency),
@@ -564,14 +574,21 @@ export default function OpDrawer({
       setError(t.history_form_validationRequired);
       return;
     }
+    // Re-checked here (not just relied on for the field's error styling) — the
+    // drawer can stay open and pre-filled after a prior successful swap already
+    // spent this same balance, so the value computed at render time must still be
+    // re-validated at submit time rather than assuming it's still accurate.
+    if (fromOverBalance) {
+      setError(t.history_form_validationRequired);
+      return;
+    }
     const effectiveDest = destPlatform ?? originPlatform;
     if (fromCoinId === toCoin.coinId && effectiveDest.id === originPlatform.id) {
       setError(t.trade_form_sameAsset);
       return;
     }
-    const fromAsset = originHoldings.find(a => a.coinId === fromCoinId);
     const sellOp: NewOp = {
-      date, coinId: fromCoinId, symbol: fromAsset?.symbol || '', name: fromAsset?.name || '',
+      date, coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: fromCoinMeta?.name || '',
       type: 'Sell', qty: fromQtyNum, price: fromPriceNum, fee: 0, total: soldValue,
       platformId: originPlatform.id, platformName: originPlatform.name,
       currency, kind: 'wallet',
@@ -753,18 +770,18 @@ export default function OpDrawer({
                       groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
                       qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
                       value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
-                      selected={fromCoinId ? { coinId: fromCoinId, symbol: fromHolding?.symbol || '', name: '' } : null}
-                      onClear={() => setFromCoinId('')} />
+                      selected={fromCoinId ? { coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: '' } : null}
+                      onClear={() => { setFromCoinId(''); setFromCoinMeta(null); }} />
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
-                    value={fromQty} suffix={fromHolding?.symbol}
+                    value={fromQty} suffix={fromCoinMeta?.symbol}
                     error={fromOverBalance}
                     onChange={setFromQty}
-                    hint={fromHolding && (
-                      <BalanceHint qty={fromHolding.qty} symbol={fromHolding.symbol} over={fromOverBalance}
-                        onMax={() => setFromQty(String(fromHolding.qty))} />
+                    hint={!!fromCoinId && (
+                      <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
+                        onMax={() => setFromQty(String(fromAvailableQty))} />
                     )} />
                   <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
                     value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}

@@ -428,6 +428,35 @@ describe('OpDrawer', () => {
     expect(fromQtyEl).toHaveClass('err');
   });
 
+  it('blocks re-submitting a swap of the same asset once a prior swap in this drawer session already sold it all', async () => {
+    // Reproduces a real bug: the drawer stays open and pre-filled after a successful
+    // swap. If the user repeats the same swap before closing it, `originHoldings` (an
+    // already-sold-out asset drops out of that list entirely) used to make the
+    // over-balance check a silent no-op, letting a second, now-impossible swap reach
+    // the backend and fail there instead of being caught here.
+    const onSubmitTrade = vi.fn();
+    const { rerender } = renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
+    selectOriginPlatform('Kraken');
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '2' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
+    // A prior swap in this same session already sold the entire ETH position — the
+    // holdings list refreshes to no longer include it, but the drawer's own fields
+    // (asset, qty, price) stay exactly as filled in above.
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={onSubmitTrade} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+    expect(screen.getByText('Disponível: 0,00 ETH')).toBeInTheDocument();
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmitTrade).not.toHaveBeenCalled();
+  });
+
   it('shows the cross-platform transfer warning only when the destination platform differs from the origin', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={krakenEth} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
