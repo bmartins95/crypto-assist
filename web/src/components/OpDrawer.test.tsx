@@ -199,7 +199,7 @@ describe('OpDrawer', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('shows a loading spinner then a checkmark while saving, disabling Cancel and the type selector', async () => {
+  it('shows an icon-only spinner while saving, disabling Cancel and the type selector, then returns to idle', async () => {
     let resolveSubmit: () => void = () => {};
     const onSubmit = vi.fn(() => new Promise<void>(resolve => { resolveSubmit = resolve; }));
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
@@ -208,10 +208,12 @@ describe('OpDrawer', () => {
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(document.querySelector('.btn-submit .spinner')).toBeInTheDocument();
+    expect(document.querySelector('.btn-submit .lbl')).not.toBeInTheDocument();
     expect(document.querySelector('.drawer-foot .btn')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Compra' })).toBeDisabled();
     resolveSubmit();
-    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector('.btn-submit .spinner')).not.toBeInTheDocument());
+    expect(document.querySelector('.btn-submit .lbl')).toHaveTextContent('Registrar operação');
   });
 
   it('swaps in the two-block Trade fieldset when switching type', () => {
@@ -619,7 +621,7 @@ describe('OpDrawer', () => {
     fireEvent.click(document.querySelector('.drawer-backdrop')!);
     expect(onClose).not.toHaveBeenCalled();
     resolveSubmit();
-    await waitFor(() => expect(document.querySelector('.btn-submit.done')).toBeInTheDocument());
+    await waitFor(() => expect(document.querySelector('.btn-submit .spinner')).not.toBeInTheDocument());
   });
 
   it('shows a spinner badge while fetching the price, then an "auto" badge once it resolves', async () => {

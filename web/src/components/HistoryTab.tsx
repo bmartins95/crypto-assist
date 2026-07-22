@@ -127,15 +127,18 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
       if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
       if (verdict === 'confirm') { setPendingAction({ kind: 'edit', id: editingOp.id, op, affectedCount }); return; }
       await onEditOp(editingOp.id, op);
+      setToast({ kind: 'success', message: t.history_edit_success });
       return;
     }
     await onAddOp(op);
+    setToast({ kind: 'success', message: t.history_add_success });
   };
 
   const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
     const tradeGroupId = crypto.randomUUID();
     await onAddOp({ ...sell, tradeGroupId });
     await onAddOp({ ...buy, tradeGroupId });
+    setToast({ kind: 'success', message: t.history_add_success });
   };
 
   const handleSubmitClose = async (op: NewOp, qtyToClose: number): Promise<void> => {
@@ -153,8 +156,12 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
-    if (pendingAction.kind === 'edit') await onEditOp(pendingAction.id, pendingAction.op);
-    else onRemoveOp(pendingAction.id);
+    if (pendingAction.kind === 'edit') {
+      await onEditOp(pendingAction.id, pendingAction.op);
+      setToast({ kind: 'success', message: t.history_edit_success });
+    } else {
+      onRemoveOp(pendingAction.id);
+    }
     setPendingAction(null);
   };
 

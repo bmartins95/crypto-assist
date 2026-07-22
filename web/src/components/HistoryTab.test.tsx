@@ -162,7 +162,7 @@ describe('HistoryTab', () => {
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'bitcoin' }));
     expect(onEditOp).not.toHaveBeenCalled();
-    await new Promise(r => setTimeout(r, 1350));
+    await waitFor(() => expect(document.querySelector('.btn-submit .spinner')).not.toBeInTheDocument());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
@@ -279,6 +279,24 @@ describe('HistoryTab', () => {
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '250000' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(screen.getByText('Operação fechada com sucesso')).toBeInTheDocument());
+  });
+
+  it('shows a success toast after adding a new operation', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} onAddOp={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '50' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(screen.getByText('Operação registrada com sucesso')).toBeInTheDocument());
+  });
+
+  it('shows a success toast after editing an operation', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onEditOp={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Editar operação'));
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(screen.getByText('Operação salva com sucesso')).toBeInTheDocument());
   });
 
   it('shows a leverage badge and a Long/Short label next to the type chip for a trade', () => {

@@ -60,6 +60,8 @@ export interface UIText {
   history_closing_banner: string;
   history_pnl_estimated: string;
   history_close_success: string;
+  history_add_success: string;
+  history_edit_success: string;
   op_leverage_label: string;
   history_opType_buy: string;
   history_opType_sell: string;
@@ -84,10 +86,6 @@ export interface UIText {
   history_form_trade: string;
   history_form_validationRequired: string;
   history_form_calculatedAutomatically: string;
-  history_form_registering: string;
-  history_form_registered: string;
-  history_form_saving: string;
-  history_form_saved: string;
   history_form_priceAuto: string;
   history_form_priceManual: string;
   trade_form_from: string;

@@ -42,7 +42,7 @@ interface Props {
 
 interface CoinSelection { coinId: string; symbol: string; name: string; image?: string | null }
 
-type Phase = 'idle' | 'loading' | 'done';
+type Phase = 'idle' | 'loading';
 type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
@@ -186,17 +186,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg className="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
 const today = () => new Date().toISOString().slice(0, 10);
-const DONE_DISPLAY_MS = 1300;
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
 
 type OpTypeOption = 'buy' | 'sell' | 'swap';
@@ -471,15 +461,13 @@ export default function OpDrawer({
   const receivedTotal = toQtyNum * toPriceNum;
   const soldValue = fromQtyNum * fromPriceNum;
 
-  // A normal create/edit shows the inline "done" checkmark and keeps the drawer open
-  // with the just-submitted values still filled in, so registering several similar ops
-  // in a row doesn't require reopening and re-filling the form. Closing a position is a
-  // one-shot action with nothing to repeat, so it dismisses the drawer at once (no
-  // checkmark) — the parent surfaces a success toast instead.
+  // A normal create/edit keeps the drawer open with the just-submitted values still
+  // filled in, so registering several similar ops in a row doesn't require reopening
+  // and re-filling the form — the parent surfaces a success toast. Closing a position
+  // is a one-shot action with nothing to repeat, so it dismisses the drawer at once.
   const finishAfterSave = () => {
     if (closingOp) { onClose(); return; }
-    setPhase('done');
-    setTimeout(() => setPhase('idle'), DONE_DISPLAY_MS);
+    setPhase('idle');
   };
 
   const handleSubmit = async () => {
@@ -826,12 +814,12 @@ export default function OpDrawer({
 
         <div className="drawer-foot">
           <button type="button" className="btn" onClick={requestClose} disabled={busy}>{t.history_form_cancel}</button>
-          <button type="button" className={`btn-submit${phase === 'done' ? ' done' : ''}`} onClick={handleSubmit} disabled={busy}>
-            <span className="lbl">
-              {phase === 'idle' && (editingOp ? t.history_form_save : t.history_form_addOp)}
-              {phase === 'loading' && (<><span className="spinner" /><span>{editingOp ? t.history_form_saving : t.history_form_registering}</span></>)}
-              {phase === 'done' && (<><CheckIcon /><span>{editingOp ? t.history_form_saved : t.history_form_registered}</span></>)}
-            </span>
+          <button type="button" className="btn-submit" onClick={handleSubmit} disabled={busy}>
+            {phase === 'loading' ? (
+              <span className="spinner" />
+            ) : (
+              <span className="lbl">{editingOp ? t.history_form_save : t.history_form_addOp}</span>
+            )}
           </button>
         </div>
       </aside>

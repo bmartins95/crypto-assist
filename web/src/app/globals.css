@@ -191,7 +191,6 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.02em; }
 }
 .btn-submit:active { transform: scale(.97); }
 .btn-submit:disabled { cursor: default; }
-.btn-submit.done { background: var(--s-accent); border-color: var(--s-accent); }
 .btn-submit .lbl { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1; }
 .btn-submit .spinner {
   display: inline-block; width: 16px; height: 16px; flex-shrink: 0;
@@ -199,7 +198,6 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.02em; }
   animation: btn-submit-spin .6s linear infinite;
 }
 @keyframes btn-submit-spin { to { transform: rotate(360deg); } }
-.btn-submit .ck { width: 16px; height: 16px; flex-shrink: 0; }
 
 .nf .badge {
   position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
