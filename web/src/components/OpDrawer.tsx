@@ -794,7 +794,7 @@ export default function OpDrawer({
                       </button>
                     ))}
                     {customLevMode === 'editing' ? (
-                      <div className="nf lev-chip lev-chip-custom-input">
+                      <div className="nf lev-chip-custom-input">
                         <input
                           ref={customLevInputRef}
                           type="number" inputMode="numeric"
