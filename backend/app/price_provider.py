@@ -12,6 +12,8 @@ class PricedAsset:
 
 
 class PriceProvider(ABC):
+    # An empty query means "browse" — implementations return a default/trending
+    # set instead of raising, so a UI can show options before the user types.
     @abstractmethod
     def search_coins(self, query: str) -> list[dict]:
         ...

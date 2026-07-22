@@ -6,8 +6,14 @@ from app.config import get_settings
 from app.price_provider import PriceProvider, PricedAsset
 
 
+_DEFAULT_BROWSE_LIMIT = 50
+
+
 class CoinGeckoProvider(PriceProvider):
     def search_coins(self, query: str) -> list[dict]:
+        if not query:
+            return self._browse_coins()
+
         api_key = get_settings().coingecko_api_key
         key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
         url = f"https://api.coingecko.com/api/v3/search?query={query}{key_param}"
@@ -34,6 +40,40 @@ class CoinGeckoProvider(PriceProvider):
                 "image": c.get("large") or c.get("thumb"),
             }
             for c in coins
+            if c.get("id") and c.get("symbol") and c.get("name")
+        ]
+
+    # Backs the "browse" (empty-query) case: top coins by market cap, in the
+    # same shape search results already use, so the frontend needs no branching.
+    def _browse_coins(self) -> list[dict]:
+        api_key = get_settings().coingecko_api_key
+        key_param = f"&x_cg_demo_api_key={api_key}" if api_key else ""
+        url = (
+            "https://api.coingecko.com/api/v3/coins/markets"
+            f"?vs_currency=usd&order=market_cap_desc&per_page={_DEFAULT_BROWSE_LIMIT}&page=1{key_param}"
+        )
+
+        with httpx.Client(timeout=10) as client:
+            r = client.get(url)
+
+        if r.status_code == 429:
+            raise HTTPException(status_code=429, detail="CoinGecko rate limit exceeded.")
+        if not r.is_success:
+            raise HTTPException(status_code=502, detail="Failed to fetch coin list from CoinGecko.")
+
+        data = r.json()
+        if not isinstance(data, list):
+            raise HTTPException(status_code=502, detail="Unexpected CoinGecko response.")
+
+        return [
+            {
+                "id": c["id"],
+                "symbol": c["symbol"],
+                "name": c["name"],
+                "market_cap_rank": c.get("market_cap_rank"),
+                "image": c.get("image"),
+            }
+            for c in data
             if c.get("id") and c.get("symbol") and c.get("name")
         ]
 

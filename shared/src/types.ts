@@ -29,14 +29,26 @@ export interface NewOp {
   currency?: Currency;
   // Only settable on a brand-new, non-closing Buy or Sell; absent means 1x (unleveraged).
   leverage?: Leverage;
-  // Shared by the two legs of a trade (a swap, or a trade-close's closing + received
-  // legs) so deleting either leg deletes the whole trade. Absent for single Buy/Sell ops.
+  // Shared by the two legs of a wallet swap so deleting either leg deletes the whole
+  // swap. Absent for single Buy/Sell ops and for trade ops (a trade close is always a
+  // single plain Buy/Sell, never a swap — see docs/PLAN.md Item 28).
   tradeGroupId?: string;
+  // 'wallet' (movement of held assets) or 'trade' (leveraged speculative position).
+  // Fixed at creation — never changeable via edit. Defaults to 'wallet'.
+  kind?: 'wallet' | 'trade';
+  // Trade direction, derived server-side from `type` when kind is 'trade'
+  // ('Buy' -> 'long', 'Sell' -> 'short'). Absent for wallet ops.
+  side?: 'long' | 'short';
 }
 
 // An operation as stored/returned by the backend (always has an id).
 export interface Op extends NewOp {
   id: string;
+  // Real DB insertion time (ISO 8601) — breaks ties between same-date wallet ops in
+  // FIFO balance calculations (shared/src/walletFifo.ts), which `date` alone can't
+  // since it has no time-of-day component. Optional: locally-built preview/proposed
+  // Op objects that never round-trip through the API don't have one.
+  createdAt?: string;
 }
 
 // Links a later operation (closingOpId) to an earlier one (sourceOpId) it fully or

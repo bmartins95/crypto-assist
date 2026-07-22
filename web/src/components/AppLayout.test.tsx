@@ -70,11 +70,11 @@ vi.mock('@/components/HistoryTab', () => ({
     <div data-testid="history-view">
       <span data-testid="ops-count">{props.ops.length}</span>
       <span data-testid="closures-count">{props.closures.length}</span>
-      <button onClick={() => props.onAddOp({ coinId: 'bitcoin' })}>add-op</button>
-      <button onClick={() => props.onEditOp('1', { coinId: 'bitcoin' })}>edit-op</button>
-      <button onClick={() => props.onRemoveOp('1')}>remove-op</button>
-      <button onClick={() => props.onRemoveOp('2')}>remove-closing-op</button>
-      <button onClick={() => props.onCloseOp('1', { coinId: 'bitcoin' }, 0.5)}>close-op</button>
+      <button onClick={() => Promise.resolve(props.onAddOp({ coinId: 'bitcoin' })).catch(() => {})}>add-op</button>
+      <button onClick={() => Promise.resolve(props.onEditOp('1', { coinId: 'bitcoin' })).catch(() => {})}>edit-op</button>
+      <button onClick={() => Promise.resolve(props.onRemoveOp('1')).catch(() => {})}>remove-op</button>
+      <button onClick={() => Promise.resolve(props.onRemoveOp('2')).catch(() => {})}>remove-closing-op</button>
+      <button onClick={() => Promise.resolve(props.onCloseOp('1', { coinId: 'bitcoin' }, 0.5)).catch(() => {})}>close-op</button>
     </div>
   ),
 }));
@@ -99,7 +99,6 @@ describe('AppLayout', () => {
     localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
     sessionStorage.clear();
     vi.clearAllMocks();
-    vi.stubGlobal('alert', vi.fn());
     vi.stubGlobal('confirm', vi.fn(() => false));
     const { isAuthenticated } = await import('@/auth/useAuth');
     vi.mocked(isAuthenticated).mockResolvedValue(true);
@@ -398,21 +397,22 @@ describe('AppLayout', () => {
   describe('portfolio handlers', () => {
     const oneOp = { id: '1', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy' as const, qty: 1, price: 10, fee: 0, total: 10, date: '2026-01-01', platformId: 'binance', platformName: 'Binance' };
 
-    it('creates an op via HistoryTab and surfaces failures with an alert', async () => {
+    it('creates an op via HistoryTab and surfaces failures with a styled toast, not a native alert', async () => {
       const { api } = await import('@/lib/api/client');
       vi.mocked(api.createOp).mockResolvedValueOnce(oneOp);
       await renderAt('/history');
       await waitFor(() => expect(screen.getByTestId('history-view')).toBeTruthy());
       fireEvent.click(screen.getByText('add-op'));
       await waitFor(() => expect(api.createOp).toHaveBeenCalledTimes(1));
-      expect(window.alert).not.toHaveBeenCalled();
+      expect(screen.queryByText('Erro ao registrar a operação. Tente novamente.')).not.toBeInTheDocument();
 
       vi.mocked(api.createOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('add-op'));
-      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByText('Erro ao registrar a operação. Tente novamente.')).toBeInTheDocument());
+      expect(document.querySelector('.toast.toast--error')).toBeInTheDocument();
     });
 
-    it('edits and removes ops via HistoryTab, alerting on failure', async () => {
+    it('edits and removes ops via HistoryTab, showing a styled toast on failure', async () => {
       const { api } = await import('@/lib/api/client');
       vi.mocked(api.updateOp).mockResolvedValueOnce(oneOp);
       await renderAt('/history');
@@ -421,17 +421,17 @@ describe('AppLayout', () => {
       await waitFor(() => expect(api.updateOp).toHaveBeenCalledTimes(1));
       fireEvent.click(screen.getByText('remove-op'));
       await waitFor(() => expect(api.deleteOp).toHaveBeenCalledTimes(1));
-      expect(window.alert).not.toHaveBeenCalled();
+      expect(document.querySelector('.toast')).not.toBeInTheDocument();
 
       vi.mocked(api.updateOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('edit-op'));
-      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByText('Erro ao salvar a operação. Tente novamente.')).toBeInTheDocument());
       vi.mocked(api.deleteOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('remove-op'));
-      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText('Erro ao excluir a operação. Tente novamente.')).toBeInTheDocument());
     });
 
-    it('closes an op via HistoryTab, appending the result, and alerts on failure', async () => {
+    it('closes an op via HistoryTab, appending the result, and shows a styled toast on failure', async () => {
       const { api } = await import('@/lib/api/client');
       const closingOp = { ...oneOp, id: '2', type: 'Sell' as const };
       const closure = { id: 'c1', sourceOpId: '1', closingOpId: '2', qtyClosed: 0.5, realizedPnl: 5 };
@@ -440,11 +440,11 @@ describe('AppLayout', () => {
       await waitFor(() => expect(screen.getByTestId('history-view')).toBeTruthy());
       fireEvent.click(screen.getByText('close-op'));
       await waitFor(() => expect(api.closeOp).toHaveBeenCalledWith('1', { closingOp: { coinId: 'bitcoin' }, qtyToClose: 0.5 }));
-      expect(window.alert).not.toHaveBeenCalled();
+      expect(document.querySelector('.toast')).not.toBeInTheDocument();
 
       vi.mocked(api.closeOp).mockRejectedValueOnce(new Error('fail'));
       fireEvent.click(screen.getByText('close-op'));
-      await waitFor(() => expect(window.alert).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByText('Erro ao registrar a operação. Tente novamente.')).toBeInTheDocument());
     });
 
     it('drops the closure link when the closing op is deleted, freeing the source op', async () => {

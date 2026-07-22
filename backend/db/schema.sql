@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS ops (
     currency    varchar(8)  NOT NULL DEFAULT 'BRL' CHECK (currency IN ('BRL', 'USD', 'EUR', 'GBP', 'JPY')),
     leverage    smallint    CHECK (leverage IN (2, 3, 5, 10)),
     trade_group_id uuid,
+    op_kind     varchar(10) NOT NULL DEFAULT 'wallet' CHECK (op_kind IN ('wallet', 'trade')),
+    side        varchar(5)  CHECK (side IN ('long', 'short')),
     created_at  timestamptz DEFAULT now()
 );
 

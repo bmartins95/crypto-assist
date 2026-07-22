@@ -132,4 +132,14 @@ describe('PlatformSelect', () => {
     await waitFor(() => expect(input()).toHaveAttribute('aria-expanded', 'true'));
     expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
   });
+
+  it('applies the error styling class when the error prop is set', () => {
+    render(<LocaleProvider><PlatformSelect id="p" value={null} onChange={vi.fn()} error /></LocaleProvider>);
+    expect(input()).toHaveClass('err');
+  });
+
+  it('does not apply the error styling class by default', () => {
+    renderSelect();
+    expect(input()).not.toHaveClass('err');
+  });
 });

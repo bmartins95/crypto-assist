@@ -40,7 +40,7 @@ const baseProps = {
   closures: [] as import('@crypto-assist/shared').OpClosure[],
   onAddOp: vi.fn(),
   onEditOp: vi.fn(),
-  onRemoveOp: vi.fn(),
+  onRemoveOp: vi.fn(async () => {}),
   onCloseOp: vi.fn(),
 };
 
@@ -59,6 +59,16 @@ const existingOp: Op = {
   platformName: 'Binance',
 };
 
+// A trade (leveraged) position — status, close action, and leverage badges only apply
+// to these under item 28's wallet/trade split; existingOp above is a plain wallet op.
+const tradeOp: Op = {
+  ...existingOp,
+  id: 'trade-1',
+  kind: 'trade',
+  side: 'long',
+  leverage: 3,
+};
+
 const STORAGE_KEY = 'crypto-assist:locale';
 
 function renderWithLocale(ui: React.ReactElement) {
@@ -69,10 +79,11 @@ beforeEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exc
 afterEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); });
 
 describe('HistoryTab', () => {
-  it('shows the content header and register-operation button', () => {
+  it('shows the content header and both register-operation buttons', () => {
     renderWithLocale(<HistoryTab {...baseProps} />);
     expect(screen.getByText('Histórico')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Registrar operação/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Movimentar carteira/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Novo trade/ })).toBeInTheDocument();
   });
 
   it('shows the empty state when there are no operations', () => {
@@ -110,14 +121,22 @@ describe('HistoryTab', () => {
     expect(platformCell).toHaveTextContent('—');
   });
 
-  it('opens the drawer when clicking "Registrar operação"', () => {
+  it('opens the drawer in wallet mode when clicking "Movimentar carteira"', () => {
     renderWithLocale(<HistoryTab {...baseProps} />);
-    fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Troca' })).toBeInTheDocument();
+  });
+
+  it('opens the drawer in trade mode when clicking "Novo trade"', () => {
+    renderWithLocale(<HistoryTab {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: /Novo trade/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Compra · Long')).toBeInTheDocument();
   });
 
   it('calls onRemoveOp when clicking the delete button on a row', () => {
-    const onRemoveOp = vi.fn();
+    const onRemoveOp = vi.fn(async () => {});
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
     expect(onRemoveOp).toHaveBeenCalledWith('op-1');
@@ -136,14 +155,14 @@ describe('HistoryTab', () => {
     const onAddOp = vi.fn();
     const onEditOp = vi.fn();
     renderWithLocale(<HistoryTab {...baseProps} onAddOp={onAddOp} onEditOp={onEditOp} />);
-    fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
     await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '50' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Buy', coinId: 'bitcoin' }));
     expect(onEditOp).not.toHaveBeenCalled();
-    await new Promise(r => setTimeout(r, 1350));
+    await waitFor(() => expect(document.querySelector('.btn-submit .spinner')).not.toBeInTheDocument());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
@@ -166,8 +185,8 @@ describe('HistoryTab', () => {
       platformId: 'custom:kraken', platformName: 'Kraken',
     };
     renderWithLocale(<HistoryTab {...baseProps} ops={[ethOp]} onAddOp={onAddOp} />);
-    fireEvent.click(screen.getByRole('button', { name: /Registrar operação/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     const originInput = screen.getByLabelText('Plataforma de origem');
     fireEvent.focus(originInput);
     fireEvent.change(originInput, { target: { value: 'Kraken' } });
@@ -189,6 +208,40 @@ describe('HistoryTab', () => {
     expect(onAddOp.mock.calls[1][0].tradeGroupId).toBe(g1);
   });
 
+  it('never attempts the buy leg of a swap when the sell leg is rejected — no orphaned single-leg swap', async () => {
+    // Reproduces a real bug: onAddOp used to swallow its own failure (AppLayout showed
+    // an alert but never rethrew), so this function kept going and created the buy leg
+    // even though the sell leg (e.g. insufficient balance) had just failed — leaving a
+    // tradeGroupId with only one leg in the database.
+    const onAddOp = vi.fn().mockRejectedValueOnce(new Error('insufficient balance'));
+    const ethOp: Op = {
+      id: 'eth-1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum',
+      type: 'Buy', qty: 2, price: 100, fee: 0, total: 200,
+      platformId: 'custom:kraken', platformName: 'Kraken',
+    };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[ethOp]} onAddOp={onAddOp} />);
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
+    const originInput = screen.getByLabelText('Plataforma de origem');
+    fireEvent.focus(originInput);
+    fireEvent.change(originInput, { target: { value: 'Kraken' } });
+    fireEvent.click(screen.getByText('Kraken', { selector: '.n' }));
+    const [fromAssetEl, toAssetEl] = screen.getAllByLabelText('Ativo');
+    selectFromAsset(fromAssetEl, 'Ethereum');
+    const [fromQtyEl] = screen.getAllByLabelText('Quantidade');
+    fireEvent.change(fromQtyEl, { target: { value: '1' } });
+    await selectCoin(toAssetEl, { id: 'solana', symbol: 'sol', name: 'Solana' });
+    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
+    fireEvent.change(fromPriceEl, { target: { value: '500' } });
+    fireEvent.change(toPriceEl, { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(onAddOp).toHaveBeenCalledTimes(1));
+    expect(onAddOp).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', coinId: 'ethereum' }));
+    // Give any (incorrect) second call a chance to fire before asserting it didn't.
+    await new Promise(r => setTimeout(r, 50));
+    expect(onAddOp).toHaveBeenCalledTimes(1);
+  });
+
   it('shows translated op type labels in es-ES locale', () => {
     localStorage.setItem(STORAGE_KEY, 'es-ES');
     const sellOp: Op = { ...existingOp, id: 'op-sell', type: 'Sell' };
@@ -206,81 +259,87 @@ describe('HistoryTab', () => {
     expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
   });
 
-  it('shows an "open" status with no P/L figure for an operation with no closures', () => {
+  it('shows no status and no close action for a wallet operation', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+    expect(screen.queryByText('Aberta')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Fechar operação')).not.toBeInTheDocument();
+    const statusCell = document.querySelectorAll('.history-row td')[5];
+    expect(statusCell).toHaveTextContent('—');
+  });
+
+  it('shows an "open" status with no P/L figure for a trade with no closures', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
     expect(screen.getByText('Aberta')).toBeInTheDocument();
     const pnlCell = document.querySelectorAll('.history-row td')[4];
     expect(pnlCell).toHaveTextContent('—');
   });
 
-  it('shows a "partial" status and a realized P/L figure for a partially-closed operation', () => {
-    const closures = [{ id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.2, realizedPnl: 10 }];
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} closures={closures} />);
+  it('shows a "partial" status and a realized P/L figure for a partially-closed trade', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'trade-1', closingOpId: 'op-2', qtyClosed: 0.2, realizedPnl: 10 }];
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} closures={closures} />);
     expect(screen.getByText('Parcial')).toBeInTheDocument();
     expect(screen.getByText(/R\$\s*10,00/)).toBeInTheDocument();
   });
 
-  it('shows a "closed" status for a fully-closed operation and hides its close action', () => {
-    const closures = [{ id: 'c1', sourceOpId: 'op-1', closingOpId: 'op-2', qtyClosed: 0.5, realizedPnl: 25 }];
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} closures={closures} />);
+  it('shows a "closed" status for a fully-closed trade and hides its close action', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'trade-1', closingOpId: 'op-2', qtyClosed: 0.5, realizedPnl: 25 }];
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} closures={closures} />);
     expect(screen.getByText('Fechada')).toBeInTheDocument();
     expect(screen.queryByTitle('Fechar operação')).not.toBeInTheDocument();
   });
 
-  it('shows the close action for an open row, opening the drawer pre-filled and restricted', () => {
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
+  it('shows the close action for an open trade row, opening the drawer locked to the resolving type', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
     fireEvent.click(screen.getByTitle('Fechar operação'));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Venda' })).toHaveClass('active');
     expect(screen.queryByRole('button', { name: 'Compra' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Troca' })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('0.5')).toBeInTheDocument();
   });
 
-  it('closes a Buy via Trade with a different output coin: one received op via onCloseOp, no extra onAddOp', async () => {
+  it('calls onCloseOp with the source op id when submitting a trade close', async () => {
     const onCloseOp = vi.fn();
-    const onAddOp = vi.fn();
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={onCloseOp} onAddOp={onAddOp} />);
-    fireEvent.click(screen.getByTitle('Fechar operação'));
-    fireEvent.click(screen.getByRole('button', { name: 'Trade' }));
-    // The "sell" side is fixed to the row being closed (a static display, not a
-    // labeled field), so only the "receive" side's asset/quantity fields exist.
-    await selectCoin(screen.getByLabelText('Ativo'), { id: 'solana', symbol: 'sol', name: 'Solana' });
-    fireEvent.change(screen.getAllByLabelText('Quantidade')[1], { target: { value: '5' } });
-    const [fromPriceEl, toPriceEl] = screen.getAllByLabelText('Preço unit.');
-    fireEvent.change(fromPriceEl, { target: { value: '1000' } });
-    fireEvent.change(toPriceEl, { target: { value: '100' } });
-    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
-    // The received Solana IS the close (qtyToClose is the BTC amount) — no separate BTC Sell op.
-    await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith(
-      'op-1', expect.objectContaining({ type: 'Buy', coinId: 'solana', qty: 5 }), 0.5,
-    ));
-    expect(onAddOp).not.toHaveBeenCalled();
-  });
-
-  it('calls onCloseOp with the source op id when submitting a close', async () => {
-    const onCloseOp = vi.fn();
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={onCloseOp} />);
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onCloseOp={onCloseOp} />);
     fireEvent.click(screen.getByTitle('Fechar operação'));
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '250000' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
-    await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith('op-1', expect.objectContaining({ type: 'Sell', qty: 0.5 }), 0.5));
+    await waitFor(() => expect(onCloseOp).toHaveBeenCalledWith('trade-1', expect.objectContaining({ type: 'Sell', qty: 0.5 }), 0.5));
   });
 
   it('shows a success toast after a close completes', async () => {
-    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onCloseOp={vi.fn()} />);
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onCloseOp={vi.fn()} />);
     fireEvent.click(screen.getByTitle('Fechar operação'));
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '250000' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     await waitFor(() => expect(screen.getByText('Operação fechada com sucesso')).toBeInTheDocument());
   });
 
-  it('shows a leverage badge next to the type chip when the operation has one', () => {
-    const leveraged: Op = { ...existingOp, leverage: 3 };
-    renderWithLocale(<HistoryTab {...baseProps} ops={[leveraged]} />);
-    expect(document.querySelector('.tbl .lev-badge')).toHaveTextContent('3x');
+  it('shows a success toast after adding a new operation', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} onAddOp={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /Movimentar carteira/ }));
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '50' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(screen.getByText('Operação registrada com sucesso')).toBeInTheDocument());
   });
 
-  it('shows no leverage badge for a plain (unleveraged) operation', () => {
+  it('shows a success toast after editing an operation', async () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onEditOp={vi.fn()} />);
+    fireEvent.click(screen.getByTitle('Editar operação'));
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '3' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    await waitFor(() => expect(screen.getByText('Operação salva com sucesso')).toBeInTheDocument());
+  });
+
+  it('shows a leverage badge and a Long/Short label next to the type chip for a trade', () => {
+    renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
+    expect(document.querySelector('.tbl .lev-badge')).toHaveTextContent('3x');
+    expect(document.querySelector('.tbl .side-label')).toHaveTextContent('Long');
+  });
+
+  it('shows no leverage badge for a wallet (unleveraged) operation', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} />);
     expect(document.querySelector('.lev-badge')).not.toBeInTheDocument();
   });
@@ -321,5 +380,126 @@ describe('HistoryTab', () => {
     const headerCells = document.querySelectorAll('.tbl thead th');
     const headerTexts = Array.from(headerCells).map(c => c.textContent);
     expect(headerTexts).not.toContain('Data');
+  });
+
+  describe('wallet edit/delete recompute safety (User Story 5)', () => {
+    const oldBuy: Op = { ...existingOp, id: 'buy-1', date: '2024-01-01', qty: 1 };
+    const laterSell: Op = { ...existingOp, id: 'sell-1', date: '2024-01-10', type: 'Sell', qty: 0.3 };
+
+    it('shows a confirmation dialog before applying an edit that affects a later sell', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(onEditOp).not.toHaveBeenCalled();
+    });
+
+    it('applies the edit once the confirmation dialog is accepted', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar mesmo assim' }));
+      expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
+    });
+
+    it('discards the edit when the confirmation dialog is cancelled', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      fireEvent.click(screen.getByRole('alertdialog').querySelector('.confirm-dialog-actions button')!);
+      expect(onEditOp).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('shows a confirmation dialog before deleting a buy that a later sell partly depends on, once a buffer buy remains', () => {
+      // Deleting buy-1 alone doesn't go negative (buy-2 still covers sell-1's 0.3), but it
+      // does change which lot the sell draws from — an "affected", not "blocked", case.
+      const bufferBuy: Op = { ...existingOp, id: 'buy-2', date: '2024-01-05', qty: 5, price: 100 };
+      const onRemoveOp = vi.fn(async () => {});
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, bufferBuy, laterSell]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(onRemoveOp).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Continuar mesmo assim' }));
+      expect(onRemoveOp).toHaveBeenCalledWith('buy-1');
+    });
+
+    it('blocks (no dialog) a delete that would leave a negative balance', () => {
+      const onRemoveOp = vi.fn(async () => {});
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onRemoveOp).not.toHaveBeenCalled();
+      expect(screen.getByText('Esta alteração deixaria um saldo negativo para este ativo/plataforma.')).toBeInTheDocument();
+    });
+
+    it('blocks (no dialog) an edit that would leave a negative balance, showing an error toast', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy, laterSell]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getAllByTitle('Editar operação')[0]);
+      fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.1' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onEditOp).not.toHaveBeenCalled();
+      expect(screen.getByText('Esta alteração deixaria um saldo negativo para este ativo/plataforma.')).toBeInTheDocument();
+    });
+
+    it('applies an edit with no dialog when no later operation is affected', () => {
+      const onEditOp = vi.fn();
+      renderWithLocale(<HistoryTab {...baseProps} ops={[oldBuy]} onEditOp={onEditOp} />);
+      fireEvent.click(screen.getByTitle('Editar operação'));
+      fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '999' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
+    });
+
+    it('skips the wallet-impact check entirely for a trade op (edit/delete proceed with no dialog)', () => {
+      const onEditOp = vi.fn();
+      const onRemoveOp = vi.fn(async () => {});
+      renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onEditOp={onEditOp} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getByTitle('Editar operação'));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      fireEvent.click(document.querySelector('.drawer-foot .btn')!);
+      fireEvent.click(screen.getByTitle('Excluir'));
+      expect(onRemoveOp).toHaveBeenCalledWith('trade-1');
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('swap rows (collapsed wallet pairs)', () => {
+    const swapSell: Op = { ...existingOp, id: 'swap-sell', type: 'Sell', symbol: 'BTC', qty: 1, tradeGroupId: 'grp-1' };
+    const swapBuy: Op = { ...existingOp, id: 'swap-buy', type: 'Buy', symbol: 'SOL', qty: 20, total: 2000, tradeGroupId: 'grp-1' };
+
+    it('renders a swap pair as a single collapsed row with both assets/quantities and no P/L or status', () => {
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} />);
+      expect(screen.getByText('BTC→SOL')).toBeInTheDocument();
+      expect(document.querySelector('.history-row .tag.swap')).toHaveTextContent('Troca');
+      const cells = document.querySelectorAll('.history-row td');
+      expect(cells[4]).toHaveTextContent('—');
+      expect(cells[5]).toHaveTextContent('—');
+      expect(document.querySelectorAll('.history-row')).toHaveLength(1);
+    });
+
+    it('deleting a collapsed swap row removes the sell leg (which cascades the whole group)', () => {
+      const onRemoveOp = vi.fn(async () => {});
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} onRemoveOp={onRemoveOp} />);
+      fireEvent.click(screen.getByTitle('Excluir'));
+      expect(onRemoveOp).toHaveBeenCalledWith('swap-sell');
+    });
+
+    it('expands the swap row detail on click, showing the sell leg\'s price/fee/platform', () => {
+      renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} />);
+      const detail = document.querySelector('.history-detail');
+      expect(detail).not.toHaveClass('expanded');
+      fireEvent.click(document.querySelector('.history-row')!);
+      expect(detail).toHaveClass('expanded');
+    });
   });
 });

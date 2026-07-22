@@ -33,12 +33,32 @@ describe('fmtPct', () => {
 });
 
 describe('fmtQty', () => {
-  it('formats with up to 8 decimal digits', () => {
-    expect(fmtQty(0.00012345)).toBe('0,00012345');
+  it('rounds values >= 1 to a flat 2 decimals, no matter how much precision the input has', () => {
+    expect(fmtQty(2762.83407874)).toBe('2.762,83');
   });
 
-  it('keeps at least 2 decimal digits', () => {
+  it('keeps at least 2 decimal digits for whole numbers', () => {
     expect(fmtQty(2)).toBe('2,00');
+  });
+
+  it('keeps at least 2 significant decimals for a value under 1', () => {
+    expect(fmtQty(0.042)).toBe('0,042');
+  });
+
+  it('extends past more leading zeros to keep 2 significant decimals', () => {
+    expect(fmtQty(0.00012345)).toBe('0,00012');
+  });
+
+  it('caps small-value precision at 8 decimals', () => {
+    expect(fmtQty(0.0000000012345)).toBe('0,00000000');
+  });
+
+  it('formats exactly zero with 2 decimals', () => {
+    expect(fmtQty(0)).toBe('0,00');
+  });
+
+  it('applies the same significant-decimal rule to negative values under 1', () => {
+    expect(fmtQty(-0.0042)).toBe('-0,0042');
   });
 });
 

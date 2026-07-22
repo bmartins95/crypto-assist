@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Op, NewOp, OpClosure, Asset, AssetWithPlatform, AvatarCache, Prices, Platform, Leverage } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
 import { fmtQty } from '@/lib/format';
-import { openQtyRemaining, estimateClosePnl } from '@/lib/portfolio';
+import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWalletRealizedPnl } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
+import BalanceHint from '@/components/BalanceHint';
 import PlatformSelect from '@/components/platform/PlatformSelect';
 import PlatformLogo from '@/components/platform/PlatformLogo';
 import DatePicker from '@/components/DatePicker/DatePicker';
@@ -18,16 +19,20 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: (op: NewOp) => void | Promise<void>;
+  // Wallet Swap only — a trade position can never be closed via swap (item 28 removes
+  // that path; see contracts/close-endpoint-delta.md's "Removed capability").
   onSubmitTrade: (sell: NewOp, buy: NewOp) => void | Promise<void>;
-  // Only relevant when closingOp is set: closes the position via a simple Buy/Sell.
+  // Only relevant when closingOp is set: closes the trade position via a locked-type
+  // Buy/Sell (spec FR-015).
   onSubmitClose?: (op: NewOp, qtyToClose: number) => void | Promise<void>;
-  // Only relevant when closingOp is set and the user picks Trade: the leg matching
-  // closingOp's opposite type closes it; the other leg is a brand-new, independently
-  // open operation (see specs/023-position-closing/contracts/close-endpoint.md).
-  onSubmitTradeClose?: (closingLeg: NewOp, qtyToClose: number, newLeg: NewOp) => void | Promise<void>;
   editingOp?: Op;
-  // The open/partial position being closed. Mutually exclusive with editingOp.
+  // The open/partial trade position being closed. Mutually exclusive with editingOp.
   closingOp?: Op;
+  // Which button opened the drawer for a brand-new operation ('wallet' via "Move
+  // wallet", 'trade' via "New trade"). Ignored when editingOp/closingOp is set — their
+  // own kind/side determine the mode instead.
+  newOpKind?: 'wallet' | 'trade';
+  ops: Op[];
   closures?: OpClosure[];
   assets: Asset[];
   platformAssets: AssetWithPlatform[];
@@ -37,11 +42,12 @@ interface Props {
 
 interface CoinSelection { coinId: string; symbol: string; name: string; image?: string | null }
 
-type Phase = 'idle' | 'loading' | 'done';
+type Phase = 'idle' | 'loading';
 type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 const DEBOUNCE_MS = 300;
+const BROWSE_LIMIT = 50;
 
 // Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
 // the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
@@ -66,7 +72,7 @@ function filterSeed(list: CoinSearchResult[], query: string): CoinSearchResult[]
 
 // `restrictTo`, when provided, disables network search entirely — the field only
 // ever searches/shows that fixed list (used for "assets you already own" fields).
-function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected, disabled, groupLabel, qtyLabel }: {
+function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, inputRef, seed, restrictTo, emptyLabel, selected, disabled, groupLabel, qtyLabel, error }: {
   id: string; placeholder: string;
   onSelect: (c: CoinSelection) => void;
   onClear: () => void;
@@ -79,6 +85,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   disabled?: boolean;
   groupLabel?: string;
   qtyLabel?: (coinId: string) => string | undefined;
+  error?: boolean;
 }) {
   const [results, setResults] = useState<CoinSearchResult[]>([]);
   const [open, setOpen] = useState(false);
@@ -101,6 +108,15 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   }, [open]);
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  // A browse-mode `seed` (or `restrictTo`) can still be loading when the field
+  // is first focused with an empty query — without this, a dropdown opened
+  // before that load finishes would show nothing until the user blurs and
+  // refocuses. Re-syncs the open, still-empty dropdown once the data arrives.
+  useEffect(() => {
+    if (!open || value.trim().length > 0) return;
+    setResults(restrictTo ?? seed ?? []);
+  }, [restrictTo, seed]);
 
   const runSearch = (q: string) => {
     const seq = ++searchSeq.current;
@@ -147,7 +163,7 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
         <span className="sel-logo"><CoinLogo image={selected.image} symbol={selected.symbol} size="sm" /></span>
       )}
       <input ref={inputRef} type="text" id={id} placeholder={placeholder} autoComplete="off" disabled={disabled}
-        className={`inp${showInlineLogo ? ' withcoin' : ''}`}
+        className={['inp', showInlineLogo && 'withcoin', error && 'err'].filter(Boolean).join(' ')}
         value={value} onChange={e => handleInput(e.target.value)} onFocus={handleFocus} style={{ width: '100%' }} />
       {open && (results.length > 0 || (restrictTo && restrictTo.length === 0 && emptyLabel)) && (
         <div className="search-dropdown">
@@ -171,33 +187,34 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg className="ck" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 13l4 4L19 7" />
-    </svg>
-  );
-}
-
 const today = () => new Date().toISOString().slice(0, 10);
-const DONE_DISPLAY_MS = 1300;
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
 
-type OpTypeOption = 'buy' | 'sell' | 'trade';
-const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'trade'];
+type OpTypeOption = 'buy' | 'sell' | 'swap';
+const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'swap'];
+type DrawerMode = 'wallet' | 'trade' | 'close';
 
 export default function OpDrawer({
-  open, onClose, onSubmit, onSubmitTrade, onSubmitClose, onSubmitTradeClose,
-  editingOp, closingOp, closures = [], assets, platformAssets, avatarCache, prices,
+  open, onClose, onSubmit, onSubmitTrade, onSubmitClose,
+  editingOp, closingOp, newOpKind, ops, closures = [], assets, platformAssets, avatarCache, prices,
 }: Props) {
   const { t, locale } = useLocale();
   const { currency, rates, fmtFromCurrency } = useCurrency();
   const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
+  const mode: DrawerMode = closingOp
+    ? 'close'
+    : editingOp
+      ? (editingOp.kind === 'trade' ? 'trade' : 'wallet')
+      : (newOpKind === 'trade' ? 'trade' : 'wallet');
   const [opType, setOpType] = useState<OpTypeOption>('buy');
-  const [error, setError] = useState<string | null>(null);
+  // Field-level validity is derived fresh on every render (see e.g. `coinMissing`,
+  // `qtyInvalid` below) rather than stored as messages — `submitAttempted` just
+  // gates whether those derived flags are actually displayed, so a first submit
+  // click lights up every currently-invalid field at once (not just the first one
+  // found), each with its own message positioned right next to that field.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
 
   const [date, setDate] = useState(today());
@@ -209,10 +226,15 @@ export default function OpDrawer({
   const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
   const [leverage, setLeverage] = useState<Leverage | null>(null);
+  const [defaultCoins, setDefaultCoins] = useState<CoinSearchResult[]>([]);
 
   const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
   const [destPlatform, setDestPlatform] = useState<Platform | null>(null);
   const [fromCoinId, setFromCoinId] = useState('');
+  // Symbol/name captured at selection time, independent of `originHoldings` — a
+  // filtered "currently held" list drops the asset entirely once its balance hits
+  // zero, which must not erase what's needed to display/submit the sell leg.
+  const [fromCoinMeta, setFromCoinMeta] = useState<{ symbol: string; name: string } | null>(null);
   const [fromCoinText, setFromCoinText] = useState('');
   const [fromQty, setFromQty] = useState('');
   const [fromUnitPrice, setFromUnitPrice] = useState('');
@@ -239,13 +261,13 @@ export default function OpDrawer({
 
   const resetTrade = () => {
     setOriginPlatform(null); setDestPlatform(null);
-    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
+    setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
     setToCoin(null); setToCoinText(''); setToQty(''); setToUnitPrice(''); setToPriceState('idle'); setTradeFee('');
   };
 
   const handleOriginPlatformChange = (p: Platform | null) => {
     setOriginPlatform(p);
-    setFromCoinId(''); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
+    setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
   };
 
   const originHoldings = useMemo(
@@ -264,24 +286,23 @@ export default function OpDrawer({
     }
     return [...seen.values()];
   }, [platformAssets, resolveOpPlatform]);
-  const fromHolding = originHoldings.find(a => a.coinId === fromCoinId);
-  const fromOverBalance = !!fromHolding && (parseFloat(fromQty) || 0) > fromHolding.qty;
+  // `originHoldings` only lists assets with a *current* nonzero balance, so once this
+  // coin's balance reaches zero (e.g. a prior swap in this same drawer session already
+  // sold all of it) `.find` returns undefined — defaulting to 0 here instead of leaving
+  // the qty (and the over-balance check below) undefined is what makes a second attempt
+  // to sell the same now-empty position actually get caught instead of silently passing.
+  const fromAvailableQty = originHoldings.find(a => a.coinId === fromCoinId)?.qty ?? 0;
+  const fromOverBalance = !!fromCoinId && (parseFloat(fromQty) || 0) > fromAvailableQty + 1e-9;
   const showTransferWarning = !!originPlatform && !!destPlatform && destPlatform.id !== originPlatform.id;
 
-  // Which type(s) can legally close closingOp — the row's own type is never offered
-  // (FR-006). Undefined (no closingOp) means every type is available, as today.
+  // Closing a trade position locks the type to whichever side resolves it — a short
+  // closes only via Buy, a long only via Sell (spec FR-015); never a swap. A brand-new
+  // trade offers Buy/Sell (Long/Short) with no swap; a wallet op offers all three.
   const allowedTypes: OpTypeOption[] = closingOp
-    ? closingOp.type === 'Buy' ? ['sell', 'trade'] : ['buy', 'trade']
-    : ['buy', 'sell', 'trade'];
-  // When closing via Trade, this is the leg that must match closingOp (and therefore
-  // calls onSubmitTradeClose's closing-leg path) — 'sell' closes an open Buy, 'buy'
-  // closes an open Sell.
-  const closeRole: 'sell' | 'buy' | null = closingOp ? (closingOp.type === 'Buy' ? 'sell' : 'buy') : null;
+    ? [closingOp.side === 'short' ? 'buy' : 'sell']
+    : mode === 'trade' ? ['buy', 'sell'] : ['buy', 'sell', 'swap'];
   const remainingQty = closingOp ? openQtyRemaining(closingOp, closures) : 0;
   const closingPlatform = closingOp ? resolveOpPlatform(closingOp.platformId, closingOp.platformName) : null;
-  const closingName = closingOp?.name ?? '';
-  const closingSymbol = closingOp?.symbol ?? '';
-  const closingCoinId = closingOp?.coinId ?? '';
 
   const renderStaticPlatform = (p: typeof closingPlatform) => (
     <div className="static-field">
@@ -296,12 +317,20 @@ export default function OpDrawer({
     </div>
   );
 
+  // Fetched on mount, not gated on `open` — the drawer stays mounted (just
+  // hidden) between opens, so this has almost always already resolved by the
+  // time the user clicks "+ Add operation", matching PlatformSelect's
+  // always-available seed instead of racing a network call against the click.
+  useEffect(() => {
+    api.searchCoins('', BROWSE_LIMIT).then(setDefaultCoins).catch(() => { /* falls back to per-query search */ });
+  }, []);
+
   useEffect(() => {
     if (open) {
       previouslyFocused.current = document.activeElement as HTMLElement | null;
       priorOverflow.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      setError(null);
+      setSubmitAttempted(false);
       setPhase('idle');
       setLeverage(null);
       if (editingOp) {
@@ -318,29 +347,16 @@ export default function OpDrawer({
       } else if (closingOp) {
         const remaining = openQtyRemaining(closingOp, closures);
         const p = resolveOpPlatform(closingOp.platformId, closingOp.platformName);
-        const closingCoin = { coinId: closingOp.coinId, symbol: closingOp.symbol, name: closingOp.name };
-        setOpType(closingOp.type === 'Buy' ? 'sell' : 'buy');
+        setOpType(closingOp.side === 'short' ? 'buy' : 'sell');
         setDate(today());
         setPlatform(p);
-        setCoin(closingCoin);
+        setCoin({ coinId: closingOp.coinId, symbol: closingOp.symbol, name: closingOp.name });
         setCoinText(`${closingOp.name} (${closingOp.symbol})`);
         setQty(String(remaining));
         setUnitPrice('');
         setPriceState('idle');
         setFee('');
         resetTrade();
-        // Pre-fill the Trade side matching closeRole too, so switching tabs keeps continuity.
-        if (closingOp.type === 'Buy') {
-          setOriginPlatform(p);
-          setFromCoinId(closingOp.coinId);
-          setFromCoinText(`${closingOp.name} (${closingOp.symbol})`);
-          setFromQty(String(remaining));
-        } else {
-          setDestPlatform(p);
-          setToCoin(closingCoin);
-          setToCoinText(`${closingOp.name} (${closingOp.symbol})`);
-          setToQty(String(remaining));
-        }
       } else {
         setOpType('buy');
         resetBuySell();
@@ -385,7 +401,7 @@ export default function OpDrawer({
     slideDirRef.current = TYPE_ORDER.indexOf(next) > TYPE_ORDER.indexOf(opType) ? 'fwd' : 'back';
     pendingSlideRef.current = true;
     setOpType(next);
-    setError(null);
+    setSubmitAttempted(false);
   };
 
   // Restart the directional slide keyframe on each user-initiated tab switch. The
@@ -421,6 +437,41 @@ export default function OpDrawer({
   const feeNum = parseFloat(fee) || 0;
   const computedTotal = opType === 'sell' ? qtyNum * priceNum - feeNum : qtyNum * priceNum + feeNum;
 
+  // Excludes the op being edited so the preview reflects the balance available before
+  // this edit, not a figure that already double-counts it.
+  const opsForWalletPreview = useMemo(
+    () => (editingOp ? ops.filter(o => o.id !== editingOp.id) : ops),
+    [ops, editingOp],
+  );
+  const walletBalance = useMemo(
+    () => (mode === 'wallet' && opType === 'sell' && coin && platform)
+      ? computeWalletBalance(opsForWalletPreview, coin.coinId, platform.id, editingOp?.currency ?? currency)
+      : null,
+    [mode, opType, coin, platform, opsForWalletPreview, editingOp, currency],
+  );
+  const walletOverBalance = !!walletBalance && qtyNum > walletBalance.availableQty + 1e-9;
+  // Each condition maps to exactly one field's own inline message below — `coin` is
+  // always pre-set for a close (renderStaticCoin), so it's never the missing one there.
+  const coinMissing = !closingOp && !coin;
+  const qtyExceedsRemaining = !!closingOp && qtyNum > 0 && qtyNum > remainingQty + 1e-9;
+  const qtyInvalid = qtyNum <= 0;
+  const priceInvalid = priceNum <= 0;
+  const walletEstimatedPnl = (mode === 'wallet' && opType === 'sell' && coin && platform && qtyNum > 0 && priceNum > 0)
+    ? (() => {
+        const preview: Op = {
+          id: '__wallet_preview__', date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
+          type: 'Sell', qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
+          platformId: platform.id, platformName: platform.name,
+          currency: editingOp?.currency ?? currency, kind: 'wallet',
+          // Sorts after every real op on the same day (a preview always represents
+          // "right now") without needing a fallback to the `__wallet_preview__` id,
+          // whose sort position relative to a real UUID would otherwise be arbitrary.
+          createdAt: new Date().toISOString(),
+        };
+        return computeWalletRealizedPnl(preview, [...opsForWalletPreview, preview]);
+      })()
+    : null;
+
   const fromQtyNum = parseFloat(fromQty) || 0;
   const toQtyNum = parseFloat(toQty) || 0;
   const fromPriceNum = parseFloat(fromUnitPrice) || 0;
@@ -430,36 +481,49 @@ export default function OpDrawer({
   // the sell leg's own value is separate so unequal-value swaps still book correctly.
   const receivedTotal = toQtyNum * toPriceNum;
   const soldValue = fromQtyNum * fromPriceNum;
+  // One flag per swap field, each surfaced right next to that field below.
+  const originPlatformMissing = !originPlatform;
+  const fromCoinMissing = !fromCoinId;
+  const fromQtyInvalid = fromQtyNum <= 0;
+  const fromPriceInvalid = fromPriceNum <= 0;
+  const toCoinMissing = !toCoin;
+  const toQtyInvalid = toQtyNum <= 0;
+  const toPriceInvalid = toPriceNum <= 0;
+  // Shown live (not gated by submitAttempted), matching `showTransferWarning` above —
+  // both describe the relationship between the two blocks, not a single field's own
+  // value, so waiting for a submit attempt would just hide useful feedback the user
+  // could otherwise catch immediately after picking the second asset.
+  const sameAssetSelected = !!originPlatform && !!toCoin && fromCoinId === toCoin.coinId
+    && (destPlatform ?? originPlatform).id === originPlatform.id;
 
-  // A normal create/edit shows the inline "done" checkmark and keeps the drawer open
-  // with the just-submitted values still filled in, so registering several similar ops
-  // in a row doesn't require reopening and re-filling the form. Closing a position is a
-  // one-shot action with nothing to repeat, so it dismisses the drawer at once (no
-  // checkmark) — the parent surfaces a success toast instead.
+  // A normal create/edit keeps the drawer open with the just-submitted values still
+  // filled in, so registering several similar ops in a row doesn't require reopening
+  // and re-filling the form — the parent surfaces a success toast. Closing a position
+  // is a one-shot action with nothing to repeat, so it dismisses the drawer at once.
   const finishAfterSave = () => {
     if (closingOp) { onClose(); return; }
-    setPhase('done');
-    setTimeout(() => setPhase('idle'), DONE_DISPLAY_MS);
+    setPhase('idle');
   };
 
   const handleSubmit = async () => {
     if (phase !== 'idle') return;
-    if (opType === 'trade') { await submitTrade(); return; }
-    if (!coin || qtyNum <= 0 || priceNum <= 0) {
-      setError(t.history_form_validationRequired);
+    if (opType === 'swap') { await submitTrade(); return; }
+    setSubmitAttempted(true);
+    if (coinMissing || qtyInvalid || priceInvalid || qtyExceedsRemaining || (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance)) {
       return;
     }
-    if (closingOp && qtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
+    if (!coin) return;
     const op: NewOp = {
       date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
       type: opType === 'buy' ? 'Buy' : 'Sell',
       qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
       platformId: platform?.id, platformName: platform?.name,
       currency: editingOp?.currency ?? closingOp?.currency ?? currency,
-      leverage: !editingOp && !closingOp ? (leverage ?? undefined) : undefined,
+      leverage: mode === 'trade' && !editingOp && !closingOp ? (leverage ?? undefined) : undefined,
+      // Classification is fixed at creation (spec FR-025) — an edit must echo the
+      // stored op's kind/side exactly, never re-derive it from the current mode.
+      kind: editingOp ? editingOp.kind : closingOp ? closingOp.kind : (mode === 'trade' ? 'trade' : 'wallet'),
+      side: editingOp ? editingOp.side : undefined,
     };
     setPhase('loading');
     try {
@@ -476,6 +540,7 @@ export default function OpDrawer({
 
   const handleFromCoinSelect = (c: CoinSelection) => {
     setFromCoinId(c.coinId);
+    setFromCoinMeta({ symbol: c.symbol, name: c.name });
   };
 
   // Auto-fills each side's unit price from the live market price (display currency),
@@ -483,7 +548,7 @@ export default function OpDrawer({
   // the coin changes before this fetch resolves; a manual edit flips the badge to
   // 'manual' and this effect won't clobber it (it only re-runs on coin/type change).
   useEffect(() => {
-    if (!fromCoinId || opType !== 'trade') return;
+    if (!fromCoinId || opType !== 'swap') return;
     let cancelled = false;
     setFromPriceState('fetching');
     (async () => {
@@ -497,7 +562,7 @@ export default function OpDrawer({
   }, [fromCoinId, opType]);
 
   useEffect(() => {
-    if (!toCoin || opType !== 'trade') return;
+    if (!toCoin || opType !== 'swap') return;
     let cancelled = false;
     setToPriceState('fetching');
     (async () => {
@@ -515,59 +580,41 @@ export default function OpDrawer({
   // Keyed off the sell side and both unit prices, never off toQty, so a manual toQty
   // edit isn't overwritten unless an upstream value changes.
   useEffect(() => {
-    if (opType !== 'trade') return;
+    if (opType !== 'swap') return;
     const sold = (parseFloat(fromQty) || 0) * (parseFloat(fromUnitPrice) || 0);
     const tPrice = parseFloat(toUnitPrice) || 0;
     if (sold > 0 && tPrice > 0) setToQty((sold / tPrice).toFixed(8).replace(/\.?0+$/, ''));
   }, [fromQty, fromUnitPrice, toUnitPrice, opType]);
 
+  // Wallet Swap only — a trade position never closes via swap (allowedTypes excludes
+  // 'swap' whenever closingOp is set, so this is unreachable in close mode).
   const submitTrade = async () => {
-    if (!originPlatform || !fromCoinId || !toCoin || fromQtyNum <= 0 || toQtyNum <= 0 || fromPriceNum <= 0 || toPriceNum <= 0) {
-      setError(t.history_form_validationRequired);
+    setSubmitAttempted(true);
+    // Re-checks fromOverBalance here (not just relied on for the field's error
+    // styling) — the drawer can stay open and pre-filled after a prior successful
+    // swap already spent this same balance, so the value computed at render time
+    // must still be re-validated at submit time rather than assuming it's accurate.
+    if (originPlatformMissing || fromCoinMissing || fromQtyInvalid || fromPriceInvalid
+      || toCoinMissing || toQtyInvalid || toPriceInvalid || fromOverBalance || sameAssetSelected) {
       return;
     }
+    if (!originPlatform || !toCoin) return;
     const effectiveDest = destPlatform ?? originPlatform;
-    if (fromCoinId === toCoin.coinId && effectiveDest.id === originPlatform.id) {
-      setError(t.trade_form_sameAsset);
-      return;
-    }
-    if (closingOp && closeRole === 'sell' && fromQtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
-    if (closingOp && closeRole === 'buy' && toQtyNum > remainingQty + 1e-9) {
-      setError(t.history_form_validationRequired);
-      return;
-    }
-    const fromAsset = originHoldings.find(a => a.coinId === fromCoinId);
-    const tradeCurrency = closingOp?.currency ?? currency;
     const sellOp: NewOp = {
-      date, coinId: fromCoinId,
-      symbol: (closingOp && closeRole === 'sell') ? closingOp.symbol : (fromAsset?.symbol || ''),
-      name: (closingOp && closeRole === 'sell') ? closingOp.name : (fromAsset?.name || ''),
+      date, coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: fromCoinMeta?.name || '',
       type: 'Sell', qty: fromQtyNum, price: fromPriceNum, fee: 0, total: soldValue,
       platformId: originPlatform.id, platformName: originPlatform.name,
-      currency: tradeCurrency,
+      currency, kind: 'wallet',
     };
     const buyOp: NewOp = {
       date, coinId: toCoin.coinId, symbol: toCoin.symbol, name: toCoin.name,
       type: 'Buy', qty: toQtyNum, price: toPriceNum, fee: tradeFeeNum,
       total: receivedTotal + tradeFeeNum, platformId: effectiveDest.id, platformName: effectiveDest.name,
-      currency: tradeCurrency,
+      currency, kind: 'wallet',
     };
     setPhase('loading');
     try {
-      if (closingOp && closeRole === 'sell' && buyOp.coinId !== closingOp.coinId) {
-        // Cross-asset close: the received asset alone is the closer of the source long —
-        // no separate same-asset Sell leg (the source drop is derived from the closure).
-        await onSubmitClose?.(buyOp, fromQtyNum);
-      } else if (closingOp && closeRole === 'sell') {
-        await onSubmitTradeClose?.(sellOp, fromQtyNum, buyOp);
-      } else if (closingOp && closeRole === 'buy') {
-        await onSubmitTradeClose?.(buyOp, toQtyNum, sellOp);
-      } else {
-        await onSubmitTrade(sellOp, buyOp);
-      }
+      await onSubmitTrade(sellOp, buyOp);
       finishAfterSave();
     } catch {
       setPhase('idle');
@@ -614,23 +661,32 @@ export default function OpDrawer({
             <label htmlFor="drawer-type">{t.history_form_type}</label>
             <div className="seg-ctrl seg-tipo" id="drawer-type">
               {allowedTypes.includes('buy') && (
-                <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy}>{t.history_opType_buy}</button>
+                <button type="button" className={opType === 'buy' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('buy')} disabled={busy || !!closingOp}>
+                  {mode === 'trade' ? t.history_opType_buyLong : t.history_opType_buy}
+                </button>
               )}
               {allowedTypes.includes('sell') && (
-                <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy}>{t.history_opType_sell}</button>
+                <button type="button" className={opType === 'sell' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('sell')} disabled={busy || !!closingOp}>
+                  {mode === 'trade' ? t.history_opType_sellShort : t.history_opType_sell}
+                </button>
               )}
-              <button type="button" className={opType === 'trade' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('trade')} disabled={busy || !!editingOp}>{t.history_form_trade}</button>
+              {allowedTypes.includes('swap') && (
+                <button type="button" className={opType === 'swap' ? 'seg-btn active' : 'seg-btn'} onClick={() => handleTypeChange('swap')} disabled={busy || !!editingOp}>{t.history_form_swap}</button>
+              )}
             </div>
+            {closingOp && (
+              <div className="fhint">{closingOp.side === 'short' ? t.trade_close_locked_hint_short : t.trade_close_locked_hint_long}</div>
+            )}
           </div>
 
           <div className="type-panel" ref={panelRef}>
-          {opType !== 'trade' ? (
+          {opType !== 'swap' ? (
             <>
+              <div className="fld">
+                <label htmlFor="drawer-date">{t.history_form_date}</label>
+                <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
+              </div>
               <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-date">{t.history_form_date}</label>
-                  <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
-                </div>
                 <div className="fld">
                   <label htmlFor="drawer-platform">{t.history_form_platform}</label>
                   {closingOp ? (
@@ -639,24 +695,42 @@ export default function OpDrawer({
                     <PlatformSelect id="drawer-platform" value={platform} onChange={setPlatform} />
                   )}
                 </div>
-              </div>
-              <div className="fld">
-                <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
-                {closingOp ? (
-                  renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
-                ) : (
-                  <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..." seed={assetSeed}
-                    value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
-                    onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
-                )}
+                <div className="fld">
+                  <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
+                  {closingOp ? (
+                    renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
+                  ) : (
+                    <>
+                      <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
+                        seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
+                        value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
+                        error={submitAttempted && coinMissing}
+                        onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
+                      {submitAttempted && coinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
+                    </>
+                  )}
+                </div>
               </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
-                  value={qty} onChange={setQty} suffix={coin?.symbol} />
+                  value={qty} onChange={setQty} suffix={coin?.symbol}
+                  error={walletOverBalance || (submitAttempted && (qtyExceedsRemaining || qtyInvalid))}
+                  hint={
+                    submitAttempted && qtyInvalid ? (
+                      <span className="field-error">{t.history_form_enterQuantity}</span>
+                    ) : submitAttempted && qtyExceedsRemaining ? (
+                      <span className="field-error">{t.history_form_qtyExceedsRemaining.replace('{qty}', fmtQty(remainingQty, locale))}</span>
+                    ) : walletBalance ? (
+                      <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
+                        onMax={() => setQty(String(walletBalance.availableQty))} />
+                    ) : undefined
+                  } />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
-                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge}
+                  error={submitAttempted && priceInvalid}
+                  hint={submitAttempted && priceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
               </div>
-              {!editingOp && !closingOp && (
+              {mode === 'trade' && !editingOp && !closingOp && (
                 <div className="fld">
                   <label>{t.op_leverage_label}</label>
                   <div className="leverage-chips">
@@ -688,6 +762,14 @@ export default function OpDrawer({
                   </div>
                 );
               })()}
+              {walletEstimatedPnl !== null && (
+                <div className="pnl-preview">
+                  <span>{t.wallet_estimated_pnl}</span>
+                  <span className={walletEstimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
+                    {fmtFromCurrency(walletEstimatedPnl, editingOp?.currency ?? currency)}
+                  </span>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -701,54 +783,44 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-platform-from">{t.trade_form_platformFrom}</label>
-                    {closeRole === 'sell' ? (
-                      renderStaticPlatform(closingPlatform)
-                    ) : (
-                      <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
-                        options={heldPlatforms} />
-                    )}
+                    <PlatformSelect id="drawer-tr-platform-from" value={originPlatform} onChange={handleOriginPlatformChange}
+                      options={heldPlatforms} error={submitAttempted && originPlatformMissing} />
+                    {submitAttempted && originPlatformMissing && <span className="fhint field-error">{t.history_form_selectPlatform}</span>}
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-from">{t.wallet_col_asset}</label>
-                    {closeRole === 'sell' ? (
-                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
-                    ) : (
-                      <CoinSearch id="drawer-tr-from"
-                        placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
-                        disabled={!originPlatform}
-                        restrictTo={originHoldings.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }))}
-                        emptyLabel={originPlatform ? t.trade_form_noAssetsOnPlatform.replace('{platform}', originPlatform.name) : undefined}
-                        groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
-                        qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
-                        value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
-                        selected={fromCoinId ? { coinId: fromCoinId, symbol: fromHolding?.symbol || '', name: '' } : null}
-                        onClear={() => setFromCoinId('')} />
-                    )}
+                    <CoinSearch id="drawer-tr-from"
+                      placeholder={!originPlatform ? t.trade_form_choosePlatformFirst : (originHoldings.length === 0 ? t.trade_form_noAssetsInPlatform : 'ETH, BTC...')}
+                      disabled={!originPlatform}
+                      restrictTo={originHoldings.map(a => ({ id: a.coinId, symbol: a.symbol, name: a.name, image: avatarCache[a.coinId]?.url }))}
+                      emptyLabel={originPlatform ? t.trade_form_noAssetsOnPlatform.replace('{platform}', originPlatform.name) : undefined}
+                      groupLabel={originPlatform ? t.trade_form_yourAssetsOn.replace('{platform}', originPlatform.name) : undefined}
+                      qtyLabel={coinId => { const h = originHoldings.find(a => a.coinId === coinId); return h ? fmtQty(h.qty, locale) : undefined; }}
+                      value={fromCoinText} onChange={setFromCoinText} onSelect={handleFromCoinSelect}
+                      selected={fromCoinId ? { coinId: fromCoinId, symbol: fromCoinMeta?.symbol || '', name: '' } : null}
+                      error={submitAttempted && fromCoinMissing}
+                      onClear={() => { setFromCoinId(''); setFromCoinMeta(null); }} />
+                    {submitAttempted && fromCoinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
-                    value={fromQty} suffix={closeRole === 'sell' ? closingSymbol : fromHolding?.symbol}
-                    error={closeRole === 'sell' ? (parseFloat(fromQty) || 0) > remainingQty : fromOverBalance}
+                    value={fromQty} suffix={fromCoinMeta?.symbol}
+                    error={fromOverBalance || (submitAttempted && fromQtyInvalid)}
                     onChange={setFromQty}
-                    hint={closeRole === 'sell' ? (
-                      <span className={`bal-row${(parseFloat(fromQty) || 0) > remainingQty ? ' err' : ''}`}>
-                        <span>{((parseFloat(fromQty) || 0) > remainingQty ? t.trade_form_balanceExceeded : t.trade_form_balance)
-                          .replace('{qty}', fmtQty(remainingQty, locale)).replace('{symbol}', closingSymbol)}</span>
-                      </span>
-                    ) : fromHolding && (
-                      <span className={`bal-row${fromOverBalance ? ' err' : ''}`}>
-                        <span>{(fromOverBalance ? t.trade_form_balanceExceeded : t.trade_form_balance)
-                          .replace('{qty}', fmtQty(fromHolding.qty, locale)).replace('{symbol}', fromHolding.symbol)}</span>
-                        <button type="button" className="max"
-                          onClick={() => setFromQty(String(fromHolding.qty))}>
-                          {t.trade_form_max}
-                        </button>
-                      </span>
-                    )} />
+                    hint={
+                      submitAttempted && fromQtyInvalid ? (
+                        <span className="field-error">{t.history_form_enterQuantity}</span>
+                      ) : fromCoinId ? (
+                        <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
+                          onMax={() => setFromQty(String(fromAvailableQty))} />
+                      ) : undefined
+                    } />
                   <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
                     value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(fromPriceState)} />
+                    prefix="R$" badge={badgeFor(fromPriceState)}
+                    error={submitAttempted && fromPriceInvalid}
+                    hint={submitAttempted && fromPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
               </div>
 
@@ -760,33 +832,29 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <div className="fld">
                     <label htmlFor="drawer-tr-platform-to">{t.trade_form_platformTo}</label>
-                    {closeRole === 'buy' ? (
-                      renderStaticPlatform(closingPlatform)
-                    ) : (
-                      <>
-                        <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
-                        <span className="fhint">{t.trade_form_platformToHint}</span>
-                      </>
-                    )}
+                    <PlatformSelect id="drawer-tr-platform-to" value={destPlatform} onChange={setDestPlatform} />
+                    <span className="fhint">{t.trade_form_platformToHint}</span>
                   </div>
                   <div className="fld">
                     <label htmlFor="drawer-tr-to">{t.wallet_col_asset}</label>
-                    {closeRole === 'buy' ? (
-                      renderStaticCoin(closingCoinId, closingSymbol, closingName)
-                    ) : (
-                      <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={assetSeed}
-                        value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
-                        onClear={() => { setToCoin(null); setToQty(''); }} />
-                    )}
+                    <CoinSearch id="drawer-tr-to" placeholder="Bitcoin, BTC..." seed={defaultCoins}
+                      value={toCoinText} onChange={setToCoinText} onSelect={setToCoin} selected={toCoin}
+                      error={submitAttempted && toCoinMissing}
+                      onClear={() => { setToCoin(null); setToQty(''); }} />
+                    {submitAttempted && toCoinMissing && <span className="fhint field-error">{t.history_form_selectAsset}</span>}
+                    {sameAssetSelected && <span className="fhint field-error">{t.trade_form_sameAsset}</span>}
                   </div>
                 </div>
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
-                    value={toQty} onChange={setToQty} suffix={closeRole === 'buy' ? closingSymbol : toCoin?.symbol}
-                    error={closeRole === 'buy' ? (parseFloat(toQty) || 0) > remainingQty : false} />
+                    value={toQty} onChange={setToQty} suffix={toCoin?.symbol}
+                    error={submitAttempted && toQtyInvalid}
+                    hint={submitAttempted && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
                   <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(toPriceState)} />
+                    prefix="R$" badge={badgeFor(toPriceState)}
+                    error={submitAttempted && toPriceInvalid}
+                    hint={submitAttempted && toPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
               </div>
 
@@ -796,34 +864,19 @@ export default function OpDrawer({
                 <NumericField id="drawer-tr-total" label={t.trade_form_price} prefix="R$" readOnly
                   value={receivedTotal.toFixed(2)} onChange={() => {}} hint={t.trade_form_totalHint} />
               </div>
-              {closingOp && (() => {
-                const closePrice = closeRole === 'sell' ? fromPriceNum : toPriceNum;
-                const closeQty = closeRole === 'sell' ? fromQtyNum : toQtyNum;
-                const estimatedPnl = estimateClosePnl(closingOp, { price: closePrice }, Math.min(closeQty, remainingQty));
-                return (
-                  <div className="pnl-preview">
-                    <span>{t.history_pnl_estimated}</span>
-                    <span className={estimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
-                      {fmtFromCurrency(estimatedPnl, closingOp.currency ?? 'BRL')}
-                    </span>
-                  </div>
-                );
-              })()}
             </>
           )}
           </div>
-
-          {error && <div className="fhint" style={{ color: 'var(--danger)' }}>{error}</div>}
         </div>
 
         <div className="drawer-foot">
           <button type="button" className="btn" onClick={requestClose} disabled={busy}>{t.history_form_cancel}</button>
-          <button type="button" className={`btn-submit${phase === 'done' ? ' done' : ''}`} onClick={handleSubmit} disabled={busy}>
-            <span className="lbl">
-              {phase === 'idle' && (editingOp ? t.history_form_save : t.history_form_addOp)}
-              {phase === 'loading' && (<><span className="spinner" /><span>{editingOp ? t.history_form_saving : t.history_form_registering}</span></>)}
-              {phase === 'done' && (<><CheckIcon /><span>{editingOp ? t.history_form_saved : t.history_form_registered}</span></>)}
-            </span>
+          <button type="button" className="btn-submit" onClick={handleSubmit} disabled={busy}>
+            {phase === 'loading' ? (
+              <span className="spinner" />
+            ) : (
+              <span className="lbl">{editingOp ? t.history_form_save : t.history_form_addOp}</span>
+            )}
           </button>
         </div>
       </aside>

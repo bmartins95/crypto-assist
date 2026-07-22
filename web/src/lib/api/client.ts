@@ -53,7 +53,11 @@ export const api = {
 
   getExchangeRates: () => request<ExchangeRatesPayload>('/api/exchange-rates'),
 
-  searchCoins: (query: string) => request<CoinSearchResult[]>(`/api/coins/search?q=${encodeURIComponent(query)}`),
+  // An empty query is a valid "browse" request — the backend returns a cached
+  // default/trending set instead of erroring, so a coin field can show options
+  // as soon as it's clicked, before the user types anything.
+  searchCoins: (query: string, limit?: number) =>
+    request<CoinSearchResult[]>(`/api/coins/search?q=${encodeURIComponent(query)}${limit ? `&limit=${limit}` : ''}`),
 
   // logoUrl comes back as a same-origin-to-the-backend path (e.g. /api/platforms/logo/binance,
   // never a raw CoinGecko URL — see backend contracts/platforms-logo.md); prefix it with
