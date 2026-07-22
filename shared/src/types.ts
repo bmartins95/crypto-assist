@@ -44,6 +44,11 @@ export interface NewOp {
 // An operation as stored/returned by the backend (always has an id).
 export interface Op extends NewOp {
   id: string;
+  // Real DB insertion time (ISO 8601) — breaks ties between same-date wallet ops in
+  // FIFO balance calculations (shared/src/walletFifo.ts), which `date` alone can't
+  // since it has no time-of-day component. Optional: locally-built preview/proposed
+  // Op objects that never round-trip through the API don't have one.
+  createdAt?: string;
 }
 
 // Links a later operation (closingOpId) to an earlier one (sourceOpId) it fully or

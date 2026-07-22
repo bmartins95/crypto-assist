@@ -6,7 +6,7 @@ from app.wallet_fifo import WalletOpRow, first_negative_balance_op_id
 
 router = APIRouter()
 
-_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id, op_kind, side"
+_SELECT = "id, date, coin_id, symbol, name, type, qty, price, fee, total, platform_id, platform_name, currency, leverage, trade_group_id, op_kind, side, created_at"
 
 _NEW_OP_SENTINEL_CREATED_AT = "9999-12-31T23:59:59.999999"
 
@@ -30,6 +30,9 @@ def _row_to_op(row: dict) -> Op:
         tradeGroupId=str(row["trade_group_id"]) if row["trade_group_id"] else None,
         kind=row["op_kind"],
         side=row["side"],
+        # datetime in production (psycopg converts timestamptz automatically); tests
+        # mock rows with a plain ISO string already, so only convert when needed.
+        createdAt=row["created_at"].isoformat() if hasattr(row["created_at"], "isoformat") else row["created_at"],
     )
 
 
@@ -82,7 +85,7 @@ def list_ops(auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date",  # nosec B608
+                f"SELECT {_SELECT} FROM ops WHERE user_id = %s ORDER BY date, created_at",  # nosec B608
                 (auth.user_id,),
             )
             return [_row_to_op(r) for r in cur.fetchall()]

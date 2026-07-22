@@ -452,6 +452,10 @@ export default function OpDrawer({
           type: 'Sell', qty: qtyNum, price: priceNum, fee: feeNum, total: computedTotal,
           platformId: platform.id, platformName: platform.name,
           currency: editingOp?.currency ?? currency, kind: 'wallet',
+          // Sorts after every real op on the same day (a preview always represents
+          // "right now") without needing a fallback to the `__wallet_preview__` id,
+          // whose sort position relative to a real UUID would otherwise be arbitrary.
+          createdAt: new Date().toISOString(),
         };
         return computeWalletRealizedPnl(preview, [...opsForWalletPreview, preview]);
       })()

@@ -68,6 +68,7 @@ _API_OP = {
     "tradeGroupId": None,
     "kind": "wallet",
     "side": None,
+    "createdAt": "2024-01-15T00:00:00+00:00",
 }
 
 _NEW_OP_BODY = {
@@ -91,6 +92,18 @@ def test_list_ops(client_with_db):
     res = client.get("/api/ops")
     assert res.status_code == 200
     assert res.json() == [_API_OP]
+
+
+@pytest.mark.pgdata([_DB_ROW])
+def test_list_ops_orders_by_date_then_created_at(client_with_db):
+    # `date` alone doesn't disambiguate same-day ops — without this tie-break, ops
+    # returned in an unspecified order can make the frontend's FIFO walk (which relies
+    # on this same ordering) misplace a same-day Buy after a same-day Sell.
+    client, conn = client_with_db
+    client.get("/api/ops")
+    cur = conn.cursor.return_value
+    executed = [c.args[0] for c in cur.execute.call_args_list]
+    assert any("ORDER BY date, created_at" in q for q in executed)
 
 
 @pytest.mark.pgdata(_DB_ROW)

@@ -50,6 +50,10 @@ class NewOp(BaseModel):
 
 class Op(NewOp):
     id: str
+    # Real DB insertion time — used (instead of `id`) to break ties between same-date
+    # wallet ops in FIFO balance calculations (see shared/src/walletFifo.ts). Optional
+    # because export_data.py's own leaner SELECT doesn't currently carry it.
+    createdAt: str | None = None
 
 
 class OpClosure(BaseModel):

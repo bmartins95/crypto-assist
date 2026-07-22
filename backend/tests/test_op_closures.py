@@ -24,6 +24,7 @@ _SOURCE_ROW = {
     "trade_group_id": None,
     "op_kind": "trade",
     "side": "long",
+    "created_at": "2024-01-01T00:00:00+00:00",
 }
 
 _CLOSING_OP_BODY = {
@@ -59,6 +60,7 @@ _CLOSING_ROW = {
     "trade_group_id": None,
     "op_kind": "trade",
     "side": "short",
+    "created_at": "2024-02-01T00:00:00+00:00",
 }
 
 

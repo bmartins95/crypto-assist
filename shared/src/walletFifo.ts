@@ -7,14 +7,14 @@ interface Lot {
   unitCost: number;
 }
 
+// `date` is the primary key; `createdAt` (real DB insertion time) breaks ties between
+// same-date ops in actual chronological order, matching the backend's own FIFO walk
+// (backend/app/wallet_fifo.py's `_sort_key`). Falls back to `id` only when `createdAt`
+// is absent — a locally-built preview/proposed Op that never round-tripped through the
+// API — which is arbitrary but rare enough not to matter in practice.
 function sortKey(op: Op): string {
-  return `${op.date}|${op.id}`;
+  return `${op.date}|${op.createdAt ?? op.id}`;
 }
-
-// Wallet ops for one asset/platform/currency tuple, oldest-first. `date` is the primary
-// key; `id` is a stable (if arbitrary) tie-break for same-date ops — matches this
-// codebase's general "oldest first" convention (see specs/023-position-closing/research.md)
-// closely enough for FIFO purposes without needing a real timestamp on the client.
 function walletOpsForTuple(ops: Op[], coinId: string, platformId: string | undefined, currency: string | undefined): Op[] {
   return ops
     .filter(o => (o.kind ?? 'wallet') === 'wallet' && o.coinId === coinId && (o.platformId ?? undefined) === (platformId ?? undefined) && (o.currency ?? 'BRL') === (currency ?? 'BRL'))
