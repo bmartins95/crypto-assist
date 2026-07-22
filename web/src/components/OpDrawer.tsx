@@ -733,7 +733,7 @@ export default function OpDrawer({
           <div className="type-panel" ref={panelRef}>
           {opType !== 'swap' ? (
             <>
-              <div className="fld">
+              <div className="fld tr-date">
                 <label htmlFor="drawer-date">{t.history_form_date}</label>
                 <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
               </div>

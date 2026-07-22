@@ -253,6 +253,13 @@ describe('OpDrawer', () => {
     expect(document.getElementById('drawer-tr-date')?.closest('.fld')).toHaveClass('tr-date');
   });
 
+  it('constrains the Buy/Sell date field to half width instead of stretching the full drawer', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
+    fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
+    expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
+  });
+
   it('submits a valid Trade as one Sell and one Buy sharing the same date, then stays open with fields intact', async () => {
     const onSubmitTrade = vi.fn();
     const onClose = vi.fn();
