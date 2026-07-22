@@ -659,11 +659,11 @@ export default function OpDrawer({
           <div className="type-panel" ref={panelRef}>
           {opType !== 'swap' ? (
             <>
+              <div className="fld">
+                <label htmlFor="drawer-date">{t.history_form_date}</label>
+                <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
+              </div>
               <div className="drawer-grid">
-                <div className="fld">
-                  <label htmlFor="drawer-date">{t.history_form_date}</label>
-                  <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
-                </div>
                 <div className="fld">
                   <label htmlFor="drawer-platform">{t.history_form_platform}</label>
                   {closingOp ? (
@@ -672,28 +672,28 @@ export default function OpDrawer({
                     <PlatformSelect id="drawer-platform" value={platform} onChange={setPlatform} />
                   )}
                 </div>
-              </div>
-              <div className="fld">
-                <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
-                {closingOp ? (
-                  renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
-                ) : (
-                  <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
-                    seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
-                    value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
-                    onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
-                )}
-              </div>
-              {walletBalance && (
-                <div className={`bal-row${walletOverBalance ? ' err' : ''}`}>
-                  <span>{(walletOverBalance ? t.trade_form_balanceExceeded : t.wallet_available_balance)
-                    .replace('{qty}', fmtQty(walletBalance.availableQty, locale)).replace('{symbol}', coin?.symbol ?? '')}</span>
-                  <button type="button" className="max" onClick={() => setQty(String(walletBalance.availableQty))}>{t.wallet_max_button}</button>
+                <div className="fld">
+                  <label htmlFor="drawer-coin">{opType === 'sell' ? t.history_form_assetSold : t.history_form_assetBought}</label>
+                  {closingOp ? (
+                    renderStaticCoin(closingOp.coinId, closingOp.symbol, closingOp.name)
+                  ) : (
+                    <CoinSearch id="drawer-coin" placeholder="Bitcoin, BTC..."
+                      seed={mode === 'wallet' && opType === 'sell' ? assetSeed : defaultCoins}
+                      value={coinText} onChange={setCoinText} onSelect={setCoin} selected={coin}
+                      onClear={() => { setCoin(null); setUnitPrice(''); setPriceState('idle'); }} />
+                  )}
                 </div>
-              )}
+              </div>
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
-                  value={qty} onChange={setQty} suffix={coin?.symbol} error={walletOverBalance} />
+                  value={qty} onChange={setQty} suffix={coin?.symbol} error={walletOverBalance}
+                  hint={walletBalance && (
+                    <span className={`bal-row${walletOverBalance ? ' err' : ''}`}>
+                      <span>{(walletOverBalance ? t.trade_form_balanceExceeded : t.wallet_available_balance)
+                        .replace('{qty}', fmtQty(walletBalance.availableQty, locale)).replace('{symbol}', coin?.symbol ?? '')}</span>
+                      <button type="button" className="max" onClick={() => setQty(String(walletBalance.availableQty))}>{t.wallet_max_button}</button>
+                    </span>
+                  )} />
                 <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
                   value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge} />
               </div>
