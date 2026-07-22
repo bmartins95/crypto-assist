@@ -792,8 +792,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Toast */
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-.toast {
+/* Owns the fixed positioning so multiple toasts pile into a stack instead of
+   each one independently pinning itself to the same spot and covering the rest. */
+.toast-stack {
   position: fixed; top: 24px; right: 24px; z-index: 220;
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+}
+.toast {
   display: flex; align-items: center; gap: 10px;
   max-width: 420px; padding: 13px 14px;
   background: var(--s-surface); border: 1px solid var(--s-border); border-left: 3px solid var(--s-accent);

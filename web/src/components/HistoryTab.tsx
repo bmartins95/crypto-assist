@@ -11,7 +11,7 @@ import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import CyclePopover from '@/components/CyclePopover';
-import Toast, { ToastKind } from '@/components/Toast';
+import { useToast } from '@/context/ToastContext';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
@@ -80,6 +80,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, fmtFromCurrency } = useCurrency();
+  const { showToast } = useToast();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -87,7 +88,6 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   const [closingOp, setClosingOp] = useState<Op | undefined>(undefined);
   const [newOpKind, setNewOpKind] = useState<'wallet' | 'trade'>('wallet');
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
   const [pendingAction, setPendingAction] = useState<
     | { kind: 'edit'; id: string; op: NewOp; affectedCount: number }
     | { kind: 'delete'; id: string; affectedCount: number }
@@ -124,14 +124,14 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     if (editingOp) {
       const proposed: Op = { ...editingOp, ...op };
       const { verdict, affectedCount } = checkWalletImpact(editingOp.id, proposed);
-      if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
+      if (verdict === 'blocked') { showToast('error', t.history_negative_balance_error); return; }
       if (verdict === 'confirm') { setPendingAction({ kind: 'edit', id: editingOp.id, op, affectedCount }); return; }
       await onEditOp(editingOp.id, op);
-      setToast({ kind: 'success', message: t.history_edit_success });
+      showToast('success', t.history_edit_success);
       return;
     }
     await onAddOp(op);
-    setToast({ kind: 'success', message: t.history_add_success });
+    showToast('success', t.history_add_success);
   };
 
   const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
@@ -142,18 +142,18 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     // sell. The rejection propagates to OpDrawer's own try/catch around this call.
     await onAddOp({ ...sell, tradeGroupId });
     await onAddOp({ ...buy, tradeGroupId });
-    setToast({ kind: 'success', message: t.history_add_success });
+    showToast('success', t.history_add_success);
   };
 
   const handleSubmitClose = async (op: NewOp, qtyToClose: number): Promise<void> => {
     if (!closingOp) return;
     await onCloseOp(closingOp.id, op, qtyToClose);
-    setToast({ kind: 'success', message: t.history_close_success });
+    showToast('success', t.history_close_success);
   };
 
   const requestRemove = (o: Op) => {
     const { verdict, affectedCount } = checkWalletImpact(o.id, null);
-    if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
+    if (verdict === 'blocked') { showToast('error', t.history_negative_balance_error); return; }
     if (verdict === 'confirm') { setPendingAction({ kind: 'delete', id: o.id, affectedCount }); return; }
     // AppLayout's removeOp already shows its own error toast on failure — this only
     // exists so a rejection here doesn't surface as an unhandled promise rejection.
@@ -165,7 +165,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     try {
       if (pendingAction.kind === 'edit') {
         await onEditOp(pendingAction.id, pendingAction.op);
-        setToast({ kind: 'success', message: t.history_edit_success });
+        showToast('success', t.history_edit_success);
       } else {
         await onRemoveOp(pendingAction.id);
       }
@@ -371,10 +371,6 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
         onConfirm={confirmPendingAction}
         onCancel={() => setPendingAction(null)}
       />
-
-      {toast && (
-        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
-      )}
     </div>
   );
 }

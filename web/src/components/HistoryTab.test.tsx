@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 
@@ -72,7 +73,7 @@ const tradeOp: Op = {
 const STORAGE_KEY = 'crypto-assist:locale';
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><ToastProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></ToastProvider></LocaleProvider>);
 }
 
 beforeEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); });

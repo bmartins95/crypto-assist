@@ -5,6 +5,7 @@ import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { ThemeProvider } from './context/ThemeContext';
 import { LocaleProvider } from './context/LocaleContext';
+import { ToastProvider } from './context/ToastContext';
 import { BalanceProvider } from './context/BalanceContext';
 import { CurrencyProvider } from './context/CurrencyContext';
 import { PriceRefreshProvider } from './context/PriceRefreshContext';
@@ -45,13 +46,15 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider>
-          <CurrencyProvider>
-            <PriceRefreshProvider>
-              <RouterProvider router={router} />
-            </PriceRefreshProvider>
-          </CurrencyProvider>
-        </BalanceProvider>
+        <ToastProvider>
+          <BalanceProvider>
+            <CurrencyProvider>
+              <PriceRefreshProvider>
+                <RouterProvider router={router} />
+              </PriceRefreshProvider>
+            </CurrencyProvider>
+          </BalanceProvider>
+        </ToastProvider>
       </LocaleProvider>
     </ThemeProvider>
   </StrictMode>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type ToastKind = 'success' | 'error';
 
@@ -12,10 +12,17 @@ interface ToastProps {
 const AUTO_DISMISS_MS = 5000;
 
 export default function Toast({ kind, message, onDismiss, closeLabel }: ToastProps) {
+  // Read through a ref rather than depending on `onDismiss` directly — when
+  // several toasts are piled in a shared stack, adding/removing any one of
+  // them re-renders the rest with a new (but equivalent) onDismiss closure;
+  // depending on it here would restart every other toast's countdown too.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
   useEffect(() => {
-    const id = window.setTimeout(onDismiss, AUTO_DISMISS_MS);
+    const id = window.setTimeout(() => onDismissRef.current(), AUTO_DISMISS_MS);
     return () => window.clearTimeout(id);
-  }, [message, onDismiss]);
+  }, [message]);
 
   return (
     <div className={`toast toast--${kind}`} role="status" aria-live="polite">
