@@ -48,6 +48,7 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 const DEBOUNCE_MS = 300;
 const BROWSE_LIMIT = 50;
+const QTY_ERROR_FLASH_MS = 2500;
 
 // Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
 // the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
@@ -189,6 +190,15 @@ function CoinSearch({ id, placeholder, onSelect, onClear, value, onChange, input
 
 const today = () => new Date().toISOString().slice(0, 10);
 const LEVERAGE_OPTIONS: (Leverage | null)[] = [null, 2, 3, 5, 10];
+const CUSTOM_LEVERAGE_MIN = 2;
+const CUSTOM_LEVERAGE_MAX = 125;
+const CUSTOM_LEVERAGE_STORAGE_KEY = 'crypto-assist:custom-leverage';
+
+function readLastCustomLeverage(): number | null {
+  const raw = localStorage.getItem(CUSTOM_LEVERAGE_STORAGE_KEY);
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isInteger(n) && n >= CUSTOM_LEVERAGE_MIN && n <= CUSTOM_LEVERAGE_MAX ? n : null;
+}
 
 type OpTypeOption = 'buy' | 'sell' | 'swap';
 const TYPE_ORDER: OpTypeOption[] = ['buy', 'sell', 'swap'];
@@ -217,6 +227,21 @@ export default function OpDrawer({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
 
+  // The zero-quantity message is the one field-error with a more useful thing to
+  // show in its place (the balance/remaining hint) once the user has had a moment
+  // to read it, so — unlike every other field-error above — it self-clears instead
+  // of sitting there until the user fixes the field or resubmits.
+  const [qtyFlash, setQtyFlash] = useState({ main: false, from: false, to: false });
+  const qtyFlashTimers = useRef<Partial<Record<'main' | 'from' | 'to', ReturnType<typeof setTimeout>>>>({});
+  const flashQtyError = (field: 'main' | 'from' | 'to') => {
+    setQtyFlash(prev => ({ ...prev, [field]: true }));
+    clearTimeout(qtyFlashTimers.current[field]);
+    qtyFlashTimers.current[field] = setTimeout(() => {
+      setQtyFlash(prev => ({ ...prev, [field]: false }));
+    }, QTY_ERROR_FLASH_MS);
+  };
+  useEffect(() => () => Object.values(qtyFlashTimers.current).forEach(clearTimeout), []);
+
   const [date, setDate] = useState(today());
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [coin, setCoin] = useState<CoinSelection | null>(null);
@@ -226,6 +251,9 @@ export default function OpDrawer({
   const [priceState, setPriceState] = useState<PriceState>('idle');
   const [fee, setFee] = useState('');
   const [leverage, setLeverage] = useState<Leverage | null>(null);
+  const [customLevMode, setCustomLevMode] = useState<'idle' | 'editing'>('idle');
+  const [customLevDraft, setCustomLevDraft] = useState('');
+  const [lastCustomLeverage, setLastCustomLeverage] = useState<number | null>(readLastCustomLeverage);
   const [defaultCoins, setDefaultCoins] = useState<CoinSearchResult[]>([]);
 
   const [originPlatform, setOriginPlatform] = useState<Platform | null>(null);
@@ -252,6 +280,10 @@ export default function OpDrawer({
   const priorOverflow = useRef('');
   const panelRef = useRef<HTMLDivElement>(null);
   const slideDirRef = useRef<'fwd' | 'back'>('fwd');
+  const customLevInputRef = useRef<HTMLInputElement>(null);
+  // Set right before an Escape-driven mode change so the blur the browser fires
+  // when the input unmounts doesn't also commit the draft (see handoff state 5b/5c).
+  const skipCustomLevBlurRef = useRef(false);
   const pendingSlideRef = useRef(false);
 
   const resetBuySell = () => {
@@ -263,6 +295,39 @@ export default function OpDrawer({
     setOriginPlatform(null); setDestPlatform(null);
     setFromCoinId(''); setFromCoinMeta(null); setFromCoinText(''); setFromQty(''); setFromUnitPrice(''); setFromPriceState('idle');
     setToCoin(null); setToCoinText(''); setToQty(''); setToUnitPrice(''); setToPriceState('idle'); setTradeFee('');
+  };
+
+  const isFixedLeverage = (v: number | null) => LEVERAGE_OPTIONS.includes(v);
+
+  const openCustomLevEditor = (prefill: string) => {
+    setCustomLevDraft(prefill);
+    setCustomLevMode('editing');
+    requestAnimationFrame(() => customLevInputRef.current?.focus());
+  };
+
+  const commitCustomLeverage = () => {
+    const n = Math.trunc(Number(customLevDraft));
+    if (Number.isFinite(n) && n >= CUSTOM_LEVERAGE_MIN && n <= CUSTOM_LEVERAGE_MAX) {
+      setLeverage(n);
+      setLastCustomLeverage(n);
+      localStorage.setItem(CUSTOM_LEVERAGE_STORAGE_KEY, String(n));
+    }
+    setCustomLevMode('idle');
+    setCustomLevDraft('');
+  };
+
+  // The browser can fire a real blur event when the input unmounts as a side
+  // effect of the Escape handler's own state update — this guard keeps that
+  // stray blur from re-committing a draft the user just cancelled.
+  const handleCustomLevBlur = () => {
+    if (skipCustomLevBlurRef.current) { skipCustomLevBlurRef.current = false; return; }
+    commitCustomLeverage();
+  };
+
+  const cancelCustomLevEditor = () => {
+    skipCustomLevBlurRef.current = true;
+    setCustomLevMode('idle');
+    setCustomLevDraft('');
   };
 
   const handleOriginPlatformChange = (p: Platform | null) => {
@@ -331,8 +396,12 @@ export default function OpDrawer({
       priorOverflow.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setSubmitAttempted(false);
+      Object.values(qtyFlashTimers.current).forEach(clearTimeout);
+      setQtyFlash({ main: false, from: false, to: false });
       setPhase('idle');
       setLeverage(null);
+      setCustomLevMode('idle');
+      setCustomLevDraft('');
       if (editingOp) {
         setOpType(editingOp.type === 'Buy' ? 'buy' : 'sell');
         setDate(editingOp.date);
@@ -402,6 +471,8 @@ export default function OpDrawer({
     pendingSlideRef.current = true;
     setOpType(next);
     setSubmitAttempted(false);
+    Object.values(qtyFlashTimers.current).forEach(clearTimeout);
+    setQtyFlash({ main: false, from: false, to: false });
   };
 
   // Restart the directional slide keyframe on each user-initiated tab switch. The
@@ -509,6 +580,7 @@ export default function OpDrawer({
     if (phase !== 'idle') return;
     if (opType === 'swap') { await submitTrade(); return; }
     setSubmitAttempted(true);
+    if (qtyInvalid) flashQtyError('main');
     if (coinMissing || qtyInvalid || priceInvalid || qtyExceedsRemaining || (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance)) {
       return;
     }
@@ -590,6 +662,8 @@ export default function OpDrawer({
   // 'swap' whenever closingOp is set, so this is unreachable in close mode).
   const submitTrade = async () => {
     setSubmitAttempted(true);
+    if (fromQtyInvalid) flashQtyError('from');
+    if (toQtyInvalid) flashQtyError('to');
     // Re-checks fromOverBalance here (not just relied on for the field's error
     // styling) — the drawer can stay open and pre-filled after a prior successful
     // swap already spent this same balance, so the value computed at render time
@@ -682,7 +756,7 @@ export default function OpDrawer({
           <div className="type-panel" ref={panelRef}>
           {opType !== 'swap' ? (
             <>
-              <div className="fld">
+              <div className="fld tr-date">
                 <label htmlFor="drawer-date">{t.history_form_date}</label>
                 <DatePicker id="drawer-date" value={date} onChange={setDate} maxDate={today()} inputRef={firstFieldRef} />
               </div>
@@ -714,12 +788,13 @@ export default function OpDrawer({
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
                   value={qty} onChange={setQty} suffix={coin?.symbol}
-                  error={walletOverBalance || (submitAttempted && (qtyExceedsRemaining || qtyInvalid))}
+                  error={walletOverBalance || (submitAttempted && qtyExceedsRemaining) || (qtyFlash.main && qtyInvalid)}
                   hint={
-                    submitAttempted && qtyInvalid ? (
+                    qtyFlash.main && qtyInvalid ? (
                       <span className="field-error">{t.history_form_enterQuantity}</span>
-                    ) : submitAttempted && qtyExceedsRemaining ? (
-                      <span className="field-error">{t.history_form_qtyExceedsRemaining.replace('{qty}', fmtQty(remainingQty, locale))}</span>
+                    ) : closingOp ? (
+                      <BalanceHint qty={remainingQty} symbol={closingOp.symbol} over={qtyExceedsRemaining}
+                        label={t.trade_close_available} onMax={() => setQty(String(remainingQty))} />
                     ) : walletBalance ? (
                       <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
                         onMax={() => setQty(String(walletBalance.availableQty))} />
@@ -736,12 +811,66 @@ export default function OpDrawer({
                   <div className="leverage-chips">
                     {LEVERAGE_OPTIONS.map(v => (
                       <button key={String(v)} type="button"
-                        className={leverage === v ? 'lev-chip active' : 'lev-chip'}
+                        // The 1x pill (v === null) is the unleveraged baseline, not a
+                        // selectable value — it never shows as active, so deselecting
+                        // any other chip lands on "nothing highlighted" instead of
+                        // visually (and misleadingly) landing on "1x selected".
+                        className={v !== null && leverage === v ? 'lev-chip active' : 'lev-chip'}
                         aria-label={`${v ?? 1}x`}
-                        onClick={() => setLeverage(prev => (prev === v ? null : v))}>
+                        onClick={() => { setLeverage(prev => (prev === v ? null : v)); setCustomLevMode('idle'); }}>
                         {v ?? 1}x
                       </button>
                     ))}
+                    {customLevMode === 'editing' ? (
+                      <div className="nf lev-chip-custom-input">
+                        <input
+                          ref={customLevInputRef}
+                          type="number" inputMode="numeric"
+                          min={CUSTOM_LEVERAGE_MIN} max={CUSTOM_LEVERAGE_MAX} step={1}
+                          className="inp"
+                          value={customLevDraft}
+                          onChange={e => setCustomLevDraft(e.target.value)}
+                          onBlur={handleCustomLevBlur}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitCustomLeverage(); }
+                            else if (e.key === 'Escape') { e.preventDefault(); cancelCustomLevEditor(); }
+                          }}
+                          aria-label={t.op_leverage_custom_label} />
+                        <button type="button" className="icon-btn lev-chip-exit-btn"
+                          aria-label={t.op_leverage_custom_cancel}
+                          // Prevents the browser's default focus-shift-on-mousedown from
+                          // blurring (and thus committing) the input before this click fires.
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={cancelCustomLevEditor}>
+                          <i className="ti ti-x" />
+                        </button>
+                      </div>
+                    ) : leverage !== null && !isFixedLeverage(leverage) ? (
+                      <button type="button" className="lev-chip active"
+                        aria-label={`${leverage}x`}
+                        onClick={() => setLeverage(null)}>
+                        {leverage}x
+                      </button>
+                    ) : lastCustomLeverage !== null ? (
+                      <div className="lev-chip lev-chip-remembered">
+                        <button type="button" className="lev-chip-remembered-body"
+                          aria-label={`${lastCustomLeverage}x`}
+                          onClick={() => setLeverage(lastCustomLeverage)}>
+                          <span className="lev-chip-remembered-value">{lastCustomLeverage}x</span>
+                          <span className="lev-chip-remembered-caption">{t.op_leverage_custom_lastUsed}</span>
+                        </button>
+                        <button type="button" className="lev-chip-edit"
+                          aria-label={t.op_leverage_custom_edit}
+                          onClick={() => openCustomLevEditor(String(lastCustomLeverage))}>
+                          <i className="ti ti-pencil" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" className="lev-chip lev-chip-custom-idle"
+                        onClick={() => openCustomLevEditor('')}>
+                        {t.op_leverage_custom_label}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -806,10 +935,10 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
                     value={fromQty} suffix={fromCoinMeta?.symbol}
-                    error={fromOverBalance || (submitAttempted && fromQtyInvalid)}
+                    error={fromOverBalance || (qtyFlash.from && fromQtyInvalid)}
                     onChange={setFromQty}
                     hint={
-                      submitAttempted && fromQtyInvalid ? (
+                      qtyFlash.from && fromQtyInvalid ? (
                         <span className="field-error">{t.history_form_enterQuantity}</span>
                       ) : fromCoinId ? (
                         <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
@@ -848,8 +977,8 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
                     value={toQty} onChange={setToQty} suffix={toCoin?.symbol}
-                    error={submitAttempted && toQtyInvalid}
-                    hint={submitAttempted && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
+                    error={qtyFlash.to && toQtyInvalid}
+                    hint={qtyFlash.to && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
                   <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
                     prefix="R$" badge={badgeFor(toPriceState)}

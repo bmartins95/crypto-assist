@@ -1,6 +1,8 @@
 export type Currency = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'JPY';
 
-export type Leverage = 2 | 3 | 5 | 10;
+// An integer leverage multiple. Fixed presets (2/3/5/10) or a custom value —
+// validated as 2-125 server-side (backend/app/models.py's LeverageValue).
+export type Leverage = number;
 
 // Units of each currency per 1 USD; USD is always 1.
 export type ExchangeRates = Record<Currency, number>;

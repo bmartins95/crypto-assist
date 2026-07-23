@@ -327,8 +327,19 @@ def test_create_op_with_leverage(client_with_db):
 @pytest.mark.pgdata({})
 def test_create_op_invalid_leverage_rejected(client_with_db):
     client, _ = client_with_db
-    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 4, "kind": "trade"})
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 1, "kind": "trade"})
     assert res.status_code == 422
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 200, "kind": "trade"})
+    assert res.status_code == 422
+
+
+@pytest.mark.pgdata(_DB_ROW)
+def test_create_op_with_custom_leverage(client_with_db):
+    client, conn = client_with_db
+    res = client.post("/api/ops", json={**_NEW_OP_BODY, "leverage": 27, "kind": "trade"})
+    assert res.status_code == 201
+    insert_params = conn.cursor.return_value.execute.call_args[0][1]
+    assert insert_params[-4] == 27
 
 
 @pytest.mark.pgdata({})

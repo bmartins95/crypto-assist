@@ -8,9 +8,16 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
+  // Omit to render no checkbox at all — most callers don't need one.
+  checkboxLabel?: string;
+  checkboxChecked?: boolean;
+  onCheckboxChange?: (checked: boolean) => void;
 }
 
-export default function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+export default function ConfirmDialog({
+  open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel,
+  checkboxLabel, checkboxChecked, onCheckboxChange,
+}: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -36,6 +43,12 @@ export default function ConfirmDialog({ open, title, message, confirmLabel, canc
       >
         <div className="confirm-dialog-title" id="confirm-dialog-title">{title}</div>
         <div className="confirm-dialog-msg" id="confirm-dialog-message">{message}</div>
+        {checkboxLabel && (
+          <label className="confirm-dialog-checkbox">
+            <input type="checkbox" checked={!!checkboxChecked} onChange={e => onCheckboxChange?.(e.target.checked)} />
+            {checkboxLabel}
+          </label>
+        )}
         <div className="confirm-dialog-actions">
           <button type="button" className="settings-btn" onClick={onCancel} ref={cancelRef}>{cancelLabel}</button>
           <button type="button" className="settings-btn settings-btn--danger" onClick={onConfirm}>{confirmLabel}</button>

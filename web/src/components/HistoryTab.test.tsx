@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
+import { fmtDate } from '@/lib/format';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 
@@ -72,7 +74,7 @@ const tradeOp: Op = {
 const STORAGE_KEY = 'crypto-assist:locale';
 
 function renderWithLocale(ui: React.ReactElement) {
-  return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
+  return render(<LocaleProvider><ToastProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></ToastProvider></LocaleProvider>);
 }
 
 beforeEach(() => { localStorage.clear(); localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 })); });
@@ -135,12 +137,55 @@ describe('HistoryTab', () => {
     expect(screen.getByText('Compra · Long')).toBeInTheDocument();
   });
 
-  it('calls onRemoveOp when clicking the delete button on a row', () => {
+  it('shows a plain confirmation before deleting an operation with no wallet impact', () => {
+    const onRemoveOp = vi.fn(async () => {});
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getByTitle('Excluir'));
+    expect(onRemoveOp).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Excluir operação?');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Excluir' }));
+    expect(onRemoveOp).toHaveBeenCalledWith('op-1');
+  });
+
+  it('cancelling the plain delete confirmation does not call onRemoveOp', () => {
+    const onRemoveOp = vi.fn(async () => {});
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getByTitle('Excluir'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onRemoveOp).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it("checking \"don't ask again\" and confirming persists the preference and skips the dialog on the next delete", async () => {
+    const onRemoveOp = vi.fn(async () => {});
+    // A different coin, so deleting either has zero wallet impact on the other — this
+    // must stay on the plain-confirm path, not the wallet-impact one (which is never
+    // silenced by the opt-out).
+    const day2: Op = { ...existingOp, id: 'op-2', date: '2024-01-16', coinId: 'ethereum', symbol: 'ETH' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, day2]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Não perguntar novamente' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Excluir' }));
+    expect(onRemoveOp).toHaveBeenCalledWith('op-1');
+    // confirmPendingAction is async (awaits onRemoveOp before clearing pendingAction) —
+    // wait for that to fully settle so the skip-preference state update has flushed
+    // before asserting on it or triggering the next delete.
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(localStorage.getItem('crypto-assist:skip-delete-confirm')).toBe('1');
+
+    fireEvent.click(screen.getAllByTitle('Excluir')[1]);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(onRemoveOp).toHaveBeenCalledWith('op-2');
+  });
+
+  it('deletes instantly with no dialog when skip-delete-confirm is already set', () => {
+    localStorage.setItem('crypto-assist:skip-delete-confirm', '1');
     const onRemoveOp = vi.fn(async () => {});
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
     expect(onRemoveOp).toHaveBeenCalledWith('op-1');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
   it('opens the drawer pre-filled when clicking a row\'s edit icon', () => {
@@ -333,10 +378,17 @@ describe('HistoryTab', () => {
     await waitFor(() => expect(screen.getByText('Operação salva com sucesso')).toBeInTheDocument());
   });
 
-  it('shows a leverage badge and a Long/Short label next to the type chip for a trade', () => {
+  it('shows a leverage badge and a Long pill for a leveraged long trade', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
     expect(document.querySelector('.tbl .lev-badge')).toHaveTextContent('3x');
-    expect(document.querySelector('.tbl .side-label')).toHaveTextContent('Long');
+    expect(document.querySelector('.tbl .tag.long')).toHaveTextContent('Long');
+  });
+
+  it('shows a Short pill for a short trade', () => {
+    const shortOp: Op = { ...tradeOp, id: 'trade-2', side: 'short' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[shortOp]} />);
+    expect(document.querySelector('.tbl .tag.short')).toHaveTextContent('Short');
+    expect(document.querySelector('.tbl .tag.long')).not.toBeInTheDocument();
   });
 
   it('shows no leverage badge for a wallet (unleveraged) operation', () => {
@@ -352,6 +404,23 @@ describe('HistoryTab', () => {
     expect(headers).toHaveLength(2);
     const rows = document.querySelectorAll('.history-row');
     expect(rows).toHaveLength(3);
+  });
+
+  it('merges a later-added op into its own date\'s existing group instead of creating a duplicate', () => {
+    // Reproduces the reported bug: ops are appended to the array in the order
+    // they were added client-side (see AppLayout's addOp), not re-sorted by
+    // `date` — so a same-day op added after a later-dated one ends up last in
+    // the array despite having an earlier date.
+    const laterDay: Op = { ...existingOp, id: 'op-later', date: '2024-01-20' };
+    const backfilledSameDay: Op = { ...existingOp, id: 'op-backfilled', date: existingOp.date };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, laterDay, backfilledSameDay]} />);
+
+    const headers = document.querySelectorAll('.history-group-header');
+    expect(headers).toHaveLength(2);
+    // Chronological order, not array/insertion order.
+    expect(headers[0]).toHaveTextContent(fmtDate(existingOp.date, 'pt-BR'));
+    expect(headers[1]).toHaveTextContent(fmtDate(laterDay.date, 'pt-BR'));
+    expect(document.querySelectorAll('.history-row')).toHaveLength(3);
   });
 
   it('collapses row detail by default and expands it on click, showing price/fee/platform', () => {
@@ -460,7 +529,7 @@ describe('HistoryTab', () => {
       expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
     });
 
-    it('skips the wallet-impact check entirely for a trade op (edit/delete proceed with no dialog)', () => {
+    it('skips the wallet-impact check entirely for a trade op (edit proceeds with no dialog; delete gets the plain confirmation, not the impact one)', () => {
       const onEditOp = vi.fn();
       const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onEditOp={onEditOp} onRemoveOp={onRemoveOp} />);
@@ -468,8 +537,11 @@ describe('HistoryTab', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       fireEvent.click(document.querySelector('.drawer-foot .btn')!);
       fireEvent.click(screen.getByTitle('Excluir'));
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toHaveTextContent('Excluir operação?');
+      expect(dialog).not.toHaveTextContent('operação(ões) posterior(es)');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Excluir' }));
       expect(onRemoveOp).toHaveBeenCalledWith('trade-1');
-      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
   });
 
@@ -491,6 +563,7 @@ describe('HistoryTab', () => {
       const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getByTitle('Excluir'));
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Excluir' }));
       expect(onRemoveOp).toHaveBeenCalledWith('swap-sell');
     });
 

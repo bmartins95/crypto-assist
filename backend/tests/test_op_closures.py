@@ -124,6 +124,50 @@ def test_close_op_full_close(close_client):
     assert insert_params[-2:] == ("trade", "short")
 
 
+def test_close_op_realized_pnl_scaled_by_source_leverage(close_client):
+    # _SOURCE_ROW carries leverage=3; the persisted realized_pnl must scale by it just
+    # like the drawer's own live preview (estimateClosePnl) already does — a mismatch
+    # here means the leveraged preview shown before submit doesn't match what actually
+    # gets stored and read back everywhere else (History P/L column, cycle summaries).
+    client, conn, cur = close_client
+    cur.fetchone.side_effect = [_SOURCE_ROW, _CLOSING_ROW, _closure_row("c1", "buy-1", 1, 150)]
+    cur.fetchall.side_effect = [[_SOURCE_ROW], []]
+
+    res = client.post("/api/ops/buy-1/close", json={"closingOp": _CLOSING_OP_BODY, "qtyToClose": 1})
+
+    assert res.status_code == 201
+    insert_params = next(c for c in cur.execute.call_args_list if "INSERT INTO op_closures" in c.args[0]).args[1]
+    # (150 sell - 100 buy) * 1 qty * 3x leverage = 150, not the unleveraged 50.
+    assert insert_params[3] == 150
+
+
+def test_close_op_spans_multiple_source_ops_each_uses_its_own_leverage(close_client):
+    # Two source lots opened at different leverage multiples, closed together in one
+    # request — each lot's own leverage must scale its own share of the P/L, not the
+    # leverage of whichever op the close was addressed to.
+    client, conn, cur = close_client
+    lot_2x = {**_SOURCE_ROW, "id": "buy-1", "qty": "0.5", "leverage": 2}
+    lot_5x = {**_SOURCE_ROW, "id": "buy-2", "qty": "0.5", "leverage": 5}
+    cur.fetchone.side_effect = [
+        lot_2x,
+        _CLOSING_ROW,
+        _closure_row("c1", "buy-1", 0.5, 25),
+        _closure_row("c2", "buy-2", 0.5, 62.5),
+    ]
+    cur.fetchall.side_effect = [[lot_2x, lot_5x], []]
+
+    res = client.post(
+        "/api/ops/buy-1/close",
+        json={"closingOp": {**_CLOSING_OP_BODY, "qty": 1, "total": 150}, "qtyToClose": 1},
+    )
+
+    assert res.status_code == 201
+    insert_calls = [c for c in cur.execute.call_args_list if "INSERT INTO op_closures" in c.args[0]]
+    # (150 - 100) * 0.5 * 2x = 50; (150 - 100) * 0.5 * 5x = 125.
+    assert insert_calls[0].args[1][3] == 50
+    assert insert_calls[1].args[1][3] == 125
+
+
 def test_close_op_partial_close(close_client):
     client, conn, cur = close_client
     cur.fetchone.side_effect = [_SOURCE_ROW, _CLOSING_ROW, _closure_row("c1", "buy-1", 0.4, 20)]

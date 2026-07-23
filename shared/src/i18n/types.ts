@@ -63,6 +63,10 @@ export interface UIText {
   history_add_success: string;
   history_edit_success: string;
   op_leverage_label: string;
+  op_leverage_custom_label: string;
+  op_leverage_custom_lastUsed: string;
+  op_leverage_custom_edit: string;
+  op_leverage_custom_cancel: string;
   history_opType_buy: string;
   history_opType_sell: string;
   history_form_addOp: string;
@@ -88,7 +92,6 @@ export interface UIText {
   history_form_selectPlatform: string;
   history_form_enterQuantity: string;
   history_form_enterPrice: string;
-  history_form_qtyExceedsRemaining: string;
   history_form_calculatedAutomatically: string;
   history_form_priceAuto: string;
   history_form_priceManual: string;
@@ -118,11 +121,15 @@ export interface UIText {
   wallet_estimated_pnl: string;
   trade_close_locked_hint_short: string;
   trade_close_locked_hint_long: string;
+  trade_close_available: string;
   history_edit_impact_title: string;
   history_edit_impact_message: string;
   history_delete_impact_message: string;
   history_negative_balance_error: string;
   history_edit_impact_confirm: string;
+  history_delete_confirm_title: string;
+  history_delete_confirm_message: string;
+  history_delete_confirm_checkbox: string;
   cycle_tag_aria: string;
   cycle_header: string;
   cycle_status_partial: string;

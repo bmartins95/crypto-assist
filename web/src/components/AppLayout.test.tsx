@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router';
 import { createAppRouter } from '@/router';
 import { LocaleProvider } from '@/context/LocaleContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { PriceRefreshProvider } from '@/context/PriceRefreshContext';
@@ -85,9 +86,11 @@ async function renderAt(path: string) {
   render(
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider><CurrencyProvider><PriceRefreshProvider>
-          <RouterProvider router={testRouter} />
-        </PriceRefreshProvider></CurrencyProvider></BalanceProvider>
+        <ToastProvider>
+          <BalanceProvider><CurrencyProvider><PriceRefreshProvider>
+            <RouterProvider router={testRouter} />
+          </PriceRefreshProvider></CurrencyProvider></BalanceProvider>
+        </ToastProvider>
       </LocaleProvider>
     </ThemeProvider>
   );

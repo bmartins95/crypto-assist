@@ -5,11 +5,11 @@ import { storage, getLegacyOps, getLegacyExitPrices, hasMigrationBeenDeclined, d
 import { api } from '@/lib/api/client';
 import { collectAssets, convertOpsToUsd } from '@/lib/portfolio';
 import Sidebar from '@/components/Sidebar';
-import Toast, { ToastKind } from '@/components/Toast';
 import AppBootstrapGate from '@/auth/AppBootstrapGate';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { usePriceRefresh } from '@/context/PriceRefreshContext';
+import { useToast } from '@/context/ToastContext';
 
 interface PortfolioContextValue {
   ops: Op[];
@@ -44,6 +44,7 @@ export default function AppLayout() {
   const { locale, t } = useLocale();
   const { rates } = useCurrency();
   const { interval } = usePriceRefresh();
+  const { showToast } = useToast();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar:collapsed') === '1');
   const [ops, setOps] = useState<Op[]>([]);
   const [closures, setClosures] = useState<OpClosure[]>([]);
@@ -53,7 +54,6 @@ export default function AppLayout() {
   const [groupMode, setGroupMode] = useState<GroupMode>('asset');
   const [activeChart, setActiveChart] = useState<ChartType>('by-asset');
   const [statusMsg, setStatusMsg] = useState('');
-  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed(prev => {
@@ -135,20 +135,20 @@ export default function AppLayout() {
       // Re-thrown so callers (e.g. a swap's second leg) don't proceed as if this
       // succeeded — HistoryTab relies on the rejection to skip its own success toast
       // and to stop a multi-step submission (a swap) after the first leg fails.
-      setToast({ kind: 'error', message: t.dashboard_error_add_op });
+      showToast('error', t.dashboard_error_add_op);
       throw e;
     }
-  }, [t]);
+  }, [t, showToast]);
 
   const editOp = useCallback(async (id: string, op: NewOp) => {
     try {
       const updated = await api.updateOp(id, op);
       setOps(prev => prev.map(o => (o.id === id ? updated : o)));
     } catch (e) {
-      setToast({ kind: 'error', message: t.dashboard_error_edit_op });
+      showToast('error', t.dashboard_error_edit_op);
       throw e;
     }
-  }, [t]);
+  }, [t, showToast]);
 
   const removeOp = useCallback(async (id: string) => {
     try {
@@ -163,10 +163,10 @@ export default function AppLayout() {
       // would leave its link behind and keep the source op stuck as partially closed.
       setClosures(prev => prev.filter(c => !removed.has(c.sourceOpId) && !removed.has(c.closingOpId)));
     } catch (e) {
-      setToast({ kind: 'error', message: t.dashboard_error_delete_op });
+      showToast('error', t.dashboard_error_delete_op);
       throw e;
     }
-  }, [t]);
+  }, [t, showToast]);
 
   const closeOp = useCallback(async (sourceOpId: string, op: NewOp, qtyToClose: number) => {
     try {
@@ -174,10 +174,10 @@ export default function AppLayout() {
       setOps(prev => [...prev, closingOp]);
       setClosures(prev => [...prev, ...newClosures]);
     } catch (e) {
-      setToast({ kind: 'error', message: t.dashboard_error_add_op });
+      showToast('error', t.dashboard_error_add_op);
       throw e;
     }
-  }, [t]);
+  }, [t, showToast]);
 
   const setExitPrice = useCallback(async (coinId: string, value: string) => {
     const exitPrice = parseFloat(value) || 0;
@@ -257,9 +257,6 @@ export default function AppLayout() {
           </PortfolioContext.Provider>
         </main>
       </div>
-      {toast && (
-        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
-      )}
     </AppBootstrapGate>
   );
 }

@@ -12,12 +12,12 @@ closures_router = APIRouter()
 _EPSILON = 1e-9
 
 
-def _realized_pnl(source_type: str, source_price: float, closing_price: float, qty: float) -> float:
+def _realized_pnl(source_type: str, source_price: float, closing_price: float, qty: float, leverage: int | None) -> float:
     if source_type == "Buy":
         sell_price, buy_price = closing_price, source_price
     else:
         sell_price, buy_price = source_price, closing_price
-    return qty * (sell_price - buy_price)
+    return qty * (sell_price - buy_price) * (leverage or 1)
 
 
 def _row_to_closure(row: dict) -> OpClosure:
@@ -80,7 +80,7 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
             # concurrent close against the same rows can't over-allocate past what's
             # actually available (see specs/023-position-closing/research.md).
             cur.execute(
-                "SELECT id, qty, price FROM ops"
+                "SELECT id, qty, price, leverage FROM ops"
                 " WHERE user_id = %s AND coin_id = %s AND type = %s AND op_kind = 'trade'"
                 " AND platform_id IS NOT DISTINCT FROM %s AND currency = %s"
                 " ORDER BY date ASC, created_at ASC"
@@ -135,7 +135,10 @@ def close_op(op_id: str, body: CloseOpRequest, auth: AuthContext = Depends(requi
                 if available <= _EPSILON:
                     continue
                 qty_alloc = min(available, remaining_to_allocate)
-                pnl = _realized_pnl(source["type"], float(c["price"]), proceeds_per_unit, qty_alloc)
+                # Each candidate lot's own leverage applies to its own portion — a close
+                # spanning multiple source ops (opened at different multipliers) must not
+                # apply the URL-targeted op's leverage to every lot uniformly.
+                pnl = _realized_pnl(source["type"], float(c["price"]), proceeds_per_unit, qty_alloc, c["leverage"])
                 cur.execute(
                     "INSERT INTO op_closures (source_op_id, closing_op_id, qty_closed, realized_pnl)"
                     " VALUES (%s, %s, %s, %s)"

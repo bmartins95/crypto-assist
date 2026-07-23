@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { ToastProvider } from '@/context/ToastContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { PriceRefreshProvider } from '@/context/PriceRefreshContext';
@@ -34,7 +35,9 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <LocaleProvider>
-        <BalanceProvider><CurrencyProvider><PriceRefreshProvider>{children}</PriceRefreshProvider></CurrencyProvider></BalanceProvider>
+        <ToastProvider>
+          <BalanceProvider><CurrencyProvider><PriceRefreshProvider>{children}</PriceRefreshProvider></CurrencyProvider></BalanceProvider>
+        </ToastProvider>
       </LocaleProvider>
     </ThemeProvider>
   );

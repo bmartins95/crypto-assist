@@ -1,0 +1,1052 @@
+# Crypto Assist — Completed Plan Items (Archive)
+
+Full spec/implementation detail for plan items marked done/won't-do in `docs/PLAN.md`, moved here to keep the active plan short. Ordering matches each item's original position in `docs/PLAN.md`.
+
+---
+
+## Item 1 — Remove Google Drive integration
+**Branch:** `chore/remove-google-drive`
+**Depends on:** nothing
+- [x] Done
+
+### Current state
+`web/src/lib/gdrive.ts` implements Google Drive file upload/download. `dashboard/page.tsx` has ~200 lines of Drive state, handlers (`gdriveSave`, `gdriveLoad`, `gdriveConnect`, `gdriveDisconnect`, `gdriveConfigKey`), and Drive buttons in the header. `web/src/lib/storage.ts` has Drive-related keys (`gdrive_used`, `client_id`). The CoinGecko API key was stored in Drive config — it now lives in AWS SSM and is unused on the frontend.
+
+### Files to delete
+- `web/src/lib/gdrive.ts`
+
+### Files to modify
+- `web/src/app/dashboard/page.tsx` — remove: all `gdrive*` imports, the `Window.google` declaration, all Drive state variables (`driveToken`, `driveFileId`, `configFileId`, `coingeckoApiKey`, `tokenClient`, `driveConnected`, `driveStatus`), all Drive handlers, the Drive button cluster in the header JSX. Keep: `exportData`, `importData`, the Exportar/Importar JSON buttons.
+- `web/src/lib/storage.ts` — remove `getGdriveUsed`, `setGdriveUsed`, `removeGdriveUsed`, `getClientId`, `setClientId`, `removeClientId` and their localStorage keys.
+- `web/src/lib/types.ts` (if any Drive-specific types exist) — remove them.
+- `shared/src/types.ts` — keep `BackupPayload`; it is still used by `/api/export` and `/api/import`.
+
+### Done when
+- No file references `gdrive`, `driveToken`, `tokenClient`, or `window.google` anywhere in `web/`.
+- JSON export (downloads a `.json` file) and JSON import (uploads a `.json` file) still work.
+- `npm test` passes.
+
+---
+
+## Item 2 — Security audit
+**Branch:** `chore/security-audit`
+**Depends on:** nothing
+
+- [x] Done
+
+### Current state
+No static analysis in CI. CORS config in `backend/app/main.py` is unknown — may allow `*`. Tokens stored in localStorage by Amplify. No dependency vulnerability scanning.
+
+### Tasks
+
+**CORS:**
+- Read `backend/app/main.py`. If `CORSMiddleware` allows `allow_origins=["*"]`, change it to read from an env var (`FRONTEND_ORIGIN`, already in SSM) so only the actual CloudFront URL is allowed in prod.
+
+**Static analysis — add to CI (`crypto-assist/.github/workflows/deploy.yml` test step):**
+- `pip install bandit pip-audit` in backend test step; run `bandit -r app/ -ll` (flag HIGH and MEDIUM) and `pip-audit`.
+- Add `eslint-plugin-security` to `web/package.json` devDependencies; add `"plugin:security/recommended"` to ESLint config; run as part of `npm test`.
+- Add `npm audit --audit-level=high` to the web test step.
+
+**Token storage:**
+- Amplify stores tokens in localStorage by default. Document the accepted risk in `backend/AGENTS.md` (XSS is the threat; mitigated by CSP and no `eval`/`innerHTML` in the codebase). No code change required unless a CSP header is missing — if so, add it to the CloudFront distribution in `aws-infra/stacks/app-stack.ts`.
+
+**Fix all HIGH findings** from Bandit and ESLint security plugin before merging.
+
+### Done when
+- `bandit -r app/ -ll` exits 0 in CI.
+- `pip-audit` exits 0 in CI (or known vulnerabilities are documented as accepted).
+- `npm audit --audit-level=high` exits 0 in CI.
+- CORS origin is not `*` in any environment.
+- `eslint-plugin-security` configured and passing.
+
+---
+
+## Item 3 — OWASP Top 10 hardening
+**Branch:** `chore/owasp-hardening`
+**Depends on:** Item 2
+
+- [x] Done
+
+### Current state
+Item 2 addressed A03 (SQL injection via bandit), A05 (CORS), A06 (dependency scanning), and A07 (token storage documentation). The following gaps remain after that audit:
+
+- **A01 Broken Access Control** — no test verifies that user A cannot access user B's resources; cross-user isolation is only enforced by `WHERE user_id = %s` in queries but never exercised in the test suite.
+- **A03/A10 Injection/SSRF** — `coin_id` values from stored ops are passed directly into CoinGecko URL paths (`/coins/{coin_id}/...`) in `backend/app/routes/prices.py` without format validation. A crafted ID could redirect the Lambda's outbound HTTP request to an attacker-controlled host.
+- **A05 Security Misconfiguration** — CSP header is missing from the CloudFront distribution (documented as a risk in `backend/AGENTS.md` but not implemented).
+- **A08 Software and Data Integrity** — GitHub Actions steps reference mutable version tags (`@v7`, `@v5`, `@v6`) instead of pinned commit SHAs. A compromised action tag could inject malicious code into CI.
+- **A09 Security Logging** — failed authentication attempts are not logged; only request paths are logged, making auth anomalies invisible in CloudWatch.
+
+A02 (cryptographic failures) is handled by Cognito RS256 + CloudFront TLS.
+A04 (insecure design) is addressed by architecture: JWT-gated API, no sensitive operations beyond per-user portfolio data.
+A07 (authentication failures) is covered by Cognito (built-in rate limiting, MFA support) plus Item 2 documentation.
+
+### Tasks
+
+**A01 — Cross-user isolation tests:**
+- `backend/tests/test_isolation.py` — for each of `GET /api/ops`, `GET /api/exit-prices`, `GET /api/export`: populate mock data scoped to user A's `user_id`; issue the same request with user B's auth context; assert the response body is empty (not user A's data). Also assert that every protected endpoint returns 401 when the `Authorization` header is absent.
+
+**A03/A10 — Input validation on coin_id:**
+- `backend/app/routes/prices.py` — validate each entry in the `ids` query param against `^[a-z0-9-]{1,120}$` before constructing the CoinGecko URL. Return HTTP 400 with a clear `detail` message if any ID is malformed.
+- `backend/tests/test_prices.py` — add: malformed `coin_id` (e.g. `../evil`, empty string, oversized value) returns 400; valid IDs proceed to normal cache/fetch flow.
+
+**A05 — Content-Security-Policy header:**
+- `aws-infra/stacks/app-stack.ts` — add a CloudFront `ResponseHeadersPolicy` with a strict CSP: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://cognito-idp.us-east-1.amazonaws.com https://*.amazoncognito.com`. Attach the policy to the distribution's default cache behavior.
+
+**A08 — Pin GitHub Actions to commit SHAs:**
+- `.github/workflows/deploy.yml` — replace mutable version tags with pinned full-length commit SHAs for `actions/checkout`, `actions/setup-python`, `actions/setup-node`. Add a comment on each line with the human-readable version tag for maintainability.
+
+**A09 — Security event logging:**
+- `backend/app/dependencies.py` — in `require_auth`, log a `WARNING` including request path and `User-Agent` when a token is missing or fails validation. Never log the token value itself.
+- The `test_isolation.py` 401 tests from A01 cover this logging path indirectly.
+
+### Done when
+- `test_isolation.py` passes: user B receives an empty list (not user A's data) for every scoped endpoint.
+- `GET /api/prices?ids=../evil` returns 400.
+- CloudFront dev distribution serves a `Content-Security-Policy` response header (verified with `curl -I`).
+- All `actions/*` steps in `deploy.yml` are pinned to full commit SHAs.
+- An unauthenticated request to any protected endpoint produces a `WARNING` log entry.
+- `bandit -r app/ -ll`, `pip-audit`, `npm run lint`, `npm audit --audit-level=high` still exit 0.
+- `pytest` coverage on changed modules (`app/routes/prices.py`, `app/dependencies.py`) ≥ 90%.
+
+---
+
+## Item 4 — i18n framework
+**Branch:** `feat/i18n`
+**Depends on:** nothing
+
+- [x] Done
+
+### Goal
+Full multi-language support across web and mobile. Every user-facing string goes through the i18n layer. Users select their language from a dedicated Settings page (web) and Settings screen (mobile). The app defaults to `pt-BR` but supports the 10 most spoken languages in the world.
+
+### Current state
+All UI strings are hardcoded Portuguese in JSX/React Native components. `shared/src/format.ts` hardcodes `pt-BR` locale and `R$`. `Op.type` stores Portuguese words (`'Compra'`/`'Venda'`) — these must be migrated to English (`'Buy'`/`'Sell'`) in code and in the database, since all code and stored values must be in English (see AGENTS.md).
+
+### Supported locales
+`pt-BR`, `en-US`, `es-ES`, `fr-FR`, `de-DE`, `zh-CN`, `ja-JP`, `ar-SA`, `hi-IN`, `ru-RU`
+
+### Files to create
+- `shared/src/i18n/types.ts` — `Locale` union type and `UIText` interface covering every user-facing string in the app (labels, empty states, error messages, button text, column headers, chart labels, date/number format hints). Derive the initial key list by reading all tab components, dashboard, and mobile screens.
+- `shared/src/i18n/locales/pt-BR.ts` — reference implementation. Defines the canonical shape; every other locale file must match it exactly (TypeScript enforces this).
+- `shared/src/i18n/locales/en-US.ts`, `es-ES.ts`, `fr-FR.ts`, `de-DE.ts`, `zh-CN.ts`, `ja-JP.ts`, `ar-SA.ts`, `hi-IN.ts`, `ru-RU.ts` — each must satisfy `UIText`. Use accurate translations for financial/investment terminology in each language.
+- `shared/src/i18n/index.ts` — export `Locale`, `UIText`, `LOCALES: Record<Locale, UIText>`, `getLocale(code: Locale): UIText`.
+- `web/src/pages/settings.tsx` (or equivalent route) — Settings page with a Language selector (dropdown or list of locale options). Language change takes effect immediately without page reload.
+- `mobile/src/screens/SettingsScreen.tsx` — Settings screen with a Language row that opens a locale picker.
+
+### Files to modify
+- `shared/src/types.ts` — change `Op.type` from `'Compra' | 'Venda'` to `'Buy' | 'Sell'`. Update `NewOp` accordingly.
+- `shared/src/format.ts` — `fmt(v: number, locale?: Locale, currency?: string): string`. Default `locale='pt-BR'`, default `currency='BRL'`. Keep `fmt(v)` working with one argument (backwards-compatible). Update `fmtDate` and `fmtQty` similarly.
+- `shared/src/index.ts` — export all new i18n symbols.
+- `backend/app/models.py` — update `Op.type` enum/validation to accept `'Buy' | 'Sell'`.
+- `backend/db/schema.sql` — update `ops.type` CHECK constraint to `'Buy'`, `'Sell'`.
+- `backend/db/migrations/` — add migration to `UPDATE ops SET type = 'Buy' WHERE type = 'Compra'` and `'Sell'` for `'Venda'`. **Pause for user approval before running this migration.**
+- `web/src/` — add `LocaleContext.tsx` (React context + `useLocale()` hook). Reads preference from localStorage, defaults to `'pt-BR'`. Wrap `<App>` in it. Add Settings route to the router.
+- `web/src/components/` — replace every hardcoded string in `WalletTab.tsx`, `ProfitTab.tsx`, `HistoryTab.tsx` with `t.xxx` from `useLocale()`.
+- `web/src/app/dashboard/page.tsx` — replace hardcoded strings; add a Settings link/icon in the header.
+- `mobile/src/` — add `LocaleContext` (saves to AsyncStorage, defaults to `'pt-BR'`). Replace hardcoded strings in all screens. Add Settings screen to the navigator.
+
+### Done when
+- TypeScript errors if any locale file is missing a key defined in `UIText`.
+- Settings page (web) and Settings screen (mobile) exist with a working language selector.
+- Switching language changes all UI labels immediately without reload.
+- `Op.type` is `'Buy'`/`'Sell'` in all code, models, and the database.
+- `npm test` passes. `pytest` passes.
+
+---
+
+## Item 5 — Settings page refactor
+**Branch:** `feat/settings-refactor`
+**Depends on:** item 4
+
+- [x] Done
+
+### Goal
+Replace the minimal Settings page (web) and Settings screen (mobile) created in Item 4 with fully designed, production-quality UIs. Web uses a sectioned-cards layout (Stripe/Notion style). Mobile uses a grouped-list layout (iOS/Coinbase/Revolut style). Import/Export move from the dashboard header to the Settings "Dados" card. Theme selection, balance visibility, and wallet clearing are implemented as working features.
+
+### Current state
+`web/src/pages/settings.tsx` has only a language selector. `mobile/src/screens/SettingsScreen.tsx` has only a language row. Export/Import buttons live in `web/src/app/dashboard/page.tsx` header. No theme override (app always follows system preference). No hide-balances feature. No clear-wallet action.
+
+### New backend endpoint
+- `DELETE /api/ops` — deletes all ops for the authenticated user. Returns `{"deleted": N}`. Requires auth. Covered by a test asserting the count returns to zero.
+
+### Web — `web/src/pages/settings.tsx`
+Redesign as sectioned cards using the existing `.card` / `.card-head` / `.card-body` / `.row` CSS patterns (add any missing classes to `globals.css`). Four cards:
+
+1. **Aparência e idioma** — Language selector (existing `useLocale()` hook). Theme segmented control: Claro / Escuro / Sistema. Stores preference in localStorage as `theme`; applies by toggling a `data-theme` attribute on `<html>` so CSS variables switch without page reload.
+2. **Moeda e preços** — Currency selector placeholder (disabled, labelled "disponível em breve" — wired in Item 6). Price refresh interval placeholder (disabled — wired in Item 7). Hide balances toggle: stores boolean in localStorage as `hide_balances`; a React context `BalanceContext` exposes `hidden: boolean`; all `fmt()` call sites in dashboard wrap their output with `hidden ? '••••••' : value`.
+3. **Dados** — Export button (moves from dashboard header). Import file-input label (moves from dashboard header). Both call the same handlers already in `dashboard/page.tsx`; extract them to `web/src/lib/dataHandlers.ts` and import in both places.
+4. **Zona de perigo** — "Limpar carteira" button triggers a confirmation dialog (native `window.confirm`), then calls `DELETE /api/ops`, then clears local prices state and shows a toast.
+
+### Mobile — `mobile/src/screens/SettingsScreen.tsx`
+Redesign as grouped list. Three groups:
+
+1. **Preferências** — Language row (opens existing locale picker). Currency row placeholder (disabled). Price refresh row placeholder (disabled).
+2. **Aparência e privacidade** — Theme row (opens an action sheet: Claro / Escuro / Sistema; stores in AsyncStorage as `theme`). Hide balances toggle (stores in AsyncStorage as `hide_balances`; `BalanceContext` wraps the navigator).
+3. **Dados e conta** — Export row. Import row. "Limpar carteira" row (danger, red text; confirmation alert before calling `DELETE /api/ops`).
+
+### Files to create
+- `web/src/lib/dataHandlers.ts` — `exportData()` and `importData(file)` extracted from `dashboard/page.tsx`.
+- `web/src/contexts/BalanceContext.tsx` — `hidden` boolean + `setHidden`. Reads/writes localStorage `hide_balances`. Wraps `<App>`.
+- `mobile/src/contexts/BalanceContext.tsx` — same, but reads/writes AsyncStorage.
+- `backend/app/routes/ops.py` — add `DELETE ""` handler (deletes all ops for user).
+- `backend/tests/test_ops.py` — add test: DELETE clears all ops, returns correct count, auth required.
+
+### Files to modify
+- `web/src/pages/settings.tsx` — full redesign as described.
+- `web/src/app/dashboard/page.tsx` — remove Export/Import buttons from header; import handlers from `dataHandlers.ts`; wrap fmt() outputs with BalanceContext.
+- `web/src/app/globals.css` — add `.card`, `.card-head`, `.card-body` classes if not already present.
+- `mobile/src/screens/SettingsScreen.tsx` — full redesign as described.
+- `mobile/src/app/` (navigator root) — wrap with `BalanceContext`.
+
+### Done when
+- Settings page (web) has four sectioned cards with the described content.
+- Settings screen (mobile) has three grouped lists with the described content.
+- Theme toggle changes the app appearance immediately without reload (web) or remount (mobile).
+- Hide-balances toggle masks all monetary values across the app.
+- Import/Export no longer appear in the dashboard header.
+- `DELETE /api/ops` clears the wallet and the UI reflects zero positions.
+- `npm test` passes. `pytest` passes.
+
+---
+
+## Item 6 — Collapsible sidebar navigation
+**Branch:** `feat/sidebar-collapsible`
+**Depends on:** item 5
+
+- [x] Done
+
+### Goal
+Replace the current top-bar navigation (email + Settings link + Logout) with a persistent collapsible sidebar. The three main views (Wallet, Profit, History) become real routes with their own URLs. The sidebar collapses to a 66px icon-only rail with CSS tooltips; expanded state persists across page loads. Settings and Logout move into the sidebar footer.
+
+### Design reference
+`docs/design/dashboard-collapsible-sidebar.html` — open in a browser for the visual source of truth.
+`docs/design/dashboard-refactor-notes.md` — CSS tokens, layout rules, and component specifications.
+
+### Current state
+`web/src/router.tsx` defines a single `/dashboard` route rendered by `DashboardLayout`, which contains a top bar (email, Settings link, LogoutButton) and `<DashboardPage>` with in-page tab switching (Wallet / Profit / History via `useState`). `web/src/app/dashboard/page.tsx` owns all three tab views.
+
+### Files to create
+- `web/src/components/Sidebar.tsx` — collapsible sidebar component. Props: `collapsed: boolean`, `onToggle: () => void`. Uses TanStack Router `<Link>` with `activeProps` for the active-route highlight. Reads `email` from the existing `getEmailFromIdToken` utility. Footer contains Settings link, Logout button (move `LogoutButton` here), user chip.
+- `web/src/components/AppLayout.tsx` — app shell component rendered as the root layout for authenticated routes. Owns `collapsed` state (read/write `localStorage('sidebar:collapsed')`). Renders `<Sidebar>` + `<main><Outlet /></main>` in a two-column CSS grid.
+
+### Files to modify
+- `web/src/router.tsx` — add `/wallet`, `/profit`, `/history` routes as children of a new `appLayoutRoute` (uses `AppLayout` as component). Remove `DashboardLayout` (the inline function with the old top bar). Change the `/` redirect from `/dashboard` to `/wallet`. Keep `/auth`, `/auth/callback`, and `/settings` routes unchanged (Settings gets its own sidebar-wrapped layout).
+- `web/src/app/globals.css` — add sidebar/layout CSS: `.layout`, `.layout.collapsed`, `.sb`, `.sb-top`, `.sb-foot`, `.navi`, `.navi.active`, `.navlbl`, `.userchip`, collapsed-state rules, and CSS tooltip via `[data-tip]::after`. Design tokens (`--surface`, `--surface-hover`, `--border`, `--border-soft`, `--text-muted`, `--text-dim`, `--accent`) should align with the tokens already established by the settings page.
+- `web/src/app/dashboard/page.tsx` — the tab-switching shell is no longer needed; keep only the data-fetching logic and the three view components. The view components will be extracted in items 7–9 respectively.
+- `shared/src/i18n/types.ts` — add `nav_wallet`, `nav_profit`, `nav_history`, `nav_logout` keys (sidebar labels). Add to all locale files.
+
+### Done when
+- `/wallet`, `/profit`, `/history` are real routes that render the existing WalletTab, ProfitTab, HistoryTab content respectively (the views themselves are not redesigned in this item — that is items 7–9).
+- The sidebar is visible on all three routes, collapses to 66px with tooltips, and restores state from localStorage on reload.
+- The old top bar (email + Settings link + Logout floating row) is gone.
+- Settings link in the sidebar navigates to `/settings`.
+- `npm test` passes (update any tests that referenced the old `/dashboard` route or `DashboardLayout`).
+
+---
+
+## Item 7 — Wallet view redesign
+**Branch:** `feat/wallet-view-refactor`
+**Depends on:** item 6
+
+- [x] Done
+
+### Goal
+Redesign the Wallet view (`/wallet`) to match the prototype: a content header with title, subtitle, and a refresh button; four metric cards (Invested, Current value, P/L, Return); a segmented view toggle (By asset / By platform / Asset + platform); and an improved holdings table with coin image, name, ticker, and tabular-nums alignment. Reuse the sidebar shell from item 6.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Carteira" view.
+
+### Current state
+`web/src/components/WalletTab.tsx` renders the wallet content inside the old tab-switching dashboard. It has the segmented toggle and table but no metric cards and no content header. It is passed `prices`, `ops`, `exitPrices`, and handlers as props from `DashboardPage`.
+
+### Files to create
+- `web/src/components/MetricCard.tsx` — reusable card: `label`, `value`, `valueColor?`, `sub?`, `subColor?` props. Used by Wallet, Profit, and any future view.
+- `web/src/components/ContentHeader.tsx` — reusable page header: `title`, `subtitle`, `children` (right-side actions slot).
+
+### Files to modify
+- `web/src/components/WalletTab.tsx` — add `<ContentHeader>` with title from `t.nav_wallet` and the refresh button + last-updated timestamp. Add a `<div className="metrics">` grid with four `<MetricCard>` components driven by `computePositions` output (invested, current value, P/L, return). Keep the existing segmented toggle and table logic; update table CSS classes to match the design tokens (`.tbl.scroll`, `.asset`, `.coin`, `.pill.up/.down`).
+- `web/src/app/globals.css` — add shared view primitives: `.chead`, `.metrics`, `.mcard`, `.pill.up/.down`, `.tbl`, `.asset`, `.coin`, `.iconbtn`, `.btn`, `.btn-accent`, `.seg`. Consolidate with any existing rule definitions.
+
+### Done when
+- The Wallet route (`/wallet`) shows the content header, four metric cards, segmented toggle, and holdings table matching the prototype.
+- Coin images load from CoinGecko (already stored in price cache) and fall back to the colored initials badge when absent.
+- Metric cards show correct computed values from `computePositions`.
+- `npm test` passes; `WalletTab.test.tsx` updated for the new structure.
+
+---
+
+## Item 8 — Profit view redesign
+**Branch:** `feat/profit-view-refactor`
+**Depends on:** item 6
+
+- [x] Done
+
+### Goal
+Redesign the Profit view (`/profit`) to match the prototype: content header; four metric cards (Realized P/L, Unrealized P/L, Best asset, Worst asset); a chart-mode segmented control (By asset / Over time / Portfolio value); a divergent bar chart for P/L by asset; and horizontal allocation bars. Also strip the icons from the segmented-control options in both the Profit view and the Wallet view, leaving text-only labels. A follow-up color-and-contrast QA pass (see `dashboard-color-contrast-pass.md`) is folded into this same item/branch: restore the metric-card label icons dropped by the `MetricCard` swap, add a chart panel title, and fix several components that rendered directly on the page background instead of the `--s-surface` card tokens (chart panel, distribution panel, segmented-control container, metric cards, table), so cards/panels/sidebar visually lift off the canvas.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Lucro" view. See `dashboard-color-contrast-pass.md` for the color/contrast fix notes.
+
+### Current state (as implemented)
+`web/src/components/ProfitTab.tsx` now renders a `<ContentHeader>`, four `<MetricCard>`s (each with a label icon), a text-only chart-mode segmented control, an uppercase panel title above the chart canvas, a Chart.js divergent bar chart, and an allocation panel — all driven by a new `computeProfitByAsset` function in `shared/src/portfolio.ts` (average-cost method, splits realized P/L from closed lots vs. unrealized P/L from open lots; Best/Worst asset ranks only open, priced positions by unrealized % return). No Recharts dependency was added — Chart.js was already used for all three chart modes. `web/src/components/WalletTab.tsx`'s grouping segmented control is also text-only now. `web/src/app/globals.css` gained a `--s-border` token (solid `#27272a`/light equivalent, distinct from the pre-existing translucent `--border`) and the dark-mode `--bg` moved from `#1a1a1a` to `#0a0a0b` so `--s-surface` cards/sidebar/panels visually lift off the canvas; `.metric`, `.tbl`, `.chart-area`, `.dist-section`, `.chart-switcher` were switched from `--bg`/`--border` to `--s-surface`/`--s-border`.
+
+### Files modified
+- `shared/src/portfolio.ts` — added `computeProfitByAsset` (+ `AssetProfit` type), tested in `web/src/lib/portfolio.test.ts`.
+- `shared/src/i18n/types.ts` and all 10 `shared/src/i18n/locales/*.ts` — added `profit_subtitle`.
+- `web/src/components/ProfitTab.tsx`, `ProfitTab.test.tsx` — full redesign described above.
+- `web/src/components/WalletTab.tsx`, `WalletTab.test.tsx` — icon removal from the grouping control.
+- `web/src/components/MetricCard.tsx` — added an optional `icon` prop.
+- `web/src/router.tsx` — threads `statusMsg`/`onFetchPrices` into `ProfitTab`.
+- `web/src/app/globals.css` — `--s-border` token, dark `--bg` value, surface/border fixes on `.metric`, `.tbl`, `.chart-area`, `.dist-section`, `.chart-switcher`, `.chart-btn.active`.
+- HistoryTab's legacy `--bg`-based classes (`.op-card`, `.trade-card`, `.op-list-wrap`, `.table-wrap`) were deliberately left untouched — out of scope until item 9 redesigns that view.
+
+### Done when
+- The Profit route (`/profit`) shows four metric cards, chart-mode selector, divergent bar chart, allocation bars, and a chart panel title.
+- Best asset and worst asset cards show the correct ticker and percentage, ranked from open positions only.
+- Realized P/L metric is driven by closed positions; unrealized by open positions (using `computeProfitByAsset`).
+- Neither the Profit view's nor the Wallet view's segmented-control options render an icon — text labels only; metric cards do retain their label icons.
+- Cards, panels, table, and segmented controls render on `--s-surface` with a visible `--s-border`, distinguishable from the page background.
+- `npm test` passes; `ProfitTab.test.tsx` and `WalletTab.test.tsx` updated.
+
+---
+
+## Item 9 — History view redesign with entry drawer
+**Branch:** `feat/history-view-refactor`
+**Depends on:** item 6
+
+- [x] Done
+
+### Goal
+Redesign the History view (`/history`) to match the prototype: a content header with a primary "+ Register operation" button; a full-width operations table; and a right-side slide-over drawer that replaces the two always-visible forms. The drawer has three modes: Buy, Sell, Trade. Buy/Sell show a single-asset fieldset; Trade shows a two-block swap form (sell block + receive block). Focus trap, Escape-to-close, and body-scroll lock are required.
+
+### Design reference
+See `docs/design/dashboard-collapsible-sidebar.html` → "Histórico" view and drawer.
+
+### Current state
+`web/src/components/HistoryTab.tsx` has two always-visible forms (one for Buy/Sell, one for Trade) above the operations table. There is no drawer. The table and form logic are tightly coupled in one component.
+
+### Files to create
+- `web/src/components/OpDrawer.tsx` — slide-over drawer component. Props: `open: boolean`, `onClose: () => void`, `onSubmit: (op: NewOp | [NewOp, NewOp]) => void`, `editingOp?: Op`, `coins: CoinSearchResult[]`. State: `opType: 'buy' | 'sell' | 'trade'`. Renders the segmented type selector, the appropriate fieldset (simple or trade), and the footer buttons. Implements focus trap (move focus to first input on open; trap Tab/Shift+Tab within drawer; restore focus on close) and body-scroll lock (`document.body.style.overflow`). Closes on Escape and backdrop click. Uses `role="dialog" aria-modal="true" aria-labelledby`.
+- `web/src/components/OpDrawer.test.tsx` — tests: drawer opens/closes, type switching swaps fieldsets, submitting a Buy creates one op, submitting a Trade creates two ops, Escape closes, backdrop click closes.
+
+### Files to modify
+- `web/src/components/HistoryTab.tsx` — remove the two always-visible form sections. Add `<ContentHeader>` with the "+ Register operation" button (`.btn-accent`). Replace forms with `<OpDrawer>`. Keep the operations table; update CSS classes to match design tokens.
+- `web/src/app/globals.css` — add `.drawer`, `.drawer-backdrop`, `.drawer-head`, `.drawer-body`, `.drawer-foot`, `.drawer-grid`, `.drawer.open`, `.drawer-backdrop.open`, `.trade-block`, `.trade-block.out`, `.trade-block.in`, `.trade-arrow`, `.fhint`, `.tag` if not already present.
+
+### Done when
+- The History route (`/history`) shows the content header, operations table, and no always-visible forms.
+- The "+ Register operation" button opens the drawer; clicking the backdrop, pressing Escape, or clicking Cancel closes it.
+- Switching to "Trade" mode shows the two-block swap form instead of the simple fieldset.
+- Submitting a Buy or Sell creates one op; submitting a Trade creates two ops (one sell, one buy).
+- Edit: clicking the edit icon on a table row opens the drawer pre-filled with that op's data.
+- Focus management works correctly (focus moves to drawer on open, traps inside, returns to trigger on close).
+- `npm test` passes; `HistoryTab.test.tsx` and `OpDrawer.test.tsx` pass.
+
+---
+
+## Item 10 — Multi-currency display
+**Branch:** `feat/multi-currency`
+**Depends on:** items 4, 5
+
+- [x] Done
+
+### Current state
+`price_cache` table has `price_brl`. CoinGecko is called with `vs_currency=brl`. `fmt()` always formats as R$. The entire stack assumes BRL.
+
+### Approach
+Store prices in USD (universal crypto reference). Fetch an exchange rate once per session and convert at render time. Avoids a schema explosion.
+
+### Database migrations
+1. `ALTER TABLE price_cache RENAME COLUMN price_brl TO price_usd;`
+2. New table: `exchange_rates (currency_code VARCHAR(8) PRIMARY KEY, rate_vs_usd NUMERIC(18,8) NOT NULL, updated_at TIMESTAMPTZ NOT NULL)`.
+
+### Files to create
+- `backend/app/routes/exchange_rates.py` — GET `/api/exchange-rates`. Returns `Record<string, number>` (currency code → rate vs USD). Fetches from CoinGecko `/simple/price?ids=usd&vs_currencies=brl,eur,gbp,jpy,cny` or exchangerate-api.com free endpoint. Caches in `exchange_rates` table for 1 hour.
+
+### Files to modify
+- `backend/app/routes/prices.py` — change CoinGecko call to `vs_currency=usd`; update all references from `price_brl` to `price_usd`.
+- `shared/src/types.ts` — add `Currency = 'BRL' | 'USD' | 'EUR' | 'GBP' | 'JPY'`. Add optional `currency?: Currency` to `NewOp` (defaults to `'BRL'` for existing ops). Add `Op.currency`.
+- `backend/app/models.py` — add `currency: str = 'BRL'` to Op model.
+- `backend/db/schema.sql` — add `currency VARCHAR(8) DEFAULT 'BRL'` to `ops` table.
+- `shared/src/format.ts` — `fmt(v, locale, currency)` uses `Intl.NumberFormat` with `style: 'currency'` and the correct currency code. Existing call sites `fmt(v)` continue to work (default BRL/pt-BR).
+- `web/src/pages/settings.tsx` — wire the currency selector in the "Moeda e preços" card (was placeholder in Item 5); reads/writes `CurrencyContext`.
+- `web/src/` — add `CurrencyContext.tsx` (saves preference to localStorage). All `fmt()` calls receive `currency` from context.
+- `web/src/lib/api/client.ts` — `getPrices(ids)` stays the same; add `getExchangeRates(): Promise<Record<string, number>>` call.
+- `mobile/src/screens/SettingsScreen.tsx` — wire the currency row (was placeholder in Item 5).
+
+### Done when
+- Switching currency in Settings changes all displayed values immediately (no reload).
+- New ops record their currency.
+- `price_cache` stores USD prices. Exchange rates are cached in DB.
+- `pytest` and `npm test` pass.
+
+---
+
+## Item 11 — Auto-refresh prices
+**Branch:** `feat/price-auto-refresh`
+**Depends on:** item 10
+
+- [x] Done
+
+### Goal
+Users can configure how often prices refresh automatically. The interval is stored per-device and survives page reload. The currently selected interval is shown in the Settings page/screen "Moeda e preços" card (wired, replacing the placeholder left in Item 5).
+
+### Supported intervals
+Manual (default), 30 s, 1 min, 5 min.
+
+### Web
+- `web/src/contexts/PriceRefreshContext.tsx` — stores `interval: number | null` (null = manual) in localStorage as `price_refresh_interval`. Exposes `interval` and `setInterval`. At the top of the component tree, a `useEffect` sets up `setInterval(() => fetchPrices(), interval)` when `interval` is non-null and clears it on unmount or change.
+- `web/src/pages/settings.tsx` — wire the "Atualizar preços" selector in the "Moeda e preços" card (was placeholder in Item 5).
+
+### Mobile
+- `mobile/src/contexts/PriceRefreshContext.tsx` — same pattern, reads/writes AsyncStorage. The navigator root sets up the refresh effect.
+- `mobile/src/screens/SettingsScreen.tsx` — wire the price refresh row (was placeholder in Item 5).
+
+### Done when
+- Selecting "A cada 30s" causes the prices API to be called every 30 seconds without user interaction.
+- Selecting "Manual" stops auto-refresh.
+- The interval persists across page reloads (web) and app restarts (mobile).
+- `npm test` passes (mock timers verify the interval effect fires).
+
+---
+
+## Item 12 — Fix historical charts + timeframe selector
+**Branch:** `feat/historical-prices`
+**Depends on:** item 10 (prices now stored in USD; historical prices should also be USD)
+
+- [x] Done
+
+### Design reference
+`docs/design/timeframe-chart-design.html` — visual source of truth for the timeframe selector and chart (placement, styling, loading/hover/empty states). `docs/design/item-12-design-notes.md` — accompanying design notes.
+
+### Current state
+`computeTimeline(ops, prices)` in `shared/src/portfolio.ts` walks operations in date order but applies **current** prices to every point. The "Lucro no tempo" and "Valor da carteira" charts show what past portfolio compositions are worth **today**, not what they were worth at the time of each operation. There is also no way to zoom into a shorter window — the charts always render the full operation history.
+
+**Scope addition (same branch):** while fixing the above, a related gap was found and fixed too — `computeTimeline`'s `pnl` only reflected the unrealized P/L of currently-open positions, so a coin's realized gain/loss (from a `Sell`, or the `Sell` leg of a Trade) disappeared from "Lucro no tempo" the moment the position closed, instead of staying reflected going forward. `pnl` now includes a running total of realized P/L from all closed lots, in addition to open positions' unrealized P/L; `invested`/`currentValue` (used only by "Valor da carteira") are unchanged, since that chart is about the market value of current holdings, not cumulative P/L.
+
+### Goal
+Two related fixes, same branch:
+1. Charts must use the price that was actually in effect on each date, not today's price.
+2. Users can pick a timeframe (1D / 1W / 1M / 1Y / All) and see how the value of their **current** holdings moved over that window, using real daily price history — not just a point per operation. The chart reflects actual portfolio composition changes within the window (it walks real ops), never a hypothetical "what if I always held today's exact holdings."
+
+### Database migration
+New table: `price_history (coin_id VARCHAR(120), date DATE, price_usd NUMERIC(24,8), PRIMARY KEY (coin_id, date))`.
+
+### Files to create
+- `backend/app/routes/price_history.py` — GET `/api/prices/history?ids=bitcoin,ethereum&from=2024-01-01&to=2024-12-31`. For each coin, checks `price_history` for the date range; fetches missing dates from CoinGecko `/coins/{id}/market_chart?vs_currency=usd&days=N&interval=daily`; stores results; returns `Record<coinId, Record<date, number>>` (date in `YYYY-MM-DD` format).
+- `web/src/components/TimeframeSelector.tsx` — segmented control with options `1d` / `1w` / `1m` / `1y` / `all`. Labels come from i18n. Controlled component: `value`, `onChange`.
+
+### Files to modify
+- `shared/src/portfolio.ts` — change `computeTimeline` signature to `computeTimeline(ops: Op[], historicalPrices: Record<string, Record<string, number>>, from?: string, to?: string): TimelinePoint[]`. For each day in range, look up `historicalPrices[coinId][date]`; if missing, use the nearest available date (linear scan backwards up to 7 days, then fallback to 0). When `from`/`to` are given, only emit points inside that window, still built from the real op history (no synthetic backfill of assets the user didn't hold yet).
+- `web/src/components/ProfitTab.tsx` — add timeframe state (`localStorage` key `profit_timeframe`, default `1m`). Render `<TimeframeSelector>` above the `over-time` and `value` charts (shared by both, per the plan decision). On timeframe change, compute `from`/`to` from the selection and call `api.getPriceHistory(coinIds, from, to)`; show a loading spinner while fetching. Pass `historicalPrices` and the range to `computeTimeline` instead of current `prices`.
+- `web/src/lib/api/client.ts` — add `getPriceHistory(ids: string[], from: string, to: string)`.
+- `shared/src/i18n/types.ts` — add `timeframe_1d`, `timeframe_1w`, `timeframe_1m`, `timeframe_1y`, `timeframe_all`. Add translations to all locale files.
+
+### Done when
+- "Lucro no tempo" chart shows the P&L as it was on each date in the selected window, not today's prices.
+- "Valor da carteira" chart shows invested vs portfolio value using prices from each date in the selected window.
+- Switching the timeframe selector (1D/1W/1M/1Y/All) reflows both charts to the new window without a page reload.
+- The charted range never shows an asset before the user actually acquired it (verified by a test with an asset first bought mid-window).
+- "Lucro no tempo" keeps a coin's realized gain/loss reflected in `pnl` after the position is closed via a `Sell` or a `Trade` (verified by a test).
+- `pytest` covers the new endpoint (cache hit, cache miss, partial miss).
+- `npm test` covers `computeTimeline` with a `from`/`to` window and `TimeframeSelector` option switching.
+
+---
+
+## Item 13 — Price provider abstraction + move coin search to backend
+**Branch:** `feat/price-provider-abstraction`
+**Depends on:** item 10 (USD prices established)
+
+- [x] Done
+
+### Current state
+`web/src/lib/coingecko.ts` calls CoinGecko directly from the browser for coin search (exposes API key to the client). `backend/app/routes/prices.py` calls CoinGecko directly with hardcoded logic. No interface exists to swap providers.
+
+### Coin identifier mapping (foundation for a future non-CoinGecko provider)
+Every stored `Op` already has both `coinId` (the canonical CoinGecko slug, e.g. `bitcoin` — unique by design) and `symbol` (its ticker, e.g. `BTC` — what a ticker-based provider like CryptoCompare, Binance, or DIA actually looks up by). Rather than building or sourcing a CoinGecko-ID-to-everything crosswalk table (infeasible to source/maintain for ~15k coins), the `PriceProvider` interface should carry both `coin_id` and `symbol` through every price lookup — the CoinGecko implementation uses `coin_id` unchanged; a ticker-based provider implementation uses `symbol` instead. This requires an additive `symbol` column on `price_cache` and `price_history` (both currently key only on `coin_id`) so the value survives the cache round-trip. **Accepted limitation:** this does not solve ticker collisions (two different projects sharing the same symbol) — CoinGecko's slug remains the identity-of-record and the only provider guaranteed unambiguous; a symbol-based provider is a best-effort fallback. Revisit with a real per-coin crosswalk only if a specific coin's data turns out wrong in practice, not preemptively.
+
+### Files to create
+- `backend/app/price_provider.py` — abstract base class `PriceProvider` with methods `search_coins(query: str) -> list[dict]`, `get_prices(ids: list[str]) -> list[dict]`, `get_history(coin_id: str, from_ts: int, to_ts: int) -> list[dict]`. Factory function `get_provider() -> PriceProvider` reads `settings.price_provider`. Non-CoinGecko implementations of `get_prices`/`get_history` need the coin's `symbol` too (see "Coin identifier mapping" above) — thread it through the method signatures rather than each provider re-deriving it.
+- `backend/app/providers/coingecko.py` — `CoinGeckoProvider(PriceProvider)` extracts existing logic from `prices.py` and `price_history.py`.
+- `backend/app/providers/cryptocompare.py` — `CryptoCompareProvider(PriceProvider)` stub implementing `search_coins` and `get_prices` via CryptoCompare API. History can be left as `raise NotImplementedError` initially.
+- `backend/app/routes/coins.py` — GET `/api/coins/search?q=bitcoin&limit=7`. Calls `get_provider().search_coins(q)`. Returns same shape as current CoinGecko search response.
+
+### Files to modify
+- `backend/app/routes/prices.py` — use `get_provider().get_prices(ids)` instead of direct httpx.
+- `backend/app/routes/price_history.py` — use `get_provider().get_history(...)`.
+- `backend/app/config.py` — add `price_provider: str = 'coingecko'`.
+- `web/src/lib/coingecko.ts` — delete `searchCoins` and `fetchSinglePrice` (they move to the backend). Keep `cgKey` only if still needed anywhere; otherwise delete the file.
+- `web/src/components/HistoryTab.tsx` — `CoinSearch` component calls `api.searchCoins(query)` instead of `searchCoins(query, apiKey)`. Remove `apiKey` prop from `HistoryTab`.
+- `web/src/lib/api/client.ts` — add `searchCoins(query: string): Promise<CoinSearchResult[]>`.
+- `web/src/app/dashboard/page.tsx` — remove `apiKey={coingeckoApiKey}` prop from `<HistoryTab>`.
+
+### Done when
+- Browser DevTools shows no direct requests to `api.coingecko.com`.
+- Swapping `PRICE_PROVIDER=cryptocompare` in env changes the provider without code changes.
+- `price_cache`/`price_history` carry `symbol` alongside `coin_id`, and `PriceProvider`'s price/history methods receive both, so a ticker-based provider can be implemented without a schema change later.
+- `pytest` covers `test_coins.py` (search returns results, empty query returns 400).
+
+---
+
+## Item 14 — Test coverage
+**Branch:** `test/coverage`
+**Depends on:** items 10, 12, 13 (so tests cover the final endpoint shapes)
+
+- [x] Done
+
+### Current state
+`backend/tests/`: `test_health.py` (1 test), `test_ops.py` (partial CRUD). Missing: exit_prices, prices, export, import, coins, price_history routes. `web/src/`: three component test files exist but cover mainly render; no form submission or error-path tests.
+
+### Files to create
+- `backend/tests/test_exit_prices.py` — GET (empty, with entries), PUT (set, update, delete by setting 0), auth required (401 without token).
+- `backend/tests/test_prices.py` — cache hit (no CoinGecko call), cache miss (CoinGecko called, result cached), rate limit handling (mock 429 → falls back to stale cache), unknown coin (returns empty result not 404).
+- `backend/tests/test_export.py` — shape matches `BackupPayload`, empty ops returns valid payload.
+- `backend/tests/test_import.py` — valid payload creates ops, malformed payload returns 400, duplicate import does not create duplicates (idempotent).
+- `backend/tests/test_coins.py` — search returns results, empty query returns 400.
+- `backend/tests/test_price_history.py` — cache hit, cache miss (provider called), partial miss (some dates cached).
+
+### Files to modify
+- `web/src/components/HistoryTab.test.tsx` — add: form submission creates op, edit pre-fills form, delete removes row, trade form creates two ops.
+- `web/src/components/ProfitTab.test.tsx` — add: chart switches, empty state when no prices.
+- `web/src/components/WalletTab.test.tsx` — add: exit price change, platform grouping.
+- `web/src/lib/portfolio.test.ts` — add: `computeTimeline` with historical prices, sells reducing position to zero, same-date multiple ops, empty ops.
+
+### Done when
+- `pytest --cov=app --cov-report=term-missing` shows ≥80% on every route file.
+- `npm test` passes with no skipped tests.
+
+---
+
+## Item 15 — Facebook login
+**Branch:** `feat/facebook-login`
+**Depends on:** nothing
+
+- [x] Done
+
+### Current state
+Google is the only social IdP. Facebook OAuth credentials are not in SSM. Pattern to follow is identical to Google (`aws-infra/stacks/app-stack.ts` lines 41-65).
+
+### One-time manual steps (do before coding, document in commit message)
+1. Create a Facebook App at developers.facebook.com. **Correction learned during implementation:** do NOT pick "Facebook Login for Business" — that product requires at least one business permission alongside `email`/`public_profile` and will reject a plain consumer login with "Invalid Scopes: email". Pick the classic **"Authenticate and request data from users with Facebook Login"** use case instead. Also ensure the `email` permission is explicitly added under the app's Permissions & Features (it is not automatic like `public_profile`).
+2. Store credentials: `aws ssm put-parameter --name /crypto-assist/dev/FacebookClientId --value <id> --type SecureString` and same for `FacebookClientSecret`. Repeat for prod.
+3. Add Cognito callback URI to Facebook App: `https://{cognito-domain}.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`.
+
+### Files to modify
+- `aws-infra/stacks/app-stack.ts` — add `facebookEnabled?: boolean` to `AppConfig.cognito`. Below the Google IdP block, add an identical block for Facebook using `FacebookClientId` / `FacebookClientSecret` from SSM. Add `facebookIdP?.providerName` to the `providers` array.
+- `crypto-assist/infra/dev.yaml` — add `facebookEnabled: true` after credentials are in SSM. **Correction learned during implementation:** this plan originally said to add the flag to `aws-infra/apps/crypto-assist/dev.yaml` directly — that file is NOT the source of truth. It is overwritten on every `crypto-assist` push to `develop` by the `register-infra` step (reusable `bmartins95/aws-shared-pipeline` workflow), which pushes the contents of *this repo's* `infra/dev.yaml` into `aws-infra`. Editing `aws-infra`'s copy directly works only until the next unrelated deploy silently reverts it.
+- `crypto-assist/infra/prod.yaml` — same field, `false` until prod's manual steps are done.
+- `web/src/app/auth/AuthClient.tsx` — **correction learned during implementation:** this plan originally assumed login was a bare Cognito Hosted UI redirect requiring no `crypto-assist` code change. That was stale — the app has its own custom `/auth` entry screen with a "Continuar com Google" button (hand-rolled PKCE flow via `web/src/lib/cognito/client.ts`, not Amplify). Add a matching "Continuar com Facebook" button plus the `auth_facebook` i18n key across all 10 locales.
+- `aws-infra/AGENTS.md` — add Facebook to the "Google OAuth per-stage setup" section; document SSM param names and Facebook Developer Console redirect URI requirement.
+
+### Done when
+- "Continuar com Facebook" button appears on the app's own `/auth` screen for dev and prod (not just the raw Cognito Hosted UI, which does not render a Facebook button in this pool's classic Hosted UI template even when the IdP is correctly attached — confirmed via direct inspection of the rendered HTML).
+- End-to-end login with a Facebook account works, verified via `aws cognito-idp list-identity-providers` / `describe-user-pool-client` after a deploy triggered by merging to `develop` (not a manual one-off `sst deploy`, which doesn't persist through the next unrelated pipeline run).
+- Pipeline deploys cleanly.
+- **Known follow-up, not blocking this item:** logging in via Google vs. Facebook vs. email/password with the same email lands on three separate Cognito accounts with separate (empty) wallets — Cognito does not auto-link federated identities by email. Tracked as Item 16.
+
+---
+
+## Item 16 — Cross-provider Cognito account linking
+**Branch:** `feat/cognito-account-linking`
+**Depends on:** item 15 (Facebook login merged, so there are two social IdPs to link, not just Google)
+
+- [x] Done
+
+### Current state
+Discovered while manually testing Item 15 in dev: Cognito does **not** automatically link a federated sign-in (Google, Facebook) to an existing account that shares the same email — this was a wrong assumption baked into `specs/016-facebook-login/spec.md`'s Acceptance Scenario 2, which claimed "Cognito's existing attribute-based account linking behavior applies... exactly as it already does for Google." There is no such existing behavior. Confirmed via `aws cognito-idp list-users` on the dev pool: the same person (`bruno.martins.cesfi@gmail.com`) has **three separate Cognito user records** — one native (email/password, `sub 3478a428-...`), one `google_111350953852010248841` (`sub 14e864a8-...`), one `facebook_122094143511399836` (`sub e4c844c8-...`). Since `backend/`'s `ops` table (and everything else) is scoped by `user_id` = Cognito `sub`, each is a completely distinct, empty wallet from the backend's point of view — logging in via a different provider than the one used to build up wallet data makes that data "disappear" (it isn't lost, it's just under a different account).
+
+Compounding factor: `aws-infra/stacks/app-stack.ts`'s `attributeMapping` for both the Google and Facebook IdP blocks maps only `email`, `name`, `username` — **not** `email_verified`. As a result every federated user in the pool currently shows `email_verified: false` regardless of whether the provider actually verified it, which means there is currently no trustworthy per-user signal to auto-link on even if linking logic existed.
+
+### Goal
+A user who authenticates via Google, Facebook, or email/password with the same (verified) email address lands on the **same** Cognito user / same wallet, instead of silently getting a distinct empty account. Linking must only happen when the identity provider actually confirms the email is verified — auto-linking on an unverified email is an account-takeover vector (anyone could claim your email on a lax IdP and inherit your wallet).
+
+### Approach
+Cognito supports this via a **Pre Sign-up Lambda trigger** (`PreSignUp_ExternalProvider` trigger source) attached to the User Pool: on each federated sign-up, look up whether a `CONFIRMED` user with the same email already exists (`ListUsers` with an email filter); if found and the incoming provider's email is verified, call `AdminLinkProviderForUser` to link the new federated identity to that existing user instead of creating a new one, and auto-confirm/auto-verify the sign-up so it doesn't require a separate confirmation step.
+
+### Files to create
+- `aws-infra/functions/cognito-pre-signup/` (or similar) — the Pre Sign-up Lambda handler implementing the lookup + `AdminLinkProviderForUser` linking logic described above, with unit-testable logic separated from the Lambda entrypoint if the aws-infra repo's conventions support that (it currently has no test suite — see `aws-infra/AGENTS.md` — so this may be the first piece of testable logic there, worth a `/speckit-clarify` decision on whether to add a minimal test setup for just this function or verify by manual/live deploy testing like the rest of that repo).
+
+### Files to modify
+- `aws-infra/stacks/app-stack.ts` — wire the new Lambda as the User Pool's `preSignUp` trigger (SST's `sst.aws.CognitoUserPool` trigger config, or the equivalent direct Pulumi resource if SST's trigger wiring has the same class of bug as `addIdentityProvider()` — verify against a real deploy, don't assume it works). Add `email_verified` to both the Google and Facebook `attributeMapping` blocks so the Lambda has a trustworthy per-provider verified-email signal (Google exposes `email_verified` as an OIDC claim directly; Facebook's Graph API does not expose an equivalent field the same way — confirm during implementation whether Facebook-provided emails can be treated as inherently verified, since Facebook only grants the `email` permission for verified addresses in the first place).
+- `aws-infra/AGENTS.md` — document the linking behavior and its email-verification precondition, mirroring how the Google/Facebook OAuth setup sections are documented.
+
+### Corrections learned during implementation
+- **Scope expansion** (via `/speckit-clarify`): a one-off migration for the *already-existing* duplicate accounts (this item's own "Current state" example) was added as User Story 4 — the Pre Sign-up Lambda alone only prevents *new* duplicates going forward, it does nothing for accounts already split before it shipped.
+- A federated user's Cognito `UserStatus` is `EXTERNAL_PROVIDER`, not `CONFIRMED` as this item's "Approach" section assumed — confirmed live against the dev pool. Matching now checks both statuses.
+- **The big one**: `AdminLinkProviderForUser` cannot merge two already-existing Cognito accounts at all (`InvalidParameterException: Merging is not currently supported, provide a SourceUser that has not been signed up in order to link`) — discovered running the migration live against real duplicate accounts in both dev and prod. There is no supported Cognito API to retroactively merge already-independent user records. The actual fix for pre-existing duplicates: delete the non-canonical **federated** account, then have that person sign in again via the same provider — a genuinely new sign-up this time, correctly linked by the Pre Sign-up Lambda. A non-canonical **native** account has no provider to re-authenticate through and is disabled instead, not deleted.
+- The migration script (`aws-infra/scripts/merge-duplicate-cognito-users.ts`) cannot check `ops` emptiness itself — Aurora sits in a private VPC subnet with no path from a local script. Wallet-emptiness confirmation before running for real is a manual operator step.
+
+**Correction found 2026-07-17, after the datum-rebrand dev pool cutover surfaced it live**: the "any order" claim in the first "Done when" line below was never actually true. The Pre Sign-up Lambda only handles `PreSignUp_ExternalProvider` — a federated sign-in linking itself to an existing account. It never ran for `PreSignUp_SignUp` (a native email/password signup), so signing up natively with an email that already had a confirmed Google/Facebook account silently created a second, disconnected account instead of linking or erroring. `AdminLinkProviderForUser` can't merge two already-persisted accounts (same constraint as the migration-script discovery above), so true bidirectional linking isn't possible here — the fix ([aws-infra#11](https://github.com/bmartins95/aws-infra/pull/11)) rejects the native signup instead, throwing a `linked-to-provider` reason the client maps to a new `auth_error_email_linked_provider` message telling the user to sign in with the existing provider ([crypto-assist#91](https://github.com/bmartins95/crypto-assist/pull/91)).
+
+### Done when
+- Signing in via Google, then via Facebook, then via email/password (or any order), with the same verified email, always resolves to the same Cognito `sub` / same wallet — verified directly against a real dev deploy (`aws cognito-idp list-users`, confirming one user record, not three). ✅ Verified in dev; also deployed and migrated in prod (bruno's prod duplicates resolved from 2 accounts to 1). **Correction**: true for federated-then-federated ordering; a native email/password signup after an existing federated account does not link — see correction note above, it's rejected instead.
+- A sign-in from a provider that does **not** report the email as verified does **not** get silently linked to an existing account (falls back to today's default behavior: a new, separate account). ✅ Verified via synthetic Lambda invoke against dev.
+- `aws-infra/AGENTS.md` documents the linking precondition and the `email_verified` attribute mapping requirement for any future IdP addition. ✅
+- Pre-existing duplicate accounts in both dev and prod are resolved down to one Cognito user each. ✅ Migration run and verified idempotent in both environments. **Follow-up for bruno, not blocking**: sign in once more via each deleted provider (Facebook in dev, Facebook in prod) to complete the re-link on the client side.
+
+Full PR chain: [aws-infra#4](https://github.com/bmartins95/aws-infra/pull/4) (implementation, merged), [crypto-assist#70](https://github.com/bmartins95/crypto-assist/pull/70) (spec/plan/tasks tracking, merged).
+
+---
+
+## Item 17 — Custom auth UI
+**Branch:** `feat/custom-auth-ui`
+**Depends on:** item 15 (all social providers ready before redesigning the screen)
+
+- [x] Done
+
+### Current state
+`web/src/app/auth/AuthClient.tsx` handles the post-OAuth callback. The actual login screen is Cognito Hosted UI (a redirect to `crypto-assist[-dev].auth.us-east-1.amazoncognito.com`). Amplify's `signInWithRedirect()` triggers the redirect. Signup is also on Hosted UI.
+
+### Approach
+Build custom `/login` and `/signup` routes. Email/password flows use Amplify's `signIn`, `signUp`, `confirmSignUp` directly (no redirect). Social buttons (`signInWithRedirect({ provider: 'Google' })` etc.) still redirect to Cognito Hosted UI for the OAuth handshake — but the entry point is our branded page.
+
+### Files to create
+- `web/src/routes/login.tsx` — TanStack Router route. Email + password form. "Entrar com Google" and "Entrar com Facebook" buttons. "Não tem conta? Cadastre-se" link to `/signup`. Uses `useLocale()` for all strings.
+- `web/src/routes/signup.tsx` — Email + password + confirm password form. On submit calls Amplify `signUp`. On success shows email verification step (code input + `confirmSignUp`). "Já tem conta? Entrar" link.
+- `web/src/components/AuthForm.tsx` — shared card/form wrapper component used by both routes (consistent styling).
+
+### Files to modify
+- `web/src/lib/auth.ts` — expose `signUp(email, password)`, `confirmSignUp(email, code)`, `resendConfirmationCode(email)` in addition to existing exports.
+- `web/src/router.tsx` — add `/login` and `/signup` routes. Change the auth guard redirect from the Cognito Hosted UI URL to `/login`.
+
+### Done when
+- Email/password signup with email verification works end-to-end.
+- Email/password login works.
+- Google and Facebook social buttons are on the custom page and work.
+- Cognito Hosted UI URL is never shown directly to a user.
+- UI matches the app's existing dark theme and component style.
+
+---
+
+## Item 18 — Ops/trade UX study
+**Branch:** `docs/ops-ux-study`
+**Depends on:** nothing (research only)
+
+- [x] Won't do
+
+### Output
+`docs/ops-ux-proposal.md` containing:
+1. **Current pain points** — analysis of `HistoryTab.tsx` UX: field ordering, price mode toggle discoverability, trade form complexity, missing validation feedback.
+2. **Proposed ops form redesign** — at minimum two alternatives described (e.g. step-by-step wizard vs. adaptive single card), with ASCII wireframes or detailed descriptions.
+3. **Proposed trade form redesign** — same.
+4. **Import options** — ranked list of import sources with implementation complexity:
+   - Generic CSV with column mapping
+   - Per-exchange CSV parsers (Binance, Coinbase, Mercado Bitcoin — check their export formats)
+   - Exchange read-only API integration
+   - B3 nota de corretagem (PDF/XML parsing)
+
+No component code changes in this branch. Implementation follows after proposal is reviewed.
+
+### Done when
+- `docs/ops-ux-proposal.md` committed to `develop`.
+
+---
+
+## Item 20 — Feature roadmap document
+**Branch:** `docs/feature-roadmap`
+**Depends on:** nothing
+
+- [x] Won't do
+
+### Output
+`docs/roadmap.md` with a scored/ranked table of future features not in this plan:
+- IR (imposto de renda) tax report — auto-generate monthly DARF for crypto gains above R$35k
+- Price alerts — user sets target price; Lambda + EventBridge sends push notification
+- Portfolio benchmarking — compare return vs IBOV, CDI, Bitcoin
+- Dividend tracking — for FIIs and stocks, income separate from capital gains
+- Portfolio sharing — read-only public link
+- Dark/light theme toggle
+- AI assistant — natural language queries over the user's ops data
+
+Each entry: description, estimated effort (S/M/L/XL), estimated user value (low/medium/high), and any hard dependencies on current plan items.
+
+### Done when
+- `docs/roadmap.md` committed to `develop`.
+
+---
+
+## Item 22 — Platform field catalog (logo + name + category)
+**Branch:** `feat/platform-field-catalog`
+**Depends on:** items 7, 9 (Wallet and History views must be in their redesigned form), item 13 (price provider abstraction — the new platform-exchange proxy endpoint follows the same provider/caching pattern as `routes/coins.py`)
+
+- [x] Done
+
+### Design reference
+`docs/design/platform-field-redesign.html` — pixel source of truth (combobox, chips, category badges, group headers). `docs/design/platform-field-implementation.md` — accompanying implementation notes (component contracts, CSS, file list).
+
+### Current state
+`platform` is a plain free-text field with no catalog, logo, or category behind it:
+- `shared/src/types.ts` — `NewOp.platform: string`; `Op` inherits it; `AssetWithPlatform.platform: string`; `GroupMode = 'asset' | 'platform' | 'both'`.
+- `backend/db/schema.sql` — `platform text NOT NULL DEFAULT ''` on `ops`, no FK/lookup table.
+- `backend/app/models.py` — `platform: str = ""` on `NewOp`/`Op`, unvalidated.
+- `web/src/components/OpDrawer.tsx` — plain `<input type="text">` (single-op field around L414-415, trade-form field around L445-446), state via `useState('')`, no autocomplete. Contrast with the adjacent coin field, which uses the inline `CoinSearch` component (defined in the same file, ~L50-130) — a controlled input with a network-backed dropdown, an outside-click-close listener, and a `searchSeq` ref guarding against out-of-order async responses. `CoinSearch` has no keyboard arrow-key navigation today (click-only) — the new `PlatformSelect` needs to add that, it isn't just a copy-paste of the existing pattern.
+- `web/src/components/HistoryTab.tsx` — platform column renders as plain dimmed text with an em-dash fallback (`{o.platform || '—'}`), no icon.
+- `web/src/components/WalletTab.tsx` — "Por plataforma" grouped rows render plain text, no icon at all. "Ativo + plataforma" group headers *do* show an icon today, but it's a fixed `ti-building-bank` glyph identical for every platform — not the lock icon originally assumed when this item was scoped; per-asset rows elsewhere already use a real per-item logo component (`CoinBadge`), which is the pattern the new `PlatformLogo`/`PlatformChip` should follow instead.
+- `shared/src/i18n/types.ts` — only plain-string platform keys exist today (`wallet_groupBy_platform`, `wallet_col_platform`, `wallet_noPlatform`, `history_col_platform`, `history_form_platform`). No icon/logo/category keys.
+- `backend/app/routes/coins.py` is the pattern to mirror for a new platform-exchange endpoint: a simple auth-gated `GET` with `q`/`limit`, delegating to a provider, 400 on empty query.
+
+### Goal
+Turn `plataforma` into a first-class entity with a logo, name, and category (`exchange` / `wallet` / `defi` / `custom`), and replace every free-text platform input/display with the `PlatformLogo` / `PlatformChip` / `PlatformSelect` primitives described in the design reference — landing in the operation drawer, the History table, and both Wallet grouped views.
+
+### Catalog sources
+Three sources feed one catalog, per the design doc:
+- **`exchange`** — CoinGecko `/exchanges` (name + image), fetched and cached server-side (never render CoinGecko's raw image URL directly from the browser — proxy/cache it so the list doesn't break when they rotate URLs).
+- **`wallet` / `defi`** — a curated seed list shipped in-repo (not available from any API — MetaMask, Phantom, Kamino, etc. are not exchanges).
+- **`custom`** — user-typed, not in the catalog, falls back to a deterministic initials avatar (same name → same color, everywhere).
+
+### Database migration
+Additive only, per this repo's migration rules — the existing `platform` column is not touched in this item:
+1. `ALTER TABLE ops ADD COLUMN platform_id VARCHAR(160)`, `ADD COLUMN platform_name VARCHAR(120)`.
+2. New table `platform_cache` (mirrors `price_cache`'s shape): `id VARCHAR(160) PRIMARY KEY, name VARCHAR(120) NOT NULL, logo_url TEXT, updated_at TIMESTAMPTZ NOT NULL` — caches the CoinGecko `/exchanges` fetch.
+3. Backfill: for every existing row, resolve the legacy `platform` text into `platform_id`/`platform_name` via the same `resolve_platform()` rule used by JSON import (catalog match → curated wallet/DeFi seed → `custom:slug(platform)`; blank stays null). **Correction, found via dev QA (`fix/auto-backfill-platform-fields`):** the original plan gated this behind manual approval as a standalone script (`backend/scripts/backfill_platform_fields.py`) — but since the new UI reads only `platform_id`/`platform_name` and never falls back to the legacy `platform` column, every pre-catalog op would silently show no platform on deploy until someone remembered to run the script by hand. That's a real (if display-only, not data-loss) regression the moment this ships to prod. The backfill now runs automatically, once, as `db/migrations/011_backfill_platform_fields.py` — `postgres_client.py`'s migration runner was extended to support `.py` migration files (needed for the catalog-lookup logic, not expressible in plain SQL) alongside `.sql` ones, tracked in `schema_migrations` exactly the same way. Idempotent (only touches rows with `platform_id IS NULL`), so safe on every deploy. The standalone script still exists as a manual dry-run/diagnostic tool, not as the thing that makes the backfill happen.
+4. The old `platform` column is deprecated (no longer written to by new code) but left in place; dropping it is a follow-up migration once the deploy is confirmed stable, not part of this item.
+
+### Files to create
+- `web/src/components/platform/PlatformLogo.tsx` (+ `hashColor`/`initials` helpers in `platformAvatar.ts`) — rounded-square logo or initials-avatar fallback on image error.
+- `web/src/components/platform/PlatformChip.tsx` — logo + name, optional `personalizada` tag for `kind === 'custom'`.
+- `web/src/components/platform/PlatformSelect.tsx` — combobox mirroring `CoinSearch`'s controlled-input/dropdown pattern, plus category grouping, a `Recentes` group, the custom-fallback row, and full keyboard support (↑/↓/Enter/Esc), which `CoinSearch` doesn't have today.
+- `web/src/components/platform/usePlatformCatalog.ts` — fetches the exchange list once (cached), merges it with the in-repo curated wallet/DeFi seed, tracks recent platforms (localStorage), exposes `{ catalog, byId, recent }`.
+- `web/src/lib/platformSeed.ts` (or `shared/src/`) — curated wallet/DeFi seed list (MetaMask, Phantom, Rabby, Ledger, Trezor, Trust Wallet, Kamino, Aave, Aerodrome, Lido, etc., per the design doc's sample catalog).
+- `backend/app/routes/platforms.py` — `GET /api/platforms/exchanges`, auth-gated, returns the cached/refreshed CoinGecko exchange list (name + logo URL), following the `coins.py` pattern.
+- `backend/db/migrations/` — the additive migration described above, plus `011_backfill_platform_fields.py` (automatic backfill, see the correction above).
+- `backend/app/platform_resolve.py` — `resolve_platform()` plus `backfill_ops_platforms(conn, dry_run=False)`, the shared logic both the auto-migration and the manual diagnostic script call into.
+
+### Files to modify
+- `shared/src/types.ts` — add `Platform`, `PlatformKind`. `NewOp` gains `platformId: string`, `platformName: string`, replacing free-text `platform` for all new writes. `AssetWithPlatform` updated accordingly.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `platform_kind_exchange/wallet/defi/custom`, `platform_search_placeholder`, `platform_use_custom`, `platform_group_recent/exchanges/wallets/defi`.
+- `backend/app/models.py` — add `platform_id: str`, `platform_name: str` to `NewOp`/`Op`.
+- `backend/app/routes/ops.py` — read/write the new columns instead of `platform`.
+- `backend/app/db/postgres_client.py` — `_run_migrations()` now globs and applies `.py` migration files alongside `.sql` ones (same sort order, same `schema_migrations` tracking), needed for `011_backfill_platform_fields.py`'s catalog-lookup logic.
+- `web/src/components/OpDrawer.tsx` — swap both platform text inputs (single-op and trade forms) for `<PlatformSelect>`. **Scope addition, requested by the user and folded into this branch (see spec.md Assumptions, second post-ship follow-up)**: the Trade block's single top-level platform field was split into a "Plataforma de origem" field (inside "Você vende", gates and filters the asset field to that platform's holdings via `computePositionsByAssetAndPlatform`, shows a balance line with a "Máx" quick-fill) and an optional "Plataforma de destino" field (inside "Você recebe", defaults to the origin platform, shows a cross-platform-transfer warning when different). No schema change — the existing per-op `platformId`/`platformName` already support this; the trade's `Sell` leg now records the origin platform and the `Buy` leg records the destination.
+- `web/src/components/HistoryTab.tsx` — platform cell → resolved platform name as plain text (no logo, no `personalizada` tag — corrected during implementation per user feedback; that richer treatment stays exclusive to the Wallet views below).
+- `web/src/components/WalletTab.tsx` — "Por plataforma" first column → `<PlatformChip size="md" bold />`; "Ativo + plataforma" group headers → replace the fixed `ti-building-bank` icon with the real `PlatformLogo`, add the category badge, and move the group total + return to the right of the header (per the design doc — today the user sums the sub-table mentally).
+- `web/src/app/globals.css` — add `.plat`, `.plogo`, `.plogo-sm/md`, `.cat.*`, `.dd*`, `.dd-custom`, `.plus`, `.sel-logo`, `.inp.withlogo`, `.grp-hd` per the design reference's tokens.
+
+### Corrections learned during implementation
+- **Trade origin platform picker showed the full catalog regardless of holdings.** A live bug report ("the coin input for the you sell section should only show coins you already have," clarified on follow-up to mean the *platform* field, not the coin field) led to restricting "Plataforma de origem" to only platforms with a current balance, via a new `PlatformSelect` `options` prop fed by `heldPlatforms` (derived from `platformAssets`). The destination platform field and the plain Buy/Sell platform field stay unrestricted on purpose — you can deposit/receive onto any platform, held or not. This also surfaced a real, previously-latent gap: `PlatformSelect`'s category grouping never included `kind: 'custom'` (only `exchange`/`wallet`/`defi`), so a held platform that only exists as a user-typed custom entry would have silently vanished from the restricted list — fixed alongside it.
+- **Platform logos never rendered on dev.** The CloudFront `Content-Security-Policy`'s `img-src` only allowed `'self'` and `coin-images.coingecko.com` — the backend's own Lambda URL, where `/api/platforms/logo/{id}` is actually served from (a different origin than the CloudFront-served web app), was never added, so the browser silently blocked every platform-logo `<img>`. Fixed in the `aws-infra` repo (`stacks/app-stack.ts`, branch `fix/csp-allow-platform-logo-proxy`) by adding the backend origin to `img-src`, mirroring how it was already present in `connect-src`.
+- **First prod deploy of this item caused a brief, self-resolving outage.** Migrations 008–011 had never run on prod before — all four landed in a single release. `get_conn()`'s cross-container `pg_advisory_lock` has no timeout; when the wallet page's own concurrent boot requests (`getOps()`, `getExitPrices()`, etc.) cold-started several Lambda containers simultaneously against a paused (0 ACU) Aurora, the containers waiting on the lock while one container woke Aurora and ran all four migrations exceeded Lambda's 30s timeout and failed (7 requests, ~20:37 UTC on 2026-07-14). Once the migration-holding container finished (~25–30s) and released the lock, every subsequent request succeeded normally — not a data or logic bug, but a known, still-unaddressed gap (no timeout on the advisory lock acquisition) that could recur on any future deploy stacking up multiple migrations against a cold Aurora under concurrent traffic.
+
+### Done when
+- Platform logos are rounded squares; coin logos stay circles.
+- `PlatformSelect` filters as you type, groups results by category, shows the platform logo inline in the input once selected, and supports ↑/↓/Enter/Esc plus full combobox ARIA roles (`combobox`, `listbox`, `option`).
+- A name not in the catalog offers `Usar "<texto>" como personalizada` and produces a stable initials avatar (same name → same color across every screen).
+- A broken/missing `logoUrl` silently falls back to the initials avatar — no broken-image icon anywhere.
+- History shows each operation's resolved platform name as plain text (no logo, no `personalizada` tag — corrected during implementation).
+- "Por plataforma" rows and "Ativo + plataforma" group headers show the real logo; group headers show the group total + return on the right.
+- Existing operations still render correctly after the migration (their backfilled `platform_id`/`platform_name` resolve to a sensible chip, custom or otherwise).
+- Mobile still builds and the ops-related screens still render (this item's redesign is web-only; `shared/` type changes must not break the mobile type contract).
+- `pytest` covers the new `platforms.py` route (cache hit, cache miss, refresh) and the ops migration backfill. `npm test` passes, including new tests for `PlatformSelect`, `PlatformLogo`, and `PlatformChip`.
+
+---
+
+## Item 23 — Signup password validation UX
+**Branch:** `fix/signup-password-feedback`
+**Depends on:** nothing
+
+- [x] Done
+
+### Design reference
+`docs/design/signup-password-validation.html` — visual source of truth for the signup password field: live strength meter (4 segments, Fraca/Razoável/Boa/Forte), a 5-rule live checklist (min 8 chars, uppercase, lowercase, number, special char), confirm-password match/mismatch feedback, and a server-error banner with distinct copy for a weak/leaked password vs. an already-registered email.
+
+Confirmed directly against the dev Cognito pool (`aws cognito-idp describe-user-pool --user-pool-id us-east-1_LuXTFzSuR`) before implementing, per this item's own instruction to verify the real policy first: `MinimumLength: 8, RequireUppercase, RequireLowercase, RequireNumbers, RequireSymbols` all `true` — matches the design's 5 rules exactly, no discrepancy to reconcile. `UserPoolAddOns.AdvancedSecurityMode` is `OFF` in dev, so the design's "password appeared in a known breach" server-error scenario is not currently reachable via Cognito's own compromised-credentials check in this pool; that error path is still worth wiring generically (pattern-match `InvalidPasswordException`'s message) since enabling Advanced Security later, or Cognito adding it, shouldn't require another UI change.
+
+### Current state
+`web/src/auth/screens/SignupScreen.tsx`'s client-side `validate()` only checks `password.length < 8` (`t.auth_error_password_short`). Cognito's actual User Pool password policy (configured in `aws-infra`, not mirrored here) is expected to require more than length — e.g. mixed case, a number, a symbol — so a password that satisfies the client check can still be rejected server-side. When that happens, `handleSubmit`'s catch block only special-cases `UsernameExistsException` (`t.auth_error_email_taken`); every other error, including Cognito's `InvalidPasswordException` (which carries a specific message naming the failed rule), falls through to the generic `t.auth_error_generic` ("Something went wrong. Please try again."). The user gets no indication their password was too weak or which rule to fix. `PasswordField.tsx` has no live requirements/strength indicator — the only hint is the static placeholder "Minimum 8 characters" (`auth_signup_min_password`), which understates the real policy. The same generic-error fallback likely applies to `confirmResetPassword` in `web/src/auth/screens/EmailLoginScreen.tsx` (forgot-password flow), which submits a new password through the same Cognito policy.
+
+### Goal
+Design and implement clear, actionable password feedback: show the real policy rules to the user before/while they type, and map password-specific Cognito errors (`InvalidPasswordException` and any others found in practice) to specific, translated messages instead of the generic fallback. Confirm the exact Cognito password policy (`aws-infra/stacks/app-stack.ts` User Pool config) before designing copy, so displayed rules match what the server enforces.
+
+### Files likely involved
+- `web/src/auth/screens/SignupScreen.tsx`, `web/src/auth/screens/EmailLoginScreen.tsx` — submit error handling.
+- `web/src/auth/PasswordField.tsx` — requirements/strength UI.
+- `shared/src/i18n/types.ts` + all locale files — new requirement/error copy keys.
+
+### Done when
+- The signup and reset-password forms display the actual password requirements enforced by Cognito, not just "minimum 8 characters".
+- A password rejected by Cognito's policy shows a specific message naming what's missing, not the generic error.
+- `npm test` passes.
+
+---
+
+## Item 24 — Fix import-wallet messaging and stale state after import
+**Branch:** `fix/import-wallet-feedback`
+**Depends on:** nothing
+
+- [x] Done
+
+### Current state
+`web/src/pages/settings.tsx`'s `handleImportChange` shows `alert(t.settings_clear_wallet_success)` on a successful import — reusing the "wallet cleared" success string from `handleClearWallet` for a completely different action. Importing loads a new wallet; it does not clear one. This is misleading, placeholder-quality copy, not a dedicated import-success message. More broadly, export/import/clear-wallet feedback in `settings.tsx` all uses native `window.alert`/`window.confirm`, which is below the app's own component styling (see [[feedback-design-template]]: Settings controls must use custom components, not native browser elements).
+
+Separately, `handleImportChange` does call `importData(file, reload)`, and `reload()` (`web/src/components/AppLayout.tsx`) does refetch `ops`/`exitPrices` and update state, so imported operations do show up without a manual page reload. However `reload()` never calls `fetchPrices()`. Market prices (`prices` state) are fetched automatically only once per session, gated by a `didAutoFetchPrices` ref already consumed at initial load, and otherwise only via the manual refresh button or the auto-refresh interval. Any newly imported coin the wallet didn't previously hold has no price shown until the user manually refreshes prices or reloads the page — this is the concrete cause of "the new wallet state is not loaded until the user refreshes."
+
+### Goal
+1. Replace the reused "wallet cleared" message on import with a dedicated, accurate import-success message, and replace native `alert`/`confirm` feedback for export, import, and clear-wallet with proper in-app UI consistent with the rest of Settings.
+2. Make the import success path also fetch prices for the newly loaded ops so imported holdings show correct data immediately, with no manual refresh or page reload required.
+
+### Files likely involved
+- `web/src/pages/settings.tsx` — `handleImportChange`, `handleExport`, `handleClearWallet`.
+- `web/src/components/AppLayout.tsx` — `reload()` / `fetchPrices()`; wire price fetching into the post-import path.
+- `shared/src/i18n/types.ts` + locale files — add a dedicated `settings_import_success` key (and any new toast/dialog copy) instead of reusing `settings_clear_wallet_success`.
+- Reuse an existing toast/dialog component if one exists in `web/src/components/`; only add a new one if none fits (avoid a speculative component for a single use case).
+
+### Done when
+- Import success shows a message describing that a wallet was imported/loaded, not that it was cleared.
+- Export, import, and clear-wallet feedback use the app's own UI components, not native `alert`/`confirm`.
+- After a successful import, the Wallet/Profit/History views show the imported ops with correct market prices without a manual price-refresh click or a page reload.
+- `npm test` passes.
+
+---
+
+## Item 25 — Fix Pre Sign-up Lambda: block duplicate accounts on native signup
+**Branch:** `aws-infra` `fix/pre-signup-block-duplicate-native` (against master); `crypto-assist` `fix/signup-linked-account-error`, `fix/auth-error-message-spacing`, `chore/tick-plan-item-23`, `chore/fix-stale-env-example`
+**Depends on:** item 16
+
+- [x] Done
+
+### Current state
+Discovered live while chasing a local-dev breakage caused by the Datum rebrand (item off-plan, PR #81): the rebrand's `apps/datum/dev.yaml` config-name change created a **brand-new** dev Cognito User Pool (`datum-dev`, `us-east-1_LuXTFzSuR`) rather than renaming the old `crypto-assist-dev` one, since SST derives resource names from `config.name`. Both `web/.env.local` and `backend/.env` still pointed at the dead pool (`DNS_PROBE_FINISHED_NXDOMAIN` on Google login, then 401s on every backend call once the frontend was fixed) — fixed directly, plus the tracked `web/.env.local.example` (crypto-assist#93).
+
+Testing against the fresh pool surfaced a real, previously-undiscovered gap in item 16: the Pre Sign-up Lambda (`aws-infra/functions/cognito-pre-signup/`) only ever handled `PreSignUp_ExternalProvider` (a federated sign-in linking to an existing account) — `PreSignUp_SignUp` (a native email/password signup) was silently ignored. Signing up natively with an email that already had a confirmed Google/Facebook account created a second, disconnected Cognito user with its own empty wallet, no error shown.
+
+### Goal
+Reject a native signup when its email already belongs to a confirmed, verified-email federated account, instead of silently creating a duplicate. `AdminLinkProviderForUser` can't merge two already-persisted accounts (same hard constraint discovered during item 16's original build), so true linking isn't possible in this direction — rejection with a clear message is the correct fix.
+
+### Files modified
+- `aws-infra/functions/cognito-pre-signup/decide.ts` — new `decideNativeSignup()`.
+- `aws-infra/functions/cognito-pre-signup/index.ts` — new `PreSignUp_SignUp` branch; extracted shared `findMatchingUsers()` helper used by both trigger paths. ([aws-infra#11](https://github.com/bmartins95/aws-infra/pull/11))
+- `shared/src/i18n/types.ts` + all 10 locale files — new `auth_error_email_linked_provider` key.
+- `web/src/auth/screens/SignupScreen.tsx` — maps `UserLambdaValidationException` (message contains `linked-to-provider`) to the new message. ([crypto-assist#91](https://github.com/bmartins95/crypto-assist/pull/91))
+- `web/src/app/globals.css` — unrelated but bundled fix found in the same session: `.auth-field-error` had no margin (the global `* { margin: 0 }` reset zeroed it out), sitting flush against neighboring elements on the forgot-password/signup/login forms. ([crypto-assist#90](https://github.com/bmartins95/crypto-assist/pull/90))
+- `docs/PLAN.md` — correction note added to item 16's section; item 23's missing `- [ ] Done` line fixed. ([crypto-assist#92](https://github.com/bmartins95/crypto-assist/pull/92))
+- `web/.env.local.example` — stale pre-rebrand Cognito values fixed. ([crypto-assist#93](https://github.com/bmartins95/crypto-assist/pull/93))
+
+### Corrections learned during implementation
+- One dev duplicate account (from live testing) was deleted; stg and prod were checked directly and had none.
+- Deploy verification: dev via manual `repository_dispatch`; stg and prod ended up deployed as a side effect of a later, unrelated PR (#89)'s `register-stg`/`register-prod` steps redeploying the whole `aws-infra` stack — confirmed via each stage's Lambda `LastModified` timestamp, not just trusting a deploy log.
+- Discovered a pipeline behavior worth remembering generally: every push to `develop` starts its own full-repo deploy pipeline run, not a diff-only one. When two earlier PRs' runs were still stuck at their own `Approve stg` gate and a later, larger PR was merged on top and fully approved to prod, the later run's deploy already included the earlier PRs' changes (built from the cumulative `develop` HEAD). The two earlier stuck runs became pure duplicates and were cancelled rather than approved.
+
+### Done when
+- A native signup for an email already linked to a confirmed federated account is rejected with a specific, translated message, not silently duplicated. ✅ Verified via `decide.test.ts` (9/9 passing) and confirmed the fix's Lambda code is live in dev, stg, and prod.
+- `npm test` (532/532), `npm run lint`, `tsc --noEmit` all clean on the crypto-assist side; `npx tsx --test decide.test.ts` clean on the aws-infra side.
+
+---
+
+## Item 26 — Position closing, leverage, and history day-grouping
+**Branch:** `feat/position-closing`
+**Depends on:** item 9 (History view + entry drawer), item 22 (PlatformSelect / platform catalog)
+
+- [x] Done ([PR #95](https://github.com/bmartins95/crypto-assist/pull/95), merged 2026-07-21)
+
+### Design reference
+`docs/design/history-position-closing.html` — interaction source of truth: day-grouped history rows (date section headers), Aberta/Parcial/Fechada status chips, a per-row "Fechar operação" action, a drawer type-tab switcher (Compra/Venda/Trade) with a sliding animation between panels and tabs restricted to whichever types can legally close the row being closed, leverage chips (1x/2x/3x/5x/10x) on the buy fieldset, and an estimated P/L preview footer in the drawer while closing a position.
+
+### Current state
+- `Op`/`NewOp` (`shared/src/types.ts`) have no lot-linking or leverage fields; `type` is only `'Buy'|'Sell'` and a "trade" is just two independent, unlinked `NewOp`s created back to back by `HistoryTab.tsx`'s `handleSubmitTrade`.
+- `backend/db/schema.sql`'s `ops` table has no self-reference/FK column and no leverage column.
+- `shared/src/portfolio.ts`'s `computeProfitByAsset` is a simple weighted-average-cost model per coin (a sell just clamps to the available qty and reduces it; there is no per-lot or per-op realized P/L, no FIFO, and no record of which specific op closed which).
+- `web/src/components/HistoryTab.tsx` renders a flat, ungrouped list of ops (no day sections); rows only support edit/delete, no "close" action, no open/closed indicator.
+- `web/src/components/OpDrawer.tsx` already has a working buy/sell/trade segmented tab and a two-block trade fieldset with origin/destination platform selection (Item 22), but: switching tabs is instant (no animation), editing a trade-derived op is unsupported, there is no leverage field, no "closing" pre-fill mode (only `editingOp` exists today), and no P/L preview.
+- Confirmed via a repo-wide grep for leverage/position-linking/open-closed-status terms: this is fully greenfield, nothing existing to extend.
+
+### Goal
+Give every buy/sell op an explicit Aberta/Parcial/Fechada status derived from which later ops have been linked as "closing" it (fully or partially), support a close spanning multiple source ops or a source op being closed across multiple later ops, support an optional leverage multiplier per op, and redesign History to show day-grouped operations with status chips, a "Fechar operação" action that opens the drawer pre-filled from that row (restricted to only the types that can legally close it), an animated bidirectional buy/sell/trade toggle, and a live estimated P/L preview.
+
+### Approach
+Model closing as an explicit many-to-many link (`op_closures`) rather than a single parent-op column on `ops`, since a partial close can span multiple source lots and a single source lot can later be closed again for its remainder. Realized P/L is computed and frozen per link at creation time, not recomputed live from current prices.
+
+### Database migration (additive only)
+1. `ALTER TABLE ops ADD COLUMN leverage SMALLINT` — nullable; absent/`NULL` means 1x.
+2. New table `op_closures`: `id uuid PRIMARY KEY DEFAULT gen_random_uuid(), source_op_id uuid NOT NULL REFERENCES ops(id), closing_op_id uuid NOT NULL REFERENCES ops(id), qty_closed numeric(30,10) NOT NULL, realized_pnl numeric(30,10) NOT NULL, created_at timestamptz DEFAULT now()`, indexed on both `source_op_id` and `closing_op_id`.
+3. No backfill needed — every pre-existing op has zero closure rows, which correctly represents "no closure was ever recorded" rather than requiring a synthetic status.
+
+### Files to create
+- `backend/db/migrations/0NN_add_leverage_and_op_closures.sql`
+- `backend/app/routes/op_closures.py` — `POST /api/ops/{id}/close`, auth-gated and scoped to `user_id`: creates the closing op, walks the coin/platform's open source ops oldest-first to record one or more `op_closures` rows (splitting across source ops when the closing qty exceeds a single one's open remainder), computes and freezes `realized_pnl` server-side, returns the created op plus the closure rows. Rejects (400) closing more than the total open qty available.
+- `shared/src/positions.ts` — `computeOpStatus(op, closures): 'open' | 'partial' | 'closed'`, `openQtyRemaining(op, closures): number`, `estimateClosePnl(sourceOp, closingOp): number` for the drawer's live preview before submission.
+- `docs/design/history-position-closing.html` (design reference, copied in verbatim).
+
+### Files to modify
+- `shared/src/types.ts` — `NewOp`/`Op` gain `leverage?: number`. Add `OpClosure { id, sourceOpId, closingOpId, qtyClosed, realizedPnl }`.
+- `backend/app/models.py` — mirror `leverage: int | None`, add an `OpClosure` model.
+- `backend/app/routes/ops.py` — `GET /api/ops` (or a sibling `GET /api/op-closures`) exposes closure rows so the frontend can derive status client-side; avoid a speculative combined/joined endpoint if two plain fetches are enough.
+- `web/src/components/HistoryTab.tsx` — group ops by `date` into day sections (label + rows); add a status chip column (Aberta/Parcial/Fechada) via `computeOpStatus`; add a "Fechar operação" icon action (hidden once a row is fully closed) that opens `OpDrawer` with a new `closingOp` prop (distinct from `editingOp`).
+- `web/src/components/OpDrawer.tsx` — accept `closingOp?: Op`: when set, restrict the type tabs to whichever types can close it, pre-fill platform/asset/qty-remaining from it, show a closing banner, and submit through the new `POST /api/ops/{id}/close` endpoint instead of a plain create. Replace the instant tab swap with a CSS slide-transition between panels. Add leverage chips (1x/2x/3x/5x/10x) to the buy fieldset. Add a P/L preview footer, live-estimated via `estimateClosePnl` while typing.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `history_status_open/partial/closed`, `history_action_close`, `history_closing_banner`, `history_pnl_estimated`, `op_leverage_label`.
+- `web/src/app/globals.css` — day-group header styles, status chip styles, drawer slide-transition classes, leverage chip styles.
+
+### Done when
+- Every op in History shows an Aberta/Parcial/Fechada status chip, correctly derived from `op_closures` rows referencing it.
+- Clicking "Fechar operação" on an open or partial row opens the drawer pre-filled with that row's asset/platform/remaining qty, restricted to only the types that can legally close it.
+- Submitting a close creates the closing op, records the `op_closures` link(s) with a frozen `realized_pnl`, and updates the source row(s)' status without a page reload.
+- Partially closing a row (qty less than its open remainder) sets it to "Parcial", and the remainder can be closed again later.
+- A single close can span multiple source ops when the closing qty exceeds one source op's remaining open qty (oldest-open-first); closing more than the total available open qty is rejected with 400.
+- Buy ops can record an optional leverage multiplier (2x/3x/5x/10x); Wallet/Profit P/L math is unaffected by leverage in this item (leverage is stored and displayed only — feeding it into `computeProfitByAsset`'s average-cost model is a follow-up, not blocking this item).
+- Switching between Compra/Venda/Trade tabs in the drawer animates (slide) instead of snapping.
+- Operations in the History table are grouped by day with a date-section header.
+- `pytest` covers `op_closures.py` (full close, partial close, close spanning multiple source ops, over-close rejected with 400, auth required). `npm test` covers `computeOpStatus`/`estimateClosePnl`, the day-grouping, and `OpDrawer`'s closing-mode pre-fill and restricted tabs.
+
+---
+
+## Item 27 — Cycle tag + floating summary for linked operations
+**Branch:** `feat/op-cycle-summary`
+**Depends on:** item 26 (position closing — `op_closures` is the source of truth this item derives cycles from)
+
+- [x] Folded into item 28 (not implemented standalone)
+
+**2026-07-21 — superseded, kept for reference only.** Item 28's wallet/trade refactor removes `op_closures` from wallet Sell/Swap flows entirely (they move to FIFO-derived balances with no explicit close link), so this item's premise — cycles built from `op_closures` covering *all* ops — no longer matches the data model. The cycle tag/popover concept survives, but rescoped to trade (leveraged long/short) positions only, where `op_closures` still applies; see item 28's "Cycle tag (folded from item 27)" section below rather than re-deriving this item independently.
+
+### Design reference
+`docs/design/op-cycle-tag-summary.html` — interaction source of truth (handoff doc "2c — Vínculo de Operações"): a small cycle tag (e.g. `A3`) rendered next to the type chip on any op that is part of an entry↔exit link; hovering (or tapping on touch) any tag belonging to the same cycle opens an identical floating popover summarizing the whole cycle — entry, every exit (including partials), the remaining open quantity, and the realized P/L. The History table's day-grouping and row order are never changed by this feature; the cycle is a pure overlay.
+
+### Current state
+Item 26 introduces `op_closures` (`source_op_id`, `closing_op_id`, `qty_closed`, `realized_pnl`) as the many-to-many link between an op and whatever later op(s) closed it, plus `computeOpStatus`/`openQtyRemaining` for a single op's own aberta/parcial/fechada status. Nothing today groups the ops on either side of a closure into a labeled, user-visible unit, and nothing surfaces the full chain (entry + all partial exits + what's left) in one place — a user has to mentally reconstruct it by scanning rows across different day sections. The design's own data model (`cycleId` field, `Cycle` derived type) predates Item 26 and assumes one stored `cycleId` per op with a single entry per cycle; this item adapts that model to be *derived* from `op_closures` rather than stored, since Item 26 already owns that relationship and a redundant `cycleId` column would be a second source of truth for the same link.
+
+### Approach
+A "cycle" is a connected component of the `op_closures` graph, computed client-side (not persisted) from the same `ops` + closures data `computeOpStatus` already consumes. Within a component, an op is an **entry** if it appears as a `source_op_id` and never as a `closing_op_id`; an op is an **exit** if it appears as a `closing_op_id`. The common case — one entry, one or more partial exits — matches the design directly. A component with more than one entry (e.g. two buys later closed together by a single sell) is out of scope for this item's popover layout (which assumes one entry row); render its tag and open the popover with all entries listed under the existing "entry" section rather than adding new UI for it, and revisit a richer layout only if this turns out to be a common real-world shape.
+
+### Files to create
+- `shared/src/cycles.ts` — `computeCycles(ops: Op[], closures: OpClosure[]): Map<string, Cycle>` (keyed by op id, so every op in a cycle resolves to the same `Cycle`) plus a `Cycle` type (`entries`, `exits`, `qtyEntry`, `qtyClosed`, `qtyRemaining`, `realizedPnl`, `status: 'partial' | 'closed'`). Cycle labels (`cycleLabel: string`, e.g. sequential per coin in chronological order of the earliest entry) are assigned here — the design's `A3` is illustrative of the visual format, not a literal scheme to replicate. Floating-point tolerance for `qtyRemaining ≈ 0` follows the same convention as Item 26's `computeOpStatus`.
+- `web/src/components/CyclePopover.tsx` — the floating summary: header (`Ciclo {coin} · {cycleLabel}` + Parcial/Encerrado badge), one row per entry, one row per exit, a remaining-open row (only when `qtyRemaining > 0`), and a realized-P/L footer. Positioned via a `position:relative` wrapper around the trigger tag with vertical flip when the row is in the lower half of the viewport, per the design's section 4.
+
+### Files to modify
+- `web/src/components/HistoryTab.tsx` — render the cycle tag (purple, link icon + `cycleLabel`) immediately after the type chip on any row whose op resolves to a `Cycle` via `computeCycles`; wire hover-open/leave-close (desktop) and tap-open/tap-outside-close (touch) to `CyclePopover`, keeping the existing day-grouping and row order from Item 26 untouched.
+- `shared/src/i18n/types.ts` + all 10 locale files — add `cycle_tag_aria` (`Ver ciclo {cycleLabel}`), `cycle_header`, `cycle_status_partial`, `cycle_status_closed`, `cycle_entry_label`, `cycle_exit_label`, `cycle_exit_partial_label`, `cycle_remaining_label`, `cycle_realized_label`.
+- `web/src/app/globals.css` — tag and popover styles per the design's section 6 tokens (`#c4b5fd` cycle color, `#141418` popover surface, ~160ms opacity/translateY transition, `z-index`/`overflow:visible` on the table container so the popover is never clipped).
+
+### Done when
+- An op that is part of an `op_closures` link shows the cycle tag; an op with no closure link (open, never touched) shows no tag.
+- Hovering (or tapping) any tag belonging to the same cycle — the entry's or any exit's — opens the identical popover, without moving rows or changing day groups.
+- The popover lists the entry (or entries, for the multi-entry fallback), every exit as its own row, the remaining-open row when applicable, and the cycle's total realized P/L.
+- A cycle with `qtyRemaining > 0` shows Parcial; once the last exit zeroes the remainder, every tag in the cycle shows Fechada.
+- The popover flips above the tag when the row sits in the lower half of the viewport, and is never clipped by the table's edges.
+- The tag is keyboard-operable (`button`, opens on focus, closes on `Esc`) and touch-operable (tap opens/closes).
+- `npm test` covers `computeCycles` (single entry/single exit, single entry/multiple partial exits, multi-entry component, no-closure op resolves to no cycle) and `CyclePopover`'s render for partial vs. closed status.
+
+---
+
+## Item 28 — Wallet vs. trade operation refactor (History + operation panel)
+**Branch:** `feat/wallet-trade-refactor`
+**Depends on:** item 26 (leverage field, `op_closures`, `computeOpStatus`, day-grouped History, closing-drawer mechanics — this item restructures how those primitives are used, it does not rebuild them)
+
+- [x] Done ([PR #97](https://github.com/bmartins95/crypto-assist/pull/97), merged 2026-07-22)
+
+### Design reference
+`docs/design/wallet-trade-refactor-handoff.md` — approved requirements (translated from the product owner's original Portuguese handoff; all 22 numbered items were approved individually — implement all of them). `docs/design/wallet-trade-refactor-wireframes.html` — approved ASCII-style wireframes of the four states (History table, Move-wallet panel, New-trade panel, Close-position panel). Per the handoff: **the app's current live design system is the visual source of truth**, not the wireframe's styling — reuse existing components (segmented control, Buy/Sell chips, the orange leverage chip, status pills, inputs, primary teal button, row icons). A referenced interactive hi-fi prototype (`Hi-fi - Histórico Refactor.dc.html` + its `support.js` runtime) was **not** provided to this repo — request it only if a specific interaction's structure is ambiguous from the wireframes; the handoff is explicit that visual fidelity should follow the app, not the prototype, so this is unlikely to block implementation.
+
+### Current state (post-item-26, as actually shipped)
+- `Op`/`NewOp` (`shared/src/types.ts`) has `type: 'Buy' | 'Sell'`, optional `leverage` (1x/2x/3x/5x/10x, settable on any brand-new non-closing Buy or Sell — not restricted to any notion of "trade"), and optional `tradeGroupId` (links the two legs of a swap, or a trade-close's closing leg + newly-received leg, so deleting either leg deletes both).
+- `op_closures` (`source_op_id`, `closing_op_id`, `qty_closed`, `realized_pnl`) is a general-purpose close link usable on **any** Buy/Sell op — a plain, unleveraged wallet sell and a leveraged position close go through the exact same `POST /api/ops/{id}/close` endpoint and the same `computeOpStatus`/`openQtyRemaining` derivation (`shared/src/positions.ts`).
+- `HistoryTab.tsx` shows a single "+ Add operation" entry point, a status chip (Aberta/Parcial/Fechada) and a "Fechar operação" action on **every** Buy/Sell row regardless of leverage, and a leverage badge only when `op.leverage` is set. `OpDrawer.tsx` has one segmented control with three tabs — Buy / Sell / Trade (the "Trade" tab is today's cross-asset swap, building two linked `NewOp`s via `tradeGroupId`) — plus leverage chips available on the Buy/Sell fieldset for any new, non-closing op, and a `closingOp` mode that restricts tabs to whatever can legally close the row (including via the Trade/swap tab, producing a closing leg + a received leg both linked by `tradeGroupId` and to the source op via `op_closures`).
+- This is exactly the "two concepts mixed into one flow" problem the design's Overview describes: a plain wallet sell and a leveraged short both show a status pill and a close action today, and the swap-based close path exists for wallet-style closes that the new design removes entirely (wallet rows lose the close action altogether).
+
+### Goal
+Split "wallet movement" (Buy/Sell/Swap of assets the user holds, no status, no leverage, balance/avg-cost/realized-P/L derived via FIFO) from "trade" (leveraged long/short speculative positions, keeps status + leverage + the existing `op_closures` close mechanism from item 26) — per the design's sections A–E — without adding new panels: two History header buttons, three behaviors of the existing `OpDrawer`, two History row classes.
+
+### Approach
+- Add an additive `op_kind: 'wallet' | 'trade'` column (`shared/src/types.ts`'s `NewOp`/`Op` gain `kind: 'wallet' | 'trade'`, default `'wallet'`) plus `side?: 'long' | 'short'` (trade only, derived from Buy/Sell at creation — long from Buy, short from Sell). Every new op is written with an explicit `kind`; `leverage` becomes valid only when `kind === 'trade'` (validate server-side in `backend/app/models.py`/`routes/ops.py` — reject a `leverage` value on a `kind: 'wallet'` op with 400).
+- Wallet Sell/Swap stop going through `op_closures` and `POST /api/ops/{id}/close` — they become plain, unlinked `NewOp`s (matching the existing plain-create path), and balance/average-cost/realized P/L for wallet ops are derived via **FIFO lot-matching** over the wallet ops of a given asset×platform, computed the same "derive, don't store" way `computePositions`/`computeProfitByAsset` already work in `shared/src/portfolio.ts`. This likely wants a new `shared/src/walletFifo.ts` (or an addition to `portfolio.ts` if the logic is small enough) — `computeWalletBalance(ops, coinId, platformId): { available, avgCost }`, `computeWalletRealizedPnl(sellOp, ops): number`.
+- Trade ops keep exactly item 26's mechanism: `op_closures`, `computeOpStatus`, `openQtyRemaining`, `estimateClosePnl`, the closing drawer mode — but the **close side is now locked**, not tab-restricted: a `side: 'short'` position can only close with a `Buy`, a `side: 'long'` position only with a `Sell` (no Trade/swap tab in the close panel at all — the swap-based close path item 26 built becomes dead code for this flow and should be removed, not preserved, once trade closes are Buy/Sell-only).
+- `HistoryTab.tsx` gains two header buttons (`t.history_action_moveWallet`, `t.history_action_newTrade`) instead of one "+ Add operation", opening `OpDrawer` in the corresponding mode. A third, existing implicit mode — closing — is unchanged in trigger (the per-row "Fechar operação" icon), but is now only rendered on `kind: 'trade'` rows.
+- `OpDrawer.tsx`'s segmented control becomes mode-dependent: wallet mode shows Buy/Sell/Swap (renaming today's "Trade" tab label to "Swap" for wallet mode only — the tab still produces two `tradeGroupId`-linked ops exactly as today), trade mode shows "Buy · Long"/"Sell · Short", close mode shows a single disabled segment reflecting the locked side. Sell (wallet) and Close (trade) both gain a live P/L footer — wallet Sell's is `(sell price − avg cost) × qty` via the new FIFO helper; trade close's is item 26's existing `estimateClosePnl`, now also multiplied by `leverage` and sign-inverted for `side: 'short'`. Wallet Sell/Swap gain an "Available balance" readout + "Max" button (fills qty from `computeWalletBalance`); trade close keeps item 26's "remaining qty" + "All" button.
+
+### Data model changes (additive only)
+1. `ALTER TABLE ops ADD COLUMN op_kind VARCHAR(10) NOT NULL DEFAULT 'wallet'`, `ADD COLUMN side VARCHAR(5)` (nullable; `'long'|'short'`, trade only).
+2. **Backfill migration** (mirrors item 22's `011_backfill_platform_fields.py` pattern — a `.py` migration run automatically via `postgres_client.py`'s migration runner, not a manual step): every existing op with `leverage IS NOT NULL AND leverage > 1` → `op_kind = 'trade'`, `side = 'long' | 'short'` (from `type = 'Buy' | 'Sell'`), preserving its existing `op_closures` rows and status as-is. Every other existing op → `op_kind = 'wallet'` (the column default already covers this; the migration only needs to touch the leverage>1x rows).
+3. See "Scope notes" below for the one open question this backfill does **not** resolve on its own.
+
+### Cycle tag (folded from item 27)
+Item 27's cycle tag + floating popover (`docs/design/op-cycle-tag-summary.html`) ships as part of this item instead of standalone, rescoped: `computeCycles` (`shared/src/cycles.ts`) only ever considers `kind: 'trade'` ops and their `op_closures` links — wallet ops never produce a cycle under the new FIFO model, so the tag/popover only ever appears on trade rows. This also simplifies item 27's original "multi-entry component" fallback: a trade position now has exactly one entry op by construction (opened once via the New-trade panel), so the multi-entry case item 27 flagged as a rare fallback should no longer occur in practice for data created after this item ships (it may still occur for pre-item-26 data with unusual manual closes — keep the fallback rendering rather than assuming it's now impossible).
+
+### Files to create
+- `shared/src/walletFifo.ts` (or added to `shared/src/portfolio.ts`, whichever keeps the "derive from ops" logic co-located per existing convention) — FIFO balance/avg-cost/realized-P/L derivation for wallet ops.
+- `shared/src/cycles.ts`, `web/src/components/CyclePopover.tsx` — as item 27 specified, but scoped to `kind: 'trade'` per the "Cycle tag" section above.
+- `backend/db/migrations/0NN_op_kind_and_side.sql` + `0NN_backfill_op_kind.py` — additive columns + backfill described above.
+- `docs/design/wallet-trade-refactor-handoff.md`, `docs/design/wallet-trade-refactor-wireframes.html` (design references, already added).
+
+### Files to modify
+- `shared/src/types.ts` — `NewOp`/`Op` gain `kind: 'wallet' | 'trade'`, `side?: 'long' | 'short'`.
+- `backend/app/models.py`, `backend/app/routes/ops.py` — mirror `kind`/`side`; reject `leverage` on `kind: 'wallet'` with 400.
+- `backend/app/routes/op_closures.py` — reject closing a `kind: 'wallet'` op with 400 (wallet ops no longer have a close action); enforce the locked side (`side: 'short'` → only `Buy` closes it, `side: 'long'` → only `Sell`).
+- `web/src/components/HistoryTab.tsx` — two header buttons; status/leverage/close-action columns rendered only for `kind: 'trade'` rows (wallet rows show "—" in STATUS); wallet sells show FIFO-derived realized P/L in the P/L column; trade rows get the 2px orange left-border marker + Long/Short label; Swap rows (wallet, `tradeGroupId`-linked pair) render as one collapsed row (`ETH→SOL`, `0.5→22`) instead of two separate rows.
+- `web/src/components/OpDrawer.tsx` — mode-dependent segmented control (wallet: Buy/Sell/Swap; trade: Buy·Long/Sell·Short; close: single locked segment), Available-balance/Max card + P/L footer on wallet Sell, leverage chips restricted to trade mode only, close-mode swap tab removed.
+- `shared/src/i18n/types.ts` + all 10 locale files — `history_action_moveWallet`, `history_action_newTrade`, `wallet_available_balance`, `wallet_max_button`, `wallet_estimated_pnl`, `trade_side_long`, `trade_side_short`, `trade_close_locked_hint`, plus item 27's cycle-tag keys (still needed, now scoped to trade rows).
+- `web/src/app/globals.css` — Swap chip color (purple, `#a78bfa` suggested), trade-row left-border marker, Long/Short label style, wallet Available-balance card, cycle tag/popover styles (from item 27).
+
+### Scope notes (to refine during spec/clarify)
+- **Pre-existing `op_closures` on now-wallet ops.** Item 26 shipped allowing a close on *any* Buy/Sell, so it's possible (dev/staging data only, not confirmed) that a non-leveraged op already has `op_closures` rows from before this item. The backfill migration above does not attempt to reconcile these — decide during clarify whether to (a) leave such legacy closure rows in place but stop surfacing them in the wallet UI (FIFO becomes the sole source of truth for display, the old rows become inert), or (b) write a one-off reconciliation step. Check actual dev/staging data for whether this case exists at all before deciding — it may be a non-issue.
+- **Edit/delete recompute + confirmation dialog (design item 22).** Editing or deleting an old wallet buy must recompute FIFO-derived balances/P/L for all later sells of the same asset×platform, show a confirmation dialog when it affects already-recorded sells, and block the change if it would produce a negative balance on any date. This is meaningfully new backend/frontend validation, not just a display change — size it accordingly during planning, it may be its own sub-phase of the branch.
+
+### Corrections learned during implementation
+- **Exception dialogs were falling back to the native browser `alert()`**, bypassing the app's own styled dialog convention, on every `addOp`/`editOp`/`removeOp`/`closeOp` failure in `web/src/components/AppLayout.tsx`. Replaced with the existing `Toast` component (`kind: 'error'`); handlers now re-throw after showing the toast instead of swallowing the error, so callers (`HistoryTab.tsx`'s delete/edit confirm flow) can still react. Toast position was also moved from bottom-right to top-right per user preference, more visible against the sidebar layout.
+- **`OpDrawer` used stale data across repeated operations without closing the drawer.** Swapping the same asset twice in a row (e.g. DOGE→BTC after the first swap already zeroed the DOGE balance) let the second submission go through against the pre-swap balance, since balance/coin-meta state wasn't re-derived after a successful submit. Fixed by re-checking the live balance at submit time (not just from the `platformAssets` snapshot passed in as a prop) and resetting swap-side coin metadata after a successful submission.
+- **A misleading generic "Fill in all required fields." banner could appear even when every field was filled in** — e.g. an over-balance quantity error (correctly shown inline near the Quantity field) also tripped the shared bottom-of-form error string, since the old design used one `error` string set by whichever validation branch ran first. Redesigned validation as always-computed per-field boolean flags gated by a `submitAttempted` flag: every currently-invalid field lights up simultaneously on first submit (not sequentially), each with its own message positioned directly under that field via a new `.field-error` class; the shared bottom banner was removed entirely. Over-balance and same-asset warnings remain live (shown before submit, unchanged) since they already worked and were already close to their field — only the "required field" class of messages needed the new gating and placement. `PlatformSelect` and `OpDrawer`'s local `CoinSearch` gained an `error?: boolean` prop to support the same red-border convention non-`NumericField` inputs didn't have.
+
+### Done when
+- History shows two header buttons ("Move wallet" / "New trade") instead of one; each opens `OpDrawer` in the corresponding mode.
+- Wallet rows (Buy/Sell/Swap, `kind: 'wallet'`) show no status and no close action; wallet sells show FIFO-realized P/L; Swap legs render as one collapsed row.
+- Trade rows (`kind: 'trade'`) keep item 26's status pill, leverage badge, and close action; gain the left-border marker and Long/Short label.
+- The wallet panel's Sell/Swap tabs show available balance + Max, block a quantity greater than the available balance, and (Sell) show a live estimated P/L footer.
+- The trade panel has no wallet-balance check on Sell (short) and requires a leverage selection; the close panel has no tabs, shows a locked type derived from the position's side, and a live P/L footer with sign inverted for shorts.
+- The cycle tag/popover (item 27) appears only on trade rows and correctly reflects multi-partial-close chains.
+- Existing item-26 data migrates correctly: leverage>1x ops become `kind: 'trade'` with the right `side`, preserving their status/closures; everything else becomes `kind: 'wallet'` with no status shown.
+- `pytest` covers the `op_kind`/`side` validation, the close-endpoint's locked-side enforcement, and the backfill migration. `npm test` covers the FIFO helper (multiple buys at different platforms/prices, sell exceeding one lot, edit/delete recompute), `computeCycles` restricted to trade ops, and both `OpDrawer` modes' restricted fields.
+
+---
+
+## Item 29 — Leverage custom input + Long/Short pill refactor
+**Branch:** `feat/leverage-custom-input`
+**Depends on:** item 28 (introduced the fixed leverage chips and the trade-row Buy/Sell tag + side-label this item replaces)
+
+- [x] Done
+
+### Design reference
+Claude Design project "Datum Designs" (`claude.ai/design/p/7de25ab4-b495-4062-bdb4-ba8895f54eef`), file `Handoff — Leverage Custom Input.dc.html` — imported via the `claude_design` MCP. Covers two independent pieces: (1) the leverage field's behavior spec (idle/typing/committed/remembered states for a 6th "Custom" pill) and (2) a Long/Short pill spec replacing the redundant Buy pill + separate side text on trade rows.
+
+### Current state
+- `web/src/components/OpDrawer.tsx`'s `LEVERAGE_OPTIONS` (`[null, 2, 3, 5, 10]`) renders five fixed pills only — no way to enter a leverage value outside that set. `shared/src/types.ts`'s `Leverage` type (`2 | 3 | 5 | 10`) and `backend/app/models.py`'s `LeverageValue` (`Literal[2, 3, 5, 10]`) enforce the same fixed set client- and server-side; `backend/db/schema.sql`'s `ops.leverage` column has a matching `CHECK (leverage IN (2, 3, 5, 10))`.
+- `web/src/components/HistoryTab.tsx`'s `renderTradeRow` (~L249-251) renders a `.tag.buy`/`.tag.sell` pill (`t.history_opType_buy`/`sell`) immediately followed by a separate `.side-label` span showing Long/Short as plain dimmed uppercase text — the exact redundancy the handoff's section 3 calls out.
+
+### Goal
+1. Add a 6th "Custom" leverage pill (dashed border) alongside the existing five, supporting the handoff's four states: idle (never used), typing (click turns it into a numeric input matching the Quantity/Unit price field chrome, with an "x" suffix), committed & selected (turns into a solid pill exactly like a selected fixed chip), and remembered (next time the drawer opens, the pill pre-shows the last custom value with a "LAST USED" caption and a pencil icon — clicking the pill body selects it directly, clicking the pencil re-opens the editable input pre-filled with that value). Persist the last custom value client-side (`localStorage`), one value, no history list.
+2. Replace the trade row's Buy/Sell tag + separate Long/Short text with a single pill showing only "Long"/"Short", styled like the existing Buy/Sell/Type pills — teal for Long, amber for Short. The orange leverage badge next to it is unchanged in concept; recolor it to the handoff's exact tokens (`#fb923c` / `rgba(251,146,60,.12)`), which already match this app's own `--s-accent`-adjacent orange used elsewhere for trade UI (`.btn-outline-accent`, `.trade-row` border) more precisely than the badge's prior slightly-different orange.
+
+### Approach
+Widening the fixed leverage set to an open-ended custom value means `Leverage` can no longer be a literal union — it becomes `number`, validated as an integer in a bounded range (chosen: 2–125, matching common exchange futures leverage caps such as Binance's 125x) both client-side (the custom input's `min`/`max`) and server-side (`backend/app/models.py`'s `LeverageValue`, replacing the `Literal` with a ranged `Field`). The existing 1x/2x/3x/5x/10x pills and their submit/validation path are unchanged — only the allowed range widens.
+
+### Database migration (additive only)
+`backend/db/migrations/016_widen_leverage_check.sql` — drops the old `ops_leverage_check` constraint (`leverage IN (2, 3, 5, 10)`) and adds a new one (`leverage IS NULL OR leverage BETWEEN 2 AND 125)`), widening the allowed range without touching any column or existing data.
+
+### Files to modify
+- `shared/src/types.ts` — `Leverage` becomes `number` (documented as an integer, 2–125, validated server-side).
+- `backend/app/models.py` — `LeverageValue` becomes a ranged `int` (`Field(ge=2, le=125)`) instead of `Literal[2, 3, 5, 10]`.
+- `backend/db/schema.sql` — `ops.leverage`'s inline `CHECK` widened to match the migration.
+- `backend/tests/test_ops.py` — `test_create_op_invalid_leverage_rejected` now asserts an out-of-range value (e.g. `1` or `200`) is rejected with 422, since `4` (previously invalid) is now a legal custom value; add a case asserting a custom in-range value (e.g. `27`) is accepted.
+- `web/src/components/OpDrawer.tsx` — add the 6th "Custom" pill with the four states described above, reusing the existing `NumericField`/`.nf`/`.inp` chrome for the typing state (same visual treatment the handoff calls for, already theme-aware for light/dark) rather than hardcoding new colors.
+- `web/src/components/HistoryTab.tsx` — `renderTradeRow` swaps the Buy/Sell tag + `.side-label` span for a single `.tag.long`/`.tag.short` pill.
+- `web/src/app/globals.css` — new `.tag.long`/`.tag.short`, `.lev-chip-custom-idle` (dashed), `.lev-chip-custom-input` (reuses `.nf`/`.inp`/`.affix` at a chip-compact size), `.lev-chip-remembered` (+ body/caption/edit-button sub-classes); recolored `.lev-badge`; removes the now-dead `.side-label` rule.
+- `shared/src/i18n/types.ts` + all 10 locale files — `op_leverage_custom_label` ("Custom"), `op_leverage_custom_lastUsed` ("LAST USED"), `op_leverage_custom_edit` (pencil icon aria-label).
+- `web/src/components/OpDrawer.test.tsx`, `web/src/components/HistoryTab.test.tsx` — cover the new pill states and the Long/Short pill.
+
+### Corrections learned during implementation
+Extensive live-testing after the initial pill/tag build surfaced eight follow-up fixes, all folded into this same branch/PR rather than split out (small, tightly related to the just-built feature):
+1. **Double pill chrome** — the custom-leverage input wrapper had both `.nf` and `.lev-chip` classes, painting overlapping borders/backgrounds; fixed by dropping `.lev-chip` from the wrapper.
+2. **Non-functional "x" suffix** — the typing-state input showed a static "x" multiplier suffix that looked clickable but wasn't; per Bruno's explicit correction, replaced with a real exit/cancel button (`onMouseDown` + `preventDefault()` to avoid the button's default focus-shift blurring/committing the input before the click handler runs).
+3. **1x pill falsely shown as selected** — `leverage === v` matched both "nothing selected" (`null === null`) and "1x explicitly chosen," so deselecting any chip incorrectly highlighted 1x; fixed by excluding `v === null` from ever getting the active class.
+4. **Toast overlap** — three components each held independent toast state at the same fixed screen position, so rapid-fire toasts stacked on top of each other illegibly; centralized into a new `ToastContext`/`ToastProvider` with a `.toast-stack` container. Root-caused a second bug while fixing this: each toast's own auto-dismiss timer depended on `onDismiss`'s identity, which changed on every stack re-render and kept resetting every other toast's countdown — fixed via a `useRef` holding the latest `onDismiss`.
+5. **Date-grouping broke on backdated inserts** — `groupOpsByDate` only merged *consecutive* array entries, so an operation added later with an earlier date started its own separate day-group instead of merging into the existing one; rewrote as Map-based bucketing keyed by date, with the emitted groups explicitly sorted chronologically, fully decoupled from insertion/array order.
+6. **Date field width** — fixed in two passes. First pass set `max-width: 50%` literally per the initial ask; Bruno clarified he meant "half like when two inputs share a row," i.e. accounting for `.drawer-grid`'s 14px gap — corrected to `calc((100% - 14px) / 2)`. Added a CSS-source-text regression test both times (jsdom has no real layout engine, so the assertion reads the stylesheet source rather than computed pixel width).
+7. **Leverage not applied to persisted realized P/L** — the live UI preview correctly multiplied estimated close P/L by leverage, but the backend's `_realized_pnl` in `op_closures.py` never did, so the *stored* value was always unleveraged; fixed by threading `leverage` through the candidates SELECT and the P/L formula, using each matched lot's own leverage (not the closing request's) for multi-lot closes.
+8. **Universal delete confirmation** — deleting a trade or a wallet op with zero balance impact previously skipped confirmation entirely (only the wallet-FIFO-impact edge case asked first); added a confirmation dialog for every delete, with a persisted "don't ask me again" checkbox (`crypto-assist:skip-delete-confirm` in localStorage) that only ever silences the *generic* dialog — the consequential wallet-impact dialog (which carries fresh per-delete information every time) is never silenced by it.
+
+**Follow-up polish requested after the branch was otherwise done, same PR:** the trade-close panel's qty field gained a permanent "Restante: X BTC · Máx" hint (reusing `BalanceHint` with a new optional `label` override), replacing what had been a static remaining-quantity line shown only in the closing banner; the over-close error text was then found redundant with that same hint turning red (its `over` styling) and removed outright — the now fully-unused `history_form_qtyExceedsRemaining` i18n key was deleted from `types.ts` and all 10 locales rather than left dead. The separate "Enter a quantity greater than zero" message was changed from permanent-until-fixed to a 2.5s flash that auto-reverts to the balance hint (or to nothing, for the swap's destination-quantity field, which has no balance concept) — still reverting immediately if the user fixes the field before the timeout.
+
+**New project-wide rule adopted during this session, applied to every fix above:** every bug fix must ship with a regression test that reproduces the exact reported scenario and fails without the fix (`CLAUDE.md`'s Tests section, commit `39320aa`) — a generic/happy-path test that merely exercises the changed code is not sufficient.
+
+Commits `14749f0`..`754b5fe` (16 commits) on `feat/leverage-custom-input`, [PR #98](https://github.com/bmartins95/crypto-assist/pull/98).
+
+### Done when
+- The leverage row in "New trade" shows 1x/2x/3x/5x/10x plus a 6th Custom pill in all four spec states, and a submitted custom value round-trips through the backend (rejects out-of-range, accepts 2–125).
+- Reopening the drawer after a custom leverage was used shows the remembered value with a "LAST USED" caption and pencil icon, selectable directly or editable via the pencil.
+- Trade rows in History show one Long/Short pill (teal/amber) instead of a Buy/Sell tag plus separate side text; the leverage badge stays orange, recolored to the handoff's exact tokens.
+- `pytest` and `npm test` pass, including new coverage for the custom-leverage states and the Long/Short pill colors.

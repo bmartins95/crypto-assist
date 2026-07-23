@@ -30,4 +30,10 @@ describe('BalanceHint', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Máx' }));
     expect(onMax).toHaveBeenCalledTimes(1);
   });
+
+  it('uses a custom label template instead of the default balance copy', () => {
+    renderHint(<BalanceHint qty={2} symbol="ETH" onMax={vi.fn()} label="Restante para fechar: {qty} {symbol}" />);
+    expect(screen.getByText('Restante para fechar: 2,00 ETH')).toBeInTheDocument();
+    expect(screen.queryByText(/Disponível/)).not.toBeInTheDocument();
+  });
 });

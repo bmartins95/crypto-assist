@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import path from 'path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import OpDrawer from './OpDrawer';
@@ -251,6 +253,28 @@ describe('OpDrawer', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Troca' }));
     expect(document.getElementById('drawer-tr-date')?.closest('.fld')).toHaveClass('tr-date');
+  });
+
+  it('constrains the Buy/Sell date field to half width instead of stretching the full drawer', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
+    fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
+    expect(document.getElementById('drawer-date')?.closest('.fld')).toHaveClass('tr-date');
+  });
+
+  it("the .tr-date rule subtracts .drawer-grid's own gap before halving, instead of a flat 50% that renders wider than a real grid column", () => {
+    // jsdom doesn't run layout, so the actual rendered pixel width can't be asserted
+    // from a component test — this locks the CSS formula itself instead. A flat
+    // `max-width: 50%` looks like "half the row" but ignores .drawer-grid's 14px gap,
+    // so the date field ends up visibly wider than either column of a real two-up row.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- fixed, compile-time test-only path, not user input
+    const css = readFileSync(path.resolve(__dirname, '../app/globals.css'), 'utf-8');
+    const gridRule = css.match(/\.drawer-grid\s*\{([^}]*)\}/)?.[1] ?? '';
+    const gapMatch = gridRule.match(/gap:\s*([\d.]+px)/);
+    expect(gapMatch).not.toBeNull();
+    const gap = gapMatch![1];
+    const dateRule = css.match(/\.drawer-body \.fld\.tr-date\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(dateRule).toContain(`max-width: calc((100% - ${gap}) / 2)`);
   });
 
   it('submits a valid Trade as one Sell and one Buy sharing the same date, then stays open with fields intact', async () => {
@@ -963,6 +987,118 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 3 }));
   });
 
+  it('the 1x pill never shows as active — deselecting a chip highlights nothing, not 1x', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    const oneX = screen.getByRole('button', { name: '1x' });
+    expect(oneX).not.toHaveClass('active');
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).toHaveClass('active');
+    expect(oneX).not.toHaveClass('active');
+    fireEvent.click(screen.getByRole('button', { name: '3x' }));
+    expect(screen.getByRole('button', { name: '3x' })).not.toHaveClass('active');
+    expect(oneX).not.toHaveClass('active');
+  });
+
+  it('Custom leverage pill starts idle (dashed, no remembered value) when never used before', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toHaveClass('lev-chip-custom-idle');
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(document.querySelector('.lev-chip-remembered')).not.toBeInTheDocument();
+  });
+
+  it('clicking the idle Custom pill opens a numeric input; committing it on Enter selects it and includes it in the submitted op', async () => {
+    const onSubmit = vi.fn();
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '27' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.getByRole('button', { name: '27x' })).toHaveClass('lev-chip active');
+    await selectCoin(screen.getByLabelText('Moeda comprada'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '100' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ leverage: 27 }));
+  });
+
+  it('committing a custom leverage on blur also selects it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.blur(input);
+    expect(screen.getByRole('button', { name: '15x' })).toHaveClass('lev-chip active');
+  });
+
+  it('Escape cancels the custom leverage input without committing or selecting it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
+  it('clicking the exit button cancels the custom leverage input without committing or selecting it', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '15' } });
+    // Mousedown before click, mirroring real pointer interaction — the handler
+    // must prevent the browser's default focus-shift-triggered blur so it
+    // doesn't commit the draft before the click's cancel runs.
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Cancelar alavancagem personalizada' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar alavancagem personalizada' }));
+    expect(document.querySelector('.lev-chip-custom-input')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '15x' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
+  it('an out-of-range custom leverage is discarded on commit', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    const input = document.querySelector('.lev-chip-custom-input input')!;
+    fireEvent.change(input, { target: { value: '999' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.queryByRole('button', { name: '999x' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Personalizada' })).toBeInTheDocument();
+  });
+
+  it('remembers the last custom leverage across drawer sessions and lets the body select it or the pencil re-edit it', async () => {
+    const onClose = vi.fn();
+    const onSubmit = vi.fn();
+    const { rerender } = renderDrawer(<OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizada' }));
+    fireEvent.change(document.querySelector('.lev-chip-custom-input input')!, { target: { value: '27' } });
+    fireEvent.keyDown(document.querySelector('.lev-chip-custom-input input')!, { key: 'Enter' });
+    expect(localStorage.getItem('crypto-assist:custom-leverage')).toBe('27');
+
+    // Close and reopen — a fresh drawer session should show the remembered pill.
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open={false} onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+    rerender(<LocaleProvider><BalanceProvider><CurrencyProvider>
+      <OpDrawer open onClose={onClose} onSubmit={onSubmit} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />
+    </CurrencyProvider></BalanceProvider></LocaleProvider>);
+
+    const remembered = document.querySelector('.lev-chip-remembered')!;
+    expect(within(remembered as HTMLElement).getByText('27x')).toBeInTheDocument();
+    expect(within(remembered as HTMLElement).getByText('ÚLTIMA USADA')).toBeInTheDocument();
+
+    fireEvent.click(within(remembered as HTMLElement).getByRole('button', { name: '27x' }));
+    expect(screen.getByRole('button', { name: '27x' })).toHaveClass('lev-chip active');
+  });
+
+  it('the pencil on a remembered custom pill reopens the editor pre-filled with the last value', () => {
+    localStorage.setItem('crypto-assist:custom-leverage', '42');
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} newOpKind="trade" assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.click(document.querySelector('.lev-chip-remembered .lev-chip-edit')!);
+    const input = document.querySelector('.lev-chip-custom-input input') as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe('42');
+  });
+
   it('slides the type panel directionally on switch without remounting it', () => {
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     const before = document.querySelector('.type-panel');
@@ -1008,6 +1144,15 @@ describe('OpDrawer', () => {
     expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();
   });
 
+  it('shows a remaining-to-close hint with a Max button on the closing qty field', () => {
+    const closures = [{ id: 'c1', sourceOpId: 'buy-1', closingOpId: 'other', qtyClosed: 0.4, realizedPnl: 5 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    expect(screen.getByText('Restante: 0,60 BTC')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Máx' }));
+    expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();
+  });
+
   it('submits a simple close via onSubmitClose, not onSubmit, with the requested quantity', async () => {
     const onSubmitClose = vi.fn();
     const onSubmit = vi.fn();
@@ -1018,14 +1163,42 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('blocks closing more than the remaining open quantity, with a message naming the actual limit', () => {
+  it('blocks closing more than the remaining open quantity, marking the remaining-hint red instead of a separate message', () => {
     const onSubmitClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitClose).not.toHaveBeenCalled();
-    expect(screen.getByText('Não é possível fechar mais que a quantidade em aberto (1,00).')).toBeInTheDocument();
+    expect(screen.queryByText(/Não é possível fechar/)).not.toBeInTheDocument();
+    expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
+    expect(document.querySelector('.bal-row.err')).toBeInTheDocument();
+  });
+
+  it('reverts the zero-quantity message back to the remaining hint after a timeout', () => {
+    vi.useFakeTimers();
+    try {
+      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+      fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+      expect(screen.queryByText('Restante: 1,00 BTC')).not.toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(2500); });
+      expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+      expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides the zero-quantity message immediately once fixed, without waiting for the timeout', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(screen.getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.5' } });
+    expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+    expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
   });
 
   it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {

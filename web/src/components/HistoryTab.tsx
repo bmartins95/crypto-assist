@@ -11,7 +11,7 @@ import ContentHeader from '@/components/ContentHeader';
 import OpDrawer from '@/components/OpDrawer';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import CyclePopover from '@/components/CyclePopover';
-import Toast, { ToastKind } from '@/components/Toast';
+import { useToast } from '@/context/ToastContext';
 import { usePlatformCatalog } from '@/components/platform/usePlatformCatalog';
 
 interface Props {
@@ -27,6 +27,7 @@ interface Props {
 }
 
 const DETAIL_COL_SPAN = 7;
+const SKIP_DELETE_CONFIRM_KEY = 'crypto-assist:skip-delete-confirm';
 
 interface SwapPair { sell: Op; buy: Op }
 type HistoryRow = Op | SwapPair;
@@ -64,22 +65,27 @@ function pairSwaps(ops: Op[]): HistoryRow[] {
   return rows;
 }
 
-// Ops arrive already ordered by date ascending (backend `ORDER BY date`) — this only
-// buckets consecutive/matching dates into groups, it never re-sorts the operations.
+// A freshly-added op is always appended to the end of `ops` (see AppLayout's
+// addOp/editOp/closeOp) regardless of its own `date` — the backend's own
+// `ORDER BY date` only holds for the initial fetch, not for the client-side
+// array afterward. So this buckets by date value (a same-date op anywhere in
+// the array joins its group, not just an immediately preceding entry), then
+// sorts the groups chronologically — grouping is never a function of array
+// position/insertion order, only of each op's own `date`.
 function groupOpsByDate(ops: Op[]): { date: string; rows: HistoryRow[] }[] {
-  const groups: { date: string; ops: Op[] }[] = [];
+  const byDate = new Map<string, Op[]>();
   for (const op of ops) {
-    const last = groups[groups.length - 1];
-    if (last && last.date === op.date) last.ops.push(op);
-    else groups.push({ date: op.date, ops: [op] });
+    if (!byDate.has(op.date)) byDate.set(op.date, []);
+    byDate.get(op.date)!.push(op);
   }
-  return groups.map(g => ({ date: g.date, rows: pairSwaps(g.ops) }));
+  return [...byDate.keys()].sort().map(date => ({ date, rows: pairSwaps(byDate.get(date)!) }));
 }
 
 export default function HistoryTab({ ops, assets, avatarCache, prices, closures, onAddOp, onEditOp, onRemoveOp, onCloseOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, fmtFromCurrency } = useCurrency();
+  const { showToast } = useToast();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -87,12 +93,13 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
   const [closingOp, setClosingOp] = useState<Op | undefined>(undefined);
   const [newOpKind, setNewOpKind] = useState<'wallet' | 'trade'>('wallet');
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const [toast, setToast] = useState<{ kind: ToastKind; message: string } | null>(null);
   const [pendingAction, setPendingAction] = useState<
     | { kind: 'edit'; id: string; op: NewOp; affectedCount: number }
     | { kind: 'delete'; id: string; affectedCount: number }
     | null
   >(null);
+  const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === '1');
+  const [dontAskAgain, setDontAskAgain] = useState(false);
   const { resolveOpPlatform } = usePlatformCatalog();
 
   const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops, closures), [ops, closures]);
@@ -124,14 +131,14 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     if (editingOp) {
       const proposed: Op = { ...editingOp, ...op };
       const { verdict, affectedCount } = checkWalletImpact(editingOp.id, proposed);
-      if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
+      if (verdict === 'blocked') { showToast('error', t.history_negative_balance_error); return; }
       if (verdict === 'confirm') { setPendingAction({ kind: 'edit', id: editingOp.id, op, affectedCount }); return; }
       await onEditOp(editingOp.id, op);
-      setToast({ kind: 'success', message: t.history_edit_success });
+      showToast('success', t.history_edit_success);
       return;
     }
     await onAddOp(op);
-    setToast({ kind: 'success', message: t.history_add_success });
+    showToast('success', t.history_add_success);
   };
 
   const handleSubmitTrade = async (sell: NewOp, buy: NewOp): Promise<void> => {
@@ -142,30 +149,43 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     // sell. The rejection propagates to OpDrawer's own try/catch around this call.
     await onAddOp({ ...sell, tradeGroupId });
     await onAddOp({ ...buy, tradeGroupId });
-    setToast({ kind: 'success', message: t.history_add_success });
+    showToast('success', t.history_add_success);
   };
 
   const handleSubmitClose = async (op: NewOp, qtyToClose: number): Promise<void> => {
     if (!closingOp) return;
     await onCloseOp(closingOp.id, op, qtyToClose);
-    setToast({ kind: 'success', message: t.history_close_success });
+    showToast('success', t.history_close_success);
   };
 
   const requestRemove = (o: Op) => {
     const { verdict, affectedCount } = checkWalletImpact(o.id, null);
-    if (verdict === 'blocked') { setToast({ kind: 'error', message: t.history_negative_balance_error }); return; }
+    if (verdict === 'blocked') { showToast('error', t.history_negative_balance_error); return; }
     if (verdict === 'confirm') { setPendingAction({ kind: 'delete', id: o.id, affectedCount }); return; }
-    // AppLayout's removeOp already shows its own error toast on failure — this only
-    // exists so a rejection here doesn't surface as an unhandled promise rejection.
-    onRemoveOp(o.id).catch(() => {});
+    if (skipDeleteConfirm) {
+      // AppLayout's removeOp already shows its own error toast on failure — this only
+      // exists so a rejection here doesn't surface as an unhandled promise rejection.
+      onRemoveOp(o.id).catch(() => {});
+      return;
+    }
+    setDontAskAgain(false);
+    setPendingAction({ kind: 'delete', id: o.id, affectedCount: 0 });
   };
 
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    // A plain delete confirmation (affectedCount === 0) is the generic "are you sure"
+    // safety net (spec: this item) — the wallet-impact "confirm" case always carries
+    // fresh, specific information (how many later ops are affected) and must never be
+    // silenced by the opt-out, so persistence only applies here.
+    if (pendingAction.kind === 'delete' && pendingAction.affectedCount === 0 && dontAskAgain) {
+      localStorage.setItem(SKIP_DELETE_CONFIRM_KEY, '1');
+      setSkipDeleteConfirm(true);
+    }
     try {
       if (pendingAction.kind === 'edit') {
         await onEditOp(pendingAction.id, pendingAction.op);
-        setToast({ kind: 'success', message: t.history_edit_success });
+        showToast('success', t.history_edit_success);
       } else {
         await onRemoveOp(pendingAction.id);
       }
@@ -246,9 +266,8 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
         <tr className="history-row trade-row" onClick={() => toggleExpand(o.id)}>
           <td style={{ fontWeight: 600 }}>{o.symbol || '—'}</td>
           <td>
-            <span className={`tag ${o.type === 'Buy' ? 'buy' : 'sell'}`}>{o.type === 'Buy' ? t.history_opType_buy : t.history_opType_sell}</span>
+            <span className={`tag ${o.side === 'short' ? 'short' : 'long'}`}>{o.side === 'short' ? t.trade_side_short : t.trade_side_long}</span>
             {o.leverage && <span className="lev-badge">{o.leverage}x</span>}
-            <span className="side-label">{o.side === 'short' ? t.trade_side_short : t.trade_side_long}</span>
             {cycles.get(o.id) && <CyclePopover cycle={cycles.get(o.id)!} coinSymbol={o.symbol} />}
           </td>
           <td className="num">{mask(fmtQty(o.qty, locale))}</td>
@@ -364,18 +383,21 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
       <ConfirmDialog
         open={!!pendingAction}
-        title={t.history_edit_impact_title}
-        message={(pendingAction?.kind === 'delete' ? t.history_delete_impact_message : t.history_edit_impact_message)
-          .replace('{count}', String(pendingAction?.affectedCount ?? 0))}
-        confirmLabel={t.history_edit_impact_confirm}
+        title={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_delete_confirm_title : t.history_edit_impact_title}
+        message={
+          pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0
+            ? t.history_delete_confirm_message
+            : (pendingAction?.kind === 'delete' ? t.history_delete_impact_message : t.history_edit_impact_message)
+                .replace('{count}', String(pendingAction?.affectedCount ?? 0))
+        }
+        confirmLabel={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_form_delete : t.history_edit_impact_confirm}
         cancelLabel={t.common_cancel}
         onConfirm={confirmPendingAction}
         onCancel={() => setPendingAction(null)}
+        checkboxLabel={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_delete_confirm_checkbox : undefined}
+        checkboxChecked={dontAskAgain}
+        onCheckboxChange={setDontAskAgain}
       />
-
-      {toast && (
-        <Toast kind={toast.kind} message={toast.message} onDismiss={() => setToast(null)} closeLabel={t.common_close} />
-      )}
     </div>
   );
 }

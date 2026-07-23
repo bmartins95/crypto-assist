@@ -8,7 +8,7 @@
 - Branch naming: `feat/`, `fix/`, `chore/`, `docs/`, `test/`, `refactor/` + a short descriptive slug.
 - One branch per plan item. If an item is large, split it into sequential branches (e.g. `feat/i18n-shared`, `feat/i18n-web`, `feat/i18n-mobile`).
 - Open a PR to `develop` when the item is done. Do not start the next plan item until the current PR is merged.
-- When a plan item's PR merges, tick its checkbox in `docs/PLAN.md` in the same commit or a follow-up `chore:` commit on `develop`.
+- When a plan item's PR merges, tick its checkbox in `docs/PLAN.md` in the same commit or a follow-up `chore:` commit on `develop`. At the same time, move that item's full text (design references, current state, files, corrections) into `docs/PLAN_ARCHIVE.md` and replace it in `docs/PLAN.md` with a one-line pointer (`**Branch:** \`x\` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#anchor)`) — this keeps the active plan short enough to read in full before starting the next item.
 
 ### Commits
 - Single line only, 72 characters max.
@@ -30,6 +30,7 @@
 - Good path: the operation succeeds and the response/state is exactly what is expected.
 - Bad paths: invalid input, missing auth, resource not found, upstream failure (mock it), concurrent modification — whichever apply to the feature.
 - New shared library functions require tests alongside the function in `shared/src/*.test.ts` or `web/src/lib/*.test.ts`.
+- Every bug fix must ship with a regression test that reproduces the exact reported scenario and fails without the fix. A generic/happy-path test that merely exercises the changed code is not sufficient — it must fail on the pre-fix code.
 - Run `cd backend && pytest` and `cd web && npm test` before opening a PR. Fix all failures first.
 
 ### Error handling

@@ -1,12 +1,14 @@
-from typing import Literal
-from pydantic import BaseModel, field_validator, model_validator
+from typing import Annotated, Literal
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 OpType = Literal["Buy", "Sell"]
 
 CurrencyCode = Literal["BRL", "USD", "EUR", "GBP", "JPY"]
 
-LeverageValue = Literal[2, 3, 5, 10]
+# Fixed presets (2/3/5/10) or any custom integer up to 125x, matching common
+# exchange futures leverage caps (e.g. Binance's 125x).
+LeverageValue = Annotated[int, Field(ge=2, le=125)]
 
 OpKind = Literal["wallet", "trade"]
 
