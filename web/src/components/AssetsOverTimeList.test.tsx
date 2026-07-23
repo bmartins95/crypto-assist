@@ -15,10 +15,15 @@ const ASSETS: AssetListItem[] = [
   { coinId: 'solana', symbol: 'SOL', name: 'Solana', price: 1200, absChange: 0, series: [], color: '#2dd4bf', allocationPct: 10 },
 ];
 
-function renderList(assets = ASSETS, onSelectAsset = vi.fn()) {
+function renderList(
+  assets = ASSETS,
+  onSelectAsset = vi.fn(),
+  dayContribution?: Record<string, string>,
+  dayPrices?: Record<string, number>,
+) {
   render(
     <LocaleProvider><BalanceProvider><CurrencyProvider>
-      <AssetsOverTimeList assets={assets} onSelectAsset={onSelectAsset} />
+      <AssetsOverTimeList assets={assets} onSelectAsset={onSelectAsset} dayContribution={dayContribution} dayPrices={dayPrices} />
     </CurrencyProvider></BalanceProvider></LocaleProvider>
   );
   return onSelectAsset;
@@ -85,5 +90,22 @@ describe('AssetsOverTimeList', () => {
     const onSelectAsset = renderList();
     fireEvent.click(screen.getByRole('button', { name: 'Bitcoin BTC' }));
     expect(onSelectAsset).toHaveBeenCalledWith('bitcoin');
+  });
+
+  it('highlights both the price and the change cell for an asset with a hovered-day value', () => {
+    renderList(ASSETS, vi.fn(), { bitcoin: '+R$50,00' }, { bitcoin: 340000 });
+    const row = screen.getByRole('button', { name: 'Bitcoin BTC' });
+    expect(row.className).toContain('assets-list-row--highlighted');
+    const highlighted = row.querySelectorAll('.assets-list-contribution');
+    expect(highlighted).toHaveLength(2);
+    expect(highlighted[0].textContent).toMatch(/340\.000,00/);
+    expect(highlighted[1].textContent).toBe('+R$50,00');
+  });
+
+  it('does not highlight a row with no hovered-day data', () => {
+    renderList(ASSETS, vi.fn(), { bitcoin: '+R$50,00' }, { bitcoin: 340000 });
+    const row = screen.getByRole('button', { name: 'Ethereum ETH' });
+    expect(row.className).not.toContain('assets-list-row--highlighted');
+    expect(row.querySelectorAll('.assets-list-contribution')).toHaveLength(0);
   });
 });

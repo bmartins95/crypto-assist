@@ -122,7 +122,9 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
                       <span className="assets-list-nodata">—</span>
                     )}
                   </span>
-                  <span className="assets-list-num">{mask(fmtMoney(dayPrice ?? asset.price))}</span>
+                  <span className={`assets-list-num${dayPrice !== undefined ? ' assets-list-contribution' : ''}`}>
+                    {mask(fmtMoney(dayPrice ?? asset.price))}
+                  </span>
                   {contribution ? (
                     <span className="assets-list-num assets-list-contribution">{contribution}</span>
                   ) : (
