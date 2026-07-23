@@ -22,8 +22,7 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
   localStorage.removeItem('profit_timeframe');
-  localStorage.removeItem('profit_compare_asset_over-time');
-  localStorage.removeItem('profit_compare_asset_value');
+  localStorage.removeItem('profit_compare_asset');
 });
 
 // jsdom has no real canvas backend; chart.js itself isn't what we're
@@ -333,6 +332,17 @@ describe('Per-asset compare overlay (US1)', () => {
     vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
   });
 
+  it('does not show the compare control (or an overlay) on the Portfolio-value chart', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'value');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data.length).toBeGreaterThan(0));
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(lastChartConfig().data.datasets).toHaveLength(2);
+  });
+
   it('shows a "Compare with" control with Nenhum plus one option per held asset', async () => {
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
@@ -450,7 +460,7 @@ describe('Per-asset compare overlay (US1)', () => {
     await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(1));
   });
 
-  it('persists the compare selection per chart and restores it on remount', async () => {
+  it('persists the compare selection and restores it on remount', async () => {
     vi.mocked(api.getPriceHistory).mockResolvedValue({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
       ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
@@ -458,7 +468,7 @@ describe('Per-asset compare overlay (US1)', () => {
     const { unmount } = renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
     await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
-    await waitFor(() => expect(localStorage.getItem('profit_compare_asset_over-time')).toBe('bitcoin'));
+    await waitFor(() => expect(localStorage.getItem('profit_compare_asset')).toBe('bitcoin'));
     unmount();
 
     renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
@@ -466,7 +476,7 @@ describe('Per-asset compare overlay (US1)', () => {
   });
 
   it('falls back to "Nenhum" when the persisted comparison asset is no longer held', async () => {
-    localStorage.setItem('profit_compare_asset_over-time', 'dogecoin');
+    localStorage.setItem('profit_compare_asset', 'dogecoin');
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
     renderProfitTab([op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'over-time');
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Nenhum' })).toHaveAttribute('aria-checked', 'true'));

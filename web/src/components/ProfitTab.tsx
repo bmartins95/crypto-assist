@@ -47,11 +47,10 @@ function rangeForTimeframe(timeframe: Timeframe, ops: Op[]): { from: string; to:
   return { from: addDaysISO(to, -TIMEFRAME_DAYS_BACK[timeframe]), to };
 }
 
-const COMPARE_STORAGE_PREFIX = 'profit_compare_asset_';
-type CompareChart = 'over-time' | 'value';
+const COMPARE_STORAGE_KEY = 'profit_compare_asset';
 
-function readStoredCompare(chart: CompareChart): string | null {
-  return localStorage.getItem(COMPARE_STORAGE_PREFIX + chart) || null;
+function readStoredCompare(): string | null {
+  return localStorage.getItem(COMPARE_STORAGE_KEY) || null;
 }
 
 function signed(v: number, formatted: string): string {
@@ -139,10 +138,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [timeframe, setTimeframeState] = useState<Timeframe>(() => readStoredTimeframe());
-  const [compareAsset, setCompareAssetState] = useState<Record<CompareChart, string | null>>(() => ({
-    'over-time': readStoredCompare('over-time'),
-    value: readStoredCompare('value'),
-  }));
+  const [compareAsset, setCompareAssetState] = useState<string | null>(() => readStoredCompare());
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [detailAsset, setDetailAsset] = useState<string | null>(null);
   const overTimeTooltipRef = useRef<HTMLDivElement>(null);
@@ -156,10 +152,10 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     setTimeframeState(next);
   }
 
-  function setCompareAsset(chart: CompareChart, coinId: string | null): void {
-    if (coinId) localStorage.setItem(COMPARE_STORAGE_PREFIX + chart, coinId);
-    else localStorage.removeItem(COMPARE_STORAGE_PREFIX + chart);
-    setCompareAssetState(prev => ({ ...prev, [chart]: coinId }));
+  function setCompareAsset(coinId: string | null): void {
+    if (coinId) localStorage.setItem(COMPARE_STORAGE_KEY, coinId);
+    else localStorage.removeItem(COMPARE_STORAGE_KEY);
+    setCompareAssetState(coinId);
   }
 
   useEffect(() => {
@@ -210,8 +206,10 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
       allocationPct: totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0,
     };
   });
-  const compareChart: CompareChart | null = activeChart === 'over-time' || activeChart === 'value' ? activeChart : null;
-  const activeCompareCoinId = compareChart ? compareAsset[compareChart] : null;
+  // The compare overlay only makes sense against the Profit-over-time curve — a second,
+  // independently-scaled line reads as noise on the already-two-series Portfolio-value chart.
+  const showCompare = activeChart === 'over-time';
+  const activeCompareCoinId = showCompare ? compareAsset : null;
   // A persisted coinId for a position that's since been fully closed is left in storage (it may
   // reappear if the user re-opens that position) but must not render as "selected" against a
   // control that no longer lists it as an option.
@@ -312,8 +310,6 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
         },
       });
     } else if (activeChart === 'value' && !timeframeEmpty && !noPriceData) {
-      const overlay = hasCompareOverlay && activeCompareSeries ? activeCompareSeries : null;
-      const overlayColor = overlay ? assetColor(overlay.coinId, heldCoinIds) : '';
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
@@ -321,7 +317,6 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           datasets: [
             { label: t.profit_currentValue, data: timeline.map(tp => parseFloat(tp.currentValue.toFixed(2))), borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
             { label: t.profit_invested, data: timeline.map(tp => parseFloat(tp.invested.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.05)', fill: true, tension: 0.3, pointRadius: 4, borderDash: [5, 3] },
-            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePriceSuffix}`, data: overlay.priceSeries, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 3, pointHoverRadius: 5 }] : []),
           ],
         },
         options: {
@@ -338,9 +333,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                 const dp = tooltip.dataPoints?.[0];
                 const point = dp ? timeline[dp.dataIndex] : undefined;
                 if (!point) return;
-                el.innerHTML = overlay && dp?.datasetIndex === 2
-                  ? buildAssetOverlayTooltipHtml(point.date, overlay.priceSeries[dp.dataIndex] ?? overlay.price, overlay.symbol, compareAvgPrice, compareAcquisitions, locale, t, fmtMoney)
-                  : buildValueTooltipHtml(point, timeline[dp.dataIndex - 1], locale, t, fmtMoney);
+                el.innerHTML = buildValueTooltipHtml(point, timeline[dp.dataIndex - 1], locale, t, fmtMoney);
                 el.style.opacity = '1';
                 el.style.left = `${tooltip.caretX}px`;
                 el.style.top = `${tooltip.caretY}px`;
@@ -350,7 +343,6 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           },
           scales: {
             y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
-            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtMoney(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -419,11 +411,11 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
               {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
               {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
             </div>
-            {isTimeBased && compareChart && compareOptions.length > 0 && (
+            {showCompare && compareOptions.length > 0 && (
               <AssetCompareControl
                 options={compareOptions}
                 value={effectiveCompareValue}
-                onChange={coinId => setCompareAsset(compareChart, coinId)}
+                onChange={setCompareAsset}
                 dayContribution={dayContribution}
               />
             )}
