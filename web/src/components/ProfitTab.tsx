@@ -1,17 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
-import { ChartType, Op, OpClosure, Prices } from '@/lib/types';
-import { fmtPct, fmtDate } from '@/lib/format';
-import { computeTimeline, computeProfitByAsset } from '@/lib/portfolio';
+import type { Locale, UIText } from '@crypto-assist/shared';
+import { AvatarCache, ChartType, Op, OpClosure, Prices } from '@/lib/types';
+import { fmtPct, fmtDate, fmtQty } from '@/lib/format';
+import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, computeAssetPositionOnDate, TimelinePoint, AssetPositionAtDate } from '@/lib/portfolio';
 import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { assetColor } from '@/lib/assetColor';
 import ContentHeader from '@/components/ContentHeader';
 import MetricCard from '@/components/MetricCard';
 import TimeframeSelector, { Timeframe } from '@/components/TimeframeSelector';
+import AssetCompareControl, { CompareAssetOption } from '@/components/AssetCompareControl';
+import AssetsOverTimeList, { AssetListItem } from '@/components/AssetsOverTimeList';
+import AssetDetailChart, { AssetDetailData } from '@/components/AssetDetailChart';
 
 const TIMEFRAME_STORAGE_KEY = 'profit_timeframe';
 const VALID_TIMEFRAMES: Timeframe[] = ['1d', '1w', '1m', '1y', 'all'];
@@ -42,22 +47,135 @@ function rangeForTimeframe(timeframe: Timeframe, ops: Op[]): { from: string; to:
   return { from: addDaysISO(to, -TIMEFRAME_DAYS_BACK[timeframe]), to };
 }
 
-const PALETTE = ['#534AB7','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#888780','#0F6E56'];
+const COMPARE_STORAGE_KEY = 'profit_compare_asset';
+
+function readStoredCompare(): string | null {
+  return localStorage.getItem(COMPARE_STORAGE_KEY) || null;
+}
+
+function signed(v: number, formatted: string): string {
+  return (v >= 0 ? '+' : '') + formatted;
+}
+
+function buildProfitTooltipHtml(point: TimelinePoint, locale: Locale, t: UIText, fmtMoney: (v: number) => string): string {
+  const weekday = new Date(`${point.date}T00:00:00`).toLocaleDateString(locale, { weekday: 'short' });
+  return `
+    <div class="tt-header"><span class="tt-date">${fmtDate(point.date, locale)}</span><span class="tt-weekday">${weekday}</span></div>
+    <div class="tt-cumulative ${point.pnl >= 0 ? 'pos' : 'neg'}">${signed(point.pnl, fmtMoney(point.pnl))}</div>
+    <div class="tt-delta ${point.dayDeltaAbs >= 0 ? 'pos' : 'neg'}">${signed(point.dayDeltaAbs, fmtMoney(point.dayDeltaAbs))} ${t.profit_tooltip_noDia} · ${fmtPct(point.dayDeltaPct)}</div>
+    <div class="tt-divider"></div>
+    <div class="tt-row"><span>${t.profit_tooltip_realized}</span><span>${fmtMoney(point.realizedPnl)}</span></div>
+    <div class="tt-row"><span>${t.profit_unrealized}</span><span class="${point.unrealizedPnl >= 0 ? 'pos' : 'neg'}">${signed(point.unrealizedPnl, fmtMoney(point.unrealizedPnl))}</span></div>
+    <div class="tt-row"><span>${t.profit_tooltip_opsCount}</span><span>${point.opsCount}</span></div>
+  `;
+}
+
+function buildValueTooltipHtml(point: TimelinePoint, prevPoint: TimelinePoint | undefined, locale: Locale, t: UIText, fmtMoney: (v: number) => string): string {
+  const unrealizedAbs = point.unrealizedPnl;
+  const unrealizedPct = point.invested > 0 ? (unrealizedAbs / point.invested) * 100 : 0;
+  const dayVariationAbs = prevPoint ? point.currentValue - prevPoint.currentValue : 0;
+  return `
+    <div class="tt-header"><span class="tt-date">${fmtDate(point.date, locale)}</span></div>
+    <div class="tt-row"><span class="tt-swatch tt-swatch-current"></span><span>${t.profit_currentValue}</span><span class="tt-value">${fmtMoney(point.currentValue)}</span></div>
+    <div class="tt-row"><span class="tt-swatch tt-swatch-invested"></span><span>${t.profit_invested}</span><span class="tt-value tt-muted">${fmtMoney(point.invested)}</span></div>
+    <div class="tt-result ${unrealizedAbs >= 0 ? 'pos' : 'neg'}">
+      <div class="tt-result-row"><span>${t.profit_tooltip_unrealizedResult}</span><span>${fmtPct(unrealizedPct)}</span></div>
+      <div class="tt-result-abs">${signed(unrealizedAbs, fmtMoney(unrealizedAbs))}</div>
+    </div>
+    <div class="tt-row tt-dayvar"><span>${t.profit_tooltip_dayVariation}</span><span class="${dayVariationAbs >= 0 ? 'pos' : 'neg'}">${signed(dayVariationAbs, fmtMoney(dayVariationAbs))}</span></div>
+  `;
+}
+
+function fmtDateHeader(date: string, locale: Locale): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Drops the year when it matches the hovered date's year — acquisition rows only need to
+// disambiguate the year when a lot was bought in a previous year than the one being viewed.
+function fmtDateAcquisition(date: string, hoveredDate: string, locale: Locale): string {
+  const d = new Date(`${date}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date(`${hoveredDate}T00:00:00`).getFullYear();
+  return d.toLocaleDateString(locale, sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+const ACQUISITIONS_VISIBLE_CAP = 4;
+
+function buildAssetOverlayTooltipHtml(
+  date: string,
+  symbol: string,
+  color: string,
+  imageUrl: string | undefined,
+  precoAtual: number,
+  position: AssetPositionAtDate,
+  locale: Locale,
+  t: UIText,
+  fmtMoney: (v: number) => string,
+  fmtMoneyCompact: (v: number) => string,
+): string {
+  const { qty, avgPrice, acquisitions } = position;
+  const hasPrice = precoAtual > 0;
+  const custoTotal = qty * avgPrice;
+  const valor = qty * precoAtual;
+  const plAbs = valor - custoTotal;
+  const plPct = custoTotal > 0 ? (plAbs / custoTotal) * 100 : 0;
+  const hasCostBasis = custoTotal > 0;
+
+  const visible = acquisitions.slice(0, ACQUISITIONS_VISIBLE_CAP);
+  const extraCount = acquisitions.length - visible.length;
+  const acquisitionRows = acquisitions.length
+    ? visible.map(a => `<div class="tt-acq-row"><span class="tt-acq-date">${fmtDateAcquisition(a.date, date, locale)}</span><span class="tt-acq-qty">${fmtQty(a.qty, locale)} ${symbol}</span><span class="tt-acq-price">${fmtMoneyCompact(a.price)}</span></div>`).join('')
+      + (extraCount > 0 ? `<div class="tt-acq-more">${t.profit_tooltip_moreAcquisitions.replace('{count}', String(extraCount))}</div>` : '')
+    : `<div class="tt-row"><span>${t.common_empty}</span></div>`;
+
+  const positionBlock = hasPrice ? `
+    <div class="tt-pos-value-row">
+      <div><div class="tt-pos-value-label">${t.profit_tooltip_positionValue}</div><div class="tt-pos-value">${fmtMoney(valor)}</div></div>
+      <div class="tt-pos-pl">${hasCostBasis
+        ? `<div class="tt-pos-pl-pct ${plAbs >= 0 ? 'pos' : 'neg'}">${fmtPct(plPct)}</div><div class="tt-pos-pl-abs ${plAbs >= 0 ? 'pos' : 'neg'}">${signed(plAbs, fmtMoneyCompact(plAbs))}</div>`
+        : `<div class="tt-pos-pl-abs tt-muted">—</div>`}</div>
+    </div>
+    <div class="tt-pos-stats">
+      <div class="tt-row"><span>${t.profit_tooltip_quantity}</span><span>${fmtQty(qty, locale)} ${symbol}</span></div>
+      <div class="tt-row"><span>${t.profit_tooltip_avgPrice}</span><span>${fmtMoney(avgPrice)}</span></div>
+      <div class="tt-row"><span>${t.profit_tooltip_currentPrice}</span><span>${fmtMoney(precoAtual)}</span></div>
+    </div>
+  ` : `
+    <div class="tt-pos-stats" style="margin-top:11px">
+      <div class="tt-row"><span>${t.profit_tooltip_quantity}</span><span>${fmtQty(qty, locale)} ${symbol}</span></div>
+    </div>
+  `;
+
+  return `
+    <div class="tt-pos-header">
+      <span class="tt-asset-badge" style="background:${color}22;color:${color}">${symbol}${imageUrl ? `<img src="${imageUrl}" alt="" onerror="this.style.display='none'">` : ''}</span>
+      <span class="tt-weekday">${fmtDateHeader(date, locale)}</span>
+    </div>
+    ${positionBlock}
+    <div class="tt-acquisitions-title">${t.profit_tooltip_acquisitions}${acquisitions.length > 1 ? ` · ${acquisitions.length}` : ''}</div>
+    <div class="tt-acquisitions-rows">${acquisitionRows}</div>
+  `;
+}
+
+interface TooltipExternalContext {
+  chart: { canvas: HTMLCanvasElement };
+  tooltip: { opacity: number; dataPoints?: { dataIndex: number; datasetIndex: number }[]; caretX: number; caretY: number };
+}
 
 interface Props {
   ops: Op[];
   closures: OpClosure[];
   prices: Prices;
+  avatarCache: AvatarCache;
   activeChart: ChartType;
   onChartSwitch: (t: ChartType) => void;
   statusMsg: string;
   onFetchPrices: () => void;
 }
 
-export default function ProfitTab({ ops, closures, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
+export default function ProfitTab({ ops, closures, prices, avatarCache, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
-  const { currency, ratesStatus, fmtMoney } = useCurrency();
+  const { currency, ratesStatus, fmtMoney, fmtMoneyCompact } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
     : ratesStatus === 'stale' ? t.currency_rates_stale : '';
@@ -68,6 +186,11 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [timeframe, setTimeframeState] = useState<Timeframe>(() => readStoredTimeframe());
+  const [compareAsset, setCompareAssetState] = useState<string | null>(() => readStoredCompare());
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [detailAsset, setDetailAsset] = useState<string | null>(null);
+  const overTimeTooltipRef = useRef<HTMLDivElement>(null);
+  const valueTooltipRef = useRef<HTMLDivElement>(null);
   const isTimeBased = activeChart === 'over-time' || activeChart === 'value';
   const { from: rangeFrom, to: rangeTo } = rangeForTimeframe(timeframe, ops);
   const coinIds = Array.from(new Set(ops.map(o => o.coinId).filter(Boolean)));
@@ -75,6 +198,12 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   function setTimeframe(next: Timeframe): void {
     localStorage.setItem(TIMEFRAME_STORAGE_KEY, next);
     setTimeframeState(next);
+  }
+
+  function setCompareAsset(coinId: string | null): void {
+    if (coinId) localStorage.setItem(COMPARE_STORAGE_KEY, coinId);
+    else localStorage.removeItem(COMPARE_STORAGE_KEY);
+    setCompareAssetState(coinId);
   }
 
   useEffect(() => {
@@ -89,10 +218,17 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     return () => { cancelled = true; };
   }, [isTimeBased, coinIds.join(','), rangeFrom, rangeTo, t]);
 
-  const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo, closures) : [];
+  // Memoized so a hover-triggered re-render (which doesn't change any of these inputs)
+  // doesn't hand the chart-build effect below a new array reference every time — without
+  // this, its dependency array would see "change" on every hover and destroy+recreate the
+  // chart, replaying the load-in animation on every mouse move.
+  const timeline = useMemo(
+    () => (isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo, closures) : []),
+    [isTimeBased, ops, historicalPrices, rangeFrom, rangeTo, closures],
+  );
   const timeframeEmpty = isTimeBased && timeline.length < 2;
 
-  const profitByAsset = computeProfitByAsset(ops, prices, closures);
+  const profitByAsset = useMemo(() => computeProfitByAsset(ops, prices, closures), [ops, prices, closures]);
   const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
   const withPrice = profitByAsset.filter(p => p.hasPrice);
   const totalUnrealized = withPrice.reduce((s, p) => s + p.unrealizedPnl, 0);
@@ -102,6 +238,53 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   const openPositions = profitByAsset.filter(p => p.hasOpenPosition);
   const totalInvestedOpen = openPositions.reduce((s, p) => s + p.investedOpen, 0);
   const noPriceData = !profitByAsset.some(p => p.hasPrice);
+
+  const heldCoinIds = openPositions.map(p => p.coinId);
+  const assetSeries = computeAssetPeriodSeries(ops, historicalPrices, prices, rangeFrom, rangeTo, closures);
+  const assetSeriesById = new Map(assetSeries.map(a => [a.coinId, a]));
+  const compareOptions: CompareAssetOption[] = openPositions.map(p => ({
+    coinId: p.coinId, symbol: p.symbol, name: p.name, color: assetColor(p.coinId, heldCoinIds),
+    pctChange: assetSeriesById.get(p.coinId)?.pctChange ?? 0,
+    allocationPct: totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0,
+  }));
+  const listItems: AssetListItem[] = openPositions.map(p => {
+    const s = assetSeriesById.get(p.coinId);
+    return {
+      coinId: p.coinId, symbol: p.symbol, name: p.name,
+      price: s?.price ?? 0, absChange: s?.absChange ?? 0, series: s?.series ?? [],
+      color: assetColor(p.coinId, heldCoinIds),
+      allocationPct: totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0,
+    };
+  });
+  // The compare overlay only makes sense against the Profit-over-time curve — a second,
+  // independently-scaled line reads as noise on the already-two-series Portfolio-value chart.
+  const showCompare = activeChart === 'over-time';
+  const activeCompareCoinId = showCompare ? compareAsset : null;
+  // A persisted coinId for a position that's since been fully closed is left in storage (it may
+  // reappear if the user re-opens that position) but must not render as "selected" against a
+  // control that no longer lists it as an option.
+  const effectiveCompareValue = activeCompareCoinId && assetSeriesById.has(activeCompareCoinId) ? activeCompareCoinId : null;
+  const activeCompareSeries = effectiveCompareValue ? assetSeriesById.get(effectiveCompareValue) : undefined;
+  const hasCompareOverlay = !!(activeCompareSeries && activeCompareSeries.priceSeries.length === timeline.length && timeline.length > 0);
+  const hoveredPoint = hoveredDate ? timeline.find(tp => tp.date === hoveredDate) : undefined;
+  const hoveredIndex = hoveredDate ? timeline.findIndex(tp => tp.date === hoveredDate) : -1;
+  const dayContribution: Record<string, string> | undefined = hoveredPoint
+    ? Object.fromEntries(hoveredPoint.assetContribution.map(c => [c.coinId, signed(c.deltaAbs, fmtMoney(c.deltaAbs))]))
+    : undefined;
+  // Per-asset price on the hovered day (not just the ones that moved that day), so the asset
+  // list can show "what was this worth then" instead of always the live/current price.
+  const dayPrices: Record<string, number> | undefined = hoveredIndex >= 0
+    ? Object.fromEntries(assetSeries.filter(a => a.priceSeries[hoveredIndex] > 0).map(a => [a.coinId, a.priceSeries[hoveredIndex]]))
+    : undefined;
+  const detailAssetData: AssetDetailData | null = detailAsset ? (() => {
+    const s = assetSeriesById.get(detailAsset);
+    const p = openPositions.find(a => a.coinId === detailAsset);
+    if (!s || !p) return null;
+    return {
+      coinId: p.coinId, symbol: p.symbol, name: p.name, price: s.price, absChange: s.absChange, priceSeries: s.priceSeries,
+      color: assetColor(p.coinId, heldCoinIds), image: avatarCache[p.coinId]?.url,
+    };
+  })() : null;
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -132,17 +315,48 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
         },
       });
     } else if (activeChart === 'over-time' && !timeframeEmpty && !noPriceData) {
+      const overlay = hasCompareOverlay && activeCompareSeries ? activeCompareSeries : null;
+      const overlayColor = overlay ? assetColor(overlay.coinId, heldCoinIds) : '';
       chartInstance.current = new Chart(ctx, {
         type: 'line',
         data: {
           labels: timeline.map(tp => fmtDate(tp.date, locale)),
-          datasets: [{ label: t.profit_pnl, data: timeline.map(tp => parseFloat(tp.pnl.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.1)', fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 }],
+          datasets: [
+            { label: t.profit_pnl, data: timeline.map(tp => parseFloat(tp.pnl.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.1)', fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 },
+            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePriceSuffix}`, data: overlay.priceSeries, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 3, pointHoverRadius: 5 }] : []),
+          ],
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw as number) }, padding: 10 } },
+          plugins: {
+            legend: { display: !!overlay, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
+            tooltip: {
+              enabled: false,
+              external: (context: TooltipExternalContext) => {
+                const el = overTimeTooltipRef.current;
+                if (!el) return;
+                const { tooltip } = context;
+                if (tooltip.opacity === 0) { el.style.opacity = '0'; setHoveredDate(null); return; }
+                const dp = tooltip.dataPoints?.[0];
+                const point = dp ? timeline[dp.dataIndex] : undefined;
+                if (!point) return;
+                el.innerHTML = overlay && dp?.datasetIndex === 1
+                  ? buildAssetOverlayTooltipHtml(
+                      point.date, overlay.symbol, overlayColor, avatarCache[overlay.coinId]?.url, overlay.priceSeries[dp.dataIndex] ?? overlay.price,
+                      computeAssetPositionOnDate(ops, overlay.coinId, point.date, closures),
+                      locale, t, fmtMoney, fmtMoneyCompact,
+                    )
+                  : buildProfitTooltipHtml(point, locale, t, fmtMoney);
+                el.style.opacity = '1';
+                el.style.left = `${tooltip.caretX}px`;
+                el.style.top = `${tooltip.caretY}px`;
+                setHoveredDate(point.date);
+              },
+            },
+          },
           scales: {
             y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtMoney(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -159,7 +373,26 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + fmtMoney(c.raw as number) }, padding: 10 } },
+          plugins: {
+            legend: { display: true, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
+            tooltip: {
+              enabled: false,
+              external: (context: TooltipExternalContext) => {
+                const el = valueTooltipRef.current;
+                if (!el) return;
+                const { tooltip } = context;
+                if (tooltip.opacity === 0) { el.style.opacity = '0'; setHoveredDate(null); return; }
+                const dp = tooltip.dataPoints?.[0];
+                const point = dp ? timeline[dp.dataIndex] : undefined;
+                if (!point) return;
+                el.innerHTML = buildValueTooltipHtml(point, timeline[dp.dataIndex - 1], locale, t, fmtMoney);
+                el.style.opacity = '1';
+                el.style.left = `${tooltip.caretX}px`;
+                el.style.top = `${tooltip.caretY}px`;
+                setHoveredDate(point.date);
+              },
+            },
+          },
           scales: {
             y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
@@ -169,7 +402,12 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData]);
+    // activeCompareSeries is recomputed every render but derives entirely from state already
+    // covered below (effectiveCompareValue, ops, timeline) — depending on effectiveCompareValue
+    // instead of the unstable object itself keeps this effect (and its load-in animation) from
+    // re-running on every hover-triggered re-render. closures flows in via timeline, which
+    // already depends on it.
+  }, [ops, prices, avatarCache, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, fmtMoneyCompact, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, heldCoinIds.join(',')]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
@@ -221,9 +459,18 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
 
       <div className="chart-area">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div className="sec-title" style={{ marginBottom: 0 }}>
-            {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
-            {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="sec-title" style={{ marginBottom: 0 }}>
+              {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
+              {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+            </div>
+            {showCompare && compareOptions.length > 0 && (
+              <AssetCompareControl
+                options={compareOptions}
+                value={effectiveCompareValue}
+                onChange={setCompareAsset}
+              />
+            )}
           </div>
           {isTimeBased && (
             <TimeframeSelector
@@ -246,8 +493,14 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
               <div className="spin" />
             </div>
           )}
+          {activeChart === 'over-time' && <div ref={overTimeTooltipRef} className="chart-tooltip" />}
+          {activeChart === 'value' && <div ref={valueTooltipRef} className="chart-tooltip" />}
         </div>
       </div>
+
+      {isTimeBased && listItems.length > 0 && (
+        <AssetsOverTimeList assets={listItems} onSelectAsset={setDetailAsset} dayContribution={dayContribution} dayPrices={dayPrices} />
+      )}
 
       <div className="dist-section">
         <div className="sec-title">{t.profit_distribution}</div>
@@ -256,7 +509,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
             <span style={{ fontSize: 12 }}>{t.profit_emptyState}</span>
           </div>
         ) : (
-          openPositions.map((p, i) => {
+          openPositions.map(p => {
             const pct = totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0;
             return (
               <div className="bar-row" key={p.coinId}>
@@ -265,13 +518,22 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                   <span className="bar-pct">{pct.toFixed(1)}% — {mask(fmtMoney(p.investedOpen))}</span>
                 </div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${pct.toFixed(1)}%`, background: PALETTE[i % PALETTE.length] }} />
+                  <div className="bar-fill" style={{ width: `${pct.toFixed(1)}%`, background: assetColor(p.coinId, heldCoinIds) }} />
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {detailAssetData && (
+        <AssetDetailChart
+          asset={detailAssetData}
+          dates={timeline.map(tp => tp.date)}
+          fmtMoney={fmtMoney}
+          onClose={() => setDetailAsset(null)}
+        />
+      )}
     </div>
   );
 }

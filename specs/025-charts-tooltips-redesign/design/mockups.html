@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body{margin:0;background:#08080a;font-family:'Inter',sans-serif}
+  h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;margin:0}
+  a{color:#a79bff;text-decoration:none}
+  a:hover{color:#c4bcff}
+  .seg{font:600 11px 'Inter',sans-serif;padding:4px 9px;border-radius:6px;color:#71717a}
+  .seg.on{background:#26262b;color:#f4f4f5}
+</style>
+</helmet>
+
+<div style="padding:56px 64px;color:#f4f4f5">
+  <div style="max-width:560px;margin-bottom:40px">
+    <div style="font:600 12px 'Inter';letter-spacing:.12em;text-transform:uppercase;color:#f97316;margin-bottom:10px">Datum · Exploração</div>
+    <h1 style="font-size:30px;letter-spacing:-.01em;margin-bottom:12px">Gráficos por ativo &amp; tooltips detalhados</h1>
+    <p style="color:#a1a1aa;font-size:14.5px;line-height:1.65;margin:0">Duas frentes. <strong style="color:#f4f4f5">A</strong> — como mostrar a evolução de cada ativo no período. <strong style="color:#f4f4f5">B</strong> — enriquecer o popup de hover dos gráficos de lucro e de valor. Referencie as opções pelo id (ex.: <a href="#1b">1b</a>).</p>
+  </div>
+
+  <!-- ============ TURN 2 — CORREÇÕES ============ -->
+  <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+    <span style="font:700 11px 'Space Grotesk';background:#26262b;color:#a1a1aa;padding:3px 10px;border-radius:20px">Rodada 2</span>
+    <h2 style="font-size:19px">Corrigindo os pontos negativos</h2>
+  </div>
+  <p style="color:#71717a;font-size:13px;max-width:680px;margin:0 0 22px"><a href="#2a">2a</a> resolve a escala do <a href="#1c">1c</a> (eixo duplo + 1 ativo por vez). <a href="#2b">2b</a> resolve o "muitos ativos" do <a href="#1b">1b</a> (lista densa e ordenável). <a href="#2c">2c</a> mostra a composição do dia sem inchar o tooltip — a resposta vive no gráfico de ativos.</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-bottom:52px">
+
+    <!-- 2a -->
+    <div id="2a" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#7c6cf0;color:#0b0b0d;padding:2px 9px;border-radius:6px">2a</span>
+        <h3 style="font-size:15px">Companion de eixo duplo · 1 ativo por vez</h3>
+        <span style="margin-left:auto;font:600 10px 'Inter';color:#7c6cf0;background:rgba(124,108,240,.14);padding:3px 8px;border-radius:20px">corrige 1c</span>
+      </div>
+      <div style="padding:20px">
+        <div style="background:#0b0b0d;border:1px solid #1f1f23;border-radius:12px;padding:16px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font:600 11px 'Inter';color:#a1a1aa">Comparar com:</span>
+            <div style="display:flex;gap:3px;background:#141417;border:1px solid #26262b;border-radius:8px;padding:3px">{{ dualSingle }}</div>
+          </div>
+          {{ chartDual }}
+          <div style="display:flex;gap:18px;margin-top:10px">{{ dualLegend }}</div>
+        </div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0"><strong style="color:#f4f4f5">Eixo esquerdo</strong> = carteira em R$, <strong style="color:#f4f4f5">eixo direito</strong> = ativo em %. Cada escala tem seu próprio range, então a curva do ativo nunca "achata" a da carteira. Seletor é único (radio) — troca o ativo em vez de acumular linhas. Responde "esse movimento veio do BTC?" mantendo tudo num só gráfico.</p>
+      </div>
+    </div>
+
+    <!-- 2b -->
+    <div id="2b" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#2dd4bf;color:#0b0b0d;padding:2px 9px;border-radius:6px">2b</span>
+        <h3 style="font-size:15px">Lista densa ordenável · escala infinita</h3>
+        <span style="margin-left:auto;font:600 10px 'Inter';color:#2dd4bf;background:rgba(45,212,191,.12);padding:3px 8px;border-radius:20px">corrige 1b</span>
+      </div>
+      <div style="padding:20px">
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+          <div style="flex:1;display:flex;align-items:center;gap:8px;background:#141417;border:1px solid #26262b;border-radius:8px;padding:7px 11px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4-4"></path></svg>
+            <span style="font-size:12px;color:#52525b">Buscar ativo…</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;background:#141417;border:1px solid #26262b;border-radius:8px;padding:7px 11px;font-size:12px;color:#a1a1aa">Maior variação <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2.4"><path d="M6 9l6 6 6-6"></path></svg></div>
+        </div>
+        <div style="background:#0b0b0d;border:1px solid #1f1f23;border-radius:12px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:138px 1fr 96px 64px;gap:10px;padding:9px 12px;border-bottom:1px solid #1f1f23;font:600 10px 'Inter';letter-spacing:.06em;text-transform:uppercase;color:#71717a">
+            <span>Ativo</span><span>Período</span><span style="text-align:right">Preço</span><span style="text-align:right">Var.</span>
+          </div>
+          <div style="max-height:198px;overflow-y:auto">{{ listRows }}</div>
+        </div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0">Uma linha por ativo com sparkline — cabem dezenas com rolagem, busca e ordenação (maior variação, alfabético, alocação). Clicar numa linha abre o gráfico grande daquele ativo. Denso e previsível independente de ter 3 ou 30 ativos.</p>
+      </div>
+    </div>
+
+    <!-- 2c -->
+    <div id="2c" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#f97316;color:#0b0b0d;padding:2px 9px;border-radius:6px">2c</span>
+        <h3 style="font-size:15px">Composição do dia — sem inchar o tooltip</h3>
+      </div>
+      <div style="padding:20px">
+        <div style="background:#0b0b0d;border:1px solid #1f1f23;border-radius:12px;padding:18px;display:flex;gap:16px;align-items:center">
+          <div style="flex:1">
+            <div style="font:600 10px 'Inter';letter-spacing:.06em;text-transform:uppercase;color:#71717a;margin-bottom:8px">Gráfico de lucro</div>
+            <div style="width:190px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+              <div style="font-weight:700;font-size:12px;margin-bottom:8px">23 jul 2026</div>
+              <div style="font:700 20px 'Space Grotesk';color:#22c55e">+R$143.28</div>
+              <div style="font-size:11px;color:#22c55e;margin-top:1px">+R$58.90 no dia · +69.8%</div>
+              <div style="font-size:10.5px;color:#52525b;margin-top:8px">2 operações · BTC, ETH</div>
+            </div>
+            <div style="text-align:center;color:#52525b;font-size:11px;margin-top:8px">tooltip enxuto (1d) →</div>
+          </div>
+          <div style="width:1px;align-self:stretch;background:#1f1f23;position:relative">
+            <div style="position:absolute;top:50%;left:-4px;width:9px;height:9px;border-radius:50%;background:#f97316"></div>
+          </div>
+          <div style="flex:1">
+            <div style="font:600 10px 'Inter';letter-spacing:.06em;text-transform:uppercase;color:#71717a;margin-bottom:8px">Gráfico de ativos · 23 jul</div>
+            <div style="background:#141417;border:1px solid #26262b;border-radius:10px;padding:13px 14px">
+              <div style="font-size:11px;color:#a1a1aa;margin-bottom:10px">Contribuição neste dia</div>
+              {{ linkedRows }}
+            </div>
+          </div>
+        </div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0">O tooltip do lucro só cita <em>quais</em> ativos ("BTC, ETH") numa linha. O <strong style="color:#f4f4f5">detalhe</strong> — quanto cada um contribuiu — aparece no componente de ativos, que <strong style="color:#f4f4f5">sincroniza com o dia sob o cursor</strong>. Passar o mouse no gráfico de lucro destaca a composição daquele dia embaixo, sem lotar o popup.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ SECTION A ============ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px">
+    <h2 style="font-size:19px">A · Evolução por ativo no tempo</h2>
+    <span style="color:#71717a;font-size:13px">3 formas de encaixar isso no que já existe</span>
+  </div>
+  <p style="color:#71717a;font-size:13px;max-width:640px;margin:0 0 22px">Hoje a barra de abas tem <span class="seg">By asset</span> <span class="seg">Profit over time</span> <span class="seg">Portfolio value</span>. As opções abaixo diferem em <em>onde</em> o preço de cada ativo aparece.</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- 1a -->
+    <div id="1a" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#f97316;color:#0b0b0d;padding:2px 9px;border-radius:6px">1a</span>
+        <h3 style="font-size:15px">Nova aba "Por ativo no tempo"</h3>
+      </div>
+      <div style="padding:20px">
+        <div style="display:flex;gap:4px;margin-bottom:6px">
+          <span class="seg">By asset</span><span class="seg">Profit over time</span><span class="seg">Portfolio value</span><span class="seg on">Assets over time</span>
+        </div>
+        <div style="background:#0b0b0d;border:1px solid #1f1f23;border-radius:12px;padding:16px 16px 8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font:600 11px 'Inter';letter-spacing:.08em;text-transform:uppercase;color:#71717a">Assets over time · % change</span>
+            <div style="display:flex;gap:3px">{{ segChips }}</div>
+          </div>
+          {{ chartMulti }}
+          <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">{{ legendMulti }}</div>
+        </div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0">Uma linha por ativo, normalizada em % para comparar performance lado a lado. Legenda clicável liga/desliga cada ativo. Reaproveita 100% do padrão de aba existente — zero peso visual novo na tela.</p>
+      </div>
+    </div>
+
+    <!-- 1b -->
+    <div id="1b" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#2dd4bf;color:#0b0b0d;padding:2px 9px;border-radius:6px">1b</span>
+        <h3 style="font-size:15px">Grade de mini-gráficos (small multiples)</h3>
+        <span style="margin-left:auto;font:600 10px 'Inter';color:#2dd4bf;background:rgba(45,212,191,.12);padding:3px 8px;border-radius:20px">recomendado</span>
+      </div>
+      <div style="padding:20px">
+        <div style="font:600 11px 'Inter';letter-spacing:.08em;text-transform:uppercase;color:#71717a;margin-bottom:12px">Assets · último 1M</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">{{ sparkCards }}</div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0">Componente <strong style="color:#f4f4f5">separado</strong>, abaixo do gráfico principal. Cada card = um ativo, com sparkline + variação no período. Clicar expande em gráfico grande. Escala bem para 2 ou 20 ativos e não polui o gráfico de lucro.</p>
+      </div>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="width:600px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#7c6cf0;color:#0b0b0d;padding:2px 9px;border-radius:6px">1c</span>
+        <h3 style="font-size:15px">Seletor sobreposto no gráfico atual</h3>
+      </div>
+      <div style="padding:20px">
+        <div style="background:#0b0b0d;border:1px solid #1f1f23;border-radius:12px;padding:16px">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font:600 11px 'Inter';color:#a1a1aa;padding:4px 0;margin-right:2px">Sobrepor:</span>
+            {{ overlayChips }}
+          </div>
+          {{ chartOverlay }}
+        </div>
+        <p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:14px 0 0">Mantém um único gráfico. Chips ligam a linha de preço de um ativo sobre a curva de lucro/valor (eixo direito). Bom para "esse tombo veio do BTC?". Cuidado: acumula linhas rápido — melhor limitar a 1–2 ativos sobrepostos.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ SECTION B ============ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:56px 0 6px">
+    <h2 style="font-size:19px">B · Tooltip detalhado no hover</h2>
+    <span style="color:#71717a;font-size:13px">resumo do dia, não só um número</span>
+  </div>
+  <p style="color:#71717a;font-size:13px;max-width:660px;margin:0 0 22px">Hoje o popup mostra só data + um valor. As opções somam contexto do dia: variação vs. dia anterior, composição do resultado e o que puxou o número.</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- 1d -->
+    <div id="1d" style="width:560px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#f97316;color:#0b0b0d;padding:2px 9px;border-radius:6px">1d</span>
+        <h3 style="font-size:15px">Lucro — enriquecido compacto</h3>
+      </div>
+      <div style="padding:28px 20px;display:flex;gap:36px;align-items:center;justify-content:center;background:#0b0b0d">
+        <div style="opacity:.35;transform:scale(.9)">
+          <div style="background:#17171a;border:1px solid #26262b;border-radius:8px;padding:8px 10px;font-size:12px">
+            <div style="font-weight:700;margin-bottom:4px">7/23/2026</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#7c6cf0;display:inline-block"></span>R$143.28</div>
+          </div>
+          <div style="text-align:center;color:#52525b;font-size:10px;margin-top:6px">hoje</div>
+        </div>
+        <div style="color:#3f3f46;font-size:22px">→</div>
+        <div>
+          <div style="width:214px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+              <span style="font-weight:700;font-size:12.5px">23 jul 2026</span>
+              <span style="font-size:10.5px;color:#71717a">qui</span>
+            </div>
+            <div style="font:700 22px 'Space Grotesk';color:#22c55e;letter-spacing:-.01em">+R$143.28</div>
+            <div style="font-size:11px;color:#22c55e;margin-top:1px">+R$58.90 no dia · +69.8%</div>
+            <div style="height:1px;background:#26262b;margin:11px 0"></div>
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px"><span style="color:#a1a1aa">Realizado</span><span style="font-weight:600">R$0.00</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px"><span style="color:#a1a1aa">Não realizado</span><span style="font-weight:600;color:#22c55e">+R$143.28</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#a1a1aa">Operações no dia</span><span style="font-weight:600">2</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid #1f1f23"><p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:0">Mesmo tamanho de hoje, muito mais denso: valor grande colorido, delta do dia (R$ e %), e a quebra realizado/não realizado + nº de operações. Cabe sem sair da tela.</p></div>
+    </div>
+
+    <!-- 1e -->
+    <div id="1e" style="width:560px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#2dd4bf;color:#0b0b0d;padding:2px 9px;border-radius:6px">1e</span>
+        <h3 style="font-size:15px">Lucro — com "movers" do dia</h3>
+      </div>
+      <div style="padding:28px 20px;display:flex;justify-content:center;background:#0b0b0d">
+        <div style="width:246px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-weight:700;font-size:12.5px">23 jul 2026</span>
+            <span style="font-size:10.5px;color:#22c55e;background:rgba(34,197,94,.12);padding:2px 7px;border-radius:20px">+69.8%</span>
+          </div>
+          <div style="font:700 22px 'Space Grotesk';color:#22c55e">+R$143.28</div>
+          <div style="font-size:11px;color:#71717a;margin-top:1px">acumulado · +R$58.90 vs. ontem</div>
+          <div style="height:1px;background:#26262b;margin:11px 0"></div>
+          <div style="font:600 10px 'Inter';letter-spacing:.06em;text-transform:uppercase;color:#71717a;margin-bottom:8px">Contribuição no dia</div>
+          {{ moverRows }}
+        </div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid #1f1f23"><p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:0">Além do resumo, mostra quais ativos puxaram o resultado com mini-barras. Responde "de onde veio esse lucro/prejuízo?" direto no hover. Mais alto — some barras só se houver 2+ ativos.</p></div>
+    </div>
+
+    <!-- 1f -->
+    <div id="1f" style="width:560px;background:#101013;border:1px solid #1f1f23;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;border-bottom:1px solid #1f1f23;display:flex;align-items:center;gap:12px">
+        <span style="font:700 12px 'Space Grotesk';background:#7c6cf0;color:#0b0b0d;padding:2px 9px;border-radius:6px">1f</span>
+        <h3 style="font-size:15px">Valor da carteira — investido vs. atual</h3>
+      </div>
+      <div style="padding:28px 20px;display:flex;justify-content:center;background:#0b0b0d">
+        <div style="width:238px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+          <div style="font-weight:700;font-size:12.5px;margin-bottom:10px">15 jul 2026</div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+            <span style="width:9px;height:9px;border-radius:2px;background:#2dd4bf;display:inline-block"></span>
+            <span style="font-size:11px;color:#a1a1aa;flex:1">Valor atual</span>
+            <span style="font:700 13px 'Space Grotesk'">R$165,288.08</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px">
+            <span style="width:9px;height:9px;border-radius:2px;border:1.5px dashed #7c6cf0;display:inline-block"></span>
+            <span style="font-size:11px;color:#a1a1aa;flex:1">Investido</span>
+            <span style="font:600 13px 'Space Grotesk';color:#a1a1aa">R$166,738.66</span>
+          </div>
+          <div style="background:#0f2a24;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:8px 10px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:11px;color:#a1a1aa">Resultado não realizado</span>
+              <span style="font-size:10.5px;color:#ef4444">-0.87%</span>
+            </div>
+            <div style="font:700 16px 'Space Grotesk';color:#ef4444;margin-top:2px">-R$1,450.58</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#71717a;margin-top:10px"><span>Variação no dia</span><span style="color:#22c55e">+R$312.40</span></div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid #1f1f23"><p style="color:#71717a;font-size:12.5px;line-height:1.6;margin:0">Para o gráfico de valor: atual e investido lado a lado (com o mesmo par de cores da legenda) e o P/L não realizado destacado num bloco — o número que o usuário realmente quer ver. Verde/vermelho conforme o sinal.</p></div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:52px;padding:20px 24px;background:#101013;border:1px solid #1f1f23;border-radius:14px;max-width:760px">
+    <h4 style="font-size:13px;color:#f4f4f5;margin-bottom:8px">Minha recomendação</h4>
+    <p style="color:#a1a1aa;font-size:13px;line-height:1.7;margin:0"><a href="#1b">1b</a> (grade de mini-gráficos) como componente separado — não sobrecarrega o gráfico de lucro e escala bem. Para tooltip, <a href="#1d">1d</a> no gráfico de lucro e <a href="#1f">1f</a> no de valor: mesma linguagem, densidade certa. <a href="#1e">1e</a> fica ótimo quando houver múltiplos ativos. Diga qual direção seguir que eu detalho o handoff.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const T={teal:'#2dd4bf',orange:'#f97316',purple:'#7c6cf0',amber:'#eab308',red:'#ef4444',green:'#22c55e',grid:'#1f1f23',mut:'#71717a'};
+
+function norm(data){const mn=Math.min(...data),mx=Math.max(...data),r=(mx-mn)||1;return data.map(v=>(v-mn)/r);}
+function path(data,w,h,pad){const n=data.length,nn=norm(data);return nn.map((v,i)=>{const x=pad+i/(n-1)*(w-2*pad);const y=h-pad-v*(h-2*pad);return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}).join(' ');}
+
+function lineChart(series,opts){
+  const w=opts.w,h=opts.h,pad=opts.pad||10;
+  const grids=[];for(let i=1;i<4;i++){const y=pad+i/4*(h-2*pad);grids.push(React.createElement('line',{key:'g'+i,x1:pad,x2:w-pad,y1:y,y2:y,stroke:T.grid,strokeWidth:1}));}
+  const paths=series.map((s,si)=>React.createElement('path',{key:'p'+si,d:path(s.data,w,h,pad),fill:'none',stroke:s.color,strokeWidth:2,strokeDasharray:s.dashed?'4 4':null,strokeLinejoin:'round',strokeLinecap:'round'}));
+  return React.createElement('svg',{viewBox:'0 0 '+w+' '+h,style:{width:'100%',height:opts.cssH||'auto',display:'block'}},grids,paths);
+}
+
+function sparkCard(s){
+  const first=s.data[0],last=s.data[s.data.length-1],pct=((last-first)/first*100);
+  const up=pct>=0,col=up?T.green:T.red;
+  return React.createElement('div',{key:s.name,style:{background:'#0b0b0d',border:'1px solid #1f1f23',borderRadius:'10px',padding:'12px 13px'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:8}},
+      React.createElement('span',{style:{width:22,height:22,borderRadius:6,background:s.color+'22',color:s.color,display:'flex',alignItems:'center',justifyContent:'center',font:"700 10px 'Space Grotesk'"}},s.name),
+      React.createElement('div',{style:{flex:1}},
+        React.createElement('div',{style:{font:"600 12.5px 'Inter'",color:'#f4f4f5'}},s.full),
+        React.createElement('div',{style:{fontSize:'10.5px',color:T.mut}},s.price)),
+      React.createElement('span',{style:{font:"700 12px 'Space Grotesk'",color:col}},(up?'+':'')+pct.toFixed(1)+'%')),
+    lineChart([{data:s.data,color:col}],{w:240,h:54,pad:4,cssH:'44px'}));
+}
+
+function chip(label,color,on){return React.createElement('span',{key:label,style:{font:"600 11px 'Inter'",padding:'4px 10px',borderRadius:20,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,border:'1px solid '+(on?color:'#26262b'),background:on?color+'1f':'transparent',color:on?color:'#a1a1aa'}},React.createElement('span',{style:{width:7,height:7,borderRadius:'50%',background:color,opacity:on?1:.4}}),label);}
+
+function legendItem(label,color,dashed){return React.createElement('div',{key:label,style:{display:'flex',alignItems:'center',gap:7,fontSize:'11.5px',color:'#a1a1aa'}},React.createElement('span',{style:dashed?{width:14,height:0,borderTop:'2px dashed '+color}:{width:14,height:3,borderRadius:2,background:color}}),label);}
+
+function dualAxis(wallet,asset,assetColor){
+  const w=540,h=182,padL=52,padR=46,padT=14,padB=26;
+  const iw=w-padL-padR,ih=h-padT-padB;
+  const wl=norm(wallet),al=norm(asset);
+  const px=i=>padL+i/(wallet.length-1)*iw;
+  const py=v=>padT+(1-v)*ih;
+  const grids=[],lbl=[];
+  const wmn=Math.min(...wallet),wmx=Math.max(...wallet),amn=Math.min(...asset),amx=Math.max(...asset);
+  for(let i=0;i<4;i++){const y=padT+i/3*ih;grids.push(React.createElement('line',{key:'g'+i,x1:padL,x2:w-padR,y1:y,y2:y,stroke:T.grid,strokeWidth:1}));
+    const wv=wmx-i/3*(wmx-wmn);lbl.push(React.createElement('text',{key:'l'+i,x:padL-6,y:y+3,textAnchor:'end',fontSize:8.5,fill:T.mut},'R$'+(wv/1000).toFixed(1)+'k'));
+    const av=amx-i/3*(amx-amn);lbl.push(React.createElement('text',{key:'r'+i,x:w-padR+6,y:y+3,textAnchor:'start',fontSize:8.5,fill:assetColor,opacity:.85},(av>=0?'+':'')+av.toFixed(0)+'%'));}
+  const wPath=wl.map((v,i)=>(i?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1)).join(' ');
+  const aPath=al.map((v,i)=>(i?'L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1)).join(' ');
+  const area=wPath+' L'+px(wallet.length-1).toFixed(1)+' '+(padT+ih)+' L'+padL+' '+(padT+ih)+' Z';
+  return React.createElement('svg',{viewBox:'0 0 '+w+' '+h,style:{width:'100%',height:'182px',display:'block'}},
+    grids,lbl,
+    React.createElement('path',{d:area,fill:T.teal,opacity:.08}),
+    React.createElement('path',{d:aPath,fill:'none',stroke:assetColor,strokeWidth:2,strokeDasharray:'5 4',strokeLinejoin:'round',strokeLinecap:'round'}),
+    React.createElement('path',{d:wPath,fill:'none',stroke:T.teal,strokeWidth:2.2,strokeLinejoin:'round',strokeLinecap:'round'}));
+}
+
+function listRow(s){
+  const pct=s.data[s.data.length-1];
+  const up=pct>=0,col=up?T.green:T.red;
+  return React.createElement('div',{key:s.name,style:{display:'grid',gridTemplateColumns:'138px 1fr 96px 64px',alignItems:'center',gap:10,padding:'9px 12px',borderBottom:'1px solid #17171a'}},
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
+      React.createElement('span',{style:{width:20,height:20,borderRadius:5,background:s.color+'22',color:s.color,display:'flex',alignItems:'center',justifyContent:'center',font:"700 9px 'Space Grotesk'"}},s.name),
+      React.createElement('span',{style:{font:"600 12.5px 'Inter'",color:'#f4f4f5'}},s.full)),
+    React.createElement('div',{style:{height:26}},lineChart([{data:s.data,color:col}],{w:200,h:26,pad:2,cssH:'26px'})),
+    React.createElement('span',{style:{fontSize:'11.5px',color:'#a1a1aa',textAlign:'right'}},s.price),
+    React.createElement('span',{style:{font:"700 12px 'Space Grotesk'",color:col,textAlign:'right'}},(up?'+':'')+pct.toFixed(1)+'%'));
+}
+
+class Component extends DCLogic{
+  renderVals(){
+    const btc=[0,-1,-2,1,3,-4,-9,-14,-20,-42,-30,-22,-25,-18,-10,-6,-2,4,8,6];
+    const eth=[0,2,1,4,6,3,-2,-6,-3,-8,-2,3,6,9,7,11,14,12,17,20];
+    const sol=[0,-2,-4,-3,-1,2,5,3,8,4,10,14,11,16,20,18,24,28,31,35];
+    const seriesMulti=[{name:'BTC',data:btc,color:T.orange},{name:'ETH',data:eth,color:T.purple},{name:'SOL',data:sol,color:T.teal}];
+
+    const chartMulti=lineChart(seriesMulti,{w:540,h:170,pad:12,cssH:'170px'});
+    const segChips=['1D','1W','1M','1Y','All'].map(l=>React.createElement('span',{key:l,className:'seg'+(l==='1M'?' on':'')},l));
+    const legendMulti=[legendItem('Bitcoin BTC',T.orange),legendItem('Ethereum ETH',T.purple),legendItem('Solana SOL',T.teal)];
+
+    const sparkCards=[
+      sparkCard({name:'BTC',full:'Bitcoin',price:'R$332,150',data:btc.map(v=>100+v),color:T.orange}),
+      sparkCard({name:'ETH',full:'Ethereum',price:'R$18,940',data:eth.map(v=>100+v),color:T.purple}),
+      sparkCard({name:'SOL',full:'Solana',price:'R$1,204',data:sol.map(v=>100+v),color:T.teal}),
+      sparkCard({name:'ADA',full:'Cardano',price:'R$4.82',data:[0,3,5,2,-1,-3,-6,-4,-8,-11,-9,-7,-10,-8,-12,-9,-6,-4,-7,-5].map(v=>100+v),color:T.amber}),
+    ];
+
+    const overlayChips=[chip('BTC',T.orange,true),chip('ETH',T.purple,false),chip('SOL',T.teal,false),chip('ADA',T.amber,false)];
+    const profitCurve=[0,-1,-2,1,-2,-5,-9,-30,-14,-8,-11,-6,-3,-5,-2,2,5,4,8,10];
+    const chartOverlay=React.createElement('div',{style:{position:'relative'}},
+      lineChart([{name:'profit',data:profitCurve,color:T.purple}],{w:540,h:170,pad:12,cssH:'170px'}),
+      React.createElement('div',{style:{position:'absolute',inset:0}},lineChart([{name:'btc',data:btc,color:T.orange}],{w:540,h:170,pad:12,cssH:'170px'})),
+      React.createElement('div',{style:{position:'absolute',top:6,right:8,display:'flex',gap:14}},
+        legendItem('Lucro (R$)',T.purple),legendItem('BTC (%)',T.orange)));
+
+    const movers=[{n:'BTC',c:T.orange,v:'+R$96.10',w:'100%',up:true},{n:'ETH',c:T.purple,v:'+R$47.18',w:'52%',up:true}];
+    const moverRows=movers.map(m=>React.createElement('div',{key:m.n,style:{marginBottom:8}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'11.5px',marginBottom:3}},
+        React.createElement('span',{style:{color:'#a1a1aa'}},m.n),
+        React.createElement('span',{style:{fontWeight:600,color:m.up?T.green:T.red}},m.v)),
+      React.createElement('div',{style:{height:5,background:'#0b0b0d',borderRadius:3,overflow:'hidden'}},
+        React.createElement('div',{style:{height:'100%',width:m.w,background:m.c,borderRadius:3}}))));
+
+    // Turn 2
+    const walletVal=[164100,164050,164200,163900,164000,163850,163700,163600,165900,166100,165800,166000,165700,165900,165600,165800,165300,165500,165200,165288];
+    const btcPct=[0,-1,-2,1,3,-4,-9,-14,-20,-42,-30,-22,-25,-18,-10,-6,-2,4,8,6];
+    const dualSingle=['Nenhum','BTC','ETH','SOL','ADA'].map(l=>React.createElement('span',{key:l,className:'seg'+(l==='BTC'?' on':'')},l));
+    const chartDual=dualAxis(walletVal,btcPct,T.orange);
+    const dualLegend=[legendItem('Valor da carteira (R$)',T.teal),legendItem('BTC (% no período)',T.orange,true)];
+
+    const allAssets=[
+      {name:'BTC',full:'Bitcoin',price:'R$332,150',color:T.orange,data:[0,-1,-2,1,3,-4,-9,-14,-20,-42,-30,-22,-25,-18,-10,-6,-2,4,8,6]},
+      {name:'SOL',full:'Solana',price:'R$1,204',color:T.teal,data:[0,-2,-4,-3,-1,2,5,3,8,4,10,14,11,16,20,18,24,28,31,35]},
+      {name:'ETH',full:'Ethereum',price:'R$18,940',color:T.purple,data:[0,2,1,4,6,3,-2,-6,-3,-8,-2,3,6,9,7,11,14,12,17,20]},
+      {name:'ADA',full:'Cardano',price:'R$4.82',color:T.amber,data:[0,3,5,2,-1,-3,-6,-4,-8,-11,-9,-7,-10,-8,-12,-9,-6,-4,-7,-5]},
+      {name:'LINK',full:'Chainlink',price:'R$92.10',color:'#60a5fa',data:[0,1,3,5,4,7,9,8,12,10,13,11,9,12,10,8,11,9,7,10]},
+      {name:'XRP',full:'Ripple',price:'R$3.18',color:'#f472b6',data:[0,-1,0,2,1,-2,-4,-3,-6,-4,-2,0,-3,-5,-2,1,-1,-4,-6,-3]},
+    ];
+    const listRows=allAssets.map(listRow);
+
+    const dayMovers=[{n:'BTC',c:T.orange,v:'+R$96.10',w:'100%'},{n:'ETH',c:T.purple,v:'+R$47.18',w:'52%'}];
+    const linkedRows=dayMovers.map(m=>React.createElement('div',{key:m.n,style:{marginBottom:9}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'11.5px',marginBottom:4}},
+        React.createElement('span',{style:{color:'#a1a1aa'}},m.n),
+        React.createElement('span',{style:{fontWeight:600,color:T.green}},m.v)),
+      React.createElement('div',{style:{height:5,background:'#0b0b0d',borderRadius:3,overflow:'hidden'}},
+        React.createElement('div',{style:{height:'100%',width:m.w,background:m.c,borderRadius:3}}))));
+
+    return {chartMulti,segChips,legendMulti,sparkCards,overlayChips,chartOverlay,moverRows,dualSingle,chartDual,dualLegend,listRows,linkedRows};
+  }
+}
+</script>
+</body>
+</html>

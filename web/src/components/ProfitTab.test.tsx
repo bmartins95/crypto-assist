@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ProfitTab from './ProfitTab';
 import type { Op } from '@/lib/types';
 import { LocaleProvider } from '@/context/LocaleContext';
@@ -22,6 +22,7 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
   localStorage.removeItem('profit_timeframe');
+  localStorage.removeItem('profit_compare_asset');
 });
 
 // jsdom has no real canvas backend; chart.js itself isn't what we're
@@ -37,12 +38,41 @@ vi.mock('chart.js/auto', () => ({
 }));
 HTMLCanvasElement.prototype.getContext = vi.fn(() => ({})) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
+interface TooltipExternalArg {
+  chart: { canvas: HTMLCanvasElement };
+  tooltip: { opacity: number; dataPoints?: { dataIndex: number; datasetIndex: number }[]; caretX: number; caretY: number };
+}
+
 interface ChartConfig {
-  data: { labels: string[]; datasets: { data: number[]; label?: string }[] };
+  data: { labels: string[]; datasets: { data: number[]; label?: string; yAxisID?: string; pointRadius?: number }[] };
   options: {
-    plugins: { tooltip: { callbacks: { label: (c: { raw: number; dataset: { label: string } }) => string } } };
-    scales: { y: { ticks: { callback: (v: number) => string } } };
+    plugins: {
+      tooltip: {
+        callbacks?: { label: (c: { raw: number; dataset: { label: string } }) => string };
+        external?: (context: TooltipExternalArg) => void;
+      };
+      legend: { display: boolean; position?: string; labels?: { boxWidth: number } };
+    };
+    scales: { y: { ticks: { callback: (v: number) => string } }; y1?: { ticks: { callback: (v: number) => string; color: string } } };
   };
+}
+
+function triggerTooltip(config: ChartConfig, dataIndex: number, datasetIndex = 0): void {
+  act(() => {
+    config.options.plugins.tooltip.external?.({
+      chart: { canvas: document.createElement('canvas') },
+      tooltip: { opacity: 1, dataPoints: [{ dataIndex, datasetIndex }], caretX: 10, caretY: 20 },
+    });
+  });
+}
+
+function hideTooltip(config: ChartConfig): void {
+  act(() => {
+    config.options.plugins.tooltip.external?.({
+      chart: { canvas: document.createElement('canvas') },
+      tooltip: { opacity: 0, caretX: 0, caretY: 0 },
+    });
+  });
 }
 
 function lastChartConfig(): ChartConfig {
@@ -61,9 +91,14 @@ function renderWithLocale(ui: React.ReactElement) {
   return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
-function renderProfitTab(ops: Op[], prices: Record<string, number> = {}, activeChart: 'by-asset' | 'over-time' | 'value' = 'by-asset') {
+function renderProfitTab(
+  ops: Op[],
+  prices: Record<string, number> = {},
+  activeChart: 'by-asset' | 'over-time' | 'value' = 'by-asset',
+  avatarCache: Record<string, { url: string }> = {},
+) {
   return renderWithLocale(
-    <ProfitTab ops={ops} prices={prices} activeChart={activeChart} onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
+    <ProfitTab ops={ops} prices={prices} avatarCache={avatarCache} activeChart={activeChart} onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
   );
 }
 
@@ -136,7 +171,7 @@ describe('ProfitTab', () => {
 
   it('switches the active chart when clicking a chart button', () => {
     const onChartSwitch = vi.fn();
-    renderWithLocale(<ProfitTab ops={[op({})]} prices={{}} activeChart="by-asset" onChartSwitch={onChartSwitch} statusMsg="" onFetchPrices={vi.fn()} />);
+    renderWithLocale(<ProfitTab ops={[op({})]} prices={{}} avatarCache={{}} activeChart="by-asset" onChartSwitch={onChartSwitch} statusMsg="" onFetchPrices={vi.fn()} />);
     fireEvent.click(screen.getByText('Lucro no tempo'));
     expect(onChartSwitch).toHaveBeenCalledWith('over-time');
   });
@@ -169,7 +204,8 @@ describe('ProfitTab', () => {
     const sumChart = config.data.datasets[0].data.reduce((s, v) => s + v, 0);
     // BTC realized -50, LTC unrealized +20 → total -30, matching realized(-50) + unrealized(+20) shown in the metric cards
     expect(sumChart).toBeCloseTo(-30, 2);
-    expect(config.options.plugins.tooltip.callbacks.label({ raw: 30, dataset: { label: '' } })).toContain('30');
+    // the by-asset branch always sets callbacks (only over-time/value use the external tooltip)
+    expect(config.options.plugins.tooltip.callbacks!.label({ raw: 30, dataset: { label: '' } })).toContain('30');
     expect(config.options.scales.y.ticks.callback(30)).toContain('30');
   });
 
@@ -178,7 +214,6 @@ describe('ProfitTab', () => {
     renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
     const config = lastChartConfig();
     expect(config.data.datasets[0].data.length).toBeGreaterThan(0);
-    expect(config.options.plugins.tooltip.callbacks.label({ raw: 50, dataset: { label: '' } })).toContain('50');
     expect(config.options.scales.y.ticks.callback(50)).toContain('50');
   });
 
@@ -187,7 +222,6 @@ describe('ProfitTab', () => {
     renderProfitTab(ops, { bitcoin: 150 }, 'value');
     const config = lastChartConfig();
     expect(config.data.datasets).toHaveLength(2);
-    expect(config.options.plugins.tooltip.callbacks.label({ raw: 150, dataset: { label: 'X' } })).toContain('150');
     expect(config.options.scales.y.ticks.callback(150)).toContain('150');
   });
 
@@ -259,7 +293,7 @@ describe('ProfitTab', () => {
     const destroysBefore = chartMock.destroyCalls;
     rerender(
       <LocaleProvider><BalanceProvider><CurrencyProvider>
-        <ProfitTab ops={[op({ type: 'Buy', qty: 1, price: 100 })]} prices={{ bitcoin: 150 }} activeChart="over-time" onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
+        <ProfitTab ops={[op({ type: 'Buy', qty: 1, price: 100 })]} prices={{ bitcoin: 150 }} avatarCache={{}} activeChart="over-time" onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
       </CurrencyProvider></BalanceProvider></LocaleProvider>
     );
     expect(chartMock.destroyCalls).toBeGreaterThan(destroysBefore);
@@ -287,5 +321,353 @@ describe('ProfitTab', () => {
     renderProfitTab([]);
     expect(screen.getByText(/· EUR/)).toBeInTheDocument();
     expect(screen.queryByText(/· BRL/)).not.toBeInTheDocument();
+  });
+});
+
+function multiAssetOps(): Op[] {
+  return [
+    op({ id: 'b1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', type: 'Buy', qty: 1, price: 100 }),
+    op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+  ];
+}
+
+describe('Per-asset compare overlay (US1)', () => {
+  beforeEach(() => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+  });
+
+  it('does not show the compare control (or an overlay) on the Portfolio-value chart', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'value');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data.length).toBeGreaterThan(0));
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(lastChartConfig().data.datasets).toHaveLength(2);
+  });
+
+  it('shows a "Compare with" control with Nenhum plus one option per held asset', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    expect(screen.getByRole('radio', { name: 'Nenhum' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'ETH' })).toBeInTheDocument();
+  });
+
+  it('selecting an asset adds a dashed overlay dataset on an independent right-hand axis', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => {
+      const config = lastChartConfig();
+      expect(config.data.datasets).toHaveLength(2);
+      expect(config.data.datasets[1].yAxisID).toBe('y1');
+      expect(config.options.scales.y1).toBeDefined();
+      // Plots the asset's absolute price (not a normalized %) — the independent y1 axis is
+      // what solves the scale problem, not normalization — and renders visible point markers
+      // so the user has something to aim for when hovering, not just an invisible line.
+      expect(config.data.datasets[1].data).toEqual([100, 110]);
+      expect(config.data.datasets[1].pointRadius).toBe(3);
+      expect(config.options.scales.y1?.ticks.callback(110)).toContain('110,00');
+    });
+  });
+
+  it('gives the overlay legend the same compact styling as the portfolio-value chart legend', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => {
+      const config = lastChartConfig();
+      expect(config.options.plugins.legend.position).toBe('top');
+      expect(config.options.plugins.legend.labels?.boxWidth).toBe(12);
+    });
+  });
+
+  it('shows an asset-specific tooltip (value, P/L, quantity, prices, acquisitions) when hovering the compare overlay line', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 1, 1);
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toContain('Valor');
+    expect(el?.innerHTML).toContain('110,00'); // position value (1 BTC @ 110) and current price
+    expect(el?.innerHTML).toContain('+10.00%'); // (110 - 100) / 100
+    expect(el?.innerHTML).toContain('Quantidade');
+    expect(el?.innerHTML).toContain('Preço médio');
+    expect(el?.innerHTML).toContain('Preço atual');
+    expect(el?.innerHTML).toContain('100,00'); // avg price (full precision)
+    expect(el?.innerHTML).toContain('Aquisições');
+    const acquisitionRow = el?.querySelector('.tt-acq-row');
+    expect(acquisitionRow?.textContent).toContain('BTC');
+    expect(acquisitionRow?.textContent).toContain('100'); // acquisition unit price (abbreviated)
+    expect(el?.querySelector('.tt-asset-badge')?.textContent).toBe('BTC'); // no cached avatar -> ticker fallback
+    expect(el?.querySelector('.tt-asset-badge img')).toBeNull();
+  });
+
+  it('renders the cached coin logo image in the tooltip header when available', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+    });
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 110 }, 'over-time', { bitcoin: { url: 'https://assets.coingecko.com/btc.png' } });
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 1, 1);
+    const badgeImg = document.querySelector('.tt-asset-badge img');
+    expect(badgeImg).toHaveAttribute('src', 'https://assets.coingecko.com/btc.png');
+  });
+
+  it('shows quantity/avg price as of the hovered date, not today\'s leftover balance', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 120 },
+    });
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 2, price: 100 }),
+      op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 120 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 0, 1); // 2024-01-01, before the sell — both units still held
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toMatch(/2,00\s*BTC/);
+  });
+
+  it('caps the acquisitions list at 4 rows and summarizes the rest', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 100, '2024-01-03': 100, '2024-01-04': 100, '2024-01-05': 100 },
+    });
+    vi.setSystemTime(new Date('2024-01-05T00:00:00Z'));
+    const ops = [
+      ...[1, 2, 3, 4, 5].map(d => op({ id: `b${d}`, date: `2024-01-0${d}`, type: 'Buy', qty: 1, price: 100 })),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 100 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 4, 1); // last day — all 5 acquisitions are on or before it
+    const el = document.querySelector('.chart-tooltip')!;
+    expect(el.querySelectorAll('.tt-acq-row')).toHaveLength(4);
+    expect(el.innerHTML).toContain('+1 mais');
+  });
+
+  it('does not rebuild (re-animate) the chart on hover — only on load or data change', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(50));
+
+    const destroysBefore = chartMock.destroyCalls;
+    triggerTooltip(lastChartConfig(), 0);
+    triggerTooltip(lastChartConfig(), 1);
+    expect(chartMock.destroyCalls).toBe(destroysBefore);
+  });
+
+  it('replaces the overlay (never accumulates) when a different asset is selected', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+    fireEvent.click(screen.getByRole('radio', { name: 'ETH' }));
+    await waitFor(() => {
+      const config = lastChartConfig();
+      expect(config.data.datasets).toHaveLength(2);
+      expect(config.data.datasets[1].label).toContain('ETH');
+    });
+  });
+
+  it('clears the overlay when "Nenhum" is selected', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+    fireEvent.click(screen.getByRole('radio', { name: 'Nenhum' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(1));
+  });
+
+  it('does not add a broken overlay when the compared asset has no price history for the period', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'ETH' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'ETH' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(1));
+  });
+
+  it('persists the compare selection and restores it on remount', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValue({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    const { unmount } = renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(localStorage.getItem('profit_compare_asset')).toBe('bitcoin'));
+    unmount();
+
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toHaveAttribute('aria-checked', 'true'));
+  });
+
+  it('falls back to "Nenhum" when the persisted comparison asset is no longer held', async () => {
+    localStorage.setItem('profit_compare_asset', 'dogecoin');
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 110 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Nenhum' })).toHaveAttribute('aria-checked', 'true'));
+  });
+});
+
+describe('Assets over time list + detail chart (US2 wiring)', () => {
+  it('mounts the asset list below the chart and opens the detail chart on row click', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
+    renderProfitTab([op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bitcoin BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin BTC' }));
+    expect(screen.getByRole('dialog', { name: 'Bitcoin BTC' })).toBeInTheDocument();
+  });
+
+  it('does not show the assets list on the "by-asset" chart mode', () => {
+    renderProfitTab([op({ type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'by-asset');
+    expect(document.querySelector('.assets-list')).not.toBeInTheDocument();
+  });
+
+  it('does not rebuild (re-animate) the main Profit chart when opening the asset detail view', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
+    renderProfitTab([op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'over-time');
+    // Wait for the real historical-price data to land (not just the row appearing, which can
+    // render off the pre-load default) so the destroy count below isn't polluted by that
+    // legitimate, data-driven rebuild racing with the click.
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(10));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bitcoin BTC' })).toBeInTheDocument());
+
+    const destroysBefore = chartMock.destroyCalls;
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin BTC' }));
+    expect(screen.getByRole('dialog', { name: 'Bitcoin BTC' })).toBeInTheDocument();
+    expect(chartMock.destroyCalls).toBe(destroysBefore);
+  });
+});
+
+describe('Enriched profit tooltip (US3)', () => {
+  beforeEach(() => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+  });
+
+  it('shows date/weekday, cumulative profit, day delta, and the realized/unrealized/ops breakdown — with no per-asset text', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(50));
+
+    triggerTooltip(lastChartConfig(), 1);
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toContain('Realizado');
+    expect(el?.innerHTML).toContain('Não realizado');
+    expect(el?.innerHTML).toContain('Operações no dia');
+    expect(el?.innerHTML).toContain('50,00');
+    expect(el?.innerHTML).not.toContain('BTC');
+  });
+
+  it('hides the tooltip when the pointer leaves the chart', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(50));
+
+    triggerTooltip(lastChartConfig(), 1);
+    const el = document.querySelector('.chart-tooltip') as HTMLElement;
+    expect(el.style.opacity).toBe('1');
+    hideTooltip(lastChartConfig());
+    expect(el.style.opacity).toBe('0');
+  });
+
+  it('hovering a day highlights that day\'s per-asset contribution in the asset list', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 60 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 60 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(20));
+
+    triggerTooltip(lastChartConfig(), 1);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).className).toContain('assets-list-row--highlighted'));
+  });
+
+  it('shows each asset\'s price for the hovered day in the asset list, not the live price', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 60 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 999999, ethereum: 999999 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(20));
+    expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).textContent).toMatch(/999\.999,00/);
+
+    triggerTooltip(lastChartConfig(), 1);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).textContent).toMatch(/110,00/);
+      expect(screen.getByRole('button', { name: 'Ethereum ETH' }).textContent).toMatch(/60,00/);
+    });
+  });
+});
+
+describe('Enriched portfolio-value tooltip (US4)', () => {
+  it('shows current value, invested, unrealized result, and day variation', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'value');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(150));
+
+    triggerTooltip(lastChartConfig(), 1);
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toContain('Valor atual');
+    expect(el?.innerHTML).toContain('Investido');
+    expect(el?.innerHTML).toContain('Resultado não realizado');
+    expect(el?.innerHTML).toContain('Variação no dia');
   });
 });

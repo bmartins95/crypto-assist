@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, computeAssetPeriodSeries, computeAssetPositionOnDate, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
 import type { Op, OpClosure } from './types';
 
 function op(overrides: Partial<Op>): Op {
@@ -188,6 +188,157 @@ describe('computeTimeline', () => {
     const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 80 }, ethereum: { '2024-01-02': 80 } };
     const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
     expect(timeline[1].pnl).toBe(-20);
+  });
+
+  it('splits pnl into realizedPnl + unrealizedPnl on every point (sold + open positions)', () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+      op({ id: 'op-3', coinId: 'ethereum', symbol: 'ETH', date: '2024-01-02', type: 'Buy', qty: 1, price: 80 }),
+    ];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 150 }, ethereum: { '2024-01-02': 80, '2024-01-03': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-03');
+    for (const point of timeline) {
+      expect(point.realizedPnl + point.unrealizedPnl).toBeCloseTo(point.pnl);
+    }
+    expect(timeline[2].realizedPnl).toBe(50);
+    expect(timeline[2].unrealizedPnl).toBe(20);
+  });
+
+  it('counts operations dated exactly that day, and 0 on days with none', () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', type: 'Buy', qty: 1, price: 10 }),
+    ];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 }, ethereum: { '2024-01-01': 10 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
+    expect(timeline[0].opsCount).toBe(2);
+    expect(timeline[1].opsCount).toBe(0);
+  });
+
+  it('reports a 0 dayDeltaAbs/dayDeltaPct and no assetContribution on the first point in range, regardless of prior activity', () => {
+    const ops = [op({ date: '2023-12-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2023-12-01': 100, '2024-01-01': 400 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-01');
+    expect(timeline[0].dayDeltaAbs).toBe(0);
+    expect(timeline[0].dayDeltaPct).toBe(0);
+    expect(timeline[0].assetContribution).toEqual([]);
+  });
+
+  it('does not produce NaN% when the previous day pnl was exactly 0', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 100 } };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
+    expect(timeline[0].pnl).toBe(0);
+    expect(timeline[1].dayDeltaPct).toBe(0);
+    expect(Number.isNaN(timeline[1].dayDeltaPct)).toBe(false);
+  });
+
+  it('attributes a day\'s pnl delta to the asset(s) that caused it, sorted by magnitude', () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', coinId: 'ethereum', symbol: 'ETH', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+    ];
+    const historicalPrices = {
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 100, '2024-01-02': 105 },
+    };
+    const timeline = computeTimeline(ops, historicalPrices, '2024-01-01', '2024-01-02');
+    const [top, second] = timeline[1].assetContribution;
+    expect(top.coinId).toBe('bitcoin');
+    expect(top.deltaAbs).toBeCloseTo(10);
+    expect(second.coinId).toBe('ethereum');
+    expect(second.deltaAbs).toBeCloseTo(5);
+  });
+});
+
+describe('computeAssetPeriodSeries', () => {
+  it('normalizes each held asset\'s prices into a % series starting at 0', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 110, '2024-01-03': 90 } };
+    const [series] = computeAssetPeriodSeries(ops, historicalPrices, { bitcoin: 90 }, '2024-01-01', '2024-01-03');
+    expect(series.coinId).toBe('bitcoin');
+    expect(series.series).toEqual([0, 10, -10]);
+    expect(series.pctChange).toBe(-10);
+    expect(series.price).toBe(90);
+    expect(series.priceSeries).toEqual([100, 110, 90]);
+    expect(series.absChange).toBe(-10);
+  });
+
+  it('returns an empty series (not an error) when an asset has no price history in range', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const [series] = computeAssetPeriodSeries(ops, {}, {}, '2024-01-01', '2024-01-03');
+    expect(series.series).toEqual([]);
+    expect(series.priceSeries).toEqual([]);
+    expect(series.pctChange).toBe(0);
+    expect(series.absChange).toBe(0);
+    expect(Number.isNaN(series.pctChange)).toBe(false);
+  });
+
+  it('reports pctChange/absChange 0 (not NaN) for a single-day period', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
+    const [series] = computeAssetPeriodSeries(ops, historicalPrices, { bitcoin: 100 }, '2024-01-01', '2024-01-01');
+    expect(series.series).toEqual([0]);
+    expect(series.pctChange).toBe(0);
+    expect(series.absChange).toBe(0);
+  });
+
+  it('falls back to basePrice (not the raw 0) when the last day is beyond the price-history fallback window', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
+    const [series] = computeAssetPeriodSeries(ops, historicalPrices, { bitcoin: 100 }, '2024-01-01', '2024-01-10');
+    expect(series.priceSeries[series.priceSeries.length - 1]).toBe(0);
+    expect(series.absChange).toBe(0);
+  });
+
+  it('ignores fully-closed positions, same as computePositions', () => {
+    const ops = [
+      op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'op-2', date: '2024-01-02', type: 'Sell', qty: 1, price: 100 }),
+    ];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 100 } };
+    expect(computeAssetPeriodSeries(ops, historicalPrices, {}, '2024-01-01', '2024-01-02')).toHaveLength(0);
+  });
+});
+
+describe('computeAssetPositionOnDate', () => {
+  it('returns the quantity/avg price held as of the given date, ignoring later ops', () => {
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 2, price: 100 }),
+      op({ id: 's1', date: '2024-01-05', type: 'Sell', qty: 1, price: 150 }),
+    ];
+    const before = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-01');
+    expect(before.qty).toBeCloseTo(2);
+    expect(before.avgPrice).toBeCloseTo(100);
+    const after = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-05');
+    expect(after.qty).toBeCloseTo(1);
+  });
+
+  it('lists only acquisitions on or before the date, newest first', () => {
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'b2', date: '2024-01-03', type: 'Buy', qty: 1, price: 110 }),
+      op({ id: 'b3', date: '2024-01-10', type: 'Buy', qty: 1, price: 120 }),
+    ];
+    const { acquisitions } = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-03');
+    expect(acquisitions.map(a => a.id)).toEqual(['b2', 'b1']);
+  });
+
+  it('returns zero qty/avgPrice for a coin with no ops on or before the date', () => {
+    const ops = [op({ id: 'b1', date: '2024-06-01', type: 'Buy', qty: 1, price: 100 })];
+    const position = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-01');
+    expect(position.qty).toBe(0);
+    expect(position.avgPrice).toBe(0);
+    expect(position.acquisitions).toHaveLength(0);
+  });
+
+  it('accounts for closure adjustments in the point-in-time quantity', () => {
+    const btc = op({ id: 'btc', coinId: 'bitcoin', symbol: 'BTC', qty: 1, price: 100, total: 100, date: '2024-01-01' });
+    const sol = op({ id: 'sol', coinId: 'solana', symbol: 'SOL', qty: 5, price: 12, fee: 0, total: 60, date: '2024-02-01' });
+    const closure: OpClosure = { id: 'c1', sourceOpId: 'btc', closingOpId: 'sol', qtyClosed: 0.5, realizedPnl: 10 };
+    const position = computeAssetPositionOnDate([btc, sol], 'bitcoin', '2024-02-01', [closure]);
+    expect(position.qty).toBeCloseTo(0.5);
   });
 });
 

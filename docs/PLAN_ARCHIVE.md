@@ -1050,3 +1050,53 @@ Commits `14749f0`..`754b5fe` (16 commits) on `feat/leverage-custom-input`, [PR #
 - Reopening the drawer after a custom leverage was used shows the remembered value with a "LAST USED" caption and pencil icon, selectable directly or editable via the pencil.
 - Trade rows in History show one Long/Short pill (teal/amber) instead of a Buy/Sell tag plus separate side text; the leverage badge stays orange, recolored to the handoff's exact tokens.
 - `pytest` and `npm test` pass, including new coverage for the custom-leverage states and the Long/Short pill colors.
+
+---
+
+## Item 30 — Per-asset charts & tooltip redesign (design handoff import)
+**Branch:** `feat/charts-tooltips-redesign`
+**Depends on:** item 12 (historical charts + timeframe selector), item 13 (price provider abstraction)
+
+- [x] Done
+
+### Design references
+Claude Design project "Datum Designs" (`claude.ai/design/p/7de25ab4-b495-4062-bdb4-ba8895f54eef`), imported via the `claude_design` MCP across three separate handoff files as the feature evolved through rounds of feedback:
+- `Handoff - Gráficos por Ativo e Tooltips.dc.html` — the original per-asset chart + tooltip redesign brief (compare overlay, asset list, per-asset detail chart, portfolio-wide tooltip treatment).
+- `Handoff - Tooltip Posição por Ativo.dc.html` (target layout "1c — Compact ledger") — replaced an earlier ad-hoc position-tooltip fix with a richer position/P&L/acquisitions ledger.
+- `Handoff - Compare Selector (Pinned + Overflow).dc.html` (target layout "2b") — replaced the unbounded segmented-radio compare selector with a pinned-top-3 + searchable-overflow-menu pattern.
+
+### Current state (before this item)
+`ProfitTab.tsx` rendered three Chart.js canvases switched by `activeChart` (`by-asset` bar chart, `over-time` and `value` line charts, all portfolio-wide) using Chart.js's built-in canvas tooltip with per-chart `tooltip.callbacks.label` formatters. There was no per-asset (single-coin) price/PnL chart anywhere in the app — `WalletTab.tsx` only listed position rows. Tooltip styling was whatever Chart.js rendered by default.
+
+### What shipped
+- **Compare overlay** on the Profit-over-time chart: select one held asset to overlay its absolute price (dashed line, visible point markers, right Y-axis) against the portfolio P/L curve. Persisted per-session, single-select, replaces cleanly. Deliberately *not* added to the Portfolio-value chart — a second independently-scaled line read as noise on a chart already plotting two series.
+- **Asset list** below the chart (`AssetsOverTimeList.tsx`, new): searchable/sortable (biggest movement / alphabetical / allocation), sparklines, day-hover-synced price/change highlighting.
+- **Per-asset detail chart** (`AssetDetailChart.tsx`, new): modal opened from the asset list, its own absolute-price line chart with visible point markers and the real CoinGecko coin logo.
+- **Custom HTML tooltips** (`tooltip.external`, replacing Chart.js's default callbacks) for all three portfolio-wide charts plus a new position/compare-overlay tooltip — shared `.chart-tooltip`/`.tt-*` CSS token family.
+- **Position tooltip**: asset badge (real logo when cached, else ticker-color fallback) + date header, position value + unrealized P/L (%, abbreviated), a quantity/avg-price/current-price stat block, and an acquisitions ledger (capped at 4 rows + "+N mais") — all computed **as of the hovered date**, not today's leftover balance (`computeAssetPositionOnDate`, new in `shared/src/portfolio.ts`).
+- **Compare selector redesign**: fixed-width row (`Nenhum` + top-3 movers by |period % change|, always promoting the active selection in even if it isn't a top mover) plus a searchable, keyboard-navigable overflow menu (`AssetCompareControl.tsx`, rewritten) for the rest — replaces a segmented radio that grew unbounded with wallet size and clipped past ~6 coins.
+- Locale-native abbreviated currency formatting (`fmtCompact`/`fmtMoneyCompact`, `Intl` compact notation) for space-constrained figures.
+
+### Files touched
+- `shared/src/portfolio.ts` — `computeTimeline` extended (`realizedPnl`, `unrealizedPnl`, `dayDeltaAbs/Pct`, `opsCount`, `assetContribution`), `computeAssetPeriodSeries` (per-asset absolute price series), `computeAssetPositionOnDate` (date-scoped position + acquisitions).
+- `shared/src/format.ts` — `fmtCompact`.
+- `shared/src/i18n/types.ts` + all 10 locale files — ~20 new keys (compare selector, position tooltip, asset list).
+- `web/src/components/ProfitTab.tsx` — chart-building effects, tooltip builder functions, compare-overlay wiring (the most heavily modified file across the branch).
+- `web/src/components/AssetCompareControl.tsx` (rewritten), `AssetsOverTimeList.tsx` (new), `AssetDetailChart.tsx` (new) — plus their test files.
+- `web/src/context/CurrencyContext.tsx` — `fmtMoneyCompact`.
+- `web/src/lib/assetColor.ts` (new) — shared per-asset color-cycling, single source of truth across the new components and the existing allocation bars.
+- `web/src/app/globals.css` — `.chart-tooltip`/`.tt-*`, `.compare-control`/`.compare-chip`/`.compare-menu`, `.assets-list-*`, `.asset-detail-*` token families; custom scrollbars matching the existing `.search-dropdown`/`.dd` treatment; custom select chevron matching `.settings-select`.
+- `web/src/router.tsx` — threads `avatarCache` into `ProfitTab`.
+
+### Corrections learned during implementation
+- **Chart re-animation on every hover.** `timeline`/`profitByAsset` were recomputed as fresh array references on every render (including hover-triggered ones) and sat directly in the chart-build `useEffect`'s dependency array; the effect saw "change" on every mouse move and destroyed+recreated the Chart.js instance, replaying the load-in animation. Fixed by wrapping both in `useMemo`, and by depending on primitive/content proxies (`priceSeries.join(',')`, coinId, color) instead of object/array references. The same root cause independently caused `AssetDetailChart.tsx`'s own chart to re-animate on unrelated parent re-renders (e.g. hovering the main chart while its modal was open) — same fix applied there.
+- **Design handoffs superseded earlier ad-hoc fixes twice.** The acquisitions-row layout and the compare selector were each first patched directly from user feedback (two-line acquisition rows; a day-hover highlight badge on compare chips), then later replaced wholesale once a proper design handoff arrived for that exact component. The handoff always won — e.g. the position-tooltip handoff explicitly drops price/delta text from compare chips, superseding the earlier highlight-badge feature entirely.
+- **`position: fixed` + portal desyncs from a scrolling trigger.** The compare-selector's overflow menu was first built portaled to `document.body` with `position: fixed`, coordinates computed once at open time (mirroring the existing `CyclePopover` pattern). Since `fixed` is viewport-relative, the menu stayed put on screen while the page scrolled the trigger out from under it. Fixed by dropping the portal entirely and anchoring the menu with `position: absolute` inside the control itself, so it scrolls naturally with its trigger — no scroll listener needed. This pattern is more correct than `CyclePopover`'s for any trigger that isn't inside a clipping/`overflow-x` ancestor (which is why `CyclePopover` used `fixed` in the first place — the History table's horizontal scroll would otherwise clip it).
+- **Native `<select>` chevron and fixed-size ticker badges are easy to miss in review** since they only visibly break with real data (long tickers like HBAR/USDT, the sort dropdown). The app already had established fixes for both elsewhere (`.settings-select`'s custom SVG chevron, `CoinLogo`'s length-capped fallback) that simply hadn't been applied yet to these newer components.
+
+Commits `e1d2f60`..`ff207f0` (13 commits) on `feat/charts-tooltips-redesign`, [PR #102](https://github.com/bmartins95/crypto-assist/pull/102).
+
+### Done when
+- Compare overlay, asset list, and per-asset detail chart all work and match the imported handoffs.
+- Position tooltip and compare selector match their respective handoffs, including the date-scoped position math and the pinned+overflow interaction.
+- `npm test` (765 tests), `npm run lint`, and `npm run build` all pass.

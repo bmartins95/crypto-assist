@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#050506;font-family:system-ui,-apple-system,sans-serif;color:#e7e7ea}a{color:#2dd4bf}a:hover{color:#5eead4}code{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#17171b;padding:1px 6px;border-radius:4px;color:#c8c8d0}</style>
+</helmet>
+
+<section style="padding:40px;max-width:1000px">
+<div style="font:700 20px 'Space Grotesk'">Handoff — Per-asset charts &amp; richer chart tooltips</div>
+<div style="font-size:13px;color:#8b8b96;margin-top:6px;line-height:1.6">For Claude Code — implementation spec for the Profit / Portfolio value area. Visual mocks live in <b>Gráficos - Ideias por Ativo e Tooltips.dc.html</b>; ids referenced below (2a, 2b, 1d, 1f) point to that file.</div>
+</section>
+
+<section style="padding:0 40px 10px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">SCOPE — 4 pieces</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13.5px;line-height:1.7;color:#c8c8d0">
+<ol style="margin:0;padding-left:20px">
+<li><b>Component A (2a)</b> — dual-axis companion on the existing wallet charts: overlay one asset's price over the wallet curve.</li>
+<li><b>Component B (2b)</b> — a new, separate "Assets over time" component below the main chart: dense, sortable list of every asset with a sparkline.</li>
+<li><b>Profit tooltip</b> — enrich to <b>exactly 1d</b>. Which-assets composition does NOT go in the tooltip; it surfaces in the asset rows of A and B, synced to the hovered day.</li>
+<li><b>Portfolio-value tooltip (1f)</b> — current vs. invested + unrealized P/L.</li>
+</ol>
+</div>
+</section>
+
+<section style="padding:20px 40px 10px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">1. COMPONENT A — Dual-axis companion (ref 2a)</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13.5px;line-height:1.7;color:#c8c8d0">
+<p style="margin:0 0 10px">Lives on the existing <b>Profit over time</b> and <b>Portfolio value</b> charts (same card, not a new tab). Adds a single-select "Compare with:" control that overlays one asset onto the current chart.</p>
+<ul style="margin:0 0 10px;padding-left:20px">
+<li><b>Selector is a radio</b> (segmented): <code>Nenhum · BTC · ETH · SOL · …</code>. One asset at a time — never accumulates lines. Default <code>Nenhum</code> (chart unchanged from today).</li>
+<li><b>Two independent Y axes.</b> Left = wallet series in R$ (profit or value, as today). Right = the selected asset's <b>% change over the period</b>. Each axis scales to its own min/max so the asset curve never flattens the wallet curve. This is the fix for the scale problem.</li>
+<li><b>Styling:</b> wallet line keeps its current color/area (teal on value, periwinkle on profit). Asset overlay = <b>dashed</b> line in that asset's brand color. Legend shows both, with the asset entry labeled "(% no período)".</li>
+<li>Right-axis ticks are tinted in the asset color so it's obvious which axis is which.</li>
+</ul>
+<p style="margin:0"><b>Persistence:</b> remember the last compared asset per chart (nice-to-have, not required).</p>
+</div>
+</section>
+
+<section style="padding:20px 40px 10px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">2. COMPONENT B — Assets over time list (ref 2b)</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13.5px;line-height:1.7;color:#c8c8d0">
+<p style="margin:0 0 10px">A <b>separate component below the main chart</b>. Replaces the "small multiples" idea — a card grid didn't scale past a handful of assets; this list does.</p>
+<ul style="margin:0 0 10px;padding-left:20px">
+<li><b>One row per asset:</b> icon badge + name · sparkline (period) · price · period % change (green/red).</li>
+<li><b>Header controls:</b> search box + sort dropdown (biggest movement / alphabetical / allocation). Rows scroll inside a fixed-height container — handles 3 or 30+ assets identically.</li>
+<li><b>Row click</b> opens that asset's full chart (or drives Component A's selector to that asset — your call; both are fine).</li>
+<li>Period follows the same <code>1D/1W/1M/1Y/All</code> range control as the main chart.</li>
+</ul>
+<p style="margin:0"><b>Note:</b> sparkline % is the last point of the cumulative %-change series (not delta of first/last — first is 0).</p>
+</div>
+</section>
+
+<section style="padding:20px 40px 10px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">3. PROFIT TOOLTIP — enrich to exactly 1d</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13.5px;line-height:1.7;color:#c8c8d0;margin-bottom:16px">
+<p style="margin:0 0 10px">On hover over a day in the Profit chart, replace today's single-line popup with the 1d layout. <b>Keep it to exactly these fields — do NOT list assets in the tooltip.</b></p>
+<ul style="margin:0 0 10px;padding-left:20px">
+<li>Date header (e.g. <code>23 jul 2026</code>) + weekday.</li>
+<li>Cumulative profit, large, colored green/red (e.g. <code>+R$143.28</code>).</li>
+<li>Day delta: R$ vs. previous point + % (e.g. <code>+R$58.90 no dia · +69.8%</code>).</li>
+<li>Divider, then rows: <code>Realizado</code>, <code>Não realizado</code>, <code>Operações no dia</code>.</li>
+</ul>
+<p style="margin:0"><b>Which assets composed the value</b> is answered in the asset rows of Component A &amp; B, <b>synced to the hovered day</b>: hovering a day highlights that day and the asset rows show that day's per-asset contribution. This keeps the tooltip lean (2c decision).</p>
+</div>
+<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px">
+<div style="font-size:12px;color:#8b8b96;font-weight:600;margin-bottom:12px">1d — Profit tooltip (target)</div>
+<div style="width:214px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px"><span style="font-weight:700;font-size:12.5px">23 jul 2026</span><span style="font-size:10.5px;color:#71717a">qui</span></div>
+<div style="font:700 22px 'Space Grotesk';color:#22c55e;letter-spacing:-.01em">+R$143.28</div>
+<div style="font-size:11px;color:#22c55e;margin-top:1px">+R$58.90 no dia · +69.8%</div>
+<div style="height:1px;background:#26262b;margin:11px 0"></div>
+<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px"><span style="color:#a1a1aa">Realizado</span><span style="font-weight:600">R$0.00</span></div>
+<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px"><span style="color:#a1a1aa">Não realizado</span><span style="font-weight:600;color:#22c55e">+R$143.28</span></div>
+<div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:#a1a1aa">Operações no dia</span><span style="font-weight:600">2</span></div>
+</div>
+</div>
+</div>
+</section>
+
+<section style="padding:20px 40px 40px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">4. PORTFOLIO-VALUE TOOLTIP (ref 1f)</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13.5px;line-height:1.7;color:#c8c8d0;margin-bottom:16px">
+<p style="margin:0 0 10px">On the Portfolio-value chart, the hover popup shows both series plus the derived P/L:</p>
+<ul style="margin:0;padding-left:20px">
+<li><b>Valor atual</b> — teal solid swatch, R$.</li>
+<li><b>Investido</b> — periwinkle dashed swatch, R$ (muted text).</li>
+<li>Highlighted block: <b>Resultado não realizado</b> = atual − investido, in R$ and %, colored green/red.</li>
+<li><b>Variação no dia</b> row at the bottom.</li>
+</ul>
+</div>
+<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px">
+<div style="font-size:12px;color:#8b8b96;font-weight:600;margin-bottom:12px">1f — Portfolio-value tooltip (target)</div>
+<div style="width:238px;background:#141417;border:1px solid #2a2a30;border-radius:10px;padding:12px 14px;box-shadow:0 12px 34px rgba(0,0,0,.5)">
+<div style="font-weight:700;font-size:12.5px;margin-bottom:10px">15 jul 2026</div>
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px"><span style="width:9px;height:9px;border-radius:2px;background:#2dd4bf;display:inline-block"></span><span style="font-size:11px;color:#a1a1aa;flex:1">Valor atual</span><span style="font:700 13px 'Space Grotesk'">R$165,288.08</span></div>
+<div style="display:flex;align-items:center;gap:7px;margin-bottom:10px"><span style="width:9px;height:9px;border-radius:2px;border:1.5px dashed #7c6cf0;display:inline-block"></span><span style="font-size:11px;color:#a1a1aa;flex:1">Investido</span><span style="font:600 13px 'Space Grotesk';color:#a1a1aa">R$166,738.66</span></div>
+<div style="background:#0f2a24;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:8px 10px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;color:#a1a1aa">Resultado não realizado</span><span style="font-size:10.5px;color:#ef4444">-0.87%</span></div>
+<div style="font:700 16px 'Space Grotesk';color:#ef4444;margin-top:2px">-R$1,450.58</div>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:11px;color:#71717a;margin-top:10px"><span>Variação no dia</span><span style="color:#22c55e">+R$312.40</span></div>
+</div>
+</div>
+</div>
+</section>
+
+<section style="padding:0 40px 48px;max-width:1000px">
+<div style="font:600 13px 'Space Grotesk';color:#6f6f7a;letter-spacing:.5px;margin-bottom:10px">5. COLOR TOKENS</div>
+<div style="background:#0a0a0c;border:1px solid #1e1e26;border-radius:12px;padding:20px;font-size:13px;line-height:1.9;color:#c8c8d0">
+<div>Wallet value / accent teal — <code>#2dd4bf</code> · Invested / profit line periwinkle — <code>#7c6cf0</code></div>
+<div>Asset overlay colors — BTC <code>#f97316</code> · ETH <code>#7c6cf0</code> · SOL <code>#2dd4bf</code> · ADA <code>#eab308</code> (brand color per asset)</div>
+<div>Positive — <code>#22c55e</code> · Negative — <code>#ef4444</code> · Muted text — <code>#71717a</code> / <code>#a1a1aa</code></div>
+<div>Tooltip surface — <code>#141417</code>, border <code>#2a2a30</code> · Chart bg — <code>#0b0b0d</code> · Card — <code>#101013</code>, border <code>#1f1f23</code> · Grid lines — <code>#1f1f23</code></div>
+</div>
+</section>
+</x-dc>
+</body>
+</html>

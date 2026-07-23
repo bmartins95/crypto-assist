@@ -169,6 +169,12 @@ Done/won't-do items are condensed to a one-line pointer here — full spec text,
 
 ---
 
+## Item 30 — Per-asset charts & tooltip redesign (design handoff import)
+
+**Branch:** `feat/charts-tooltips-redesign` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-30--per-asset-charts--tooltip-redesign-design-handoff-import)
+
+---
+
 ## Item 19 — New investment types (Phase 1: Brazilian stocks)
 **Branch:** `feat/br-stocks`
 **Depends on:** items 4, 10, 13 (i18n, USD prices, provider abstraction)

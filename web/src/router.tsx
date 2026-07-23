@@ -161,7 +161,7 @@ function ProfitRoute() {
   return (
     <div className="app content-enter">
       <ProfitTab
-        ops={p.usdOps} closures={p.closures} prices={p.prices}
+        ops={p.usdOps} closures={p.closures} prices={p.prices} avatarCache={p.avatarCache}
         activeChart={p.activeChart} onChartSwitch={p.setActiveChart}
         statusMsg={p.statusMsg} onFetchPrices={p.fetchPrices}
       />
