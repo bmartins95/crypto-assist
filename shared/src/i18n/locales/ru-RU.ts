@@ -110,6 +110,7 @@ const ruRU: UIText = {
   wallet_estimated_pnl: 'Расчётная прибыль/убыток (относительно средней цены)',
   trade_close_locked_hint_short: 'Шорт-позицию можно закрыть только покупкой',
   trade_close_locked_hint_long: 'Лонг-позицию можно закрыть только продажей',
+  trade_close_available: 'Осталось закрыть: {qty} {symbol}',
   history_edit_impact_title: 'Это повлияет на последующие операции',
   history_edit_impact_message: 'Это изменение повлияет на {count} последующих операций — баланс и P/L будут пересчитаны.',
   history_delete_impact_message: 'Удаление повлияет на {count} последующих операций — баланс и P/L будут пересчитаны.',

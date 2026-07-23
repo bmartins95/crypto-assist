@@ -110,6 +110,7 @@ const deDE: UIText = {
   wallet_estimated_pnl: 'Geschätzter G/V (vs. Durchschnittskosten)',
   trade_close_locked_hint_short: 'Eine Short-Position kann nur mit einem Kauf geschlossen werden',
   trade_close_locked_hint_long: 'Eine Long-Position kann nur mit einem Verkauf geschlossen werden',
+  trade_close_available: 'Verbleibend zum Schließen: {qty} {symbol}',
   history_edit_impact_title: 'Dies betrifft spätere Operationen',
   history_edit_impact_message: 'Diese Änderung betrifft {count} spätere Operation(en) — Saldo und G/V werden neu berechnet.',
   history_delete_impact_message: 'Das Löschen betrifft {count} spätere Operation(en) — Saldo und G/V werden neu berechnet.',

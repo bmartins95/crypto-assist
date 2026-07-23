@@ -771,6 +771,9 @@ export default function OpDrawer({
                       <span className="field-error">{t.history_form_enterQuantity}</span>
                     ) : submitAttempted && qtyExceedsRemaining ? (
                       <span className="field-error">{t.history_form_qtyExceedsRemaining.replace('{qty}', fmtQty(remainingQty, locale))}</span>
+                    ) : closingOp ? (
+                      <BalanceHint qty={remainingQty} symbol={closingOp.symbol} over={qtyExceedsRemaining}
+                        label={t.trade_close_available} onMax={() => setQty(String(remainingQty))} />
                     ) : walletBalance ? (
                       <BalanceHint qty={walletBalance.availableQty} symbol={coin?.symbol ?? ''} over={walletOverBalance}
                         onMax={() => setQty(String(walletBalance.availableQty))} />

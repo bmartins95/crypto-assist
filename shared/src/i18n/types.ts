@@ -122,6 +122,7 @@ export interface UIText {
   wallet_estimated_pnl: string;
   trade_close_locked_hint_short: string;
   trade_close_locked_hint_long: string;
+  trade_close_available: string;
   history_edit_impact_title: string;
   history_edit_impact_message: string;
   history_delete_impact_message: string;
