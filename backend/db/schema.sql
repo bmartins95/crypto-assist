@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS ops (
 
 CREATE INDEX IF NOT EXISTS ops_user_id_idx ON ops(user_id);
 CREATE INDEX IF NOT EXISTS ops_date_idx    ON ops(date);
-CREATE INDEX IF NOT EXISTS ops_trade_group_id_idx ON ops(trade_group_id);
+-- trade_group_id's index is created by migrations/013_trade_group_id.sql, not here:
+-- CREATE TABLE IF NOT EXISTS never adds the column to a pre-existing ops table, so
+-- an unconditional index on it here would fail with UndefinedColumn before
+-- migrations (which run after schema.sql) ever get a chance to add the column.
 
 CREATE TABLE IF NOT EXISTS op_closures (
     id             uuid           PRIMARY KEY DEFAULT gen_random_uuid(),

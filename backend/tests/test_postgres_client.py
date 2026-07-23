@@ -156,6 +156,22 @@ def test_run_migrations_skips_a_python_migration_already_applied(tmp_path):
     conn.migration_marker.assert_not_called()
 
 
+def test_schema_sql_never_unconditionally_indexes_a_migration_owned_column():
+    # Reproduces the 2026-07-23 dev incident: schema.sql's CREATE TABLE IF NOT
+    # EXISTS is a no-op on a pre-existing ops table, so an unconditional
+    # CREATE INDEX on trade_group_id (a column only added by
+    # migrations/013_trade_group_id.sql) raised UndefinedColumn on any
+    # environment where the table predates that migration — and since
+    # _ensure_schema always runs before _run_migrations in get_conn(), the
+    # migration that would add the column never got a chance to run either,
+    # permanently 500ing every DB-touching endpoint. Migration 013 already
+    # creates this same index itself.
+    schema_sql = (
+        postgres_client.Path(__file__).parent.parent / "db" / "schema.sql"
+    ).read_text()
+    assert "ops_trade_group_id_idx" not in schema_sql
+
+
 def test_get_conn_releases_lock_and_reraises_on_schema_failure(monkeypatch):
     conn, cur = _make_conn()
     monkeypatch.setattr(postgres_client, "_connect", lambda: conn)
