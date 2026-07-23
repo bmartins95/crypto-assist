@@ -127,6 +127,9 @@ export interface UIText {
   history_delete_impact_message: string;
   history_negative_balance_error: string;
   history_edit_impact_confirm: string;
+  history_delete_confirm_title: string;
+  history_delete_confirm_message: string;
+  history_delete_confirm_checkbox: string;
   cycle_tag_aria: string;
   cycle_header: string;
   cycle_status_partial: string;

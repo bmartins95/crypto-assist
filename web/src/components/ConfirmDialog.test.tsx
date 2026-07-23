@@ -69,4 +69,24 @@ describe('ConfirmDialog', () => {
     render(<ConfirmDialog {...baseProps} open onConfirm={() => {}} onCancel={() => {}} />);
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cancelar' }));
   });
+
+  it('renders no checkbox when checkboxLabel is omitted', () => {
+    render(<ConfirmDialog {...baseProps} open onConfirm={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('renders a checkbox with the given label and checked state when checkboxLabel is provided', () => {
+    render(<ConfirmDialog {...baseProps} open onConfirm={() => {}} onCancel={() => {}}
+      checkboxLabel="Não perguntar novamente" checkboxChecked onCheckboxChange={() => {}} />);
+    const checkbox = screen.getByRole('checkbox', { name: 'Não perguntar novamente' });
+    expect(checkbox).toBeChecked();
+  });
+
+  it('calls onCheckboxChange with the new checked state when the checkbox is toggled', () => {
+    const onCheckboxChange = vi.fn();
+    render(<ConfirmDialog {...baseProps} open onConfirm={() => {}} onCancel={() => {}}
+      checkboxLabel="Não perguntar novamente" checkboxChecked={false} onCheckboxChange={onCheckboxChange} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Não perguntar novamente' }));
+    expect(onCheckboxChange).toHaveBeenCalledWith(true);
+  });
 });

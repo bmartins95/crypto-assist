@@ -833,6 +833,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .confirm-dialog-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
 .confirm-dialog-msg { font-size: 13px; color: var(--s-text-muted); line-height: 1.5; }
+.confirm-dialog-checkbox {
+  display: flex; align-items: center; gap: 8px; margin-top: 16px;
+  font-size: 13px; color: var(--s-text-muted); cursor: pointer;
+}
+.confirm-dialog-checkbox input { cursor: pointer; }
 .confirm-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 /* â”€â”€ App shell / collapsible sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

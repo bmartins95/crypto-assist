@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import HistoryTab from './HistoryTab';
 import type { Op } from '@/lib/types';
 import { fmtDate } from '@/lib/format';
@@ -137,12 +137,55 @@ describe('HistoryTab', () => {
     expect(screen.getByText('Compra · Long')).toBeInTheDocument();
   });
 
-  it('calls onRemoveOp when clicking the delete button on a row', () => {
+  it('shows a plain confirmation before deleting an operation with no wallet impact', () => {
+    const onRemoveOp = vi.fn(async () => {});
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getByTitle('Excluir'));
+    expect(onRemoveOp).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Excluir operação?');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Excluir' }));
+    expect(onRemoveOp).toHaveBeenCalledWith('op-1');
+  });
+
+  it('cancelling the plain delete confirmation does not call onRemoveOp', () => {
+    const onRemoveOp = vi.fn(async () => {});
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getByTitle('Excluir'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onRemoveOp).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it("checking \"don't ask again\" and confirming persists the preference and skips the dialog on the next delete", async () => {
+    const onRemoveOp = vi.fn(async () => {});
+    // A different coin, so deleting either has zero wallet impact on the other — this
+    // must stay on the plain-confirm path, not the wallet-impact one (which is never
+    // silenced by the opt-out).
+    const day2: Op = { ...existingOp, id: 'op-2', date: '2024-01-16', coinId: 'ethereum', symbol: 'ETH' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp, day2]} onRemoveOp={onRemoveOp} />);
+    fireEvent.click(screen.getAllByTitle('Excluir')[0]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Não perguntar novamente' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Excluir' }));
+    expect(onRemoveOp).toHaveBeenCalledWith('op-1');
+    // confirmPendingAction is async (awaits onRemoveOp before clearing pendingAction) —
+    // wait for that to fully settle so the skip-preference state update has flushed
+    // before asserting on it or triggering the next delete.
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(localStorage.getItem('crypto-assist:skip-delete-confirm')).toBe('1');
+
+    fireEvent.click(screen.getAllByTitle('Excluir')[1]);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(onRemoveOp).toHaveBeenCalledWith('op-2');
+  });
+
+  it('deletes instantly with no dialog when skip-delete-confirm is already set', () => {
+    localStorage.setItem('crypto-assist:skip-delete-confirm', '1');
     const onRemoveOp = vi.fn(async () => {});
     renderWithLocale(<HistoryTab {...baseProps} ops={[existingOp]} onRemoveOp={onRemoveOp} />);
     fireEvent.click(screen.getByTitle('Excluir'));
     expect(onRemoveOp).toHaveBeenCalledWith('op-1');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
   it('opens the drawer pre-filled when clicking a row\'s edit icon', () => {
@@ -486,7 +529,7 @@ describe('HistoryTab', () => {
       expect(onEditOp).toHaveBeenCalledWith('buy-1', expect.objectContaining({ price: 999 }));
     });
 
-    it('skips the wallet-impact check entirely for a trade op (edit/delete proceed with no dialog)', () => {
+    it('skips the wallet-impact check entirely for a trade op (edit proceeds with no dialog; delete gets the plain confirmation, not the impact one)', () => {
       const onEditOp = vi.fn();
       const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} onEditOp={onEditOp} onRemoveOp={onRemoveOp} />);
@@ -494,8 +537,11 @@ describe('HistoryTab', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       fireEvent.click(document.querySelector('.drawer-foot .btn')!);
       fireEvent.click(screen.getByTitle('Excluir'));
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toHaveTextContent('Excluir operação?');
+      expect(dialog).not.toHaveTextContent('operação(ões) posterior(es)');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Excluir' }));
       expect(onRemoveOp).toHaveBeenCalledWith('trade-1');
-      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
   });
 
@@ -517,6 +563,7 @@ describe('HistoryTab', () => {
       const onRemoveOp = vi.fn(async () => {});
       renderWithLocale(<HistoryTab {...baseProps} ops={[swapSell, swapBuy]} onRemoveOp={onRemoveOp} />);
       fireEvent.click(screen.getByTitle('Excluir'));
+      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Excluir' }));
       expect(onRemoveOp).toHaveBeenCalledWith('swap-sell');
     });
 

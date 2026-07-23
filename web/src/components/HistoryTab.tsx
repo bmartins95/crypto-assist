@@ -27,6 +27,7 @@ interface Props {
 }
 
 const DETAIL_COL_SPAN = 7;
+const SKIP_DELETE_CONFIRM_KEY = 'crypto-assist:skip-delete-confirm';
 
 interface SwapPair { sell: Op; buy: Op }
 type HistoryRow = Op | SwapPair;
@@ -97,6 +98,8 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     | { kind: 'delete'; id: string; affectedCount: number }
     | null
   >(null);
+  const [skipDeleteConfirm, setSkipDeleteConfirm] = useState(() => localStorage.getItem(SKIP_DELETE_CONFIRM_KEY) === '1');
+  const [dontAskAgain, setDontAskAgain] = useState(false);
   const { resolveOpPlatform } = usePlatformCatalog();
 
   const platformAssets = useMemo(() => computePositionsByAssetAndPlatform(ops, closures), [ops, closures]);
@@ -159,13 +162,26 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
     const { verdict, affectedCount } = checkWalletImpact(o.id, null);
     if (verdict === 'blocked') { showToast('error', t.history_negative_balance_error); return; }
     if (verdict === 'confirm') { setPendingAction({ kind: 'delete', id: o.id, affectedCount }); return; }
-    // AppLayout's removeOp already shows its own error toast on failure — this only
-    // exists so a rejection here doesn't surface as an unhandled promise rejection.
-    onRemoveOp(o.id).catch(() => {});
+    if (skipDeleteConfirm) {
+      // AppLayout's removeOp already shows its own error toast on failure — this only
+      // exists so a rejection here doesn't surface as an unhandled promise rejection.
+      onRemoveOp(o.id).catch(() => {});
+      return;
+    }
+    setDontAskAgain(false);
+    setPendingAction({ kind: 'delete', id: o.id, affectedCount: 0 });
   };
 
   const confirmPendingAction = async () => {
     if (!pendingAction) return;
+    // A plain delete confirmation (affectedCount === 0) is the generic "are you sure"
+    // safety net (spec: this item) — the wallet-impact "confirm" case always carries
+    // fresh, specific information (how many later ops are affected) and must never be
+    // silenced by the opt-out, so persistence only applies here.
+    if (pendingAction.kind === 'delete' && pendingAction.affectedCount === 0 && dontAskAgain) {
+      localStorage.setItem(SKIP_DELETE_CONFIRM_KEY, '1');
+      setSkipDeleteConfirm(true);
+    }
     try {
       if (pendingAction.kind === 'edit') {
         await onEditOp(pendingAction.id, pendingAction.op);
@@ -367,13 +383,20 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
       <ConfirmDialog
         open={!!pendingAction}
-        title={t.history_edit_impact_title}
-        message={(pendingAction?.kind === 'delete' ? t.history_delete_impact_message : t.history_edit_impact_message)
-          .replace('{count}', String(pendingAction?.affectedCount ?? 0))}
-        confirmLabel={t.history_edit_impact_confirm}
+        title={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_delete_confirm_title : t.history_edit_impact_title}
+        message={
+          pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0
+            ? t.history_delete_confirm_message
+            : (pendingAction?.kind === 'delete' ? t.history_delete_impact_message : t.history_edit_impact_message)
+                .replace('{count}', String(pendingAction?.affectedCount ?? 0))
+        }
+        confirmLabel={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_form_delete : t.history_edit_impact_confirm}
         cancelLabel={t.common_cancel}
         onConfirm={confirmPendingAction}
         onCancel={() => setPendingAction(null)}
+        checkboxLabel={pendingAction?.kind === 'delete' && pendingAction.affectedCount === 0 ? t.history_delete_confirm_checkbox : undefined}
+        checkboxChecked={dontAskAgain}
+        onCheckboxChange={setDontAskAgain}
       />
     </div>
   );
