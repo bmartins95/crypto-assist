@@ -333,6 +333,10 @@ const zhCN: UIText = {
   profit_tooltip_dayVariation: '当日变动',
   profit_tooltip_avgPrice: '平均价格',
   profit_tooltip_acquisitions: '购入记录',
+  profit_tooltip_positionValue: '价值',
+  profit_tooltip_quantity: '数量',
+  profit_tooltip_currentPrice: '当前价格',
+  profit_tooltip_moreAcquisitions: '还有{count}项',
 };
 
 export default zhCN;

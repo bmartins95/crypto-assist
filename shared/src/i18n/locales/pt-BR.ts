@@ -333,6 +333,10 @@ const ptBR: UIText = {
   profit_tooltip_dayVariation: 'Variação no dia',
   profit_tooltip_avgPrice: 'Preço médio',
   profit_tooltip_acquisitions: 'Aquisições',
+  profit_tooltip_positionValue: 'Valor',
+  profit_tooltip_quantity: 'Quantidade',
+  profit_tooltip_currentPrice: 'Preço atual',
+  profit_tooltip_moreAcquisitions: '+{count} mais',
 };
 
 export default ptBR;

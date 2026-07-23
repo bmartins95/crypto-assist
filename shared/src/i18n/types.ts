@@ -345,4 +345,8 @@ export interface UIText {
   profit_tooltip_dayVariation: string;
   profit_tooltip_avgPrice: string;
   profit_tooltip_acquisitions: string;
+  profit_tooltip_positionValue: string;
+  profit_tooltip_quantity: string;
+  profit_tooltip_currentPrice: string;
+  profit_tooltip_moreAcquisitions: string;
 }

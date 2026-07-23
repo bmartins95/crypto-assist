@@ -333,6 +333,10 @@ const esES: UIText = {
   profit_tooltip_dayVariation: 'Variación del día',
   profit_tooltip_avgPrice: 'Precio promedio',
   profit_tooltip_acquisitions: 'Adquisiciones',
+  profit_tooltip_positionValue: 'Valor',
+  profit_tooltip_quantity: 'Cantidad',
+  profit_tooltip_currentPrice: 'Precio actual',
+  profit_tooltip_moreAcquisitions: '+{count} más',
 };
 
 export default esES;

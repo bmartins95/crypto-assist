@@ -333,6 +333,10 @@ const hiIN: UIText = {
   profit_tooltip_dayVariation: 'दिन का बदलाव',
   profit_tooltip_avgPrice: 'औसत मूल्य',
   profit_tooltip_acquisitions: 'अधिग्रहण',
+  profit_tooltip_positionValue: 'मूल्य',
+  profit_tooltip_quantity: 'मात्रा',
+  profit_tooltip_currentPrice: 'वर्तमान मूल्य',
+  profit_tooltip_moreAcquisitions: '+{count} और',
 };
 
 export default hiIN;

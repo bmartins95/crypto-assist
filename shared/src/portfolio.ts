@@ -285,6 +285,32 @@ export function computeTimeline(
   return result;
 }
 
+export interface AssetPositionAtDate {
+  qty: number;
+  avgPrice: number;
+  acquisitions: Op[];
+}
+
+// Point-in-time position (as of `date`, inclusive) for one asset — used by the per-asset
+// hover tooltip, where the quantity/avg-price shown must reflect what was held on that day,
+// not today's holdings. Mirrors computeTimeline's applyOpToHoldings walk, scoped to one coin.
+export function computeAssetPositionOnDate(ops: Op[], coinId: string, date: string, closures: OpClosure[] = []): AssetPositionAtDate {
+  const holdings: Record<string, { qty: number; avgCost: number }> = {};
+  withClosureAdjustments(walletOnly(ops), closures)
+    .filter(o => o.coinId === coinId && o.date && o.date <= date)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    .forEach(o => applyOpToHoldings(holdings, o));
+  const h = holdings[coinId];
+  const acquisitions = ops
+    .filter(o => o.coinId === coinId && o.type === 'Buy' && (o.kind ?? 'wallet') === 'wallet' && o.date && o.date <= date)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return {
+    qty: h ? +h.qty.toFixed(10) : 0,
+    avgPrice: h?.avgCost ?? 0,
+    acquisitions,
+  };
+}
+
 export interface AssetPeriodSeries {
   coinId: string;
   symbol: string;

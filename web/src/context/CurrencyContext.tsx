@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { Currency, ExchangeRates } from '@crypto-assist/shared';
-import { fmt } from '@crypto-assist/shared';
+import { fmt, fmtCompact } from '@crypto-assist/shared';
 import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 
@@ -18,6 +18,7 @@ interface CurrencyContextValue {
   rates: ExchangeRates | null;
   ratesStatus: RatesStatus;
   fmtMoney: (usdValue: number) => string;
+  fmtMoneyCompact: (usdValue: number) => string;
   fmtFromCurrency: (value: number, from: Currency) => string;
 }
 
@@ -74,13 +75,18 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }): R
     return fmt(usdValue * rates[currency], locale, currency);
   }
 
+  function fmtMoneyCompact(usdValue: number): string {
+    if (!rates) return '—';
+    return fmtCompact(usdValue * rates[currency], locale, currency);
+  }
+
   function fmtFromCurrency(value: number, from: Currency): string {
     if (!rates || !(rates[from] > 0)) return '—';
     return fmtMoney(value / rates[from]);
   }
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, rates, ratesStatus, fmtMoney, fmtFromCurrency }}>
+    <CurrencyContext.Provider value={{ currency, setCurrency, rates, ratesStatus, fmtMoney, fmtMoneyCompact, fmtFromCurrency }}>
       {children}
     </CurrencyContext.Provider>
   );

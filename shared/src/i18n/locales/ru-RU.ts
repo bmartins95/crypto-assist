@@ -333,6 +333,10 @@ const ruRU: UIText = {
   profit_tooltip_dayVariation: 'Изменение за день',
   profit_tooltip_avgPrice: 'Средняя цена',
   profit_tooltip_acquisitions: 'Приобретения',
+  profit_tooltip_positionValue: 'Стоимость',
+  profit_tooltip_quantity: 'Количество',
+  profit_tooltip_currentPrice: 'Текущая цена',
+  profit_tooltip_moreAcquisitions: 'ещё {count}',
 };
 
 export default ruRU;

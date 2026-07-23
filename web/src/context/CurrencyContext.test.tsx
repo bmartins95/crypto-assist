@@ -10,13 +10,14 @@ vi.mock('@/lib/api/client', () => ({
 }));
 
 function Probe() {
-  const { currency, setCurrency, rates, ratesStatus, fmtMoney, fmtFromCurrency } = useCurrency();
+  const { currency, setCurrency, rates, ratesStatus, fmtMoney, fmtMoneyCompact, fmtFromCurrency } = useCurrency();
   return (
     <div>
       <span data-testid="currency">{currency}</span>
       <span data-testid="status">{ratesStatus}</span>
       <span data-testid="brl-rate">{rates ? rates.BRL : 'none'}</span>
       <span data-testid="money">{fmtMoney(10)}</span>
+      <span data-testid="money-compact">{fmtMoneyCompact(20000)}</span>
       <span data-testid="from-brl">{fmtFromCurrency(50, 'BRL')}</span>
       <button onClick={() => setCurrency('USD')}>to-usd</button>
     </div>
@@ -52,6 +53,23 @@ describe('CurrencyContext', () => {
     await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('fresh'));
     expect(screen.getByTestId('money').textContent).toContain('50');
     expect(screen.getByTestId('money').textContent).toContain('R$');
+  });
+
+  it('renders an abbreviated figure via fmtMoneyCompact, shorter than the full amount', async () => {
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('fresh'));
+    // 20000 USD -> 100000 BRL, abbreviated to compact notation instead of the full 2-decimal figure.
+    const compact = screen.getByTestId('money-compact').textContent ?? '';
+    expect(compact).toContain('R$');
+    expect(compact).not.toContain('100.000,00');
+  });
+
+  it('renders a dash from fmtMoneyCompact when there are no rates at all', async () => {
+    const { api } = await import('@/lib/api/client');
+    vi.mocked(api.getExchangeRates).mockRejectedValue(new Error('down'));
+    renderProbe();
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('unavailable'));
+    expect(screen.getByTestId('money-compact').textContent).toBe('—');
   });
 
   it('converts from an op currency through USD via fmtFromCurrency', async () => {

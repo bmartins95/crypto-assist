@@ -391,7 +391,7 @@ describe('Per-asset compare overlay (US1)', () => {
     });
   });
 
-  it('shows an asset-specific tooltip (value, average price, acquisitions) when hovering the compare overlay line', async () => {
+  it('shows an asset-specific tooltip (value, P/L, quantity, prices, acquisitions) when hovering the compare overlay line', async () => {
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
       ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
@@ -403,11 +403,52 @@ describe('Per-asset compare overlay (US1)', () => {
 
     triggerTooltip(lastChartConfig(), 1, 1);
     const el = document.querySelector('.chart-tooltip');
-    expect(el?.innerHTML).toContain('110,00');
+    expect(el?.innerHTML).toContain('Valor');
+    expect(el?.innerHTML).toContain('110,00'); // position value (1 BTC @ 110) and current price
+    expect(el?.innerHTML).toContain('+10.00%'); // (110 - 100) / 100
+    expect(el?.innerHTML).toContain('Quantidade');
     expect(el?.innerHTML).toContain('Preço médio');
-    expect(el?.innerHTML).toContain('100,00');
+    expect(el?.innerHTML).toContain('Preço atual');
+    expect(el?.innerHTML).toContain('100,00'); // avg price (full precision)
     expect(el?.innerHTML).toContain('Aquisições');
-    expect(el?.innerHTML).toMatch(/BTC.*100,00/);
+    const acquisitionRow = el?.querySelector('.tt-acq-row');
+    expect(acquisitionRow?.textContent).toContain('BTC');
+    expect(acquisitionRow?.textContent).toContain('100'); // acquisition unit price (abbreviated)
+  });
+
+  it('shows quantity/avg price as of the hovered date, not today\'s leftover balance', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 120 },
+    });
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 2, price: 100 }),
+      op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 120 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 0, 1); // 2024-01-01, before the sell — both units still held
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toMatch(/2,00\s*BTC/);
+  });
+
+  it('caps the acquisitions list at 4 rows and summarizes the rest', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 100, '2024-01-03': 100, '2024-01-04': 100, '2024-01-05': 100 },
+    });
+    vi.setSystemTime(new Date('2024-01-05T00:00:00Z'));
+    const ops = [1, 2, 3, 4, 5].map(d => op({ id: `b${d}`, date: `2024-01-0${d}`, type: 'Buy', qty: 1, price: 100 }));
+    renderProfitTab(ops, { bitcoin: 100 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 4, 1); // last day — all 5 acquisitions are on or before it
+    const el = document.querySelector('.chart-tooltip')!;
+    expect(el.querySelectorAll('.tt-acq-row')).toHaveLength(4);
+    expect(el.innerHTML).toContain('+1 mais');
   });
 
   it('does not rebuild (re-animate) the chart on hover — only on load or data change', async () => {

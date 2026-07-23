@@ -333,6 +333,10 @@ const arSA: UIText = {
   profit_tooltip_dayVariation: 'تغيّر اليوم',
   profit_tooltip_avgPrice: 'متوسط السعر',
   profit_tooltip_acquisitions: 'المقتنيات',
+  profit_tooltip_positionValue: 'القيمة',
+  profit_tooltip_quantity: 'الكمية',
+  profit_tooltip_currentPrice: 'السعر الحالي',
+  profit_tooltip_moreAcquisitions: '+{count} أخرى',
 };
 
 export default arSA;

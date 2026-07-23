@@ -4,6 +4,11 @@ import type { Locale } from './i18n/types';
 export const fmt = (v: number, locale: Locale = 'pt-BR', currency = 'BRL'): string =>
   new Intl.NumberFormat(locale, { style: 'currency', currency }).format(v);
 
+// Locale-native compact notation (e.g. en-US "R$163.4K", pt-BR "R$163 mil") — used where
+// space is tight and exact cents don't matter, never for figures the user reconciles against.
+export const fmtCompact = (v: number, locale: Locale = 'pt-BR', currency = 'BRL'): string =>
+  new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(v);
+
 export const fmtPct = (v: number): string =>
   (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%';
 

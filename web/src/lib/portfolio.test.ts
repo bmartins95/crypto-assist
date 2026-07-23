@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, computeAssetPeriodSeries, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
+import { computePositions, computePositionsByAssetAndPlatform, computeTimeline, computeAssetPeriodSeries, computeAssetPositionOnDate, collectAssets, computeProfitByAsset, convertOpsToUsd } from './portfolio';
 import type { Op, OpClosure } from './types';
 
 function op(overrides: Partial<Op>): Op {
@@ -299,6 +299,46 @@ describe('computeAssetPeriodSeries', () => {
     ];
     const historicalPrices = { bitcoin: { '2024-01-01': 100, '2024-01-02': 100 } };
     expect(computeAssetPeriodSeries(ops, historicalPrices, {}, '2024-01-01', '2024-01-02')).toHaveLength(0);
+  });
+});
+
+describe('computeAssetPositionOnDate', () => {
+  it('returns the quantity/avg price held as of the given date, ignoring later ops', () => {
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 2, price: 100 }),
+      op({ id: 's1', date: '2024-01-05', type: 'Sell', qty: 1, price: 150 }),
+    ];
+    const before = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-01');
+    expect(before.qty).toBeCloseTo(2);
+    expect(before.avgPrice).toBeCloseTo(100);
+    const after = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-05');
+    expect(after.qty).toBeCloseTo(1);
+  });
+
+  it('lists only acquisitions on or before the date, newest first', () => {
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'b2', date: '2024-01-03', type: 'Buy', qty: 1, price: 110 }),
+      op({ id: 'b3', date: '2024-01-10', type: 'Buy', qty: 1, price: 120 }),
+    ];
+    const { acquisitions } = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-03');
+    expect(acquisitions.map(a => a.id)).toEqual(['b2', 'b1']);
+  });
+
+  it('returns zero qty/avgPrice for a coin with no ops on or before the date', () => {
+    const ops = [op({ id: 'b1', date: '2024-06-01', type: 'Buy', qty: 1, price: 100 })];
+    const position = computeAssetPositionOnDate(ops, 'bitcoin', '2024-01-01');
+    expect(position.qty).toBe(0);
+    expect(position.avgPrice).toBe(0);
+    expect(position.acquisitions).toHaveLength(0);
+  });
+
+  it('accounts for closure adjustments in the point-in-time quantity', () => {
+    const btc = op({ id: 'btc', coinId: 'bitcoin', symbol: 'BTC', qty: 1, price: 100, total: 100, date: '2024-01-01' });
+    const sol = op({ id: 'sol', coinId: 'solana', symbol: 'SOL', qty: 5, price: 12, fee: 0, total: 60, date: '2024-02-01' });
+    const closure: OpClosure = { id: 'c1', sourceOpId: 'btc', closingOpId: 'sol', qtyClosed: 0.5, realizedPnl: 10 };
+    const position = computeAssetPositionOnDate([btc, sol], 'bitcoin', '2024-02-01', [closure]);
+    expect(position.qty).toBeCloseTo(0.5);
   });
 });
 

@@ -499,11 +499,29 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--text3); margin-bottom: 6px;
 }
 .tt-acquisitions-rows { max-height: 120px; overflow-y: auto; }
-.tt-acq-row { padding: 5px 0; border-bottom: 1px solid var(--s-border); }
-.tt-acq-row:last-child { border-bottom: none; }
-.tt-acq-line1 { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); margin-bottom: 2px; }
-.tt-acq-qty { color: var(--text); font-weight: 600; }
-.tt-acq-price { font-size: 11.5px; font-weight: 600; color: var(--text); text-align: right; }
+.tt-acq-row { display: flex; align-items: center; font-size: 11px; margin-bottom: 5px; }
+.tt-acq-row:last-child { margin-bottom: 0; }
+.tt-acq-date { color: var(--text2); flex: 1; }
+.tt-acq-qty { font-weight: 600; color: var(--text); margin-right: 12px; }
+.tt-acq-price { color: var(--text2); }
+.tt-acq-more { font-size: 10.5px; color: var(--text3); margin-top: 2px; }
+
+.tt-pos-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+.tt-asset-badge {
+  width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 9px;
+}
+.tt-pos-value-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 11px; }
+.tt-pos-value-label { font-size: 10px; color: var(--text2); margin-bottom: 2px; }
+.tt-pos-value { font-size: 18px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.tt-pos-pl { text-align: right; }
+.tt-pos-pl-pct { font-size: 13px; font-weight: 700; }
+.tt-pos-pl-abs { font-size: 10.5px; }
+.tt-pos-stats {
+  background: var(--s-surface-hover); border: 1px solid var(--s-border); border-radius: 8px;
+  padding: 9px 11px; margin-bottom: 13px;
+}
+.tt-pos-stats .tt-row:last-child { margin-bottom: 0; }
 
 .assets-list {
   background: var(--s-surface); border: 1px solid var(--s-border);

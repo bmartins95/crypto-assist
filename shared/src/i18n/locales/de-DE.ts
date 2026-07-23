@@ -333,6 +333,10 @@ const deDE: UIText = {
   profit_tooltip_dayVariation: 'Tagesveränderung',
   profit_tooltip_avgPrice: 'Durchschnittspreis',
   profit_tooltip_acquisitions: 'Käufe',
+  profit_tooltip_positionValue: 'Wert',
+  profit_tooltip_quantity: 'Menge',
+  profit_tooltip_currentPrice: 'Aktueller Preis',
+  profit_tooltip_moreAcquisitions: '+{count} weitere',
 };
 
 export default deDE;

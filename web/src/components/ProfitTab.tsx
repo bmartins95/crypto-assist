@@ -5,7 +5,7 @@ import Chart from 'chart.js/auto';
 import type { Locale, UIText } from '@crypto-assist/shared';
 import { ChartType, Op, OpClosure, Prices } from '@/lib/types';
 import { fmtPct, fmtDate, fmtQty } from '@/lib/format';
-import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, computePositions, TimelinePoint } from '@/lib/portfolio';
+import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, computeAssetPositionOnDate, TimelinePoint, AssetPositionAtDate } from '@/lib/portfolio';
 import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
@@ -86,26 +86,72 @@ function buildValueTooltipHtml(point: TimelinePoint, prevPoint: TimelinePoint | 
   `;
 }
 
+function fmtDateHeader(date: string, locale: Locale): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Drops the year when it matches the hovered date's year — acquisition rows only need to
+// disambiguate the year when a lot was bought in a previous year than the one being viewed.
+function fmtDateAcquisition(date: string, hoveredDate: string, locale: Locale): string {
+  const d = new Date(`${date}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date(`${hoveredDate}T00:00:00`).getFullYear();
+  return d.toLocaleDateString(locale, sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+const ACQUISITIONS_VISIBLE_CAP = 4;
+
 function buildAssetOverlayTooltipHtml(
   date: string,
-  price: number,
   symbol: string,
-  avgPrice: number,
-  acquisitions: Op[],
+  color: string,
+  precoAtual: number,
+  position: AssetPositionAtDate,
   locale: Locale,
   t: UIText,
   fmtMoney: (v: number) => string,
+  fmtMoneyCompact: (v: number) => string,
 ): string {
-  const rows = acquisitions.length
-    ? acquisitions.map(a => `<div class="tt-acq-row"><div class="tt-acq-line1"><span class="tt-acq-date">${fmtDate(a.date, locale)}</span><span class="tt-acq-qty">${fmtQty(a.qty, locale)} ${symbol}</span></div><div class="tt-acq-price">@ ${fmtMoney(a.price)}</div></div>`).join('')
+  const { qty, avgPrice, acquisitions } = position;
+  const hasPrice = precoAtual > 0;
+  const custoTotal = qty * avgPrice;
+  const valor = qty * precoAtual;
+  const plAbs = valor - custoTotal;
+  const plPct = custoTotal > 0 ? (plAbs / custoTotal) * 100 : 0;
+  const hasCostBasis = custoTotal > 0;
+
+  const visible = acquisitions.slice(0, ACQUISITIONS_VISIBLE_CAP);
+  const extraCount = acquisitions.length - visible.length;
+  const acquisitionRows = acquisitions.length
+    ? visible.map(a => `<div class="tt-acq-row"><span class="tt-acq-date">${fmtDateAcquisition(a.date, date, locale)}</span><span class="tt-acq-qty">${fmtQty(a.qty, locale)} ${symbol}</span><span class="tt-acq-price">${fmtMoneyCompact(a.price)}</span></div>`).join('')
+      + (extraCount > 0 ? `<div class="tt-acq-more">${t.profit_tooltip_moreAcquisitions.replace('{count}', String(extraCount))}</div>` : '')
     : `<div class="tt-row"><span>${t.common_empty}</span></div>`;
+
+  const positionBlock = hasPrice ? `
+    <div class="tt-pos-value-row">
+      <div><div class="tt-pos-value-label">${t.profit_tooltip_positionValue}</div><div class="tt-pos-value">${fmtMoney(valor)}</div></div>
+      <div class="tt-pos-pl">${hasCostBasis
+        ? `<div class="tt-pos-pl-pct ${plAbs >= 0 ? 'pos' : 'neg'}">${fmtPct(plPct)}</div><div class="tt-pos-pl-abs ${plAbs >= 0 ? 'pos' : 'neg'}">${signed(plAbs, fmtMoneyCompact(plAbs))}</div>`
+        : `<div class="tt-pos-pl-abs tt-muted">—</div>`}</div>
+    </div>
+    <div class="tt-pos-stats">
+      <div class="tt-row"><span>${t.profit_tooltip_quantity}</span><span>${fmtQty(qty, locale)} ${symbol}</span></div>
+      <div class="tt-row"><span>${t.profit_tooltip_avgPrice}</span><span>${fmtMoney(avgPrice)}</span></div>
+      <div class="tt-row"><span>${t.profit_tooltip_currentPrice}</span><span>${fmtMoney(precoAtual)}</span></div>
+    </div>
+  ` : `
+    <div class="tt-pos-stats" style="margin-top:11px">
+      <div class="tt-row"><span>${t.profit_tooltip_quantity}</span><span>${fmtQty(qty, locale)} ${symbol}</span></div>
+    </div>
+  `;
+
   return `
-    <div class="tt-header"><span class="tt-date">${fmtDate(date, locale)}</span></div>
-    <div class="tt-cumulative">${fmtMoney(price)}</div>
-    <div class="tt-row" style="margin-top:8px"><span>${t.profit_tooltip_avgPrice}</span><span>${fmtMoney(avgPrice)}</span></div>
-    <div class="tt-divider"></div>
-    <div class="tt-acquisitions-title">${t.profit_tooltip_acquisitions}</div>
-    <div class="tt-acquisitions-rows">${rows}</div>
+    <div class="tt-pos-header">
+      <span class="tt-asset-badge" style="background:${color}22;color:${color}">${symbol}</span>
+      <span class="tt-weekday">${fmtDateHeader(date, locale)}</span>
+    </div>
+    ${positionBlock}
+    <div class="tt-acquisitions-title">${t.profit_tooltip_acquisitions}${acquisitions.length > 1 ? ` · ${acquisitions.length}` : ''}</div>
+    <div class="tt-acquisitions-rows">${acquisitionRows}</div>
   `;
 }
 
@@ -127,7 +173,7 @@ interface Props {
 export default function ProfitTab({ ops, closures, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
-  const { currency, ratesStatus, fmtMoney } = useCurrency();
+  const { currency, ratesStatus, fmtMoney, fmtMoneyCompact } = useCurrency();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const ratesMsg = ratesStatus === 'unavailable' ? t.currency_rates_unavailable
     : ratesStatus === 'stale' ? t.currency_rates_stale : '';
@@ -216,11 +262,6 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   const effectiveCompareValue = activeCompareCoinId && assetSeriesById.has(activeCompareCoinId) ? activeCompareCoinId : null;
   const activeCompareSeries = effectiveCompareValue ? assetSeriesById.get(effectiveCompareValue) : undefined;
   const hasCompareOverlay = !!(activeCompareSeries && activeCompareSeries.priceSeries.length === timeline.length && timeline.length > 0);
-  const positions = computePositions(ops, closures);
-  const compareAvgPrice = effectiveCompareValue ? positions.find(p => p.coinId === effectiveCompareValue)?.avgPrice ?? 0 : 0;
-  const compareAcquisitions = effectiveCompareValue
-    ? ops.filter(o => o.coinId === effectiveCompareValue && o.type === 'Buy' && (o.kind ?? 'wallet') === 'wallet').sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-    : [];
   const hoveredPoint = hoveredDate ? timeline.find(tp => tp.date === hoveredDate) : undefined;
   const hoveredIndex = hoveredDate ? timeline.findIndex(tp => tp.date === hoveredDate) : -1;
   const dayContribution: Record<string, string> | undefined = hoveredPoint
@@ -293,7 +334,11 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                 const point = dp ? timeline[dp.dataIndex] : undefined;
                 if (!point) return;
                 el.innerHTML = overlay && dp?.datasetIndex === 1
-                  ? buildAssetOverlayTooltipHtml(point.date, overlay.priceSeries[dp.dataIndex] ?? overlay.price, overlay.symbol, compareAvgPrice, compareAcquisitions, locale, t, fmtMoney)
+                  ? buildAssetOverlayTooltipHtml(
+                      point.date, overlay.symbol, overlayColor, overlay.priceSeries[dp.dataIndex] ?? overlay.price,
+                      computeAssetPositionOnDate(ops, overlay.coinId, point.date, closures),
+                      locale, t, fmtMoney, fmtMoneyCompact,
+                    )
                   : buildProfitTooltipHtml(point, locale, t, fmtMoney);
                 el.style.opacity = '1';
                 el.style.left = `${tooltip.caretX}px`;
@@ -350,11 +395,12 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-    // activeCompareSeries/compareAcquisitions are recomputed every render but derive entirely
-    // from state already covered below (effectiveCompareValue, ops, timeline) — depending on
-    // effectiveCompareValue instead of the unstable object itself keeps this effect (and its
-    // load-in animation) from re-running on every hover-triggered re-render.
-  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, compareAvgPrice, heldCoinIds.join(',')]);
+    // activeCompareSeries is recomputed every render but derives entirely from state already
+    // covered below (effectiveCompareValue, ops, timeline) — depending on effectiveCompareValue
+    // instead of the unstable object itself keeps this effect (and its load-in animation) from
+    // re-running on every hover-triggered re-render. closures flows in via timeline, which
+    // already depends on it.
+  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, fmtMoneyCompact, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, heldCoinIds.join(',')]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>

@@ -333,6 +333,10 @@ const jaJP: UIText = {
   profit_tooltip_dayVariation: '当日の変動',
   profit_tooltip_avgPrice: '平均価格',
   profit_tooltip_acquisitions: '取得履歴',
+  profit_tooltip_positionValue: '評価額',
+  profit_tooltip_quantity: '数量',
+  profit_tooltip_currentPrice: '現在価格',
+  profit_tooltip_moreAcquisitions: '他{count}件',
 };
 
 export default jaJP;
