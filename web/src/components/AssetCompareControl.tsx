@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useLocale } from '@/context/LocaleContext';
 import { fmtPct } from '@/lib/format';
 
@@ -16,13 +15,6 @@ interface Props {
   options: CompareAssetOption[];
   value: string | null;
   onChange: (coinId: string | null) => void;
-}
-
-interface MenuPosition {
-  left: number;
-  flipUp: boolean;
-  anchorTop: number;
-  anchorBottom: number;
 }
 
 const PINNED_COUNT = 3;
@@ -42,7 +34,8 @@ function rankByMovement(options: CompareAssetOption[]): CompareAssetOption[] {
 export default function AssetCompareControl({ options, value, onChange }: Props) {
   const { t } = useLocale();
   const [query, setQuery] = useState('');
-  const [position, setPosition] = useState<MenuPosition | null>(null);
+  const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -67,18 +60,16 @@ export default function AssetCompareControl({ options, value, onChange }: Props)
     [ranked, trimmedQuery],
   );
 
-  const open = position !== null;
-
   function openMenu(): void {
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPosition({ left: rect.left, flipUp: rect.top > window.innerHeight / 2, anchorTop: rect.top, anchorBottom: rect.bottom });
+    setFlipUp(!!rect && rect.top > window.innerHeight / 2);
+    setOpen(true);
     setQuery('');
     setActiveIndex(0);
   }
 
   function closeMenu(): void {
-    setPosition(null);
+    setOpen(false);
     setQuery('');
   }
 
@@ -164,15 +155,8 @@ export default function AssetCompareControl({ options, value, onChange }: Props)
           </button>
         )}
       </div>
-      {open && position && createPortal(
-        <div
-          className={`compare-menu${position.flipUp ? ' flip-up' : ''}`}
-          style={{
-            left: position.left,
-            top: position.flipUp ? undefined : position.anchorBottom + 6,
-            bottom: position.flipUp ? window.innerHeight - position.anchorTop + 6 : undefined,
-          }}
-        >
+      {open && (
+        <div className={`compare-menu${flipUp ? ' flip-up' : ''}`}>
           <div className="compare-menu-search">
             <i className="ti ti-search" />
             <input
@@ -202,8 +186,7 @@ export default function AssetCompareControl({ options, value, onChange }: Props)
               </div>
             ))}
           </div>
-        </div>,
-        document.body,
+        </div>
       )}
     </div>
   );

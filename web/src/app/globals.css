@@ -457,7 +457,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-.compare-control { display: inline-flex; align-items: center; gap: 10px; }
+.compare-control { position: relative; display: inline-flex; align-items: center; gap: 10px; }
 .compare-control-label {
   font-size: 11px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--text3);
   white-space: nowrap;
@@ -476,11 +476,14 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .compare-chip-caret { font-size: 9px; }
 
+/* Anchored to .compare-control (not portaled/fixed) so it scrolls with the page
+   instead of staying pinned to the viewport while its trigger scrolls away. */
 .compare-menu {
-  position: fixed; z-index: 1000; width: 280px; background: var(--s-surface-2);
-  border: 1px solid var(--s-border); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35);
-  overflow: hidden;
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 1000; width: 280px;
+  background: var(--s-surface-2); border: 1px solid var(--s-border); border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .35); overflow: hidden;
 }
+.compare-menu.flip-up { top: auto; bottom: calc(100% + 6px); }
 .compare-menu-search {
   display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--s-border);
   color: var(--text3); font-size: 13px;
