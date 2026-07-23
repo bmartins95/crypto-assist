@@ -575,7 +575,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .assets-list-header { display: flex; gap: 10px; margin-bottom: 12px; }
 .assets-list-search { flex: 1; display: flex; align-items: center; gap: 8px; }
 .assets-list-search .inp { flex: 1; }
-.assets-list-sort { min-width: 160px; }
+/* Overrides the global select rule's native arrow (cramped against the border)
+   with a custom chevron and matching right padding, same treatment as .settings-select. */
+.assets-list-sort {
+  min-width: 160px; appearance: none; -webkit-appearance: none; padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
 .assets-list-table { background: var(--s-surface-2); border: 1px solid var(--s-border); border-radius: 10px; overflow: hidden; }
 .assets-list-row {
   display: grid; grid-template-columns: 1fr 96px 96px 72px; gap: 10px; align-items: center;
