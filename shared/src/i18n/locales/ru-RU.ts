@@ -314,7 +314,7 @@ const ruRU: UIText = {
   platform_group_defi: 'DeFi / Протоколы',
   profit_compareWith: 'Сравнить с:',
   profit_compareNone: 'Нет',
-  profit_comparePeriodSuffix: '(% за период)',
+  profit_comparePriceSuffix: '(цена)',
   profit_assetsList_searchPlaceholder: 'Поиск актива…',
   profit_assetsList_searchAriaLabel: 'Поиск актива',
   profit_assetsList_sortAriaLabel: 'Сортировать по',

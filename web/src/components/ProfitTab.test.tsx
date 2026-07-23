@@ -45,7 +45,7 @@ interface TooltipExternalArg {
 }
 
 interface ChartConfig {
-  data: { labels: string[]; datasets: { data: number[]; label?: string; yAxisID?: string }[] };
+  data: { labels: string[]; datasets: { data: number[]; label?: string; yAxisID?: string; pointRadius?: number }[] };
   options: {
     plugins: {
       tooltip: {
@@ -357,6 +357,12 @@ describe('Per-asset compare overlay (US1)', () => {
       expect(config.data.datasets).toHaveLength(2);
       expect(config.data.datasets[1].yAxisID).toBe('y1');
       expect(config.options.scales.y1).toBeDefined();
+      // Plots the asset's absolute price (not a normalized %) — the independent y1 axis is
+      // what solves the scale problem, not normalization — and renders visible point markers
+      // so the user has something to aim for when hovering, not just an invisible line.
+      expect(config.data.datasets[1].data).toEqual([100, 110]);
+      expect(config.data.datasets[1].pointRadius).toBe(3);
+      expect(config.options.scales.y1?.ticks.callback(110)).toContain('110,00');
     });
   });
 
@@ -546,6 +552,22 @@ describe('Enriched profit tooltip (US3)', () => {
     triggerTooltip(lastChartConfig(), 1);
     await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' }).className).toContain('compare-control-highlighted'));
     expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).className).toContain('assets-list-row--highlighted');
+  });
+
+  it('shows each asset\'s price for the hovered day in the asset list, not the live price', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 60 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 999999, ethereum: 999999 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(20));
+    expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).textContent).toMatch(/999\.999,00/);
+
+    triggerTooltip(lastChartConfig(), 1);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).textContent).toMatch(/110,00/);
+      expect(screen.getByRole('button', { name: 'Ethereum ETH' }).textContent).toMatch(/60,00/);
+    });
   });
 });
 

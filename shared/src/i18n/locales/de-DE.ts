@@ -314,7 +314,7 @@ const deDE: UIText = {
   platform_group_defi: 'DeFi / Protokolle',
   profit_compareWith: 'Vergleichen mit:',
   profit_compareNone: 'Keiner',
-  profit_comparePeriodSuffix: '(% im Zeitraum)',
+  profit_comparePriceSuffix: '(Preis)',
   profit_assetsList_searchPlaceholder: 'Asset suchen…',
   profit_assetsList_searchAriaLabel: 'Asset suchen',
   profit_assetsList_sortAriaLabel: 'Sortieren nach',

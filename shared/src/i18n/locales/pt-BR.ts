@@ -314,7 +314,7 @@ const ptBR: UIText = {
   platform_group_defi: 'DeFi / Protocolos',
   profit_compareWith: 'Comparar com:',
   profit_compareNone: 'Nenhum',
-  profit_comparePeriodSuffix: '(% no período)',
+  profit_comparePriceSuffix: '(preço)',
   profit_assetsList_searchPlaceholder: 'Buscar ativo…',
   profit_assetsList_searchAriaLabel: 'Buscar ativo',
   profit_assetsList_sortAriaLabel: 'Ordenar por',

@@ -314,7 +314,7 @@ const hiIN: UIText = {
   platform_group_defi: 'DeFi / प्रोटोकॉल',
   profit_compareWith: 'तुलना करें:',
   profit_compareNone: 'कोई नहीं',
-  profit_comparePeriodSuffix: '(अवधि में % परिवर्तन)',
+  profit_comparePriceSuffix: '(कीमत)',
   profit_assetsList_searchPlaceholder: 'एसेट खोजें…',
   profit_assetsList_searchAriaLabel: 'एसेट खोजें',
   profit_assetsList_sortAriaLabel: 'क्रमबद्ध करें',

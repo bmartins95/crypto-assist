@@ -314,7 +314,7 @@ const zhCN: UIText = {
   platform_group_defi: 'DeFi / 协议',
   profit_compareWith: '对比：',
   profit_compareNone: '无',
-  profit_comparePeriodSuffix: '（区间涨跌幅）',
+  profit_comparePriceSuffix: '（价格）',
   profit_assetsList_searchPlaceholder: '搜索资产…',
   profit_assetsList_searchAriaLabel: '搜索资产',
   profit_assetsList_sortAriaLabel: '排序方式',

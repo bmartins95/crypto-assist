@@ -314,7 +314,7 @@ const arSA: UIText = {
   platform_group_defi: 'DeFi / البروتوكولات',
   profit_compareWith: 'مقارنة مع:',
   profit_compareNone: 'لا شيء',
-  profit_comparePeriodSuffix: '(% خلال الفترة)',
+  profit_comparePriceSuffix: '(السعر)',
   profit_assetsList_searchPlaceholder: 'البحث عن أصل…',
   profit_assetsList_searchAriaLabel: 'البحث عن أصل',
   profit_assetsList_sortAriaLabel: 'ترتيب حسب',

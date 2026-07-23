@@ -314,7 +314,7 @@ const frFR: UIText = {
   platform_group_defi: 'DeFi / Protocoles',
   profit_compareWith: 'Comparer avec :',
   profit_compareNone: 'Aucun',
-  profit_comparePeriodSuffix: '(% sur la période)',
+  profit_comparePriceSuffix: '(prix)',
   profit_assetsList_searchPlaceholder: 'Rechercher un actif…',
   profit_assetsList_searchAriaLabel: 'Rechercher un actif',
   profit_assetsList_sortAriaLabel: 'Trier par',

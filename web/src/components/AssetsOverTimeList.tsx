@@ -20,6 +20,7 @@ interface Props {
   assets: AssetListItem[];
   onSelectAsset: (coinId: string) => void;
   dayContribution?: Record<string, string>;
+  dayPrices?: Record<string, number>;
 }
 
 function sparklinePath(series: number[], width: number, height: number): string {
@@ -42,7 +43,7 @@ function sortAssets(assets: AssetListItem[], mode: SortMode): AssetListItem[] {
   return sorted.sort((a, b) => Math.abs(b.absChange) - Math.abs(a.absChange));
 }
 
-export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribution }: Props) {
+export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribution, dayPrices }: Props) {
   const { t } = useLocale();
   const { hidden } = useBalance();
   const { fmtMoney } = useCurrency();
@@ -99,6 +100,7 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
               const hasData = asset.series.length >= 2;
               const up = asset.absChange >= 0;
               const contribution = dayContribution?.[asset.coinId];
+              const dayPrice = dayPrices?.[asset.coinId];
               return (
                 <button
                   key={asset.coinId}
@@ -120,7 +122,7 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
                       <span className="assets-list-nodata">—</span>
                     )}
                   </span>
-                  <span className="assets-list-num">{mask(fmtMoney(asset.price))}</span>
+                  <span className="assets-list-num">{mask(fmtMoney(dayPrice ?? asset.price))}</span>
                   {contribution ? (
                     <span className="assets-list-num assets-list-contribution">{contribution}</span>
                   ) : (

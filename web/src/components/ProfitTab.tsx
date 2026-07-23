@@ -217,15 +217,21 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   // control that no longer lists it as an option.
   const effectiveCompareValue = activeCompareCoinId && assetSeriesById.has(activeCompareCoinId) ? activeCompareCoinId : null;
   const activeCompareSeries = effectiveCompareValue ? assetSeriesById.get(effectiveCompareValue) : undefined;
-  const hasCompareOverlay = !!(activeCompareSeries && activeCompareSeries.series.length === timeline.length && timeline.length > 0);
+  const hasCompareOverlay = !!(activeCompareSeries && activeCompareSeries.priceSeries.length === timeline.length && timeline.length > 0);
   const positions = computePositions(ops, closures);
   const compareAvgPrice = effectiveCompareValue ? positions.find(p => p.coinId === effectiveCompareValue)?.avgPrice ?? 0 : 0;
   const compareAcquisitions = effectiveCompareValue
     ? ops.filter(o => o.coinId === effectiveCompareValue && o.type === 'Buy' && (o.kind ?? 'wallet') === 'wallet').sort((a, b) => (a.date || '').localeCompare(b.date || ''))
     : [];
   const hoveredPoint = hoveredDate ? timeline.find(tp => tp.date === hoveredDate) : undefined;
+  const hoveredIndex = hoveredDate ? timeline.findIndex(tp => tp.date === hoveredDate) : -1;
   const dayContribution: Record<string, string> | undefined = hoveredPoint
     ? Object.fromEntries(hoveredPoint.assetContribution.map(c => [c.coinId, signed(c.deltaAbs, fmtMoney(c.deltaAbs))]))
+    : undefined;
+  // Per-asset price on the hovered day (not just the ones that moved that day), so the asset
+  // list can show "what was this worth then" instead of always the live/current price.
+  const dayPrices: Record<string, number> | undefined = hoveredIndex >= 0
+    ? Object.fromEntries(assetSeries.filter(a => a.priceSeries[hoveredIndex] > 0).map(a => [a.coinId, a.priceSeries[hoveredIndex]]))
     : undefined;
   const detailAssetData: AssetDetailData | null = detailAsset ? (() => {
     const s = assetSeriesById.get(detailAsset);
@@ -271,7 +277,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           labels: timeline.map(tp => fmtDate(tp.date, locale)),
           datasets: [
             { label: t.profit_pnl, data: timeline.map(tp => parseFloat(tp.pnl.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.1)', fill: true, tension: 0.3, pointRadius: 4, pointHoverRadius: 6 },
-            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePeriodSuffix}`, data: overlay.series, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 4 }] : []),
+            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePriceSuffix}`, data: overlay.priceSeries, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 3, pointHoverRadius: 5 }] : []),
           ],
         },
         options: {
@@ -300,7 +306,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           },
           scales: {
             y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
-            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtPct(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
+            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtMoney(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -315,7 +321,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           datasets: [
             { label: t.profit_currentValue, data: timeline.map(tp => parseFloat(tp.currentValue.toFixed(2))), borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', fill: true, tension: 0.3, pointRadius: 4 },
             { label: t.profit_invested, data: timeline.map(tp => parseFloat(tp.invested.toFixed(2))), borderColor: '#534AB7', backgroundColor: 'rgba(83,74,183,0.05)', fill: true, tension: 0.3, pointRadius: 4, borderDash: [5, 3] },
-            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePeriodSuffix}`, data: overlay.series, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 4 }] : []),
+            ...(overlay ? [{ label: `${overlay.symbol} ${t.profit_comparePriceSuffix}`, data: overlay.priceSeries, borderColor: overlayColor, borderDash: [5, 4], yAxisID: 'y1', fill: false, tension: 0.3, pointRadius: 3, pointHoverRadius: 5 }] : []),
           ],
         },
         options: {
@@ -344,7 +350,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
           },
           scales: {
             y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
-            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtPct(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
+            ...(overlay ? { y1: { position: 'right' as const, ticks: { callback: v => fmtMoney(v as number), color: overlayColor, font: { size: 11 } }, grid: { display: false }, border: { display: false } } } : {}),
             x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
           },
         },
@@ -449,7 +455,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
       </div>
 
       {isTimeBased && listItems.length > 0 && (
-        <AssetsOverTimeList assets={listItems} onSelectAsset={setDetailAsset} dayContribution={dayContribution} />
+        <AssetsOverTimeList assets={listItems} onSelectAsset={setDetailAsset} dayContribution={dayContribution} dayPrices={dayPrices} />
       )}
 
       <div className="dist-section">

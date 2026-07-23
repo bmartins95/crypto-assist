@@ -326,7 +326,7 @@ export interface UIText {
   platform_group_defi: string;
   profit_compareWith: string;
   profit_compareNone: string;
-  profit_comparePeriodSuffix: string;
+  profit_comparePriceSuffix: string;
   profit_assetsList_searchPlaceholder: string;
   profit_assetsList_searchAriaLabel: string;
   profit_assetsList_sortAriaLabel: string;
