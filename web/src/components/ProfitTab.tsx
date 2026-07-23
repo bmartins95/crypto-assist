@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import type { Locale, UIText } from '@crypto-assist/shared';
 import { ChartType, Op, OpClosure, Prices } from '@/lib/types';
-import { fmtPct, fmtDate } from '@/lib/format';
-import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, TimelinePoint } from '@/lib/portfolio';
+import { fmtPct, fmtDate, fmtQty } from '@/lib/format';
+import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, computePositions, TimelinePoint } from '@/lib/portfolio';
 import { api } from '@/lib/api/client';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
@@ -87,9 +87,32 @@ function buildValueTooltipHtml(point: TimelinePoint, prevPoint: TimelinePoint | 
   `;
 }
 
+function buildAssetOverlayTooltipHtml(
+  date: string,
+  price: number,
+  symbol: string,
+  avgPrice: number,
+  acquisitions: Op[],
+  locale: Locale,
+  t: UIText,
+  fmtMoney: (v: number) => string,
+): string {
+  const rows = acquisitions.length
+    ? acquisitions.map(a => `<div class="tt-row"><span>${fmtDate(a.date, locale)}</span><span>${fmtQty(a.qty, locale)} ${symbol} @ ${fmtMoney(a.price)}</span></div>`).join('')
+    : `<div class="tt-row"><span>${t.common_empty}</span></div>`;
+  return `
+    <div class="tt-header"><span class="tt-date">${fmtDate(date, locale)}</span></div>
+    <div class="tt-cumulative">${fmtMoney(price)}</div>
+    <div class="tt-row" style="margin-top:8px"><span>${t.profit_tooltip_avgPrice}</span><span>${fmtMoney(avgPrice)}</span></div>
+    <div class="tt-divider"></div>
+    <div class="tt-acquisitions-title">${t.profit_tooltip_acquisitions}</div>
+    <div class="tt-acquisitions-rows">${rows}</div>
+  `;
+}
+
 interface TooltipExternalContext {
   chart: { canvas: HTMLCanvasElement };
-  tooltip: { opacity: number; dataPoints?: { dataIndex: number }[]; caretX: number; caretY: number };
+  tooltip: { opacity: number; dataPoints?: { dataIndex: number; datasetIndex: number }[]; caretX: number; caretY: number };
 }
 
 interface Props {
@@ -151,10 +174,17 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     return () => { cancelled = true; };
   }, [isTimeBased, coinIds.join(','), rangeFrom, rangeTo, t]);
 
-  const timeline = isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo, closures) : [];
+  // Memoized so a hover-triggered re-render (which doesn't change any of these inputs)
+  // doesn't hand the chart-build effect below a new array reference every time — without
+  // this, its dependency array would see "change" on every hover and destroy+recreate the
+  // chart, replaying the load-in animation on every mouse move.
+  const timeline = useMemo(
+    () => (isTimeBased ? computeTimeline(ops, historicalPrices, rangeFrom, rangeTo, closures) : []),
+    [isTimeBased, ops, historicalPrices, rangeFrom, rangeTo, closures],
+  );
   const timeframeEmpty = isTimeBased && timeline.length < 2;
 
-  const profitByAsset = computeProfitByAsset(ops, prices, closures);
+  const profitByAsset = useMemo(() => computeProfitByAsset(ops, prices, closures), [ops, prices, closures]);
   const totalRealized = profitByAsset.reduce((s, p) => s + p.realizedPnl, 0);
   const withPrice = profitByAsset.filter(p => p.hasPrice);
   const totalUnrealized = withPrice.reduce((s, p) => s + p.unrealizedPnl, 0);
@@ -175,7 +205,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     const s = assetSeriesById.get(p.coinId);
     return {
       coinId: p.coinId, symbol: p.symbol, name: p.name,
-      price: s?.price ?? 0, pctChange: s?.pctChange ?? 0, series: s?.series ?? [],
+      price: s?.price ?? 0, absChange: s?.absChange ?? 0, series: s?.series ?? [],
       color: assetColor(p.coinId, heldCoinIds),
       allocationPct: totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0,
     };
@@ -188,6 +218,11 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
   const effectiveCompareValue = activeCompareCoinId && assetSeriesById.has(activeCompareCoinId) ? activeCompareCoinId : null;
   const activeCompareSeries = effectiveCompareValue ? assetSeriesById.get(effectiveCompareValue) : undefined;
   const hasCompareOverlay = !!(activeCompareSeries && activeCompareSeries.series.length === timeline.length && timeline.length > 0);
+  const positions = computePositions(ops, closures);
+  const compareAvgPrice = effectiveCompareValue ? positions.find(p => p.coinId === effectiveCompareValue)?.avgPrice ?? 0 : 0;
+  const compareAcquisitions = effectiveCompareValue
+    ? ops.filter(o => o.coinId === effectiveCompareValue && o.type === 'Buy' && (o.kind ?? 'wallet') === 'wallet').sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    : [];
   const hoveredPoint = hoveredDate ? timeline.find(tp => tp.date === hoveredDate) : undefined;
   const dayContribution: Record<string, string> | undefined = hoveredPoint
     ? Object.fromEntries(hoveredPoint.assetContribution.map(c => [c.coinId, signed(c.deltaAbs, fmtMoney(c.deltaAbs))]))
@@ -196,7 +231,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     const s = assetSeriesById.get(detailAsset);
     const p = openPositions.find(a => a.coinId === detailAsset);
     if (!s || !p) return null;
-    return { coinId: p.coinId, symbol: p.symbol, name: p.name, price: s.price, pctChange: s.pctChange, series: s.series, color: assetColor(p.coinId, heldCoinIds) };
+    return { coinId: p.coinId, symbol: p.symbol, name: p.name, price: s.price, absChange: s.absChange, priceSeries: s.priceSeries, color: assetColor(p.coinId, heldCoinIds) };
   })() : null;
 
   useEffect(() => {
@@ -242,7 +277,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend: { display: !!overlay },
+            legend: { display: !!overlay, position: 'top', labels: { font: { size: 12 }, boxWidth: 12 } },
             tooltip: {
               enabled: false,
               external: (context: TooltipExternalContext) => {
@@ -250,10 +285,12 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                 if (!el) return;
                 const { tooltip } = context;
                 if (tooltip.opacity === 0) { el.style.opacity = '0'; setHoveredDate(null); return; }
-                const dataIndex = tooltip.dataPoints?.[0]?.dataIndex;
-                const point = dataIndex !== undefined ? timeline[dataIndex] : undefined;
+                const dp = tooltip.dataPoints?.[0];
+                const point = dp ? timeline[dp.dataIndex] : undefined;
                 if (!point) return;
-                el.innerHTML = buildProfitTooltipHtml(point, locale, t, fmtMoney);
+                el.innerHTML = overlay && dp?.datasetIndex === 1
+                  ? buildAssetOverlayTooltipHtml(point.date, overlay.priceSeries[dp.dataIndex] ?? overlay.price, overlay.symbol, compareAvgPrice, compareAcquisitions, locale, t, fmtMoney)
+                  : buildProfitTooltipHtml(point, locale, t, fmtMoney);
                 el.style.opacity = '1';
                 el.style.left = `${tooltip.caretX}px`;
                 el.style.top = `${tooltip.caretY}px`;
@@ -292,10 +329,12 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                 if (!el) return;
                 const { tooltip } = context;
                 if (tooltip.opacity === 0) { el.style.opacity = '0'; setHoveredDate(null); return; }
-                const dataIndex = tooltip.dataPoints?.[0]?.dataIndex;
-                const point = dataIndex !== undefined ? timeline[dataIndex] : undefined;
+                const dp = tooltip.dataPoints?.[0];
+                const point = dp ? timeline[dp.dataIndex] : undefined;
                 if (!point) return;
-                el.innerHTML = buildValueTooltipHtml(point, dataIndex !== undefined ? timeline[dataIndex - 1] : undefined, locale, t, fmtMoney);
+                el.innerHTML = overlay && dp?.datasetIndex === 2
+                  ? buildAssetOverlayTooltipHtml(point.date, overlay.priceSeries[dp.dataIndex] ?? overlay.price, overlay.symbol, compareAvgPrice, compareAcquisitions, locale, t, fmtMoney)
+                  : buildValueTooltipHtml(point, timeline[dp.dataIndex - 1], locale, t, fmtMoney);
                 el.style.opacity = '1';
                 el.style.left = `${tooltip.caretX}px`;
                 el.style.top = `${tooltip.caretY}px`;
@@ -313,7 +352,11 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     }
 
     return () => { if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; } };
-  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData, hasCompareOverlay, activeCompareSeries, heldCoinIds.join(',')]);
+    // activeCompareSeries/compareAcquisitions are recomputed every render but derive entirely
+    // from state already covered below (effectiveCompareValue, ops, timeline) — depending on
+    // effectiveCompareValue instead of the unstable object itself keeps this effect (and its
+    // load-in animation) from re-running on every hover-triggered re-render.
+  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, compareAvgPrice, heldCoinIds.join(',')]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
@@ -365,9 +408,19 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
 
       <div className="chart-area">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div className="sec-title" style={{ marginBottom: 0 }}>
-            {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
-            {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="sec-title" style={{ marginBottom: 0 }}>
+              {{ 'by-asset': t.chart_byAsset, 'over-time': t.chart_overTime, value: t.chart_value }[activeChart]}
+              {isTimeBased && historyError && <span className="ts neg" style={{ marginLeft: 8 }}>{historyError}</span>}
+            </div>
+            {isTimeBased && compareChart && compareOptions.length > 0 && (
+              <AssetCompareControl
+                options={compareOptions}
+                value={effectiveCompareValue}
+                onChange={coinId => setCompareAsset(compareChart, coinId)}
+                dayContribution={dayContribution}
+              />
+            )}
           </div>
           {isTimeBased && (
             <TimeframeSelector
@@ -377,14 +430,6 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
             />
           )}
         </div>
-        {isTimeBased && compareChart && compareOptions.length > 0 && (
-          <AssetCompareControl
-            options={compareOptions}
-            value={effectiveCompareValue}
-            onChange={coinId => setCompareAsset(compareChart, coinId)}
-            dayContribution={dayContribution}
-          />
-        )}
         <div className="chart-canvas-wrap">
           <canvas ref={chartRef} />
           {noPriceData && noDataOverlay}

@@ -25,50 +25,84 @@ function lastConfig(): DetailChartConfig {
 }
 
 const ASSET: AssetDetailData = {
-  coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 350000, pctChange: 12.5,
-  series: [0, 5, 12.5],
+  coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 350000, absChange: 12.5,
+  priceSeries: [100, 105, 112.5],
   color: '#f97316',
 };
 
 function renderModal(asset = ASSET, dates = ['2024-01-01', '2024-01-02', '2024-01-03'], onClose = vi.fn()) {
-  render(
+  return render(
     <LocaleProvider>
       <AssetDetailChart asset={asset} dates={dates} fmtMoney={v => `R$${v}`} onClose={onClose} />
     </LocaleProvider>
   );
-  return onClose;
 }
 
 describe('AssetDetailChart', () => {
-  it('opens showing the clicked asset\'s series for the active timeframe', () => {
+  it('opens showing the clicked asset\'s absolute-price series for the active timeframe', () => {
     renderModal();
     expect(screen.getByRole('dialog', { name: 'Bitcoin BTC' })).toBeInTheDocument();
     const config = lastConfig();
-    expect(config.data.datasets[0].data).toEqual(ASSET.series);
-    expect(config.options.plugins.tooltip.callbacks.label({ raw: 12.5 })).toContain('12.5');
-    expect(config.options.scales.y.ticks.callback(12.5)).toContain('12.5');
+    expect(config.data.datasets[0].data).toEqual(ASSET.priceSeries);
+    expect(config.options.plugins.tooltip.callbacks.label({ raw: 112.5 })).toContain('R$112.5');
+    expect(config.options.scales.y.ticks.callback(112.5)).toContain('R$112.5');
   });
 
   it('closes when the close button is clicked', () => {
-    const onClose = renderModal();
+    const onClose = vi.fn();
+    renderModal(ASSET, undefined, onClose);
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('closes when the backdrop is clicked', () => {
-    const onClose = renderModal();
+    const onClose = vi.fn();
+    renderModal(ASSET, undefined, onClose);
     fireEvent.click(screen.getByRole('dialog').parentElement as Element);
     expect(onClose).toHaveBeenCalled();
   });
 
   it('closes on Escape', () => {
-    const onClose = renderModal();
+    const onClose = vi.fn();
+    renderModal(ASSET, undefined, onClose);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
 
   it('shows an empty state instead of a chart when the asset has fewer than 2 data points', () => {
-    renderModal({ ...ASSET, series: [] });
+    renderModal({ ...ASSET, priceSeries: [] });
     expect(screen.getByText('Sem dados no período')).toBeInTheDocument();
+  });
+
+  it('does not rebuild (re-animate) the chart when re-rendered with an equal-content but new object/array reference', () => {
+    const { rerender } = renderModal();
+    const destroysBefore = chartMock.destroyCalls;
+    rerender(
+      <LocaleProvider>
+        <AssetDetailChart
+          asset={{ ...ASSET, priceSeries: [...ASSET.priceSeries] }}
+          dates={['2024-01-01', '2024-01-02', '2024-01-03']}
+          fmtMoney={v => `R$${v}`}
+          onClose={vi.fn()}
+        />
+      </LocaleProvider>
+    );
+    expect(chartMock.destroyCalls).toBe(destroysBefore);
+  });
+
+  it('rebuilds the chart when the underlying price data actually changes', () => {
+    const { rerender } = renderModal();
+    const destroysBefore = chartMock.destroyCalls;
+    rerender(
+      <LocaleProvider>
+        <AssetDetailChart
+          asset={{ ...ASSET, priceSeries: [100, 105, 999] }}
+          dates={['2024-01-01', '2024-01-02', '2024-01-03']}
+          fmtMoney={v => `R$${v}`}
+          onClose={vi.fn()}
+        />
+      </LocaleProvider>
+    );
+    expect(chartMock.destroyCalls).toBeGreaterThan(destroysBefore);
   });
 });

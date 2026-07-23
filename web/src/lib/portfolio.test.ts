@@ -261,22 +261,35 @@ describe('computeAssetPeriodSeries', () => {
     expect(series.series).toEqual([0, 10, -10]);
     expect(series.pctChange).toBe(-10);
     expect(series.price).toBe(90);
+    expect(series.priceSeries).toEqual([100, 110, 90]);
+    expect(series.absChange).toBe(-10);
   });
 
   it('returns an empty series (not an error) when an asset has no price history in range', () => {
     const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
     const [series] = computeAssetPeriodSeries(ops, {}, {}, '2024-01-01', '2024-01-03');
     expect(series.series).toEqual([]);
+    expect(series.priceSeries).toEqual([]);
     expect(series.pctChange).toBe(0);
+    expect(series.absChange).toBe(0);
     expect(Number.isNaN(series.pctChange)).toBe(false);
   });
 
-  it('reports pctChange 0 (not NaN) for a single-day period', () => {
+  it('reports pctChange/absChange 0 (not NaN) for a single-day period', () => {
     const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
     const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
     const [series] = computeAssetPeriodSeries(ops, historicalPrices, { bitcoin: 100 }, '2024-01-01', '2024-01-01');
     expect(series.series).toEqual([0]);
     expect(series.pctChange).toBe(0);
+    expect(series.absChange).toBe(0);
+  });
+
+  it('falls back to basePrice (not the raw 0) when the last day is beyond the price-history fallback window', () => {
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const historicalPrices = { bitcoin: { '2024-01-01': 100 } };
+    const [series] = computeAssetPeriodSeries(ops, historicalPrices, { bitcoin: 100 }, '2024-01-01', '2024-01-10');
+    expect(series.priceSeries[series.priceSeries.length - 1]).toBe(0);
+    expect(series.absChange).toBe(0);
   });
 
   it('ignores fully-closed positions, same as computePositions', () => {

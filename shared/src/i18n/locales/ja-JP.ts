@@ -331,6 +331,8 @@ const jaJP: UIText = {
   profit_tooltip_noDia: '当日',
   profit_tooltip_unrealizedResult: '含み損益',
   profit_tooltip_dayVariation: '当日の変動',
+  profit_tooltip_avgPrice: '平均価格',
+  profit_tooltip_acquisitions: '取得履歴',
 };
 
 export default jaJP;

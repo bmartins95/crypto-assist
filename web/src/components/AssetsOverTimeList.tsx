@@ -2,14 +2,13 @@ import { useId, useState } from 'react';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { useBalance } from '@/context/BalanceContext';
-import { fmtPct } from '@/lib/format';
 
 export interface AssetListItem {
   coinId: string;
   symbol: string;
   name: string;
   price: number;
-  pctChange: number;
+  absChange: number;
   series: number[];
   color: string;
   allocationPct: number;
@@ -40,7 +39,7 @@ function sortAssets(assets: AssetListItem[], mode: SortMode): AssetListItem[] {
   const sorted = [...assets];
   if (mode === 'alphabetical') return sorted.sort((a, b) => a.symbol.localeCompare(b.symbol));
   if (mode === 'allocation') return sorted.sort((a, b) => b.allocationPct - a.allocationPct);
-  return sorted.sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange));
+  return sorted.sort((a, b) => Math.abs(b.absChange) - Math.abs(a.absChange));
 }
 
 export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribution }: Props) {
@@ -98,7 +97,7 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
           ) : (
             rows.map(asset => {
               const hasData = asset.series.length >= 2;
-              const up = asset.pctChange >= 0;
+              const up = asset.absChange >= 0;
               const contribution = dayContribution?.[asset.coinId];
               return (
                 <button
@@ -126,7 +125,7 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
                     <span className="assets-list-num assets-list-contribution">{contribution}</span>
                   ) : (
                     <span className={`assets-list-num ${hasData ? (up ? 'pos' : 'neg') : ''}`}>
-                      {hasData ? fmtPct(asset.pctChange) : '—'}
+                      {hasData ? `${up ? '+' : ''}${fmtMoney(asset.absChange)}` : '—'}
                     </span>
                   )}
                 </button>

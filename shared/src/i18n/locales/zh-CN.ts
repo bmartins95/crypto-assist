@@ -331,6 +331,8 @@ const zhCN: UIText = {
   profit_tooltip_noDia: '当日',
   profit_tooltip_unrealizedResult: '未实现盈亏',
   profit_tooltip_dayVariation: '当日变动',
+  profit_tooltip_avgPrice: '平均价格',
+  profit_tooltip_acquisitions: '购入记录',
 };
 
 export default zhCN;

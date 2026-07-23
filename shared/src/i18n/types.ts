@@ -343,4 +343,6 @@ export interface UIText {
   profit_tooltip_noDia: string;
   profit_tooltip_unrealizedResult: string;
   profit_tooltip_dayVariation: string;
+  profit_tooltip_avgPrice: string;
+  profit_tooltip_acquisitions: string;
 }

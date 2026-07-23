@@ -331,6 +331,8 @@ const ptBR: UIText = {
   profit_tooltip_noDia: 'no dia',
   profit_tooltip_unrealizedResult: 'Resultado não realizado',
   profit_tooltip_dayVariation: 'Variação no dia',
+  profit_tooltip_avgPrice: 'Preço médio',
+  profit_tooltip_acquisitions: 'Aquisições',
 };
 
 export default ptBR;

@@ -1,14 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import AssetsOverTimeList, { AssetListItem } from './AssetsOverTimeList';
 import { LocaleProvider } from '@/context/LocaleContext';
 import { BalanceProvider } from '@/context/BalanceContext';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 
+beforeEach(() => {
+  localStorage.setItem('crypto-assist:exchange-rates', JSON.stringify({ BRL: 1, USD: 1, EUR: 1, GBP: 1, JPY: 1 }));
+});
+
 const ASSETS: AssetListItem[] = [
-  { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 350000, pctChange: 5, series: [0, 2, 5], color: '#f97316', allocationPct: 70 },
-  { coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 18000, pctChange: -12, series: [0, -6, -12], color: '#7c6cf0', allocationPct: 20 },
-  { coinId: 'solana', symbol: 'SOL', name: 'Solana', price: 1200, pctChange: 0, series: [], color: '#2dd4bf', allocationPct: 10 },
+  { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 350000, absChange: 5000, series: [0, 2, 5], color: '#f97316', allocationPct: 70 },
+  { coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', price: 18000, absChange: -1200, series: [0, -6, -12], color: '#7c6cf0', allocationPct: 20 },
+  { coinId: 'solana', symbol: 'SOL', name: 'Solana', price: 1200, absChange: 0, series: [], color: '#2dd4bf', allocationPct: 10 },
 ];
 
 function renderList(assets = ASSETS, onSelectAsset = vi.fn()) {
@@ -21,12 +25,12 @@ function renderList(assets = ASSETS, onSelectAsset = vi.fn()) {
 }
 
 describe('AssetsOverTimeList', () => {
-  it('renders one row per held asset with icon/name, price, and period % change', () => {
+  it('renders one row per held asset with icon/name, price, and period absolute value change', () => {
     renderList();
     expect(screen.getByRole('button', { name: 'Bitcoin BTC' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ethereum ETH' })).toBeInTheDocument();
-    expect(screen.getByText('+5.00%')).toBeInTheDocument();
-    expect(screen.getByText('-12.00%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).textContent).toMatch(/\+.*5\.000,00/);
+    expect(screen.getByRole('button', { name: 'Ethereum ETH' }).textContent).toMatch(/-.*1\.200,00/);
   });
 
   it('renders the existing empty-state marker instead of a blank sparkline when an asset has no price history', () => {
@@ -52,8 +56,8 @@ describe('AssetsOverTimeList', () => {
   it('sorts by biggest movement by default', () => {
     renderList();
     const rows = screen.getAllByRole('button');
-    expect(rows[0]).toHaveAccessibleName('Ethereum ETH');
-    expect(rows[1]).toHaveAccessibleName('Bitcoin BTC');
+    expect(rows[0]).toHaveAccessibleName('Bitcoin BTC');
+    expect(rows[1]).toHaveAccessibleName('Ethereum ETH');
   });
 
   it('sorts alphabetically when selected', () => {

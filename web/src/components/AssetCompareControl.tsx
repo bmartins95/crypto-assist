@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useRef } from 'react';
 import { useLocale } from '@/context/LocaleContext';
 
 export interface CompareAssetOption {
@@ -16,7 +16,6 @@ interface Props {
 
 export default function AssetCompareControl({ options, value, onChange, dayContribution }: Props) {
   const { t } = useLocale();
-  const labelId = useId();
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const choices: (CompareAssetOption | null)[] = [null, ...options];
 
@@ -32,8 +31,7 @@ export default function AssetCompareControl({ options, value, onChange, dayContr
 
   return (
     <div className="compare-control">
-      <span id={labelId} className="compare-control-label">{t.profit_compareWith}</span>
-      <div role="radiogroup" aria-labelledby={labelId} className="compare-control-options">
+      <div role="radiogroup" aria-label={t.profit_compareWith} className="compare-control-options">
         {choices.map((choice, i) => {
           const selected = choice ? value === choice.coinId : value === null;
           const contribution = choice ? dayContribution?.[choice.coinId] : undefined;

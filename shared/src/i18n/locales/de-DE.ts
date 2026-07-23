@@ -331,6 +331,8 @@ const deDE: UIText = {
   profit_tooltip_noDia: 'heute',
   profit_tooltip_unrealizedResult: 'Unrealisiertes Ergebnis',
   profit_tooltip_dayVariation: 'Tagesveränderung',
+  profit_tooltip_avgPrice: 'Durchschnittspreis',
+  profit_tooltip_acquisitions: 'Käufe',
 };
 
 export default deDE;

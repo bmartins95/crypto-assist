@@ -41,7 +41,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({})) as unknown as typeof 
 
 interface TooltipExternalArg {
   chart: { canvas: HTMLCanvasElement };
-  tooltip: { opacity: number; dataPoints?: { dataIndex: number }[]; caretX: number; caretY: number };
+  tooltip: { opacity: number; dataPoints?: { dataIndex: number; datasetIndex: number }[]; caretX: number; caretY: number };
 }
 
 interface ChartConfig {
@@ -52,17 +52,17 @@ interface ChartConfig {
         callbacks?: { label: (c: { raw: number; dataset: { label: string } }) => string };
         external?: (context: TooltipExternalArg) => void;
       };
-      legend: { display: boolean };
+      legend: { display: boolean; position?: string; labels?: { boxWidth: number } };
     };
     scales: { y: { ticks: { callback: (v: number) => string } }; y1?: { ticks: { callback: (v: number) => string; color: string } } };
   };
 }
 
-function triggerTooltip(config: ChartConfig, dataIndex: number): void {
+function triggerTooltip(config: ChartConfig, dataIndex: number, datasetIndex = 0): void {
   act(() => {
     config.options.plugins.tooltip.external?.({
       chart: { canvas: document.createElement('canvas') },
-      tooltip: { opacity: 1, dataPoints: [{ dataIndex }], caretX: 10, caretY: 20 },
+      tooltip: { opacity: 1, dataPoints: [{ dataIndex, datasetIndex }], caretX: 10, caretY: 20 },
     });
   });
 }
@@ -360,6 +360,52 @@ describe('Per-asset compare overlay (US1)', () => {
     });
   });
 
+  it('gives the overlay legend the same compact styling as the portfolio-value chart legend', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => {
+      const config = lastChartConfig();
+      expect(config.options.plugins.legend.position).toBe('top');
+      expect(config.options.plugins.legend.labels?.boxWidth).toBe(12);
+    });
+  });
+
+  it('shows an asset-specific tooltip (value, average price, acquisitions) when hovering the compare overlay line', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+      ethereum: { '2024-01-01': 50, '2024-01-02': 55 },
+    });
+    renderProfitTab(multiAssetOps(), { bitcoin: 110, ethereum: 55 }, 'over-time');
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 1, 1);
+    const el = document.querySelector('.chart-tooltip');
+    expect(el?.innerHTML).toContain('110,00');
+    expect(el?.innerHTML).toContain('Preço médio');
+    expect(el?.innerHTML).toContain('100,00');
+    expect(el?.innerHTML).toContain('Aquisições');
+    expect(el?.innerHTML).toMatch(/BTC.*100,00/);
+  });
+
+  it('does not rebuild (re-animate) the chart on hover — only on load or data change', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 150 } });
+    const ops = [op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 150 }, 'over-time');
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(50));
+
+    const destroysBefore = chartMock.destroyCalls;
+    triggerTooltip(lastChartConfig(), 0);
+    triggerTooltip(lastChartConfig(), 1);
+    expect(chartMock.destroyCalls).toBe(destroysBefore);
+  });
+
   it('replaces the overlay (never accumulates) when a different asset is selected', async () => {
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
@@ -435,6 +481,23 @@ describe('Assets over time list + detail chart (US2 wiring)', () => {
   it('does not show the assets list on the "by-asset" chart mode', () => {
     renderProfitTab([op({ type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'by-asset');
     expect(document.querySelector('.assets-list')).not.toBeInTheDocument();
+  });
+
+  it('does not rebuild (re-animate) the main Profit chart when opening the asset detail view', async () => {
+    localStorage.setItem('profit_timeframe', 'all');
+    vi.setSystemTime(new Date('2024-01-02T00:00:00Z'));
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
+    renderProfitTab([op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'over-time');
+    // Wait for the real historical-price data to land (not just the row appearing, which can
+    // render off the pre-load default) so the destroy count below isn't polluted by that
+    // legitimate, data-driven rebuild racing with the click.
+    await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(10));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bitcoin BTC' })).toBeInTheDocument());
+
+    const destroysBefore = chartMock.destroyCalls;
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin BTC' }));
+    expect(screen.getByRole('dialog', { name: 'Bitcoin BTC' })).toBeInTheDocument();
+    expect(chartMock.destroyCalls).toBe(destroysBefore);
   });
 });
 

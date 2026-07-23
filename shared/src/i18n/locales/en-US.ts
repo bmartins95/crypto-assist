@@ -331,6 +331,8 @@ const enUS: UIText = {
   profit_tooltip_noDia: 'today',
   profit_tooltip_unrealizedResult: 'Unrealized result',
   profit_tooltip_dayVariation: 'Day variation',
+  profit_tooltip_avgPrice: 'Average price',
+  profit_tooltip_acquisitions: 'Acquisitions',
 };
 
 export default enUS;

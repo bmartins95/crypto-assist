@@ -1,15 +1,15 @@
 import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { useLocale } from '@/context/LocaleContext';
-import { fmtDate, fmtPct } from '@/lib/format';
+import { fmtDate } from '@/lib/format';
 
 export interface AssetDetailData {
   coinId: string;
   symbol: string;
   name: string;
   price: number;
-  pctChange: number;
-  series: number[];
+  absChange: number;
+  priceSeries: number[];
   color: string;
 }
 
@@ -25,7 +25,7 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const hasData = asset.series.length >= 2;
+  const hasData = asset.priceSeries.length >= 2;
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -46,7 +46,7 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
         labels: dates.map(d => fmtDate(d, locale)),
         datasets: [{
           label: asset.symbol,
-          data: asset.series,
+          data: asset.priceSeries,
           borderColor: asset.color,
           backgroundColor: `${asset.color}1a`,
           fill: true,
@@ -60,16 +60,19 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => fmtPct(c.raw as number) }, padding: 10 },
+          tooltip: { callbacks: { label: c => fmtMoney(c.raw as number) }, padding: 10 },
         },
         scales: {
-          y: { ticks: { callback: v => fmtPct(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
+          y: { ticks: { callback: v => fmtMoney(v as number), font: { size: 11 } }, grid: { color: 'rgba(128,128,128,0.08)' }, border: { display: false } },
           x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 }, maxTicksLimit: 8 } },
         },
       },
     });
     return () => { chartInstance.current?.destroy(); chartInstance.current = null; };
-  }, [asset, dates, locale, hasData]);
+    // Depends on primitive/content proxies (not the `asset`/`dates` object or array
+    // references) so an unrelated parent re-render — e.g. hovering the main Profit chart
+    // while this modal is open — doesn't destroy and re-animate this chart.
+  }, [asset.coinId, asset.color, asset.priceSeries.join(','), dates.join(','), locale, hasData]);
 
   return (
     <div className="drawer-backdrop open" onClick={onClose}>
@@ -91,7 +94,11 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
         </div>
         <div className="asset-detail-stats">
           <span className="asset-detail-price">{fmtMoney(asset.price)}</span>
-          {hasData && <span className={asset.pctChange >= 0 ? 'pos' : 'neg'}>{fmtPct(asset.pctChange)}</span>}
+          {hasData && (
+            <span className={asset.absChange >= 0 ? 'pos' : 'neg'}>
+              {asset.absChange >= 0 ? '+' : ''}{fmtMoney(asset.absChange)}
+            </span>
+          )}
         </div>
         <div className="chart-canvas-wrap" style={{ height: 220 }}>
           {hasData ? <canvas ref={canvasRef} /> : (

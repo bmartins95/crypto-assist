@@ -457,18 +457,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-.compare-control {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
-}
-.compare-control-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+.compare-control { display: inline-flex; }
 .compare-control-options {
-  display: flex; gap: 3px; background: var(--s-surface-2); border: 1px solid var(--s-border);
-  border-radius: 8px; padding: 3px;
+  display: inline-flex; background: var(--s-surface); border: 1px solid var(--s-border);
+  border-radius: 8px; padding: 2px; gap: 1px;
 }
 .compare-control-options button {
-  padding: 4px 10px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid transparent;
-  background: transparent; color: var(--text2); border-radius: 6px; font-family: inherit;
-  display: flex; align-items: center; gap: 6px; transition: background .13s, color .13s;
+  padding: 4px 9px; font-size: 11px; font-weight: 600; letter-spacing: .02em; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--text2); border-radius: 6px;
+  font-family: inherit; display: flex; align-items: center; gap: 6px; transition: background .13s, color .13s;
 }
 .compare-control-options button.on { background: var(--s-surface-hover); }
 .compare-control-options button.compare-control-highlighted { background: var(--s-surface-hover); }
@@ -497,6 +494,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .tt-result-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text2); }
 .tt-result-abs { font-size: 15px; font-weight: 700; margin-top: 2px; }
 .tt-dayvar { margin-top: 8px; color: var(--text3); }
+.tt-acquisitions-title {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px;
+}
+.tt-acquisitions-rows { max-height: 120px; overflow-y: auto; }
 
 .assets-list {
   background: var(--s-surface); border: 1px solid var(--s-border);

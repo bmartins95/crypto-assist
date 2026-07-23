@@ -331,6 +331,8 @@ const esES: UIText = {
   profit_tooltip_noDia: 'en el día',
   profit_tooltip_unrealizedResult: 'Resultado no realizado',
   profit_tooltip_dayVariation: 'Variación del día',
+  profit_tooltip_avgPrice: 'Precio promedio',
+  profit_tooltip_acquisitions: 'Adquisiciones',
 };
 
 export default esES;

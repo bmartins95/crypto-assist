@@ -331,6 +331,8 @@ const arSA: UIText = {
   profit_tooltip_noDia: 'اليوم',
   profit_tooltip_unrealizedResult: 'نتيجة غير محققة',
   profit_tooltip_dayVariation: 'تغيّر اليوم',
+  profit_tooltip_avgPrice: 'متوسط السعر',
+  profit_tooltip_acquisitions: 'المقتنيات',
 };
 
 export default arSA;

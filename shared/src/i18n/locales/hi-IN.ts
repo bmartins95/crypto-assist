@@ -331,6 +331,8 @@ const hiIN: UIText = {
   profit_tooltip_noDia: 'आज',
   profit_tooltip_unrealizedResult: 'अवसूला परिणाम',
   profit_tooltip_dayVariation: 'दिन का बदलाव',
+  profit_tooltip_avgPrice: 'औसत मूल्य',
+  profit_tooltip_acquisitions: 'अधिग्रहण',
 };
 
 export default hiIN;

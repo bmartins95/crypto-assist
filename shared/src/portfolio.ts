@@ -291,7 +291,9 @@ export interface AssetPeriodSeries {
   name: string;
   price: number;
   pctChange: number;
+  absChange: number;
   series: number[];
+  priceSeries: number[];
 }
 
 // pctChange is the last point of the normalized series, not (last-first)/first — the
@@ -314,13 +316,19 @@ export function computeAssetPeriodSeries(
     const hasData = basePrice > 0;
     const series = hasData ? rawSeries.map(v => (v > 0 ? ((v - basePrice) / basePrice) * 100 : 0)) : [];
     const pctChange = series.length > 1 ? series[series.length - 1] : 0;
+    // Falls back to basePrice (not 0) when the last day itself is missing but earlier days had
+    // data, so a single gappy day at the end doesn't read as "the asset dropped to zero".
+    const lastPrice = rawSeries[rawSeries.length - 1] || basePrice;
+    const absChange = hasData && rawSeries.length > 1 ? lastPrice - basePrice : 0;
     return {
       coinId: p.coinId,
       symbol: p.symbol,
       name: p.name,
       price: prices[p.coinId] || 0,
       pctChange,
+      absChange,
       series,
+      priceSeries: hasData ? rawSeries : [],
     };
   });
 }

@@ -331,6 +331,8 @@ const ruRU: UIText = {
   profit_tooltip_noDia: 'за день',
   profit_tooltip_unrealizedResult: 'Нереализованный результат',
   profit_tooltip_dayVariation: 'Изменение за день',
+  profit_tooltip_avgPrice: 'Средняя цена',
+  profit_tooltip_acquisitions: 'Приобретения',
 };
 
 export default ruRU;
