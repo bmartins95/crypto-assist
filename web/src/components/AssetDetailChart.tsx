@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import { useLocale } from '@/context/LocaleContext';
 import { fmtDate } from '@/lib/format';
+import CoinLogo from '@/components/CoinLogo';
 
 export interface AssetDetailData {
   coinId: string;
@@ -11,6 +12,7 @@ export interface AssetDetailData {
   absChange: number;
   priceSeries: number[];
   color: string;
+  image?: string;
 }
 
 interface Props {
@@ -51,8 +53,8 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
           backgroundColor: `${asset.color}1a`,
           fill: true,
           tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
         }],
       },
       options: {
@@ -84,8 +86,8 @@ export default function AssetDetailChart({ asset, dates, fmtMoney, onClose }: Pr
         onClick={e => e.stopPropagation()}
       >
         <div className="asset-detail-header">
-          <div>
-            <span className="assets-list-badge" style={{ background: `${asset.color}22`, color: asset.color }}>{asset.symbol}</span>
+          <div className="asset-detail-identity">
+            <CoinLogo image={asset.image} symbol={asset.symbol} size="sm" />
             <span className="asset-detail-name">{asset.name}</span>
           </div>
           <button ref={closeButtonRef} type="button" className="icon-btn" aria-label={t.common_close} onClick={onClose}>

@@ -565,7 +565,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: var(--radius-lg); padding: 1.25rem; z-index: 202;
 }
 .asset-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.asset-detail-name { margin-left: 8px; font-weight: 600; color: var(--text); }
+.asset-detail-identity { display: flex; align-items: center; gap: 8px; }
+.asset-detail-name { font-weight: 600; color: var(--text); }
 .asset-detail-stats { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
 .asset-detail-price { font-size: 20px; font-weight: 700; color: var(--text); }
 

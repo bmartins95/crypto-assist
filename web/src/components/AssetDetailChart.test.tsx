@@ -13,7 +13,7 @@ vi.mock('chart.js/auto', () => ({
 HTMLCanvasElement.prototype.getContext = vi.fn(() => ({})) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 interface DetailChartConfig {
-  data: { datasets: { data: number[] }[] };
+  data: { datasets: { data: number[]; pointRadius?: number; pointHoverRadius?: number }[] };
   options: {
     plugins: { tooltip: { callbacks: { label: (c: { raw: number }) => string } } };
     scales: { y: { ticks: { callback: (v: number) => string } } };
@@ -46,6 +46,24 @@ describe('AssetDetailChart', () => {
     expect(config.data.datasets[0].data).toEqual(ASSET.priceSeries);
     expect(config.options.plugins.tooltip.callbacks.label({ raw: 112.5 })).toContain('R$112.5');
     expect(config.options.scales.y.ticks.callback(112.5)).toContain('R$112.5');
+  });
+
+  it('shows visible point markers on the line, not just on hover', () => {
+    renderModal();
+    const config = lastConfig();
+    expect(config.data.datasets[0].pointRadius).toBeGreaterThan(0);
+  });
+
+  it('shows the cached coin logo image next to the asset name when available', () => {
+    renderModal({ ...ASSET, image: 'https://assets.coingecko.com/btc.png' });
+    const logo = document.querySelector('.asset-detail-identity img');
+    expect(logo).toHaveAttribute('src', 'https://assets.coingecko.com/btc.png');
+  });
+
+  it('falls back to the ticker initials when no logo is cached', () => {
+    renderModal();
+    expect(document.querySelector('.asset-detail-identity img')).not.toBeInTheDocument();
+    expect(document.querySelector('.asset-detail-identity')?.textContent).toContain('BTC');
   });
 
   it('closes when the close button is clicked', () => {

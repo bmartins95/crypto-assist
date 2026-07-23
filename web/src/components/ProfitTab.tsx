@@ -278,7 +278,10 @@ export default function ProfitTab({ ops, closures, prices, avatarCache, activeCh
     const s = assetSeriesById.get(detailAsset);
     const p = openPositions.find(a => a.coinId === detailAsset);
     if (!s || !p) return null;
-    return { coinId: p.coinId, symbol: p.symbol, name: p.name, price: s.price, absChange: s.absChange, priceSeries: s.priceSeries, color: assetColor(p.coinId, heldCoinIds) };
+    return {
+      coinId: p.coinId, symbol: p.symbol, name: p.name, price: s.price, absChange: s.absChange, priceSeries: s.priceSeries,
+      color: assetColor(p.coinId, heldCoinIds), image: avatarCache[p.coinId]?.url,
+    };
   })() : null;
 
   useEffect(() => {
