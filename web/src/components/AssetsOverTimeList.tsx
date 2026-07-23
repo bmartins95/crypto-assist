@@ -23,6 +23,14 @@ interface Props {
   dayPrices?: Record<string, number>;
 }
 
+// Keeps longer tickers (HBAR, USDT, ...) from overflowing the fixed 20px badge —
+// shrink the font instead of truncating so the full ticker stays readable.
+function badgeFontSize(symbol: string): number {
+  if (symbol.length <= 3) return 9;
+  if (symbol.length === 4) return 7.5;
+  return 6.5;
+}
+
 function sparklinePath(series: number[], width: number, height: number): string {
   const min = Math.min(...series);
   const max = Math.max(...series);
@@ -110,7 +118,7 @@ export default function AssetsOverTimeList({ assets, onSelectAsset, dayContribut
                   aria-label={`${asset.name} ${asset.symbol}`}
                 >
                   <span className="assets-list-asset">
-                    <span className="assets-list-badge" style={{ background: `${asset.color}22`, color: asset.color }}>{asset.symbol}</span>
+                    <span className="assets-list-badge" style={{ background: `${asset.color}22`, color: asset.color, fontSize: badgeFontSize(asset.symbol) }}>{asset.symbol}</span>
                     <span>{asset.name}</span>
                   </span>
                   <span className="assets-list-spark">

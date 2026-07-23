@@ -38,6 +38,20 @@ describe('AssetsOverTimeList', () => {
     expect(screen.getByRole('button', { name: 'Ethereum ETH' }).textContent).toMatch(/-.*1\.200,00/);
   });
 
+  it('shrinks the badge font for tickers longer than 3 characters so they fit', () => {
+    const assets: AssetListItem[] = [
+      { coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', price: 1, absChange: 0, series: [], color: '#f97316', allocationPct: 50 },
+      { coinId: 'hedera', symbol: 'HBAR', name: 'Hedera', price: 1, absChange: 0, series: [], color: '#eab308', allocationPct: 30 },
+      { coinId: 'tether', symbol: 'USDTLONG', name: 'Tether Long', price: 1, absChange: 0, series: [], color: '#26a17b', allocationPct: 20 },
+    ];
+    renderList(assets);
+    const badges = screen.getAllByRole('button').map(row => row.querySelector('.assets-list-badge') as HTMLElement);
+    const badge = (symbol: string) => badges.find(b => b.textContent === symbol) as HTMLElement;
+    expect(badge('BTC').style.fontSize).toBe('9px');
+    expect(badge('HBAR').style.fontSize).toBe('7.5px');
+    expect(badge('USDTLONG').style.fontSize).toBe('6.5px');
+  });
+
   it('renders the existing empty-state marker instead of a blank sparkline when an asset has no price history', () => {
     renderList();
     const solRow = screen.getByRole('button', { name: 'Solana SOL' });
