@@ -97,7 +97,7 @@ function buildAssetOverlayTooltipHtml(
   fmtMoney: (v: number) => string,
 ): string {
   const rows = acquisitions.length
-    ? acquisitions.map(a => `<div class="tt-row"><span>${fmtDate(a.date, locale)}</span><span>${fmtQty(a.qty, locale)} ${symbol} @ ${fmtMoney(a.price)}</span></div>`).join('')
+    ? acquisitions.map(a => `<div class="tt-acq-row"><div class="tt-acq-line1"><span class="tt-acq-date">${fmtDate(a.date, locale)}</span><span class="tt-acq-qty">${fmtQty(a.qty, locale)} ${symbol}</span></div><div class="tt-acq-price">@ ${fmtMoney(a.price)}</div></div>`).join('')
     : `<div class="tt-row"><span>${t.common_empty}</span></div>`;
   return `
     <div class="tt-header"><span class="tt-date">${fmtDate(date, locale)}</span></div>
