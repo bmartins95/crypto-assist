@@ -110,7 +110,7 @@ const zhCN: UIText = {
   wallet_estimated_pnl: '预估盈亏（相对平均成本）',
   trade_close_locked_hint_short: '空头仓位只能通过买入平仓',
   trade_close_locked_hint_long: '多头仓位只能通过卖出平仓',
-  trade_close_available: '待平仓：{qty} {symbol}',
+  trade_close_available: '剩余：{qty} {symbol}',
   history_edit_impact_title: '这会影响后续操作',
   history_edit_impact_message: '此更改会影响 {count} 个后续操作——余额和盈亏将重新计算。',
   history_delete_impact_message: '删除此项会影响 {count} 个后续操作——余额和盈亏将重新计算。',

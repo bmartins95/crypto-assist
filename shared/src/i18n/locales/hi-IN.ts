@@ -110,7 +110,7 @@ const hiIN: UIText = {
   wallet_estimated_pnl: 'अनुमानित लाभ/हानि (औसत लागत की तुलना में)',
   trade_close_locked_hint_short: 'शॉर्ट पोजीशन केवल खरीद से बंद होती है',
   trade_close_locked_hint_long: 'लॉन्ग पोजीशन केवल बिक्री से बंद होती है',
-  trade_close_available: 'बंद करने के लिए शेष: {qty} {symbol}',
+  trade_close_available: 'शेष: {qty} {symbol}',
   history_edit_impact_title: 'इससे बाद के लेनदेन प्रभावित होते हैं',
   history_edit_impact_message: 'यह परिवर्तन {count} बाद के लेनदेन को प्रभावित करता है — शेष और लाभ/हानि की पुनर्गणना होगी।',
   history_delete_impact_message: 'इसे हटाने से {count} बाद के लेनदेन प्रभावित होते हैं — शेष और लाभ/हानि की पुनर्गणना होगी।',

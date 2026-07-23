@@ -110,7 +110,7 @@ const enUS: UIText = {
   wallet_estimated_pnl: 'Estimated P/L (vs. avg. cost)',
   trade_close_locked_hint_short: 'A short position can only be closed with a Buy',
   trade_close_locked_hint_long: 'A long position can only be closed with a Sell',
-  trade_close_available: 'Remaining to close: {qty} {symbol}',
+  trade_close_available: 'Remaining: {qty} {symbol}',
   history_edit_impact_title: 'This affects later operations',
   history_edit_impact_message: 'This change affects {count} later operation(s) — balance and P/L will be recalculated.',
   history_delete_impact_message: 'Deleting this affects {count} later operation(s) — balance and P/L will be recalculated.',

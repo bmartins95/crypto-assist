@@ -1147,7 +1147,7 @@ describe('OpDrawer', () => {
   it('shows a remaining-to-close hint with a Max button on the closing qty field', () => {
     const closures = [{ id: 'c1', sourceOpId: 'buy-1', closingOpId: 'other', qtyClosed: 0.4, realizedPnl: 5 }];
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} closingOp={closingBuyOp} closures={closures} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
-    expect(screen.getByText('Restante para fechar: 0,60 BTC')).toBeInTheDocument();
+    expect(screen.getByText('Restante: 0,60 BTC')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Máx' }));
     expect(screen.getByDisplayValue('0.6')).toBeInTheDocument();

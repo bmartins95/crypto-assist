@@ -110,7 +110,7 @@ const jaJP: UIText = {
   wallet_estimated_pnl: '推定損益（平均コスト比）',
   trade_close_locked_hint_short: 'ショートポジションは買いでのみ決済できます',
   trade_close_locked_hint_long: 'ロングポジションは売りでのみ決済できます',
-  trade_close_available: '決済可能残り: {qty} {symbol}',
+  trade_close_available: '残り: {qty} {symbol}',
   history_edit_impact_title: 'これは後続の操作に影響します',
   history_edit_impact_message: 'この変更は{count}件の後続操作に影響します。残高と損益が再計算されます。',
   history_delete_impact_message: 'これを削除すると{count}件の後続操作に影響します。残高と損益が再計算されます。',

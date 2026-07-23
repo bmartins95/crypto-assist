@@ -110,7 +110,7 @@ const arSA: UIText = {
   wallet_estimated_pnl: 'الربح/الخسارة المقدرة (مقابل متوسط التكلفة)',
   trade_close_locked_hint_short: 'لا يمكن إغلاق مركز قصير إلا بعملية شراء',
   trade_close_locked_hint_long: 'لا يمكن إغلاق مركز طويل إلا بعملية بيع',
-  trade_close_available: 'المتبقي للإغلاق: {qty} {symbol}',
+  trade_close_available: 'المتبقي: {qty} {symbol}',
   history_edit_impact_title: 'هذا يؤثر على عمليات لاحقة',
   history_edit_impact_message: 'يؤثر هذا التغيير على {count} عملية لاحقة — سيتم إعادة حساب الرصيد والربح/الخسارة.',
   history_delete_impact_message: 'يؤثر الحذف على {count} عملية لاحقة — سيتم إعادة حساب الرصيد والربح/الخسارة.',
