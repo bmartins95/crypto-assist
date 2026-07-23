@@ -145,6 +145,30 @@ Done/won't-do items are condensed to a one-line pointer here — full spec text,
 
 ---
 
+## Item 26 — Position closing, leverage, and history day-grouping
+
+**Branch:** `feat/position-closing` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-26--position-closing-leverage-and-history-day-grouping)
+
+---
+
+## Item 27 — Cycle tag + floating summary for linked operations
+
+**Branch:** `feat/op-cycle-summary` · ⤷ Folded into item 28 (not implemented standalone) — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-27--cycle-tag--floating-summary-for-linked-operations)
+
+---
+
+## Item 28 — Wallet vs. trade operation refactor (History + operation panel)
+
+**Branch:** `feat/wallet-trade-refactor` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-28--wallet-vs-trade-operation-refactor-history--operation-panel)
+
+---
+
+## Item 29 — Leverage custom input + Long/Short pill refactor
+
+**Branch:** `feat/leverage-custom-input` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-29--leverage-custom-input--longshort-pill-refactor)
+
+---
+
 ## Item 19 — New investment types (Phase 1: Brazilian stocks)
 **Branch:** `feat/br-stocks`
 **Depends on:** items 4, 10, 13 (i18n, USD prices, provider abstraction)
@@ -199,30 +223,6 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 - The auth kit lives in its own repository with its own versioning, README, and brand-token override instructions.
 - `crypto-assist` consumes it as a dependency and its auth screens behave identically to how Item 17 left them.
 - A second, hypothetical app's setup is documented (even if not actually built) to confirm the extraction is genuinely reusable, not reusable-in-theory.
-
----
-
-## Item 26 — Position closing, leverage, and history day-grouping
-
-**Branch:** `feat/position-closing` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-26--position-closing-leverage-and-history-day-grouping)
-
----
-
-## Item 27 — Cycle tag + floating summary for linked operations
-
-**Branch:** `feat/op-cycle-summary` · ⤷ Folded into item 28 (not implemented standalone) — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-27--cycle-tag--floating-summary-for-linked-operations)
-
----
-
-## Item 28 — Wallet vs. trade operation refactor (History + operation panel)
-
-**Branch:** `feat/wallet-trade-refactor` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-28--wallet-vs-trade-operation-refactor-history--operation-panel)
-
----
-
-## Item 29 — Leverage custom input + Long/Short pill refactor
-
-**Branch:** `feat/leverage-custom-input` · ✅ Done — full details: [PLAN_ARCHIVE.md](PLAN_ARCHIVE.md#item-29--leverage-custom-input--longshort-pill-refactor)
 
 ---
 
