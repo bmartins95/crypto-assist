@@ -226,3 +226,31 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 
 ---
 
+## Item 30 — Per-asset charts & tooltip redesign (design handoff import)
+**Branch:** `feat/charts-tooltips-redesign`
+**Depends on:** item 12 (historical charts + timeframe selector), item 13 (price provider abstraction)
+
+- [ ] Done
+
+### Current state
+`ProfitTab.tsx` renders three Chart.js canvases switched by `activeChart` (`by-asset` bar chart, `over-time` and `value` line charts, all portfolio-wide) using Chart.js's built-in canvas tooltip with per-chart `tooltip.callbacks.label` formatters (`web/src/components/ProfitTab.tsx`). There is no per-asset (single-coin) price/PnL chart anywhere in the app — `WalletTab.tsx` only lists position rows, it does not chart an individual asset's history. Tooltip styling is whatever Chart.js renders by default; there is no shared tooltip component reused elsewhere in the UI.
+
+### Design source
+Import the handoff design before implementing:
+1. Connect to the claude_design MCP (`https://api.anthropic.com/v1/design/mcp`, authenticate via `/design-login`).
+2. Import project: https://claude.ai/design/p/7de25ab4-b495-4062-bdb4-ba8895f54eef?file=Handoff+-+Gr%C3%A1ficos+por+Ativo+e+Tooltips.dc.html
+3. Implement the file `Handoff - Gráficos por Ativo e Tooltips.dc.html` (per-asset charts + tooltips) exactly as specced — do not freelance layout, spacing, or colors beyond what the handoff defines.
+
+### Files to modify (expected — confirm against the imported handoff)
+- `web/src/components/ProfitTab.tsx` — apply the redesigned tooltip treatment to the existing three charts.
+- `web/src/components/WalletTab.tsx` — add the new per-asset chart entry point (e.g. opening a chart for a single position).
+- New component(s) for the per-asset chart and the shared tooltip, under `web/src/components/`.
+- `web/src/app/globals.css` — any new chart/tooltip styling tokens the handoff defines.
+
+### Done when
+- The per-asset chart and tooltip UI match the imported handoff.
+- Existing portfolio-wide charts in the Profit tab keep working with the redesigned tooltip.
+- `npm test` and `npm run coverage` pass for changed modules per the repo's testing rules.
+
+---
+
