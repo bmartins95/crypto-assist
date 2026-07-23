@@ -129,6 +129,12 @@ export function computeProfitByAsset(ops: Op[], prices: Prices, closures: OpClos
   });
 }
 
+export interface AssetContribution {
+  coinId: string;
+  symbol: string;
+  deltaAbs: number;
+}
+
 // invested/currentValue cover only currently-open positions (what "Valor da carteira" plots);
 // pnl additionally folds in P/L already banked from past sells/trades, so "Lucro no tempo"
 // doesn't drop a coin's realized gain the moment the position closes.
@@ -137,6 +143,12 @@ export interface TimelinePoint {
   invested: number;
   currentValue: number;
   pnl: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  dayDeltaAbs: number;
+  dayDeltaPct: number;
+  opsCount: number;
+  assetContribution: AssetContribution[];
 }
 
 const HISTORICAL_PRICE_FALLBACK_DAYS = 7;
@@ -190,28 +202,125 @@ export function computeTimeline(
   const rangeTo = to ?? todayISO();
 
   const holdings: Record<string, { qty: number; avgCost: number }> = {};
+  const realizedByCoin: Record<string, number> = {};
+  const symbolByCoin: Record<string, string> = {};
   let realizedPnl = 0;
   let opIndex = 0;
+
+  function applyOp(op: Op): void {
+    const coinId = op.coinId as string;
+    const realized = applyOpToHoldings(holdings, op);
+    realizedByCoin[coinId] = (realizedByCoin[coinId] ?? 0) + realized;
+    symbolByCoin[coinId] = op.symbol;
+    realizedPnl += realized;
+  }
+
   while (opIndex < sorted.length && sorted[opIndex].date < rangeFrom) {
-    realizedPnl += applyOpToHoldings(holdings, sorted[opIndex]);
+    applyOp(sorted[opIndex]);
     opIndex++;
   }
 
   const result: TimelinePoint[] = [];
+  let prevPnl = 0;
+  let prevCoinTotals: Record<string, number> = {};
+  let isFirstPoint = true;
+
   for (let day = rangeFrom; day <= rangeTo; day = addDaysISO(day, 1)) {
+    let opsCount = 0;
     while (opIndex < sorted.length && sorted[opIndex].date === day) {
-      realizedPnl += applyOpToHoldings(holdings, sorted[opIndex]);
+      applyOp(sorted[opIndex]);
       opIndex++;
+      opsCount++;
     }
 
     let invested = 0;
     let currentValue = 0;
-    for (const [coinId, h] of Object.entries(holdings)) {
-      if (h.qty <= 1e-9) continue;
-      invested += h.qty * h.avgCost;
-      currentValue += h.qty * priceOnDate(historicalPrices, coinId, day);
+    const coinTotals: Record<string, number> = {};
+    const coinIds = new Set([...Object.keys(holdings), ...Object.keys(prevCoinTotals)]);
+    for (const coinId of coinIds) {
+      const h = holdings[coinId];
+      const qty = h && h.qty > 1e-9 ? h.qty : 0;
+      const price = qty > 0 ? priceOnDate(historicalPrices, coinId, day) : 0;
+      const coinInvested = qty * (h?.avgCost ?? 0);
+      const coinValue = qty * price;
+      if (qty > 0) {
+        invested += coinInvested;
+        currentValue += coinValue;
+      }
+      coinTotals[coinId] = (realizedByCoin[coinId] ?? 0) + coinValue - coinInvested;
     }
-    result.push({ date: day, invested, currentValue, pnl: currentValue - invested + realizedPnl });
+
+    const pnl = currentValue - invested + realizedPnl;
+    const dayDeltaAbs = isFirstPoint ? 0 : pnl - prevPnl;
+    const dayDeltaPct = isFirstPoint || prevPnl === 0 ? 0 : (dayDeltaAbs / Math.abs(prevPnl)) * 100;
+
+    const assetContribution: AssetContribution[] = [];
+    if (!isFirstPoint) {
+      for (const coinId of coinIds) {
+        const deltaAbs = coinTotals[coinId] - (prevCoinTotals[coinId] ?? 0);
+        if (Math.abs(deltaAbs) > 1e-9) {
+          assetContribution.push({ coinId, symbol: symbolByCoin[coinId] ?? coinId, deltaAbs });
+        }
+      }
+      assetContribution.sort((a, b) => Math.abs(b.deltaAbs) - Math.abs(a.deltaAbs));
+    }
+
+    result.push({
+      date: day,
+      invested,
+      currentValue,
+      pnl,
+      realizedPnl,
+      unrealizedPnl: currentValue - invested,
+      dayDeltaAbs,
+      dayDeltaPct,
+      opsCount,
+      assetContribution,
+    });
+
+    prevPnl = pnl;
+    prevCoinTotals = coinTotals;
+    isFirstPoint = false;
   }
   return result;
+}
+
+export interface AssetPeriodSeries {
+  coinId: string;
+  symbol: string;
+  name: string;
+  price: number;
+  pctChange: number;
+  series: number[];
+}
+
+// pctChange is the last point of the normalized series, not (last-first)/first — the
+// series is already normalized so its first point is 0, making the two equivalent except
+// when the series is empty (no price data), where this avoids a NaN from a 0/0 division.
+export function computeAssetPeriodSeries(
+  ops: Op[],
+  historicalPrices: Record<string, Record<string, number>>,
+  prices: Prices,
+  from: string,
+  to: string,
+  closures: OpClosure[] = [],
+): AssetPeriodSeries[] {
+  const days: string[] = [];
+  for (let day = from; day <= to; day = addDaysISO(day, 1)) days.push(day);
+
+  return computePositions(ops, closures).map(p => {
+    const rawSeries = days.map(day => priceOnDate(historicalPrices, p.coinId, day));
+    const basePrice = rawSeries.find(v => v > 0) ?? 0;
+    const hasData = basePrice > 0;
+    const series = hasData ? rawSeries.map(v => (v > 0 ? ((v - basePrice) / basePrice) * 100 : 0)) : [];
+    const pctChange = series.length > 1 ? series[series.length - 1] : 0;
+    return {
+      coinId: p.coinId,
+      symbol: p.symbol,
+      name: p.name,
+      price: prices[p.coinId] || 0,
+      pctChange,
+      series,
+    };
+  });
 }
