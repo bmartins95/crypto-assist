@@ -1175,6 +1175,32 @@ describe('OpDrawer', () => {
     expect(document.querySelector('.bal-row.err')).toBeInTheDocument();
   });
 
+  it('reverts the zero-quantity message back to the remaining hint after a timeout', () => {
+    vi.useFakeTimers();
+    try {
+      renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+      fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0' } });
+      fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+      expect(screen.getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+      expect(screen.queryByText('Restante: 1,00 BTC')).not.toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(2500); });
+      expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+      expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides the zero-quantity message immediately once fixed, without waiting for the timeout', () => {
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0' } });
+    fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
+    expect(screen.getByText('Informe uma quantidade maior que zero.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '0.5' } });
+    expect(screen.queryByText('Informe uma quantidade maior que zero.')).not.toBeInTheDocument();
+    expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
+  });
+
   it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {
     const onClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={onClose} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={vi.fn()} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);

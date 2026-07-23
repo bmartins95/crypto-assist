@@ -48,6 +48,7 @@ type PriceState = 'idle' | 'fetching' | 'auto' | 'manual';
 const FOCUSABLE_SELECTOR = 'input, select, button, textarea, [tabindex]:not([tabindex="-1"])';
 const DEBOUNCE_MS = 300;
 const BROWSE_LIMIT = 50;
+const QTY_ERROR_FLASH_MS = 2500;
 
 // Ranks exact symbol match > symbol prefix > name prefix > substring, used to filter
 // the small in-memory `restrictTo`/`seed` lists (the user's own assets) locally —
@@ -226,6 +227,21 @@ export default function OpDrawer({
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
 
+  // The zero-quantity message is the one field-error with a more useful thing to
+  // show in its place (the balance/remaining hint) once the user has had a moment
+  // to read it, so — unlike every other field-error above — it self-clears instead
+  // of sitting there until the user fixes the field or resubmits.
+  const [qtyFlash, setQtyFlash] = useState({ main: false, from: false, to: false });
+  const qtyFlashTimers = useRef<Partial<Record<'main' | 'from' | 'to', ReturnType<typeof setTimeout>>>>({});
+  const flashQtyError = (field: 'main' | 'from' | 'to') => {
+    setQtyFlash(prev => ({ ...prev, [field]: true }));
+    clearTimeout(qtyFlashTimers.current[field]);
+    qtyFlashTimers.current[field] = setTimeout(() => {
+      setQtyFlash(prev => ({ ...prev, [field]: false }));
+    }, QTY_ERROR_FLASH_MS);
+  };
+  useEffect(() => () => Object.values(qtyFlashTimers.current).forEach(clearTimeout), []);
+
   const [date, setDate] = useState(today());
   const [platform, setPlatform] = useState<Platform | null>(null);
   const [coin, setCoin] = useState<CoinSelection | null>(null);
@@ -380,6 +396,8 @@ export default function OpDrawer({
       priorOverflow.current = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setSubmitAttempted(false);
+      Object.values(qtyFlashTimers.current).forEach(clearTimeout);
+      setQtyFlash({ main: false, from: false, to: false });
       setPhase('idle');
       setLeverage(null);
       setCustomLevMode('idle');
@@ -453,6 +471,8 @@ export default function OpDrawer({
     pendingSlideRef.current = true;
     setOpType(next);
     setSubmitAttempted(false);
+    Object.values(qtyFlashTimers.current).forEach(clearTimeout);
+    setQtyFlash({ main: false, from: false, to: false });
   };
 
   // Restart the directional slide keyframe on each user-initiated tab switch. The
@@ -560,6 +580,7 @@ export default function OpDrawer({
     if (phase !== 'idle') return;
     if (opType === 'swap') { await submitTrade(); return; }
     setSubmitAttempted(true);
+    if (qtyInvalid) flashQtyError('main');
     if (coinMissing || qtyInvalid || priceInvalid || qtyExceedsRemaining || (!closingOp && mode === 'wallet' && opType === 'sell' && walletOverBalance)) {
       return;
     }
@@ -641,6 +662,8 @@ export default function OpDrawer({
   // 'swap' whenever closingOp is set, so this is unreachable in close mode).
   const submitTrade = async () => {
     setSubmitAttempted(true);
+    if (fromQtyInvalid) flashQtyError('from');
+    if (toQtyInvalid) flashQtyError('to');
     // Re-checks fromOverBalance here (not just relied on for the field's error
     // styling) — the drawer can stay open and pre-filled after a prior successful
     // swap already spent this same balance, so the value computed at render time
@@ -765,9 +788,9 @@ export default function OpDrawer({
               <div className="drawer-grid">
                 <NumericField id="drawer-qty" label={t.history_form_qty} placeholder="0"
                   value={qty} onChange={setQty} suffix={coin?.symbol}
-                  error={walletOverBalance || (submitAttempted && (qtyExceedsRemaining || qtyInvalid))}
+                  error={walletOverBalance || (submitAttempted && qtyExceedsRemaining) || (qtyFlash.main && qtyInvalid)}
                   hint={
-                    submitAttempted && qtyInvalid ? (
+                    qtyFlash.main && qtyInvalid ? (
                       <span className="field-error">{t.history_form_enterQuantity}</span>
                     ) : closingOp ? (
                       <BalanceHint qty={remainingQty} symbol={closingOp.symbol} over={qtyExceedsRemaining}
@@ -912,10 +935,10 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-from-qty" label={t.history_form_qty} placeholder="0"
                     value={fromQty} suffix={fromCoinMeta?.symbol}
-                    error={fromOverBalance || (submitAttempted && fromQtyInvalid)}
+                    error={fromOverBalance || (qtyFlash.from && fromQtyInvalid)}
                     onChange={setFromQty}
                     hint={
-                      submitAttempted && fromQtyInvalid ? (
+                      qtyFlash.from && fromQtyInvalid ? (
                         <span className="field-error">{t.history_form_enterQuantity}</span>
                       ) : fromCoinId ? (
                         <BalanceHint qty={fromAvailableQty} symbol={fromCoinMeta?.symbol ?? ''} over={fromOverBalance}
@@ -954,8 +977,8 @@ export default function OpDrawer({
                 <div className="drawer-grid">
                   <NumericField id="drawer-tr-to-qty" label={t.history_form_qty} placeholder="0"
                     value={toQty} onChange={setToQty} suffix={toCoin?.symbol}
-                    error={submitAttempted && toQtyInvalid}
-                    hint={submitAttempted && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
+                    error={qtyFlash.to && toQtyInvalid}
+                    hint={qtyFlash.to && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
                   <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
                     prefix="R$" badge={badgeFor(toPriceState)}
