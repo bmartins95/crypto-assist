@@ -91,9 +91,14 @@ function renderWithLocale(ui: React.ReactElement) {
   return render(<LocaleProvider><BalanceProvider><CurrencyProvider>{ui}</CurrencyProvider></BalanceProvider></LocaleProvider>);
 }
 
-function renderProfitTab(ops: Op[], prices: Record<string, number> = {}, activeChart: 'by-asset' | 'over-time' | 'value' = 'by-asset') {
+function renderProfitTab(
+  ops: Op[],
+  prices: Record<string, number> = {},
+  activeChart: 'by-asset' | 'over-time' | 'value' = 'by-asset',
+  avatarCache: Record<string, { url: string }> = {},
+) {
   return renderWithLocale(
-    <ProfitTab ops={ops} prices={prices} activeChart={activeChart} onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
+    <ProfitTab ops={ops} prices={prices} avatarCache={avatarCache} activeChart={activeChart} onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
   );
 }
 
@@ -166,7 +171,7 @@ describe('ProfitTab', () => {
 
   it('switches the active chart when clicking a chart button', () => {
     const onChartSwitch = vi.fn();
-    renderWithLocale(<ProfitTab ops={[op({})]} prices={{}} activeChart="by-asset" onChartSwitch={onChartSwitch} statusMsg="" onFetchPrices={vi.fn()} />);
+    renderWithLocale(<ProfitTab ops={[op({})]} prices={{}} avatarCache={{}} activeChart="by-asset" onChartSwitch={onChartSwitch} statusMsg="" onFetchPrices={vi.fn()} />);
     fireEvent.click(screen.getByText('Lucro no tempo'));
     expect(onChartSwitch).toHaveBeenCalledWith('over-time');
   });
@@ -288,7 +293,7 @@ describe('ProfitTab', () => {
     const destroysBefore = chartMock.destroyCalls;
     rerender(
       <LocaleProvider><BalanceProvider><CurrencyProvider>
-        <ProfitTab ops={[op({ type: 'Buy', qty: 1, price: 100 })]} prices={{ bitcoin: 150 }} activeChart="over-time" onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
+        <ProfitTab ops={[op({ type: 'Buy', qty: 1, price: 100 })]} prices={{ bitcoin: 150 }} avatarCache={{}} activeChart="over-time" onChartSwitch={vi.fn()} statusMsg="" onFetchPrices={vi.fn()} />
       </CurrencyProvider></BalanceProvider></LocaleProvider>
     );
     expect(chartMock.destroyCalls).toBeGreaterThan(destroysBefore);
@@ -414,6 +419,23 @@ describe('Per-asset compare overlay (US1)', () => {
     const acquisitionRow = el?.querySelector('.tt-acq-row');
     expect(acquisitionRow?.textContent).toContain('BTC');
     expect(acquisitionRow?.textContent).toContain('100'); // acquisition unit price (abbreviated)
+    expect(el?.querySelector('.tt-asset-badge')?.textContent).toBe('BTC'); // no cached avatar -> ticker fallback
+    expect(el?.querySelector('.tt-asset-badge img')).toBeNull();
+  });
+
+  it('renders the cached coin logo image in the tooltip header when available', async () => {
+    vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
+      bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
+    });
+    const ops = [op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    renderProfitTab(ops, { bitcoin: 110 }, 'over-time', { bitcoin: { url: 'https://assets.coingecko.com/btc.png' } });
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
+    await waitFor(() => expect(lastChartConfig().data.datasets).toHaveLength(2));
+
+    triggerTooltip(lastChartConfig(), 1, 1);
+    const badgeImg = document.querySelector('.tt-asset-badge img');
+    expect(badgeImg).toHaveAttribute('src', 'https://assets.coingecko.com/btc.png');
   });
 
   it('shows quantity/avg price as of the hovered date, not today\'s leftover balance', async () => {

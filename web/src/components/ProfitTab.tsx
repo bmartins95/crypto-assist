@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Chart from 'chart.js/auto';
 import type { Locale, UIText } from '@crypto-assist/shared';
-import { ChartType, Op, OpClosure, Prices } from '@/lib/types';
+import { AvatarCache, ChartType, Op, OpClosure, Prices } from '@/lib/types';
 import { fmtPct, fmtDate, fmtQty } from '@/lib/format';
 import { computeTimeline, computeProfitByAsset, computeAssetPeriodSeries, computeAssetPositionOnDate, TimelinePoint, AssetPositionAtDate } from '@/lib/portfolio';
 import { api } from '@/lib/api/client';
@@ -104,6 +104,7 @@ function buildAssetOverlayTooltipHtml(
   date: string,
   symbol: string,
   color: string,
+  imageUrl: string | undefined,
   precoAtual: number,
   position: AssetPositionAtDate,
   locale: Locale,
@@ -146,7 +147,7 @@ function buildAssetOverlayTooltipHtml(
 
   return `
     <div class="tt-pos-header">
-      <span class="tt-asset-badge" style="background:${color}22;color:${color}">${symbol}</span>
+      <span class="tt-asset-badge" style="background:${color}22;color:${color}">${symbol}${imageUrl ? `<img src="${imageUrl}" alt="" onerror="this.style.display='none'">` : ''}</span>
       <span class="tt-weekday">${fmtDateHeader(date, locale)}</span>
     </div>
     ${positionBlock}
@@ -164,13 +165,14 @@ interface Props {
   ops: Op[];
   closures: OpClosure[];
   prices: Prices;
+  avatarCache: AvatarCache;
   activeChart: ChartType;
   onChartSwitch: (t: ChartType) => void;
   statusMsg: string;
   onFetchPrices: () => void;
 }
 
-export default function ProfitTab({ ops, closures, prices, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
+export default function ProfitTab({ ops, closures, prices, avatarCache, activeChart, onChartSwitch, statusMsg, onFetchPrices }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
   const { currency, ratesStatus, fmtMoney, fmtMoneyCompact } = useCurrency();
@@ -335,7 +337,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
                 if (!point) return;
                 el.innerHTML = overlay && dp?.datasetIndex === 1
                   ? buildAssetOverlayTooltipHtml(
-                      point.date, overlay.symbol, overlayColor, overlay.priceSeries[dp.dataIndex] ?? overlay.price,
+                      point.date, overlay.symbol, overlayColor, avatarCache[overlay.coinId]?.url, overlay.priceSeries[dp.dataIndex] ?? overlay.price,
                       computeAssetPositionOnDate(ops, overlay.coinId, point.date, closures),
                       locale, t, fmtMoney, fmtMoneyCompact,
                     )
@@ -400,7 +402,7 @@ export default function ProfitTab({ ops, closures, prices, activeChart, onChartS
     // instead of the unstable object itself keeps this effect (and its load-in animation) from
     // re-running on every hover-triggered re-render. closures flows in via timeline, which
     // already depends on it.
-  }, [ops, prices, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, fmtMoneyCompact, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, heldCoinIds.join(',')]);
+  }, [ops, prices, avatarCache, timeline, timeframeEmpty, isTimeBased, activeChart, locale, t, fmtMoneyCompact, profitByAsset, noPriceData, hasCompareOverlay, effectiveCompareValue, heldCoinIds.join(',')]);
 
   const noDataOverlay = (
     <div className="empty-state" style={{ position: 'absolute', inset: 0 }}>
