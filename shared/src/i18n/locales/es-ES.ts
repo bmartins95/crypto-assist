@@ -315,6 +315,7 @@ const esES: UIText = {
   profit_compareWith: 'Comparar con:',
   profit_compareNone: 'Ninguno',
   profit_comparePriceSuffix: '(precio)',
+  profit_compareMore: '+{count} más',
   profit_assetsList_searchPlaceholder: 'Buscar activo…',
   profit_assetsList_searchAriaLabel: 'Buscar activo',
   profit_assetsList_sortAriaLabel: 'Ordenar por',

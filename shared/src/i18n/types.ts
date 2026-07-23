@@ -327,6 +327,7 @@ export interface UIText {
   profit_compareWith: string;
   profit_compareNone: string;
   profit_comparePriceSuffix: string;
+  profit_compareMore: string;
   profit_assetsList_searchPlaceholder: string;
   profit_assetsList_searchAriaLabel: string;
   profit_assetsList_sortAriaLabel: string;

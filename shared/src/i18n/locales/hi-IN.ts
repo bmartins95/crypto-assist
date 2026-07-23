@@ -315,6 +315,7 @@ const hiIN: UIText = {
   profit_compareWith: 'तुलना करें:',
   profit_compareNone: 'कोई नहीं',
   profit_comparePriceSuffix: '(कीमत)',
+  profit_compareMore: '+{count} और',
   profit_assetsList_searchPlaceholder: 'एसेट खोजें…',
   profit_assetsList_searchAriaLabel: 'एसेट खोजें',
   profit_assetsList_sortAriaLabel: 'क्रमबद्ध करें',

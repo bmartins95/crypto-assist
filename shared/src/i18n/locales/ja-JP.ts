@@ -315,6 +315,7 @@ const jaJP: UIText = {
   profit_compareWith: '比較対象:',
   profit_compareNone: 'なし',
   profit_comparePriceSuffix: '(価格)',
+  profit_compareMore: '他{count}件',
   profit_assetsList_searchPlaceholder: '資産を検索…',
   profit_assetsList_searchAriaLabel: '資産を検索',
   profit_assetsList_sortAriaLabel: '並び替え',

@@ -427,7 +427,10 @@ describe('Per-asset compare overlay (US1)', () => {
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
     });
-    const ops = [op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })];
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
     renderProfitTab(ops, { bitcoin: 110 }, 'over-time', { bitcoin: { url: 'https://assets.coingecko.com/btc.png' } });
     await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
@@ -445,6 +448,7 @@ describe('Per-asset compare overlay (US1)', () => {
     const ops = [
       op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 2, price: 100 }),
       op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
     ];
     renderProfitTab(ops, { bitcoin: 120 }, 'over-time');
     await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
@@ -461,7 +465,10 @@ describe('Per-asset compare overlay (US1)', () => {
       bitcoin: { '2024-01-01': 100, '2024-01-02': 100, '2024-01-03': 100, '2024-01-04': 100, '2024-01-05': 100 },
     });
     vi.setSystemTime(new Date('2024-01-05T00:00:00Z'));
-    const ops = [1, 2, 3, 4, 5].map(d => op({ id: `b${d}`, date: `2024-01-0${d}`, type: 'Buy', qty: 1, price: 100 }));
+    const ops = [
+      ...[1, 2, 3, 4, 5].map(d => op({ id: `b${d}`, date: `2024-01-0${d}`, type: 'Buy', qty: 1, price: 100 })),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
     renderProfitTab(ops, { bitcoin: 100 }, 'over-time');
     await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('radio', { name: 'BTC' }));
@@ -541,7 +548,11 @@ describe('Per-asset compare overlay (US1)', () => {
   it('falls back to "Nenhum" when the persisted comparison asset is no longer held', async () => {
     localStorage.setItem('profit_compare_asset', 'dogecoin');
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({ bitcoin: { '2024-01-01': 100, '2024-01-02': 110 } });
-    renderProfitTab([op({ date: '2024-01-01', type: 'Buy', qty: 1, price: 100 })], { bitcoin: 110 }, 'over-time');
+    const ops = [
+      op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
+      op({ id: 'e1', date: '2024-01-01', coinId: 'ethereum', symbol: 'ETH', name: 'Ethereum', type: 'Buy', qty: 1, price: 50 }),
+    ];
+    renderProfitTab(ops, { bitcoin: 110 }, 'over-time');
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Nenhum' })).toHaveAttribute('aria-checked', 'true'));
   });
 });
@@ -614,7 +625,7 @@ describe('Enriched profit tooltip (US3)', () => {
     expect(el.style.opacity).toBe('0');
   });
 
-  it('hovering a day highlights that day\'s per-asset contribution in the compare control and asset list', async () => {
+  it('hovering a day highlights that day\'s per-asset contribution in the asset list', async () => {
     vi.mocked(api.getPriceHistory).mockResolvedValueOnce({
       bitcoin: { '2024-01-01': 100, '2024-01-02': 110 },
       ethereum: { '2024-01-01': 50, '2024-01-02': 60 },
@@ -623,8 +634,7 @@ describe('Enriched profit tooltip (US3)', () => {
     await waitFor(() => expect(lastChartConfig().data.datasets[0].data[1]).toBe(20));
 
     triggerTooltip(lastChartConfig(), 1);
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'BTC' }).className).toContain('compare-control-highlighted'));
-    expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).className).toContain('assets-list-row--highlighted');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bitcoin BTC' }).className).toContain('assets-list-row--highlighted'));
   });
 
   it('shows each asset\'s price for the hovered day in the asset list, not the live price', async () => {

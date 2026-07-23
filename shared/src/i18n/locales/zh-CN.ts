@@ -315,6 +315,7 @@ const zhCN: UIText = {
   profit_compareWith: '对比：',
   profit_compareNone: '无',
   profit_comparePriceSuffix: '（价格）',
+  profit_compareMore: '还有{count}项',
   profit_assetsList_searchPlaceholder: '搜索资产…',
   profit_assetsList_searchAriaLabel: '搜索资产',
   profit_assetsList_sortAriaLabel: '排序方式',

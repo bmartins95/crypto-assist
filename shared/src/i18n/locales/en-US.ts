@@ -315,6 +315,7 @@ const enUS: UIText = {
   profit_compareWith: 'Compare with:',
   profit_compareNone: 'None',
   profit_comparePriceSuffix: '(price)',
+  profit_compareMore: '+{count} more',
   profit_assetsList_searchPlaceholder: 'Search asset…',
   profit_assetsList_searchAriaLabel: 'Search asset',
   profit_assetsList_sortAriaLabel: 'Sort by',

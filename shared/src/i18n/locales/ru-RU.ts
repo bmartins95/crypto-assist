@@ -315,6 +315,7 @@ const ruRU: UIText = {
   profit_compareWith: 'Сравнить с:',
   profit_compareNone: 'Нет',
   profit_comparePriceSuffix: '(цена)',
+  profit_compareMore: 'ещё {count}',
   profit_assetsList_searchPlaceholder: 'Поиск актива…',
   profit_assetsList_searchAriaLabel: 'Поиск актива',
   profit_assetsList_sortAriaLabel: 'Сортировать по',

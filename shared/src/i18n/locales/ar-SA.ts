@@ -315,6 +315,7 @@ const arSA: UIText = {
   profit_compareWith: 'مقارنة مع:',
   profit_compareNone: 'لا شيء',
   profit_comparePriceSuffix: '(السعر)',
+  profit_compareMore: '+{count} أخرى',
   profit_assetsList_searchPlaceholder: 'البحث عن أصل…',
   profit_assetsList_searchAriaLabel: 'البحث عن أصل',
   profit_assetsList_sortAriaLabel: 'ترتيب حسب',

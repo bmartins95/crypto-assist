@@ -243,7 +243,9 @@ export default function ProfitTab({ ops, closures, prices, avatarCache, activeCh
   const assetSeries = computeAssetPeriodSeries(ops, historicalPrices, prices, rangeFrom, rangeTo, closures);
   const assetSeriesById = new Map(assetSeries.map(a => [a.coinId, a]));
   const compareOptions: CompareAssetOption[] = openPositions.map(p => ({
-    coinId: p.coinId, symbol: p.symbol, color: assetColor(p.coinId, heldCoinIds),
+    coinId: p.coinId, symbol: p.symbol, name: p.name, color: assetColor(p.coinId, heldCoinIds),
+    pctChange: assetSeriesById.get(p.coinId)?.pctChange ?? 0,
+    allocationPct: totalInvestedOpen > 0 ? (p.investedOpen / totalInvestedOpen) * 100 : 0,
   }));
   const listItems: AssetListItem[] = openPositions.map(p => {
     const s = assetSeriesById.get(p.coinId);
@@ -467,7 +469,6 @@ export default function ProfitTab({ ops, closures, prices, avatarCache, activeCh
                 options={compareOptions}
                 value={effectiveCompareValue}
                 onChange={setCompareAsset}
-                dayContribution={dayContribution}
               />
             )}
           </div>

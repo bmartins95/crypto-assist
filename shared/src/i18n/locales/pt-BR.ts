@@ -315,6 +315,7 @@ const ptBR: UIText = {
   profit_compareWith: 'Comparar com:',
   profit_compareNone: 'Nenhum',
   profit_comparePriceSuffix: '(preço)',
+  profit_compareMore: '+{count} mais',
   profit_assetsList_searchPlaceholder: 'Buscar ativo…',
   profit_assetsList_searchAriaLabel: 'Buscar ativo',
   profit_assetsList_sortAriaLabel: 'Ordenar por',
