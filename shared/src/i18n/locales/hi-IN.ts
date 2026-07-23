@@ -80,7 +80,6 @@ const hiIN: UIText = {
   history_form_selectPlatform: 'एक प्लेटफ़ॉर्म चुनें।',
   history_form_enterQuantity: 'शून्य से अधिक मात्रा दर्ज करें।',
   history_form_enterPrice: 'शून्य से अधिक कीमत दर्ज करें।',
-  history_form_qtyExceedsRemaining: 'शेष खुली मात्रा ({qty}) से अधिक बंद नहीं किया जा सकता।',
   history_form_calculatedAutomatically: 'स्वचालित रूप से गणना की गई',
   history_form_priceAuto: 'वर्तमान',
   history_form_priceManual: 'मैनुअल',

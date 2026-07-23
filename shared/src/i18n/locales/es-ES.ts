@@ -80,7 +80,6 @@ const esES: UIText = {
   history_form_selectPlatform: 'Elige una plataforma.',
   history_form_enterQuantity: 'Introduce una cantidad mayor que cero.',
   history_form_enterPrice: 'Introduce un precio mayor que cero.',
-  history_form_qtyExceedsRemaining: 'No se puede cerrar más de la cantidad abierta restante ({qty}).',
   history_form_calculatedAutomatically: 'Calculado automáticamente',
   history_form_priceAuto: 'actual',
   history_form_priceManual: 'manual',

@@ -80,7 +80,6 @@ const ruRU: UIText = {
   history_form_selectPlatform: 'Выберите платформу.',
   history_form_enterQuantity: 'Введите количество больше нуля.',
   history_form_enterPrice: 'Введите цену больше нуля.',
-  history_form_qtyExceedsRemaining: 'Нельзя закрыть больше оставшегося открытого количества ({qty}).',
   history_form_calculatedAutomatically: 'Рассчитывается автоматически',
   history_form_priceAuto: 'текущая',
   history_form_priceManual: 'вручную',

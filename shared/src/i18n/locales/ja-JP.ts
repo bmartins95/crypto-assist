@@ -80,7 +80,6 @@ const jaJP: UIText = {
   history_form_selectPlatform: 'プラットフォームを選択してください。',
   history_form_enterQuantity: '0より大きい数量を入力してください。',
   history_form_enterPrice: '0より大きい価格を入力してください。',
-  history_form_qtyExceedsRemaining: '残りの未決済数量（{qty}）を超えて決済することはできません。',
   history_form_calculatedAutomatically: '自動計算',
   history_form_priceAuto: '現在値',
   history_form_priceManual: '手動',

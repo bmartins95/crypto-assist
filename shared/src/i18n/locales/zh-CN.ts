@@ -80,7 +80,6 @@ const zhCN: UIText = {
   history_form_selectPlatform: '请选择平台。',
   history_form_enterQuantity: '请输入大于零的数量。',
   history_form_enterPrice: '请输入大于零的价格。',
-  history_form_qtyExceedsRemaining: '平仓数量不能超过剩余持仓量（{qty}）。',
   history_form_calculatedAutomatically: '自动计算',
   history_form_priceAuto: '实时',
   history_form_priceManual: '手动',

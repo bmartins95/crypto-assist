@@ -80,7 +80,6 @@ const enUS: UIText = {
   history_form_selectPlatform: 'Choose a platform.',
   history_form_enterQuantity: 'Enter a quantity greater than zero.',
   history_form_enterPrice: 'Enter a price greater than zero.',
-  history_form_qtyExceedsRemaining: 'Cannot close more than the remaining open quantity ({qty}).',
   history_form_calculatedAutomatically: 'Calculated automatically',
   history_form_priceAuto: 'current',
   history_form_priceManual: 'manual',

@@ -80,7 +80,6 @@ const arSA: UIText = {
   history_form_selectPlatform: 'اختر منصة.',
   history_form_enterQuantity: 'أدخل كمية أكبر من صفر.',
   history_form_enterPrice: 'أدخل سعرًا أكبر من صفر.',
-  history_form_qtyExceedsRemaining: 'لا يمكن إغلاق أكثر من الكمية المفتوحة المتبقية ({qty}).',
   history_form_calculatedAutomatically: 'يُحسب تلقائيًا',
   history_form_priceAuto: 'حالي',
   history_form_priceManual: 'يدوي',

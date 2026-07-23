@@ -1163,14 +1163,16 @@ describe('OpDrawer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('blocks closing more than the remaining open quantity, with a message naming the actual limit', () => {
+  it('blocks closing more than the remaining open quantity, marking the remaining-hint red instead of a separate message', () => {
     const onSubmitClose = vi.fn();
     renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} onSubmitClose={onSubmitClose} closingOp={closingBuyOp} assets={[]} platformAssets={[]} ops={[]} avatarCache={{}} prices={{}} />);
     fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '150' } });
     fireEvent.click(document.querySelector('.drawer-foot .btn-submit')!);
     expect(onSubmitClose).not.toHaveBeenCalled();
-    expect(screen.getByText('Não é possível fechar mais que a quantidade em aberto (1,00).')).toBeInTheDocument();
+    expect(screen.queryByText(/Não é possível fechar/)).not.toBeInTheDocument();
+    expect(screen.getByText('Restante: 1,00 BTC')).toBeInTheDocument();
+    expect(document.querySelector('.bal-row.err')).toBeInTheDocument();
   });
 
   it('closes a position by dismissing the drawer at once, with no done checkmark (a normal op keeps it open)', async () => {

@@ -80,7 +80,6 @@ const ptBR: UIText = {
   history_form_selectPlatform: 'Escolha uma plataforma.',
   history_form_enterQuantity: 'Informe uma quantidade maior que zero.',
   history_form_enterPrice: 'Informe um preço maior que zero.',
-  history_form_qtyExceedsRemaining: 'Não é possível fechar mais que a quantidade em aberto ({qty}).',
   history_form_calculatedAutomatically: 'Calculado automaticamente',
   history_form_priceAuto: 'atual',
   history_form_priceManual: 'manual',

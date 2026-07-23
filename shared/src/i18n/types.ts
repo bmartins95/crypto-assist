@@ -92,7 +92,6 @@ export interface UIText {
   history_form_selectPlatform: string;
   history_form_enterQuantity: string;
   history_form_enterPrice: string;
-  history_form_qtyExceedsRemaining: string;
   history_form_calculatedAutomatically: string;
   history_form_priceAuto: string;
   history_form_priceManual: string;
