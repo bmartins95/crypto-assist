@@ -34,6 +34,23 @@ describe('NumericField', () => {
     expect(screen.getByLabelText('Preço')).toHaveClass('has-pre');
   });
 
+  it('widens the input\'s left padding to match the affix\'s actual rendered width', () => {
+    // Reproduces a real bug found live on prod: a per-character pixel estimate
+    // ("US$".length * 7.5px) matched a generic fallback font in isolated
+    // testing but was too narrow for the app's real font (Inter) — "US$" still
+    // clipped into the digits in production despite passing that estimate.
+    // Padding must be measured from the affix's real rendered width, not guessed.
+    const offsetWidthSpy = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+      .mockImplementation(function (this: HTMLElement) { return (this.textContent?.length ?? 0) * 10; });
+    renderField(<NumericField id="short" label="Curto" value="" onChange={vi.fn()} prefix="R$" />);
+    renderField(<NumericField id="long" label="Longo" value="" onChange={vi.fn()} prefix="US$" />);
+    const shortPadding = parseFloat((screen.getByLabelText('Curto') as HTMLElement).style.paddingLeft);
+    const longPadding = parseFloat((screen.getByLabelText('Longo') as HTMLElement).style.paddingLeft);
+    expect(longPadding).toBeGreaterThan(shortPadding);
+    expect(longPadding).toBe(3 * 10 + 12 + 6);
+    offsetWidthSpy.mockRestore();
+  });
+
   it('renders a suffix affix when provided', () => {
     renderField(<NumericField id="qty" label="Quantidade" value="" onChange={vi.fn()} suffix="SOL" />);
     const affix = document.querySelector('.affix.suf');
