@@ -52,7 +52,17 @@ export default function NumericField({
   // narrow for the app's real font (Inter), so "US$" still clipped into the
   // digits in production despite passing that check.
   useLayoutEffect(() => {
-    setPrefixPadding(prefix && affixRef.current ? affixRef.current.offsetWidth + 12 + 6 : undefined);
+    const measure = () => setPrefixPadding(prefix && affixRef.current ? affixRef.current.offsetWidth + 12 + 6 : undefined);
+    measure();
+    // Inter loads asynchronously (Google Fonts, `index.html`) — the very first
+    // measurement above often runs against the browser's fallback font, which
+    // rendered "US$" narrower than Inter does. Without this, that first
+    // (too-narrow) measurement stuck permanently once Inter swapped in, still
+    // clipping the digits despite the measurement approach in principle being
+    // correct.
+    if (prefix && typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(measure);
+    }
   }, [prefix]);
 
   return (

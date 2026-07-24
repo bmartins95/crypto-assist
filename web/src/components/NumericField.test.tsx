@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import NumericField from './NumericField';
 import { LocaleProvider } from '@/context/LocaleContext';
 
@@ -49,6 +49,36 @@ describe('NumericField', () => {
     expect(longPadding).toBeGreaterThan(shortPadding);
     expect(longPadding).toBe(3 * 10 + 12 + 6);
     offsetWidthSpy.mockRestore();
+  });
+
+  it('re-measures the prefix after the webfont finishes loading, not just at mount', async () => {
+    // Reproduces a real bug found live on prod: Inter loads asynchronously
+    // (Google Fonts), so the very first measurement often runs against the
+    // browser's fallback font — narrower than Inter renders "US$" — and that
+    // first, too-narrow measurement stuck permanently once Inter swapped in,
+    // still clipping the digits.
+    let call = 0;
+    const offsetWidthSpy = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+      .mockImplementation(() => { call++; return call === 1 ? 24 : 27; });
+    let resolveFontsReady: () => void = () => {};
+    const fontsReady = new Promise<void>(resolve => { resolveFontsReady = resolve; });
+    // @ts-expect-error -- jsdom has no Font Loading API; stubbed for this test only.
+    document.fonts = { ready: fontsReady, status: 'loading' };
+
+    renderField(<NumericField id="price" label="Preço" value="" onChange={vi.fn()} prefix="US$" />);
+    await waitFor(() => {
+      expect(parseFloat((screen.getByLabelText('Preço') as HTMLElement).style.paddingLeft)).toBe(24 + 12 + 6);
+    });
+    resolveFontsReady();
+    await waitFor(() => {
+      expect(parseFloat((screen.getByLabelText('Preço') as HTMLElement).style.paddingLeft)).toBe(27 + 12 + 6);
+    });
+    offsetWidthSpy.mockRestore();
+  });
+
+  afterEach(() => {
+    // @ts-expect-error -- undoes the Font Loading API stub above.
+    delete document.fonts;
   });
 
   it('renders a suffix affix when provided', () => {
