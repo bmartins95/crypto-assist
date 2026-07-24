@@ -1,5 +1,6 @@
 'use client';
 
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useLocale } from '@/context/LocaleContext';
 
 interface Badge {
@@ -43,14 +44,35 @@ export default function NumericField({
   };
 
   const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf', badge && 'has-badge', error && 'err'].filter(Boolean).join(' ');
+  const affixRef = useRef<HTMLSpanElement>(null);
+  const [prefixPadding, setPrefixPadding] = useState<number>();
+  // Measures the affix's actual rendered width (real font, weight, locale symbol —
+  // "US$" vs "€" vs "R$") rather than estimating from character count. A per-char
+  // pixel guess matched a generic fallback font in isolated testing but was too
+  // narrow for the app's real font (Inter), so "US$" still clipped into the
+  // digits in production despite passing that check.
+  useLayoutEffect(() => {
+    const measure = () => setPrefixPadding(prefix && affixRef.current ? affixRef.current.offsetWidth + 12 + 6 : undefined);
+    measure();
+    // Inter loads asynchronously (Google Fonts, `index.html`) — the very first
+    // measurement above often runs against the browser's fallback font, which
+    // rendered "US$" narrower than Inter does. Without this, that first
+    // (too-narrow) measurement stuck permanently once Inter swapped in, still
+    // clipping the digits despite the measurement approach in principle being
+    // correct.
+    if (prefix && typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(measure);
+    }
+  }, [prefix]);
 
   return (
     <div className="fld">
       {label && <label htmlFor={id}>{label}</label>}
       <div className={`nf${showStepper ? ' has-step' : ''}`}>
-        {prefix && <span className="affix pre">{prefix}</span>}
+        {prefix && <span ref={affixRef} className="affix pre">{prefix}</span>}
         <input
           id={id} type="number" inputMode="decimal" className={inpClass}
+          style={prefixPadding !== undefined ? { paddingLeft: `${prefixPadding}px` } : undefined}
           value={value} placeholder={placeholder} readOnly={readOnly}
           onChange={e => onChange(e.target.value)}
         />
