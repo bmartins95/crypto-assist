@@ -400,6 +400,25 @@ def test_create_op_wallet_sell_within_balance_succeeds(client_with_db):
     assert res.status_code == 201
 
 
+def test_create_op_wallet_balance_check_ignores_currency(client_with_db):
+    # Reproduces a real bug: a Sell recorded under a different currency than the
+    # matching Buy used to be invisible to the balance check (grouped by
+    # (coin, platform, currency)), rejecting a perfectly valid sell as a negative
+    # balance the moment a user's op history spanned more than one recorded currency
+    # (e.g. after switching their Settings currency preference).
+    client, conn = client_with_db
+    cur = conn.cursor.return_value
+    prior_buy = {"id": "buy-1", "date": "2024-01-01", "created_at": "2024-01-01T00:00:00+00:00", "type": "Buy", "qty": "1"}
+    cur.fetchall.side_effect = [[prior_buy]]
+    cur.fetchone.return_value = {**_DB_ROW, "type": "Sell", "qty": "0.5", "currency": "USD"}
+    body = {**_NEW_OP_BODY, "type": "Sell", "qty": 0.5, "currency": "USD"}
+    res = client.post("/api/ops", json=body)
+    assert res.status_code == 201
+    balance_check_params = cur.execute.call_args_list[0][0][1]
+    assert "USD" not in balance_check_params
+    assert len(balance_check_params) == 3  # user_id, coin_id, platform_id — no currency
+
+
 def test_update_op_wallet_negative_balance_rejected(client_with_db):
     # Editing the buy's quantity down below what a later sell already consumed.
     client, conn = client_with_db

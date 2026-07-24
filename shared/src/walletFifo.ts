@@ -15,9 +15,15 @@ interface Lot {
 function sortKey(op: Op): string {
   return `${op.date}|${op.createdAt ?? op.id}`;
 }
-function walletOpsForTuple(ops: Op[], coinId: string, platformId: string | undefined, currency: string | undefined): Op[] {
+// Grouped by (coinId, platformId) only — a held quantity is real regardless of which
+// currency each op happened to be priced in (backend/app/routes/ops.py's
+// `_wallet_ops_for_group` mirrors this). Partitioning by currency too used to fragment
+// one holding across currency tags and reject a perfectly valid sell as a false
+// negative balance the moment a user's op history spanned more than one currency
+// (e.g. after switching their Settings currency preference).
+function walletOpsForTuple(ops: Op[], coinId: string, platformId: string | undefined): Op[] {
   return ops
-    .filter(o => (o.kind ?? 'wallet') === 'wallet' && o.coinId === coinId && (o.platformId ?? undefined) === (platformId ?? undefined) && (o.currency ?? 'BRL') === (currency ?? 'BRL'))
+    .filter(o => (o.kind ?? 'wallet') === 'wallet' && o.coinId === coinId && (o.platformId ?? undefined) === (platformId ?? undefined))
     .sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 }
 
@@ -29,9 +35,9 @@ export interface WalletBalance {
 // Walks a wallet's Buy/Sell/Swap history in chronological order, consuming Buy (and
 // Swap-in) lots oldest-first with each Sell (and Swap-out). Returns the remaining
 // balance and its weighted-average cost across whatever lots are left.
-export function computeWalletBalance(ops: Op[], coinId: string, platformId: string | undefined, currency?: string): WalletBalance {
+export function computeWalletBalance(ops: Op[], coinId: string, platformId: string | undefined): WalletBalance {
   const lots: Lot[] = [];
-  for (const op of walletOpsForTuple(ops, coinId, platformId, currency)) {
+  for (const op of walletOpsForTuple(ops, coinId, platformId)) {
     if (op.type === 'Buy') {
       lots.push({ qty: op.qty, unitCost: op.price });
       continue;
@@ -58,7 +64,7 @@ export function computeWalletRealizedPnl(sellOp: Op, ops: Op[]): number {
   if (sellOp.type !== 'Sell') return 0;
   const lots: Lot[] = [];
   let realizedPnl = 0;
-  for (const op of walletOpsForTuple(ops, sellOp.coinId, sellOp.platformId, sellOp.currency)) {
+  for (const op of walletOpsForTuple(ops, sellOp.coinId, sellOp.platformId)) {
     if (op.type === 'Buy') {
       lots.push({ qty: op.qty, unitCost: op.price });
       continue;
@@ -93,20 +99,19 @@ export function computeWalletEditImpact(ops: Op[], editedOpId: string, proposedO
   if (!edited) return { affectedCount: 0, firstNegativeBalanceDate: null };
 
   const tuples = new Set<string>();
-  tuples.add(`${edited.coinId}||${edited.platformId ?? ''}||${edited.currency ?? 'BRL'}`);
-  if (proposedOp) tuples.add(`${proposedOp.coinId}||${proposedOp.platformId ?? ''}||${proposedOp.currency ?? 'BRL'}`);
+  tuples.add(`${edited.coinId}||${edited.platformId ?? ''}`);
+  if (proposedOp) tuples.add(`${proposedOp.coinId}||${proposedOp.platformId ?? ''}`);
 
   let affectedCount = 0;
   let firstNegativeBalanceDate: string | null = null;
 
   for (const tupleKey of tuples) {
-    const [coinId, platformId, currency] = tupleKey.split('||');
-    const current = walletOpsForTuple(ops, coinId, platformId || undefined, currency);
+    const [coinId, platformId] = tupleKey.split('||');
+    const current = walletOpsForTuple(ops, coinId, platformId || undefined);
     const hypothetical = walletOpsForTuple(
       proposedOp ? ops.map(o => (o.id === editedOpId ? proposedOp : o)) : ops.filter(o => o.id !== editedOpId),
       coinId,
       platformId || undefined,
-      currency,
     );
 
     // Tracks both the running balance and each Sell's own realized P/L — a source op's
