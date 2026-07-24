@@ -2,6 +2,7 @@
 
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { currencySymbol } from '@crypto-assist/shared';
 import { Sk } from './Skeleton';
 
 const ROWS = 6;
@@ -9,7 +10,7 @@ const ROWS = 6;
 // Mirrors WalletTab's default (by-asset) layout exactly — same wrapper classes,
 // same card/row/column shapes — so nothing shifts once real data swaps in.
 export default function WalletSkeleton() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { currency } = useCurrency();
 
   return (
@@ -69,7 +70,12 @@ export default function WalletSkeleton() {
                 <td className="num"><Sk w={78} h={13} /></td>
                 <td className="num"><Sk w={68} h={13} /></td>
                 <td className="num"><Sk w={50} h={20} radius={6} /></td>
-                <td><Sk w={80} h={26} radius={6} /></td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--s-text-dim)' }}>{currencySymbol(currency, locale)}</span>
+                    <Sk w={80} h={26} radius={6} />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
