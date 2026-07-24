@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Op, NewOp, OpClosure, Asset, AssetWithPlatform, AvatarCache, Prices, Platform, Leverage } from '@/lib/types';
 import { api, CoinSearchResult } from '@/lib/api/client';
 import { fmtQty } from '@/lib/format';
-import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWalletRealizedPnl } from '@/lib/portfolio';
+import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWalletRealizedPnl, convertOpsToUsd } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
@@ -210,7 +210,7 @@ export default function OpDrawer({
   editingOp, closingOp, newOpKind, ops, closures = [], assets, platformAssets, avatarCache, prices,
 }: Props) {
   const { t, locale } = useLocale();
-  const { currency, rates, fmtFromCurrency } = useCurrency();
+  const { currency, rates, fmtFromCurrency, fmtMoney } = useCurrency();
   const { resolveOpPlatform } = usePlatformCatalog();
   // Monetary inputs are denominated in the display currency; market prices are USD.
   const toDisplay = (usd: number): number => usd * (rates ? rates[currency] : 0);
@@ -528,7 +528,7 @@ export default function OpDrawer({
   const qtyExceedsRemaining = !!closingOp && qtyNum > 0 && qtyNum > remainingQty + 1e-9;
   const qtyInvalid = qtyNum <= 0;
   const priceInvalid = priceNum <= 0;
-  const walletEstimatedPnl = (mode === 'wallet' && opType === 'sell' && coin && platform && qtyNum > 0 && priceNum > 0)
+  const walletEstimatedPnl = (mode === 'wallet' && opType === 'sell' && coin && platform && qtyNum > 0 && priceNum > 0 && rates)
     ? (() => {
         const preview: Op = {
           id: '__wallet_preview__', date, coinId: coin.coinId, symbol: coin.symbol, name: coin.name,
@@ -540,7 +540,13 @@ export default function OpDrawer({
           // whose sort position relative to a real UUID would otherwise be arbitrary.
           createdAt: new Date().toISOString(),
         };
-        return computeWalletRealizedPnl(preview, [...opsForWalletPreview, preview]);
+        // Converted to USD before the FIFO walk — computeWalletRealizedPnl's cost-basis
+        // math needs every lot in one common currency, and `preview` is priced in
+        // whatever currency the user is currently typing into, which may not match
+        // earlier lots' recorded currency.
+        const usdPreview = convertOpsToUsd([preview], rates)[0];
+        const usdOpsForWalletPreview = convertOpsToUsd(opsForWalletPreview, rates);
+        return computeWalletRealizedPnl(usdPreview, [...usdOpsForWalletPreview, usdPreview]);
       })()
     : null;
 
@@ -897,7 +903,7 @@ export default function OpDrawer({
                 <div className="pnl-preview">
                   <span>{t.wallet_estimated_pnl}</span>
                   <span className={walletEstimatedPnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>
-                    {fmtFromCurrency(walletEstimatedPnl, editingOp?.currency ?? currency)}
+                    {fmtMoney(walletEstimatedPnl)}
                   </span>
                 </div>
               )}

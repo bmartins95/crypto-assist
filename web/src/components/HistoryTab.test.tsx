@@ -312,6 +312,28 @@ describe('HistoryTab', () => {
     expect(statusCell).toHaveTextContent('—');
   });
 
+  it('converts a wallet Sell realized P/L to a common currency instead of mixing raw prices', async () => {
+    // Reproduces a real bug: the buy lot was recorded while USD was selected (100
+    // USD), the sell while BRL was selected (600 BRL). Subtracting the raw BRL
+    // price from the raw USD cost used to produce a meaningless number.
+    vi.mocked(api.getExchangeRates).mockResolvedValueOnce({
+      rates: { BRL: 5, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z',
+    });
+    const buyOp: Op = { ...existingOp, id: 'buy-1', date: '2024-01-01', qty: 1, price: 100, total: 100, fee: 0, currency: 'USD' };
+    const sellOp: Op = { ...existingOp, id: 'sell-1', date: '2024-01-02', type: 'Sell', qty: 1, price: 600, total: 600, fee: 0, currency: 'BRL' };
+    renderWithLocale(<HistoryTab {...baseProps} ops={[buyOp, sellOp]} />);
+    await waitFor(() => expect(api.getExchangeRates).toHaveBeenCalled());
+    // Sell: 600 BRL / 5 = 120 USD. Buy lot: 100 USD. P/L = 20 USD * 5 (BRL rate) = 100 BRL.
+    // The pre-fix code subtracted 600 - 100 = 500 directly, showing "R$ 500,00".
+    await waitFor(() => {
+      const rows = document.querySelectorAll('.history-row');
+      const sellRow = rows[rows.length - 1];
+      const pnlCell = sellRow.querySelectorAll('td')[4];
+      expect(pnlCell).toHaveTextContent('100,00');
+      expect(pnlCell).not.toHaveTextContent('500,00');
+    });
+  });
+
   it('shows an "open" status with no P/L figure for a trade with no closures', () => {
     renderWithLocale(<HistoryTab {...baseProps} ops={[tradeOp]} />);
     expect(screen.getByText('Aberta')).toBeInTheDocument();
