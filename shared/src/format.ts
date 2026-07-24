@@ -29,3 +29,11 @@ export const fmtQty = (v: number, locale: Locale = 'pt-BR'): string => {
 
 export const fmtDate = (s: string, locale: Locale = 'pt-BR'): string =>
   s ? new Date(s + 'T00:00:00').toLocaleDateString(locale) : '—';
+
+// The bare currency symbol/code Intl would prefix a formatted amount with (e.g. "R$",
+// "$", "€") — for a money input's static prefix affix, where the amount itself is
+// typed separately and re-formatting it on every keystroke isn't wanted.
+export const currencySymbol = (currency: string, locale: Locale = 'pt-BR'): string =>
+  new Intl.NumberFormat(locale, { style: 'currency', currency })
+    .formatToParts(0)
+    .find(p => p.type === 'currency')?.value ?? currency;

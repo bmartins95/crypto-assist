@@ -81,6 +81,25 @@ Backend errors: `request()` in `src/lib/api/client.ts` surfaces FastAPI's string
 (falling back to `error`, then a generic message) and attaches `status` to the thrown Error.
 Event handlers showing failures should include `err.message`, not just a localized headline.
 
+## Money and currency
+
+Any UI that displays or edits a monetary amount must go through the shared currency
+layer — never hardcode a currency symbol or assume BRL:
+
+- **Display**: use `useCurrency()`'s `fmtMoney`/`fmtMoneyCompact` (for a USD-denominated
+  value) or `fmtFromCurrency` (for a value already recorded in a specific `Currency`).
+  Both apply the user's selected display currency and locale automatically.
+- **Input**: use `MoneyField` (`src/components/MoneyField.tsx`), not a raw `NumericField`
+  with a literal `prefix`. It derives the currency symbol from `useCurrency()` and
+  `useLocale()` via `currencySymbol()` (`@crypto-assist/shared`), so it always reflects
+  whatever currency is actually selected. Pass an explicit `currency` prop only when the
+  value is fixed to a specific past currency (e.g. editing an existing operation) rather
+  than the app's current selection.
+
+This exists because `OpDrawer`'s price/fee/total fields once hardcoded `prefix="R$"`
+directly on `NumericField`, so switching the app to USD (or any non-BRL currency) never
+updated those labels even though the underlying values were converted correctly.
+
 ## Dev server
 
 ```bash

@@ -8,6 +8,7 @@ import { openQtyRemaining, estimateClosePnl, computeWalletBalance, computeWallet
 import { useLocale } from '@/context/LocaleContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import NumericField from '@/components/NumericField';
+import MoneyField from '@/components/MoneyField';
 import BalanceHint from '@/components/BalanceHint';
 import PlatformSelect from '@/components/platform/PlatformSelect';
 import PlatformLogo from '@/components/platform/PlatformLogo';
@@ -516,9 +517,9 @@ export default function OpDrawer({
   );
   const walletBalance = useMemo(
     () => (mode === 'wallet' && opType === 'sell' && coin && platform)
-      ? computeWalletBalance(opsForWalletPreview, coin.coinId, platform.id, editingOp?.currency ?? currency)
+      ? computeWalletBalance(opsForWalletPreview, coin.coinId, platform.id)
       : null,
-    [mode, opType, coin, platform, opsForWalletPreview, editingOp, currency],
+    [mode, opType, coin, platform, opsForWalletPreview],
   );
   const walletOverBalance = !!walletBalance && qtyNum > walletBalance.availableQty + 1e-9;
   // Each condition maps to exactly one field's own inline message below — `coin` is
@@ -800,9 +801,9 @@ export default function OpDrawer({
                         onMax={() => setQty(String(walletBalance.availableQty))} />
                     ) : undefined
                   } />
-                <NumericField id="drawer-price" label={t.history_form_price} placeholder="0.00"
-                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} prefix="R$" badge={priceBadge}
-                  error={submitAttempted && priceInvalid}
+                <MoneyField id="drawer-price" label={t.history_form_price} placeholder="0.00"
+                  value={unitPrice} onChange={v => { setUnitPrice(v); setPriceState('manual'); }} badge={priceBadge}
+                  currency={editingOp?.currency} error={submitAttempted && priceInvalid}
                   hint={submitAttempted && priceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
               </div>
               {mode === 'trade' && !editingOp && !closingOp && (
@@ -875,9 +876,10 @@ export default function OpDrawer({
                 </div>
               )}
               <div className="drawer-grid">
-                <NumericField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
-                  value={fee} onChange={setFee} prefix="R$" />
-                <NumericField id="drawer-total" label={t.history_form_total} prefix="R$" readOnly
+                <MoneyField id="drawer-fee" label={t.history_form_fee} placeholder="0.00"
+                  value={fee} onChange={setFee} currency={editingOp?.currency} />
+                <MoneyField id="drawer-total" label={t.history_form_total} readOnly
+                  currency={editingOp?.currency}
                   value={computedTotal.toFixed(2)} onChange={() => {}} hint={t.history_form_calculatedAutomatically} />
               </div>
               {closingOp && (() => {
@@ -945,9 +947,9 @@ export default function OpDrawer({
                           onMax={() => setFromQty(String(fromAvailableQty))} />
                       ) : undefined
                     } />
-                  <NumericField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
+                  <MoneyField id="drawer-tr-from-price" label={t.history_form_price} placeholder="0.00"
                     value={fromUnitPrice} onChange={v => { setFromUnitPrice(v); setFromPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(fromPriceState)}
+                    badge={badgeFor(fromPriceState)}
                     error={submitAttempted && fromPriceInvalid}
                     hint={submitAttempted && fromPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
@@ -979,18 +981,18 @@ export default function OpDrawer({
                     value={toQty} onChange={setToQty} suffix={toCoin?.symbol}
                     error={qtyFlash.to && toQtyInvalid}
                     hint={qtyFlash.to && toQtyInvalid ? <span className="field-error">{t.history_form_enterQuantity}</span> : undefined} />
-                  <NumericField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
+                  <MoneyField id="drawer-tr-to-price" label={t.history_form_price} placeholder="0.00"
                     value={toUnitPrice} onChange={v => { setToUnitPrice(v); setToPriceState('manual'); }}
-                    prefix="R$" badge={badgeFor(toPriceState)}
+                    badge={badgeFor(toPriceState)}
                     error={submitAttempted && toPriceInvalid}
                     hint={submitAttempted && toPriceInvalid ? <span className="field-error">{t.history_form_enterPrice}</span> : undefined} />
                 </div>
               </div>
 
               <div className="drawer-grid">
-                <NumericField id="drawer-tr-fee" label={t.trade_form_fee} placeholder="0.00"
-                  value={tradeFee} onChange={setTradeFee} prefix="R$" />
-                <NumericField id="drawer-tr-total" label={t.trade_form_price} prefix="R$" readOnly
+                <MoneyField id="drawer-tr-fee" label={t.trade_form_fee} placeholder="0.00"
+                  value={tradeFee} onChange={setTradeFee} />
+                <MoneyField id="drawer-tr-total" label={t.trade_form_price} readOnly
                   value={receivedTotal.toFixed(2)} onChange={() => {}} hint={t.trade_form_totalHint} />
               </div>
             </>
