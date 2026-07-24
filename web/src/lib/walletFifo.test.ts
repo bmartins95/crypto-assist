@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { computeWalletBalance, computeWalletRealizedPnl, computeWalletEditImpact } from '@crypto-assist/shared';
 import type { Op } from '@crypto-assist/shared';
 
@@ -24,7 +24,7 @@ function op(overrides: Partial<Op>): Op {
 
 describe('computeWalletBalance', () => {
   it('returns zero balance with no ops', () => {
-    expect(computeWalletBalance([], 'bitcoin', 'binance', 'BRL')).toEqual({ availableQty: 0, avgCost: 0 });
+    expect(computeWalletBalance([], 'bitcoin', 'binance')).toEqual({ availableQty: 0, avgCost: 0 });
   });
 
   it('sums multiple buys at different prices into a weighted average cost', () => {
@@ -32,7 +32,7 @@ describe('computeWalletBalance', () => {
       op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100 }),
       op({ id: 'b2', date: '2024-01-02', type: 'Buy', qty: 1, price: 200 }),
     ];
-    expect(computeWalletBalance(ops, 'bitcoin', 'binance', 'BRL')).toEqual({ availableQty: 2, avgCost: 150 });
+    expect(computeWalletBalance(ops, 'bitcoin', 'binance')).toEqual({ availableQty: 2, avgCost: 150 });
   });
 
   it('consumes the oldest lot first on a partial sell', () => {
@@ -42,7 +42,7 @@ describe('computeWalletBalance', () => {
       op({ id: 's1', date: '2024-01-03', type: 'Sell', qty: 1, price: 150 }),
     ];
     // The 100-cost lot is consumed first; only the 200-cost lot remains.
-    expect(computeWalletBalance(ops, 'bitcoin', 'binance', 'BRL')).toEqual({ availableQty: 1, avgCost: 200 });
+    expect(computeWalletBalance(ops, 'bitcoin', 'binance')).toEqual({ availableQty: 1, avgCost: 200 });
   });
 
   it('ignores ops on a different platform or coin', () => {
@@ -51,12 +51,12 @@ describe('computeWalletBalance', () => {
       op({ id: 'b2', type: 'Buy', qty: 5, price: 100, platformId: 'kraken' }),
       op({ id: 'b3', type: 'Buy', qty: 5, price: 100, coinId: 'ethereum' }),
     ];
-    expect(computeWalletBalance(ops, 'bitcoin', 'binance', 'BRL').availableQty).toBe(1);
+    expect(computeWalletBalance(ops, 'bitcoin', 'binance').availableQty).toBe(1);
   });
 
   it('ignores trade-kind ops entirely', () => {
     const ops = [op({ id: 't1', type: 'Buy', qty: 10, price: 100, kind: 'trade', side: 'long' })];
-    expect(computeWalletBalance(ops, 'bitcoin', 'binance', 'BRL').availableQty).toBe(0);
+    expect(computeWalletBalance(ops, 'bitcoin', 'binance').availableQty).toBe(0);
   });
 
   it('orders same-day ops by real creation time, not by id', () => {
@@ -66,7 +66,19 @@ describe('computeWalletBalance', () => {
     // reporting the account as having no balance at all.
     const buy = op({ id: 'zzz-buy', date: '2024-01-05', type: 'Buy', qty: 0.042, price: 100, createdAt: '2024-01-05T01:37:07Z' });
     const sell = op({ id: 'aaa-sell', date: '2024-01-05', type: 'Sell', qty: 0.042, price: 150, createdAt: '2024-01-05T12:45:00Z' });
-    expect(computeWalletBalance([buy, sell], 'bitcoin', 'binance', 'BRL')).toEqual({ availableQty: 0, avgCost: 0 });
+    expect(computeWalletBalance([buy, sell], 'bitcoin', 'binance')).toEqual({ availableQty: 0, avgCost: 0 });
+  });
+
+  it('counts a held quantity regardless of which currency each op was recorded in', () => {
+    // Reproduces a real bug: a user bought BTC while their Settings currency was USD,
+    // then switched to BRL and tried to sell the same coin/platform position. The
+    // balance check used to group ops by (coinId, platformId, currency), so the BRL
+    // sell saw zero matching-currency buy lots and was rejected as a negative balance
+    // even though the coin was fully available.
+    const buy = op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100, currency: 'USD' });
+    const sell = op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150, currency: 'BRL' });
+    expect(computeWalletBalance([buy, sell], 'bitcoin', 'binance')).toEqual({ availableQty: 0, avgCost: 0 });
+    expect(computeWalletBalance([buy], 'bitcoin', 'binance').availableQty).toBe(1);
   });
 });
 
@@ -88,6 +100,12 @@ describe('computeWalletRealizedPnl', () => {
     const sell = op({ id: 's1', date: '2024-01-03', type: 'Sell', qty: 2, price: 180 });
     // (180-100)*1 + (180-200)*1 = 80 - 20 = 60
     expect(computeWalletRealizedPnl(sell, [buy1, buy2, sell])).toBe(60);
+  });
+
+  it('consumes a lot recorded in a different currency instead of finding nothing to sell', () => {
+    const buy = op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100, currency: 'USD' });
+    const sell = op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150, currency: 'BRL' });
+    expect(computeWalletRealizedPnl(sell, [buy, sell])).toBe(50);
   });
 });
 
@@ -139,5 +157,12 @@ describe('computeWalletEditImpact', () => {
     const sell = op({ id: '1e7c429c-sell', date: '2024-01-05', type: 'Sell', qty: 0.042, price: 150, createdAt: '2024-01-05T12:45:00Z' });
     const impact = computeWalletEditImpact([buy, sell], sell.id, null);
     expect(impact.firstNegativeBalanceDate).toBeNull();
+  });
+
+  it('treats ops in different currencies as the same tuple, not separate groups', () => {
+    const buy = op({ id: 'b1', date: '2024-01-01', type: 'Buy', qty: 1, price: 100, currency: 'USD' });
+    const sell = op({ id: 's1', date: '2024-01-02', type: 'Sell', qty: 1, price: 150, currency: 'BRL' });
+    const impact = computeWalletEditImpact([buy, sell], 'b1', null);
+    expect(impact.firstNegativeBalanceDate).toBe('2024-01-02');
   });
 });

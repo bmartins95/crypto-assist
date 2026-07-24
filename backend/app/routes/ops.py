@@ -58,12 +58,17 @@ def _derive_side(op: NewOp) -> str | None:
     return "long" if op.type == "Buy" else "short"
 
 
-def _wallet_ops_for_group(cur, user_id: str, coin_id: str, platform_id: str | None, currency: str) -> list[WalletOpRow]:
+def _wallet_ops_for_group(cur, user_id: str, coin_id: str, platform_id: str | None) -> list[WalletOpRow]:
+    # Balance is a real held quantity, not partitioned by the currency any given op
+    # happened to be priced in — this used to filter on `currency = %s` too, which
+    # fragmented one holding across currency tags and rejected perfectly valid sells
+    # as a false negative balance the moment a user's op history spanned more than
+    # one recorded currency (e.g. after switching their Settings currency preference).
     cur.execute(
         "SELECT id, date, created_at, type, qty FROM ops"
         " WHERE user_id = %s AND op_kind = 'wallet' AND coin_id = %s"
-        " AND platform_id IS NOT DISTINCT FROM %s AND currency = %s",
-        (user_id, coin_id, platform_id, currency),
+        " AND platform_id IS NOT DISTINCT FROM %s",
+        (user_id, coin_id, platform_id),
     )
     return [
         WalletOpRow(id=str(r["id"]), date=str(r["date"]), created_at=str(r["created_at"]), type=r["type"], qty=float(r["qty"]))
@@ -102,7 +107,7 @@ def create_op(op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             if op.kind == "wallet" and op.type == "Sell":
-                existing = _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId, op.currency)
+                existing = _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId)
                 proposed = WalletOpRow(
                     id="__new__", date=op.date, created_at=_NEW_OP_SENTINEL_CREATED_AT, type=op.type, qty=op.qty
                 )
@@ -135,7 +140,7 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT coin_id, platform_id, currency, op_kind, side, created_at FROM ops"
+                "SELECT coin_id, platform_id, op_kind, side, created_at FROM ops"
                 " WHERE id = %s AND user_id = %s",
                 (op_id, auth.user_id),
             )
@@ -153,14 +158,12 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
                 )
 
             if op.kind == "wallet":
-                same_group = (
-                    op.coinId == current["coin_id"]
-                    and op.platformId == current["platform_id"]
-                    and op.currency == current["currency"]
-                )
+                # Balance is grouped by (coin, platform) only (see _wallet_ops_for_group) —
+                # currency no longer distinguishes the group, so only coin/platform moves matter here.
+                same_group = op.coinId == current["coin_id"] and op.platformId == current["platform_id"]
                 if same_group:
                     others = [
-                        w for w in _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId, op.currency)
+                        w for w in _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId)
                         if w.id != op_id
                     ]
                     proposed = WalletOpRow(
@@ -169,11 +172,11 @@ def update_op(op_id: str, op: NewOp, auth: AuthContext = Depends(require_auth)):
                     _reject_if_negative_balance([*others, proposed])
                 else:
                     old_group = [
-                        w for w in _wallet_ops_for_group(cur, auth.user_id, current["coin_id"], current["platform_id"], current["currency"])
+                        w for w in _wallet_ops_for_group(cur, auth.user_id, current["coin_id"], current["platform_id"])
                         if w.id != op_id
                     ]
                     _reject_if_negative_balance(old_group)
-                    new_group = _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId, op.currency)
+                    new_group = _wallet_ops_for_group(cur, auth.user_id, op.coinId, op.platformId)
                     proposed = WalletOpRow(
                         id=op_id, date=op.date, created_at=str(current["created_at"]), type=op.type, qty=op.qty
                     )
@@ -242,7 +245,7 @@ def delete_op(op_id: str, auth: AuthContext = Depends(require_auth)):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT trade_group_id, op_kind, coin_id, platform_id, currency FROM ops WHERE id = %s AND user_id = %s",
+                "SELECT trade_group_id, op_kind, coin_id, platform_id FROM ops WHERE id = %s AND user_id = %s",
                 (op_id, auth.user_id),
             )
             found = cur.fetchone()
@@ -252,7 +255,7 @@ def delete_op(op_id: str, auth: AuthContext = Depends(require_auth)):
 
             if found["op_kind"] == "wallet":
                 remaining = [
-                    w for w in _wallet_ops_for_group(cur, auth.user_id, found["coin_id"], found["platform_id"], found["currency"])
+                    w for w in _wallet_ops_for_group(cur, auth.user_id, found["coin_id"], found["platform_id"])
                     if w.id != op_id
                 ]
                 _reject_if_negative_balance(remaining)

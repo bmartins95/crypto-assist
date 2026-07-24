@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Op, NewOp, OpClosure, Asset, AvatarCache, Prices } from '@/lib/types';
 import { fmtQty, fmtDate } from '@/lib/format';
-import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlForSource, isClosedSource, computeWalletRealizedPnl, computeWalletEditImpact, computeCycles } from '@/lib/portfolio';
+import { computePositionsByAssetAndPlatform, computeOpStatus, realizedPnlForSource, isClosedSource, computeWalletRealizedPnl, computeWalletEditImpact, computeCycles, convertOpsToUsd } from '@/lib/portfolio';
 import { useLocale } from '@/context/LocaleContext';
 import { useBalance } from '@/context/BalanceContext';
 import { useCurrency } from '@/context/CurrencyContext';
@@ -84,10 +84,15 @@ function groupOpsByDate(ops: Op[]): { date: string; rows: HistoryRow[] }[] {
 export default function HistoryTab({ ops, assets, avatarCache, prices, closures, onAddOp, onEditOp, onRemoveOp, onCloseOp }: Props) {
   const { locale, t } = useLocale();
   const { hidden } = useBalance();
-  const { currency, fmtFromCurrency } = useCurrency();
+  const { currency, fmtFromCurrency, fmtMoney, rates } = useCurrency();
   const { showToast } = useToast();
   const mask = (v: string): string => (hidden ? '••••••' : v);
   const fmtOp = (v: number, o: Op): string => fmtFromCurrency(v, o.currency ?? 'BRL');
+  // computeWalletRealizedPnl's cost-basis math needs every lot in one common currency —
+  // a Sell's realized P/L mixing a USD-recorded buy with a BRL-recorded sell price would
+  // otherwise subtract mismatched units. `ops` stays untouched for CRUD/editing (which
+  // must see each op's real recorded price/currency), only this derived copy feeds FIFO.
+  const usdOps = useMemo(() => (rates ? convertOpsToUsd(ops, rates) : []), [ops, rates]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOp, setEditingOp] = useState<Op | undefined>(undefined);
   const [closingOp, setClosingOp] = useState<Op | undefined>(undefined);
@@ -204,7 +209,8 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
 
   const renderWalletRow = (o: Op, expanded: boolean) => {
     const platform = resolveOpPlatform(o.platformId, o.platformName);
-    const pnl = o.type === 'Sell' ? computeWalletRealizedPnl(o, ops) : null;
+    const usdOp = usdOps.find(u => u.id === o.id);
+    const pnl = o.type === 'Sell' && usdOp ? computeWalletRealizedPnl(usdOp, usdOps) : null;
     return (
       <Fragment key={o.id}>
         <tr className="history-row" onClick={() => toggleExpand(o.id)}>
@@ -216,7 +222,7 @@ export default function HistoryTab({ ops, assets, avatarCache, prices, closures,
           <td className="num" style={{ fontWeight: 600 }}>{mask(fmtOp(o.total, o))}</td>
           <td className="num">
             {pnl === null ? <span style={{ color: 'var(--s-text-dim)' }}>—</span> : (
-              <span className={pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>{mask(fmtOp(pnl, o))}</span>
+              <span className={pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}>{mask(fmtMoney(pnl))}</span>
             )}
           </td>
           <td><span style={{ color: 'var(--s-text-dim)' }}>—</span></td>

@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { fmt, fmtPct, fmtQty, fmtDate } from './format';
+import { fmt, fmtPct, fmtQty, fmtDate, currencySymbol } from './format';
 
 const norm = (s: string) => s.replace(/ /g, ' ');
 
@@ -105,5 +105,19 @@ describe('fmt per-currency decimal rules', () => {
   it('formats EUR and GBP with two decimals', () => {
     expect(fmt(1234.5, 'de-DE', 'EUR').replace(/ /g, ' ')).toBe('1.234,50 €');
     expect(fmt(1234.5, 'en-US', 'GBP').replace(/ /g, ' ')).toBe('£1,234.50');
+  });
+});
+
+describe('currencySymbol', () => {
+  it('returns R$ for BRL in pt-BR', () => {
+    expect(currencySymbol('BRL', 'pt-BR')).toBe('R$');
+  });
+
+  it('returns $ for USD in en-US', () => {
+    expect(currencySymbol('USD', 'en-US')).toBe('$');
+  });
+
+  it('defaults to pt-BR when no locale is given', () => {
+    expect(currencySymbol('USD')).toBe('US$');
   });
 });

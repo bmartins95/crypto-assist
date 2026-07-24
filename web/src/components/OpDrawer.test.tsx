@@ -191,6 +191,39 @@ describe('OpDrawer', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: 'Sell', qty: 1, price: 100 }));
   });
 
+  it('converts the wallet Sell P/L preview to a common currency instead of mixing raw prices', async () => {
+    // Reproduces a real bug: the held lot was bought while USD was selected (100
+    // USD), and the sell is now priced in BRL. Subtracting the raw BRL price from
+    // the raw USD cost used to produce a meaningless number — converting both to
+    // USD first is the only way the estimated P/L means anything.
+    vi.mocked(api.getExchangeRates).mockResolvedValueOnce({
+      rates: { BRL: 5, USD: 1, EUR: 1, GBP: 1, JPY: 1 }, updatedAt: '2026-01-01T00:00:00Z',
+    });
+    const buyOp: Op = {
+      id: 'buy-1', date: '2024-01-01', coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin',
+      type: 'Buy', qty: 1, price: 100, fee: 0, total: 100,
+      platformId: 'custom:binance', platformName: 'Binance', currency: 'USD', kind: 'wallet',
+      createdAt: '2024-01-01T00:00:00Z',
+    };
+    const assets: Asset[] = [{ coinId: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', qty: 1, avgPrice: 100, exitPrice: 0 }];
+    renderDrawer(<OpDrawer open onClose={vi.fn()} onSubmit={vi.fn()} onSubmitTrade={vi.fn()} assets={assets} platformAssets={[]} ops={[buyOp]} avatarCache={{}} prices={{}} />);
+    // Waits out the CurrencyProvider's own getExchangeRates() call so the custom
+    // 5:1 rate above is the one actually in effect before reading the preview.
+    await waitFor(() => expect(api.getExchangeRates).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Venda' }));
+    selectCustomPlatform(screen.getByLabelText('Plataforma'), 'Binance');
+    await selectCoin(screen.getByLabelText('Moeda vendida'), { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' });
+    fireEvent.change(screen.getByLabelText('Quantidade'), { target: { value: '1' } });
+    fireEvent.change(screen.getByLabelText('Preço unit.'), { target: { value: '600' } });
+    // Sell: 600 BRL / 5 = 120 USD. Buy lot: 100 USD. P/L = 20 USD * 5 (BRL rate) = 100 BRL.
+    // The pre-fix code subtracted 600 - 100 = 500 directly, showing "R$ 500,00".
+    await waitFor(() => {
+      const pnl = document.querySelector('.pnl-preview span:last-child');
+      expect(pnl).toHaveTextContent('100,00');
+      expect(pnl).not.toHaveTextContent('500,00');
+    });
+  });
+
   it('returns to idle without closing when onSubmit rejects', async () => {
     const onSubmit = vi.fn(() => Promise.reject(new Error('network error')));
     const onClose = vi.fn();

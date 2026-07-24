@@ -1,7 +1,7 @@
 'use client';
 
 import { Asset, AssetWithPlatform, GroupMode, Prices, PlatformKind } from '@/lib/types';
-import { fmtPct, fmtQty } from '@/lib/format';
+import { fmtPct, fmtQty, currencySymbol } from '@/lib/format';
 import { computePositionsByAssetAndPlatform } from '@/lib/portfolio';
 import { Op, OpClosure } from '@/lib/types';
 import { useLocale } from '@/context/LocaleContext';
@@ -203,6 +203,12 @@ export default function WalletTab({ ops, closures, assets, prices, avatarCache, 
               <td className="num">{p ? <span className={`pill ${pct >= 0 ? 'up' : 'down'}`}>{fmtPct(pct)}</span> : '—'}</td>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {/* Kept as a plain uncontrolled input (not MoneyField/NumericField, both
+                      controlled-only) — onExitPriceChange awaits a network round trip on every
+                      keystroke, so binding `value` to the not-yet-updated exitPrice prop would
+                      fight the user mid-type. Still shows the live currency symbol so a typed
+                      target isn't silently mislabeled after a currency switch. */}
+                  <span style={{ fontSize: 12, color: 'var(--s-text-dim)' }}>{currencySymbol(currency, locale)}</span>
                   <input
                     type="number" className="exit-input" placeholder="—" step="any"
                     defaultValue={a.exitPrice || ''}
