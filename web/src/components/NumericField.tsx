@@ -43,6 +43,11 @@ export default function NumericField({
   };
 
   const inpClass = ['inp', prefix && 'has-pre', suffix && 'has-suf', badge && 'has-badge', error && 'err'].filter(Boolean).join(' ');
+  // Sized to the actual prefix text (currency symbols vary from 1 char, "€", to 3,
+  // "US$") instead of one fixed padding — a constant wide enough for "US$" left an
+  // awkward gap after "R$" (the app's default currency), and one tight enough for
+  // "R$" clipped into "US$"'s digits.
+  const prefixPadding = prefix ? `${12 + prefix.length * 7.5 + 6}px` : undefined;
 
   return (
     <div className="fld">
@@ -51,6 +56,7 @@ export default function NumericField({
         {prefix && <span className="affix pre">{prefix}</span>}
         <input
           id={id} type="number" inputMode="decimal" className={inpClass}
+          style={prefixPadding ? { paddingLeft: prefixPadding } : undefined}
           value={value} placeholder={placeholder} readOnly={readOnly}
           onChange={e => onChange(e.target.value)}
         />

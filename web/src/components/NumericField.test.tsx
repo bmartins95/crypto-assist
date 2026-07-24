@@ -34,6 +34,18 @@ describe('NumericField', () => {
     expect(screen.getByLabelText('Preço')).toHaveClass('has-pre');
   });
 
+  it('widens the input\'s left padding for a longer prefix instead of using one fixed value', () => {
+    // Reproduces a real bug: a single fixed padding-left sized for the widest
+    // currency symbol ("US$") left the shorter, more common "R$" with an
+    // awkward gap, while a value tight enough for "R$" clipped into "US$"'s
+    // digits. Padding must scale with the actual prefix text.
+    renderField(<NumericField id="short" label="Curto" value="" onChange={vi.fn()} prefix="R$" />);
+    renderField(<NumericField id="long" label="Longo" value="" onChange={vi.fn()} prefix="US$" />);
+    const shortPadding = parseFloat((screen.getByLabelText('Curto') as HTMLElement).style.paddingLeft);
+    const longPadding = parseFloat((screen.getByLabelText('Longo') as HTMLElement).style.paddingLeft);
+    expect(longPadding).toBeGreaterThan(shortPadding);
+  });
+
   it('renders a suffix affix when provided', () => {
     renderField(<NumericField id="qty" label="Quantidade" value="" onChange={vi.fn()} suffix="SOL" />);
     const affix = document.querySelector('.affix.suf');

@@ -299,6 +299,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--s-text-dim); font-size: 13.5px; pointer-events: none;
 }
 .nf .affix.pre { left: 12px; }
+/* NumericField sets an inline padding-left sized to the actual prefix text
+   (currency symbols vary from 1 char, "€", to 3, "US$") — this is only the
+   fallback for a prefix rendered without that inline style. */
 .nf .inp.has-pre { padding-left: 34px; }
 .nf .affix.suf { right: 12px; }
 .nf .inp.has-suf { padding-right: 44px; }
