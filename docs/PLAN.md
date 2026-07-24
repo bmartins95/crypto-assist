@@ -232,3 +232,33 @@ Move the auth kit (`AuthShell`, `AuthCard`, `BrandMark`, `ProviderButton`, `Auth
 
 ---
 
+## Item 31 — Currency-consistency fixes (wallet balance, money display, exit price)
+**Branch:** `fix/wallet-currency-and-money-display`
+**Depends on:** none — bug fixes against existing item 10/26/28 behavior, not a new feature
+
+- [ ] Done
+
+### Current state
+Found live-debugging a real prod bug: a Troca (swap) op failed with a generic "operation failed" toast despite the wallet holding enough balance. Root-caused via prod CloudWatch logs to the negative-balance guard grouping wallet ops by `(coinId, platformId, currency)` when it only ever needs quantity — no cost-basis math happens server-side at all. The currency split falsely fragmented one real holding the moment a user's op history spanned more than one recorded currency (e.g. after switching their Settings currency preference). Auditing the same code area surfaced three further currency-consistency bugs.
+
+### PR
+[PR #104](https://github.com/bmartins95/crypto-assist/pull/104), branch `fix/wallet-currency-and-money-display`, not yet merged. Commits:
+1. `fix: stop wallet balance checks from splitting by op currency` — dropped `currency` from the grouping key in `backend/app/routes/ops.py`'s `_wallet_ops_for_group` and `shared/src/walletFifo.ts`'s `walletOpsForTuple`.
+2. `fix: show the selected currency symbol on op form fields` — `OpDrawer.tsx`'s price/fee/total inputs hardcoded `prefix="R$"`; added `currencySymbol()` (shared) and a new `web/src/components/MoneyField.tsx` component.
+3. `fix: convert wallet P/L to a common currency before math` — `computeWalletRealizedPnl` mixed raw prices across currencies; now converts via `convertOpsToUsd` before the FIFO walk (History's per-row P/L and the drawer's live Sell preview).
+4. `fix: label the exit-price input with the selected currency` — `WalletTab.tsx`'s exit-price input had no currency indicator at all.
+5. `fix: scale MoneyField's prefix padding to the currency symbol` — a fixed padding-left sized for the widest symbol ("US$") overlapped shorter ones and left an awkward gap for the app's default ("R$"); now scales with `prefix.length`.
+6. `chore: remove stale duplicate item 30 block from plan` — unrelated docs cleanup found while editing this file (item 30's full detail had been left behind here instead of only living in PLAN_ARCHIVE.md).
+
+### New rule
+`web/AGENTS.md` now requires `MoneyField` (never a raw `NumericField` with a literal prefix) for any money input, and `fmtMoney`/`fmtMoneyCompact`/`fmtFromCurrency` for any money display.
+
+### Known follow-up (not done)
+`computeWalletEditImpact`'s internal pnl-delta comparison (used only to decide whether to show an "N operations affected" edit/delete confirmation, never to display an exact figure) still doesn't convert cross-currency lots — lower stakes than the fixes above, left out to keep the PR scoped.
+
+### Done when
+- PR #104 merged to `develop`.
+- `pytest` (backend) and `npm test` (web) pass; every fix has a regression test confirmed to fail on the pre-fix code.
+
+---
+
