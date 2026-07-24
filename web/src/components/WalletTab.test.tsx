@@ -59,6 +59,19 @@ describe('WalletTab', () => {
     expect(onExitPriceChange).toHaveBeenCalledWith('bitcoin', '500');
   });
 
+  it('shows the exit price input labeled with the selected currency symbol', () => {
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} groupMode="asset" />);
+    const input = screen.getByPlaceholderText('—');
+    expect(input.previousSibling).toHaveTextContent('R$');
+  });
+
+  it('relabels the exit price prefix after switching to a different currency', () => {
+    localStorage.setItem('crypto-assist:currency', 'USD');
+    renderWithLocale(<WalletTab {...baseProps} assets={[asset]} groupMode="asset" />);
+    const input = screen.getByPlaceholderText('—');
+    expect(input.previousSibling).toHaveTextContent('US$');
+  });
+
   it('calls onGroupMode when switching the grouping buttons', () => {
     const onGroupMode = vi.fn();
     renderWithLocale(<WalletTab {...baseProps} assets={[asset]} onGroupMode={onGroupMode} groupMode="asset" />);
